@@ -42,7 +42,6 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;
 }
@@ -59,10 +58,12 @@ button:focus-visible {
 }
 
 #app {
-  max-width: 1280px;
+  width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+  box-sizing: border-box;
 }
 
 @media (prefers-color-scheme: light) {

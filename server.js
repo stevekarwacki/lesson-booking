@@ -1,4 +1,4 @@
-const { app, db } = require('./app');
+const { app } = require('./app');
 
 const port = process.env.PORT || 3000;
 
@@ -9,6 +9,8 @@ app.listen(port, () => {
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
+    const db = require('./db/index');
+
     db.close((err) => {
         if (err) {
             console.error('Error closing database:', err);

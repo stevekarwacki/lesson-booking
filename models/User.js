@@ -55,6 +55,7 @@ const findByEmail = (email) => {
 
 const createUser = async (userData) => {
     return new Promise((resolve, reject) => {
+        console.log(userData.name);
         db.run(
             'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [userData.name, userData.email, userData.password, userData.role || 'student'],
@@ -131,17 +132,43 @@ const findById = async (id) => {
     }
 };
 
-const updateUser = async (id, userData) => {
+const updateUser = (id, updates) => {
     return new Promise((resolve, reject) => {
-        db.run(
-            'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?',
-            [userData.name, userData.email, userData.role, id],
-            async (err) => {
-                if (err) reject(err);
-                await clearCache(id);
-                resolve();
+        const fields = [];
+        const values = [];
+        
+        if (updates.name !== undefined) {
+            fields.push('name = ?');
+            values.push(updates.name);
+        }
+        
+        if (updates.email !== undefined) {
+            fields.push('email = ?');
+            values.push(updates.email);
+        }
+        
+        if (updates.password !== undefined) {
+            fields.push('password = ?');
+            values.push(updates.password);
+        }
+        
+        if (fields.length === 0) {
+            resolve();
+            return;
+        }
+
+        values.push(id);
+        
+        const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+        
+        db.run(query, values, (err) => {
+            if (err) {
+                console.error('Database error:', err);
+                reject(err);
+                return;
             }
-        );
+            resolve();
+        });
     });
 };
 
@@ -159,14 +186,26 @@ const deleteUser = async (id) => {
     });
 };
 
-const updateUserRole = async (userId, role) => {
+const updateUserRole = (userId, role) => {
     return new Promise((resolve, reject) => {
         db.run(
             'UPDATE users SET role = ? WHERE id = ?',
             [role, userId],
             async (err) => {
-                if (err) reject(err);
-                await clearCache(userId);
+                if (err) {
+                    console.error('Database error:', err);
+                    reject(err);
+                    return;
+                }
+                
+                // Clear user cache if using caching
+                try {
+                    await clearCache(userId);
+                } catch (cacheErr) {
+                    console.error('Cache clear error:', cacheErr);
+                    // Don't reject for cache errors
+                }
+                
                 resolve();
             }
         );
@@ -175,6 +214,7 @@ const updateUserRole = async (userId, role) => {
 
 module.exports = {
     createUsersTable,
+    clearCache,
     createUser,
     findByEmail,
     findAll,

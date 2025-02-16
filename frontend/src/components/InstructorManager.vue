@@ -7,6 +7,8 @@ const allUsers = ref([])
 const error = ref('')
 const success = ref('')
 const showAddForm = ref(false)
+const showEditModal = ref(false)
+const editingInstructor = ref(null)
 const searchQuery = ref('')
 const selectedUser = ref(null)
 const isSearchFocused = ref(false)
@@ -56,13 +58,11 @@ const fetchInstructors = async () => {
                 'user-id': currentUser.value.id
             }
         })
-        if (!response.ok) {
-            throw new Error('Failed to fetch instructors')
-        }
-        instructors.value = await response.json()
+        if (!response.ok) throw new Error('Failed to fetch instructors')
+        const data = await response.json()
+        instructors.value = data
     } catch (err) {
         error.value = 'Error fetching instructors: ' + err.message
-        console.error('Error fetching instructors:', err)
     }
 }
 
@@ -79,7 +79,12 @@ const handleAddInstructor = async () => {
                 'Content-Type': 'application/json',
                 'user-id': currentUser.value.id
             },
-            body: JSON.stringify(newInstructor.value)
+            body: JSON.stringify({
+                user_id: selectedUser.value.id,
+                bio: newInstructor.value.bio,
+                specialties: newInstructor.value.specialties,
+                hourly_rate: newInstructor.value.hourly_rate
+            })
         })
 
         if (!response.ok) {
@@ -114,26 +119,6 @@ const clearSelection = () => {
     searchQuery.value = ''
 }
 
-const removeInstructor = async (userId) => {
-    if (!confirm('Are you sure you want to remove this instructor?')) return
-
-    try {
-        const response = await fetch(`/api/instructors/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'user-id': currentUser.value.id
-            }
-        })
-
-        if (!response.ok) throw new Error('Failed to remove instructor')
-
-        success.value = 'Instructor removed successfully'
-        await fetchInstructors()
-    } catch (err) {
-        error.value = err.message
-    }
-}
-
 const handleSearchFocus = () => {
     isSearchFocused.value = true
 }
@@ -145,6 +130,93 @@ const handleSearchBlur = () => {
     }, 200)
 }
 
+const deleteInstructor = async (instructorId) => {
+    if (!confirm('Are you sure you want to delete this instructor?')) return
+
+    try {
+        const response = await fetch(`/api/admin/instructors/${instructorId}`, {
+            method: 'DELETE',
+            headers: {
+                'user-id': currentUser.value.id
+            }
+        })
+        if (!response.ok) throw new Error('Failed to delete instructor')
+        
+        success.value = 'Instructor deleted successfully'
+        await fetchInstructors()
+    } catch (err) {
+        error.value = 'Error deleting instructor: ' + err.message
+    }
+}
+
+const openEditModal = (instructor) => {
+    editingInstructor.value = { ...instructor }
+    showEditModal.value = true
+}
+
+const closeEditModal = () => {
+    editingInstructor.value = null
+    showEditModal.value = false
+}
+
+const saveInstructorEdit = async () => {
+    try {
+        const updateData = {
+            hourly_rate: editingInstructor.value.hourly_rate,
+            specialties: editingInstructor.value.specialties,
+            bio: editingInstructor.value.bio
+        };
+        console.log('Sending update data:', updateData);
+        
+        const response = await fetch(`/api/admin/instructors/${editingInstructor.value.id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': currentUser.value.id
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update instructor');
+        }
+        
+        const result = await response.json();
+        console.log('Update response:', result);
+        
+        success.value = 'Instructor updated successfully';
+        closeEditModal();
+        await fetchInstructors();
+    } catch (err) {
+        console.error('Error in saveInstructorEdit:', err);
+        error.value = 'Error updating instructor: ' + err.message;
+    }
+}
+
+const toggleInstructorActive = async (instructor) => {
+    try {
+        const response = await fetch(`/api/instructors/${instructor.id}/toggle-active`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': currentUser.value.id
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update instructor status');
+        }
+
+        // Refresh the instructor list
+        await fetchInstructors();
+        
+        success.value = `Instructor ${instructor.is_active ? 'deactivated' : 'activated'} successfully`;
+    } catch (err) {
+        error.value = err.message;
+    }
+};
+
 onMounted(() => {
     fetchUsers()
     fetchInstructors()
@@ -152,18 +224,46 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="instructor-manager card">
+    <div class="instructor-manager">
         <h2>Manage Instructors</h2>
+        
+        <div v-if="error" class="alert alert-danger">{{ error }}</div>
+        <div v-if="success" class="alert alert-success">{{ success }}</div>
 
-        <div v-if="error" class="error-message">{{ error }}</div>
-        <div v-if="success" class="success-message">{{ success }}</div>
+        <button class="btn btn-primary mb-3" @click="showAddForm = true">Add Instructor</button>
 
-        <button 
-            @click="showAddForm = !showAddForm" 
-            class="add-button"
-        >
-            {{ showAddForm ? 'Cancel' : 'Add New Instructor' }}
-        </button>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Specialties</th>
+                    <th>Rate</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="instructor in instructors" :key="instructor.id">
+                    <td>{{ instructor.name }}</td>
+                    <td>{{ instructor.email }}</td>
+                    <td>{{ instructor.specialties || 'Not specified' }}</td>
+                    <td>${{ instructor.hourly_rate || '0' }}/hr</td>
+                    <td>
+                        <span :class="['badge', instructor.is_active ? 'badge-success' : 'badge-warning']">
+                            {{ instructor.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary me-1" @click="openEditModal(instructor)">Edit</button>
+                        <button class="btn btn-sm btn-warning me-1" @click="toggleInstructorActive(instructor)">
+                            {{ instructor.is_active ? 'Deactivate' : 'Activate' }}
+                        </button>
+                        <button class="btn btn-sm btn-danger" @click="deleteInstructor(instructor.id)">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
         <div v-if="showAddForm" class="add-form">
             <h3>Add New Instructor</h3>
@@ -268,36 +368,42 @@ onMounted(() => {
             </form>
         </div>
 
-        <div class="instructors-list">
-            <h3>Current Instructors</h3>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Specialties</th>
-                            <th>Rate</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="instructor in instructors" :key="instructor.id">
-                            <td>{{ instructor.name }}</td>
-                            <td>{{ instructor.email }}</td>
-                            <td>{{ instructor.specialties }}</td>
-                            <td>${{ instructor.hourly_rate }}/hr</td>
-                            <td>
-                                <button 
-                                    @click="removeInstructor(instructor.user_id)"
-                                    class="remove-button"
-                                >
-                                    Remove
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- Edit Modal -->
+        <div v-if="showEditModal" class="modal">
+            <div class="modal-content">
+                <h3>Edit Instructor</h3>
+                <form @submit.prevent="saveInstructorEdit">
+                    <div class="form-group">
+                        <label>Hourly Rate ($)</label>
+                        <input 
+                            type="number" 
+                            v-model="editingInstructor.hourly_rate"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Specialties</label>
+                        <input 
+                            type="text" 
+                            v-model="editingInstructor.specialties"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Bio</label>
+                        <textarea 
+                            v-model="editingInstructor.bio"
+                            class="form-control"
+                            required
+                        ></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-secondary" @click="closeEditModal">Cancel</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -305,111 +411,13 @@ onMounted(() => {
 
 <style scoped>
 .instructor-manager {
-    margin-bottom: var(--spacing-lg);
-}
-
-.add-button {
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-md);
-    cursor: pointer;
-}
-
-.add-form {
     background: white;
-    padding: 24px;
+    padding: var(--spacing-lg);
     border-radius: var(--border-radius);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    margin-top: 16px;
+    box-shadow: var(--card-shadow);
 }
 
-.add-form h3 {
-    margin-top: 0;
-    margin-bottom: 24px;
-    color: var(--secondary-color);
-}
-
-.form-group {
-    margin-bottom: 20px;
-    position: relative;
-}
-
-.form-group:last-of-type {
-    margin-bottom: 24px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    color: var(--secondary-color);
-    font-weight: 500;
-}
-
-.form-group input,
-.form-group textarea {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    color: var(--secondary-color);
-    background-color: white;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-    color: #999;
-}
-
-.form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.form-group input[type="number"] {
-    -moz-appearance: textfield; /* Firefox */
-}
-
-.form-group input[type="number"]::-webkit-outer-spin-button,
-.form-group input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.submit-button {
-    width: 100%;
-    padding: 12px;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.submit-button:hover {
-    background-color: var(--primary-dark);
-}
-
-.submit-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-}
-
-.table-container {
+.instructors-table {
     overflow-x: auto;
 }
 
@@ -420,143 +428,106 @@ table {
 }
 
 th, td {
-    padding: 12px;
+    padding: var(--spacing-sm);
     text-align: left;
     border-bottom: 1px solid #ddd;
 }
 
 th {
-    background-color: #f8f9fa;
+    background-color: var(--background-color);
     font-weight: 600;
+    color: var(--secondary-color);
 }
 
-.remove-button {
-    background: var(--error-color);
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-}
-
-.search-container {
-    position: relative;
+.header-actions {
+    margin-bottom: var(--spacing-lg);
     display: flex;
+    justify-content: flex-end;
+}
+
+.instructor-card {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
 }
 
-.search-container input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    color: var(--secondary-color);
-    background-color: white;
-    transition: border-color 0.2s, box-shadow 0.2s;
+.instructor-actions {
+    display: flex;
+    gap: var(--spacing-sm);
 }
 
-.search-container input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
-}
-
-.search-container input::placeholder {
-    color: #999;
-}
-
-.search-container input.has-selection {
-    background-color: #f8f9fa;
-    color: var(--secondary-color);
-    font-weight: 500;
-}
-
-.clear-button {
-    position: absolute;
-    right: 8px;
-    background: none;
-    border: none;
-    color: #666;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0 5px;
-}
-
-.clear-button:hover {
-    color: var(--error-color);
-}
-
-.search-results {
-    position: absolute;
-    top: 100%;
+.modal {
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    margin-top: 4px;
-}
-
-.search-result-item {
-    padding: 10px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-}
-
-.search-result-item:last-child {
-    border-bottom: none;
-}
-
-.search-result-item:hover {
-    background-color: #f5f5f5;
-}
-
-.user-info {
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
 
-.user-info strong {
-    color: var(--secondary-color);
-}
-
-.user-info span {
-    font-size: 0.9em;
-    color: #666;
-}
-
-.selected-user {
-    margin-top: 10px;
-    padding: 10px;
-    background: #f8f9fa;
+.modal-content {
+    background: white;
     border-radius: var(--border-radius);
-    border: 1px solid #ddd;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--card-shadow);
 }
 
-.selected-user p {
+.modal-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
     margin: 0;
     color: var(--secondary-color);
 }
 
-.no-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    padding: 10px;
-    color: #666;
-    text-align: center;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    margin-top: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 1000;
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--secondary-color);
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+}
+
+.modal-footer {
+    padding: var(--spacing-md);
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.me-1 {
+    margin-right: 4px;
 }
 </style> 

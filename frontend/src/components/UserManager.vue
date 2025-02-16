@@ -5,9 +5,59 @@ import { currentUser } from '../stores/userStore'
 const users = ref([])
 const error = ref('')
 const success = ref('')
+const showAddForm = ref(false)
+const showEditModal = ref(false)
+const editingUser = ref(null)
 
 // Computed property to safely get current user ID
 const currentUserId = computed(() => currentUser.value?.id)
+
+// New user form data
+const newUser = ref({
+    name: '',
+    email: '',
+    password: '',
+    role: 'student'
+})
+
+const resetNewUser = () => {
+    newUser.value = {
+        name: '',
+        email: '',
+        password: '',
+        role: 'student'
+    }
+}
+
+const addUser = async () => {
+    if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
+        error.value = 'All fields are required'
+        return
+    }
+
+    try {
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': currentUserId.value
+            },
+            body: JSON.stringify(newUser.value)
+        })
+
+        if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to create user')
+        }
+
+        success.value = 'User created successfully'
+        showAddForm.value = false
+        resetNewUser()
+        await fetchUsers()
+    } catch (err) {
+        error.value = 'Error creating user: ' + err.message
+    }
+}
 
 const fetchUsers = async () => {
     if (!currentUserId.value) {
@@ -57,19 +107,31 @@ const deleteUser = async (userId) => {
     }
 }
 
-const updateUserRole = async (userId, newRole) => {
+const openEditModal = (user) => {
+    editingUser.value = { ...user }
+    showEditModal.value = true
+}
+
+const closeEditModal = () => {
+    editingUser.value = null
+    showEditModal.value = false
+}
+
+const saveUserEdit = async () => {
     try {
-        const response = await fetch(`/api/admin/users/${userId}`, {
+        const response = await fetch(`/api/admin/users/${editingUser.value.id}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'user-id': currentUserId.value
             },
-            body: JSON.stringify({ role: newRole })
+            body: JSON.stringify({ role: editingUser.value.role })
         })
+        
         if (!response.ok) throw new Error('Failed to update user role')
         
         success.value = 'User role updated successfully'
+        closeEditModal()
         await fetchUsers()
     } catch (err) {
         error.value = 'Error updating user role: ' + err.message
@@ -85,8 +147,66 @@ onMounted(() => {
 
 <template>
     <div class="user-manager card">
+        <div class="header-actions">
+            <button 
+                class="btn btn-primary"
+                @click="showAddForm = !showAddForm"
+            >
+                {{ showAddForm ? 'Cancel' : 'Add New User' }}
+            </button>
+        </div>
+
         <div v-if="error" class="error-message">{{ error }}</div>
         <div v-if="success" class="success-message">{{ success }}</div>
+
+        <div v-if="showAddForm" class="add-form">
+            <h3>Add New User</h3>
+            <form @submit.prevent="addUser">
+                <div class="form-group">
+                    <label for="name">Name:</label>
+                    <input 
+                        id="name"
+                        v-model="newUser.name"
+                        type="text"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input 
+                        id="email"
+                        v-model="newUser.email"
+                        type="email"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input 
+                        id="password"
+                        v-model="newUser.password"
+                        type="password"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Role:</label>
+                    <select 
+                        id="role"
+                        v-model="newUser.role"
+                    >
+                        <option value="student">Student</option>
+                        <option value="instructor">Instructor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-success">Create User</button>
+            </form>
+        </div>
 
         <div v-if="users.length === 0" class="loading">Loading users...</div>
 
@@ -104,21 +224,18 @@ onMounted(() => {
                     <tr v-for="user in users" :key="user.id">
                         <td>{{ user.name }}</td>
                         <td>{{ user.email }}</td>
-                        <td>
-                            <select 
-                                v-model="user.role"
-                                @change="updateUserRole(user.id, user.role)"
+                        <td>{{ user.role }}</td>
+                        <td class="actions">
+                            <button 
+                                @click="openEditModal(user)"
+                                class="btn btn-primary"
                                 :disabled="user.id === currentUserId"
                             >
-                                <option value="student">Student</option>
-                                <option value="instructor">Instructor</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </td>
-                        <td>
+                                Edit
+                            </button>
                             <button 
                                 @click="deleteUser(user.id)"
-                                class="delete-button"
+                                class="btn btn-danger"
                                 :disabled="user.id === currentUserId"
                             >
                                 Delete
@@ -127,6 +244,45 @@ onMounted(() => {
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Edit Modal -->
+        <div v-if="showEditModal" class="modal-overlay">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Edit User</h3>
+                    <button class="close-button" @click="closeEditModal">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" :value="editingUser?.name" disabled />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" :value="editingUser?.email" disabled />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editRole">Role:</label>
+                        <select 
+                            id="editRole"
+                            v-model="editingUser.role"
+                        >
+                            <option value="student">Student</option>
+                            <option value="instructor">Instructor</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
+                    <button class="btn btn-primary" @click="saveUserEdit">Save Changes</button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -137,22 +293,6 @@ onMounted(() => {
     padding: var(--spacing-lg);
     border-radius: var(--border-radius);
     box-shadow: var(--card-shadow);
-}
-
-.error-message {
-    color: var(--error-color);
-    margin-bottom: var(--spacing-md);
-    padding: var(--spacing-sm);
-    border: 1px solid var(--error-color);
-    border-radius: var(--border-radius);
-}
-
-.success-message {
-    color: var(--success-color);
-    margin-bottom: var(--spacing-md);
-    padding: var(--spacing-sm);
-    border: 1px solid var(--success-color);
-    border-radius: var(--border-radius);
 }
 
 .users-table {
@@ -177,13 +317,6 @@ th {
     color: var(--secondary-color);
 }
 
-select {
-    padding: 4px 8px;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    background-color: white;
-}
-
 .delete-button {
     padding: 4px 8px;
     background-color: var(--error-color);
@@ -202,5 +335,111 @@ select:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     background-color: #f5f5f5;
+}
+
+.header-actions {
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.add-button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+
+.add-form {
+    background: var(--background-color);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-lg);
+}
+
+.add-form h3 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    color: var(--secondary-color);
+}
+
+.submit-button {
+    background-color: var(--success-color);
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+
+.submit-button:hover {
+    opacity: 0.9;
+}
+
+.actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: white;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--card-shadow);
+}
+
+.modal-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--secondary-color);
+}
+
+.close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--secondary-color);
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+}
+
+.modal-footer {
+    padding: var(--spacing-md);
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+}
+
+/* Add to main.css if you want to reuse across components */
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
 }
 </style> 

@@ -16,7 +16,12 @@ router.post('/signup', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const userId = await User.createUser(name, email, hashedPassword);
+        const userId = await User.createUser({
+            name,
+            email,
+            password: hashedPassword
+        });
+
         console.log('User created successfully:', userId);
         
         // Return user data (excluding password) for automatic login

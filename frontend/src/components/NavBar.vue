@@ -42,27 +42,50 @@ const handleLogout = () => {
                 
                 <!-- Admin Links -->
                 <template v-if="isAdmin()">
-                    <router-link :to="{ name: 'manage-instructors' }" class="nav-link">
+                    <router-link 
+                        to="/admin/instructors" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
                         Manage Instructors
                     </router-link>
-                    <router-link to="/admin/users" class="nav-link">
+                    <router-link 
+                        to="/admin/users" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
                         Manage Users
+                    </router-link>
+                    <router-link 
+                        to="/admin/availability" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
+                        Manage Availability
                     </router-link>
                 </template>
 
                 <!-- Instructor Links -->
                 <template v-if="isInstructor()">
-                    <router-link to="/lessons" class="nav-link">
-                        My Lessons
+                    <router-link 
+                        to="/instructor/calendar" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
+                        My Calendar
                     </router-link>
-                    <router-link to="/schedule" class="nav-link">
-                        My Schedule
+                    <router-link 
+                        to="/availability" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
+                        My Availability
                     </router-link>
                 </template>
 
                 <!-- Student Links -->
                 <template v-if="isStudent()">
-                    <router-link to="/book" class="nav-link">
+                    <router-link to="/book-lesson" class="nav-link">
                         Book Lesson
                     </router-link>
                     <router-link to="/my-bookings" class="nav-link">

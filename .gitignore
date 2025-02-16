@@ -19,6 +19,7 @@
 *.db3
 *.db4
 *.db5
+*.rdb
 
 # Log files
 npm-debug.log*

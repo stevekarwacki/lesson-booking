@@ -21,7 +21,14 @@ const isAdmin = async (req, res, next) => {
 // Public route - Get all instructors
 router.get('/', async (req, res) => {
     try {
-        const instructors = await Instructor.getAllInstructors();
+        const userId = req.headers['user-id'];
+        const user = await User.findById(userId);
+        
+        // Admins can see all instructors, others only see active ones
+        const instructors = user.role === 'admin' 
+            ? await Instructor.getAll()
+            : await Instructor.getAllActive();
+            
         res.json(instructors);
     } catch (error) {
         console.error('Error fetching instructors:', error);
@@ -32,38 +39,33 @@ router.get('/', async (req, res) => {
 // Public route - Get instructor by user ID
 router.get('/user/:userId', async (req, res) => {
     try {
-        const instructor = await Instructor.getInstructorByUserId(req.params.userId);
+        const userId = req.params.userId;
+        const instructor = await Instructor.findByUserId(userId);
+        
         if (!instructor) {
             return res.status(404).json({ error: 'Instructor not found' });
         }
+        
         res.json(instructor);
     } catch (error) {
-        console.error('Error fetching instructor:', error);
         res.status(500).json({ error: 'Error fetching instructor' });
     }
 });
 
-// Admin only - Create new instructor
-router.post('/', isAdmin, async (req, res) => {
+// Add instructor
+router.post('/', async (req, res) => {
     try {
-        // First check if user exists and isn't already an instructor
-        const existingInstructor = await Instructor.getInstructorByUserId(req.body.user_id);
-        if (existingInstructor) {
-            return res.status(400).json({ error: 'User is already an instructor' });
-        }
-
-        const instructorId = await Instructor.createInstructor(req.body);
-        
-        // Update user role to 'instructor'
-        await User.updateUserRole(req.body.user_id, 'instructor');
-        
-        res.status(201).json({ 
-            message: 'Instructor created successfully',
-            instructorId 
-        });
+        await Instructor.createInstructor(req.body);
+        res.json({ message: 'Instructor added successfully' });
     } catch (error) {
-        console.error('Error creating instructor:', error);
-        res.status(500).json({ error: 'Error creating instructor' });
+        console.error('Error adding instructor:', error);
+        if (error.message === 'User not found') {
+            res.status(404).json({ error: error.message });
+        } else if (error.message === 'User is already an instructor') {
+            res.status(400).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'Failed to add instructor' });
+        }
     }
 });
 
@@ -78,16 +80,26 @@ router.put('/:userId', isAdmin, async (req, res) => {
     }
 });
 
-// Admin only - Delete instructor
-router.delete('/:userId', isAdmin, async (req, res) => {
+// Remove instructor
+router.delete('/:id', async (req, res) => {
     try {
-        await Instructor.deleteInstructor(req.params.userId);
-        // Reset user role back to 'student'
-        await User.updateUserRole(req.params.userId, 'student');
+        await Instructor.deleteInstructor(req.params.id);
         res.json({ message: 'Instructor removed successfully' });
     } catch (error) {
-        console.error('Error deleting instructor:', error);
-        res.status(500).json({ error: 'Error deleting instructor' });
+        console.error('Error removing instructor:', error);
+        res.status(500).json({ error: 'Failed to remove instructor' });
+    }
+});
+
+// Add new route for toggling active status (admin only)
+router.patch('/:id/toggle-active', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Instructor.toggleActive(id);
+        res.json({ message: 'Instructor active status updated successfully' });
+    } catch (error) {
+        console.error('Error updating instructor active status:', error);
+        res.status(500).json({ error: 'Error updating instructor active status' });
     }
 });
 

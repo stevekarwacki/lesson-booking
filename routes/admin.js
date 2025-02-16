@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const bcrypt = require('bcrypt');
+const Instructor = require('../models/Instructor');
 
 // Middleware to check if user is admin
 const isAdmin = async (req, res, next) => {
@@ -55,11 +57,22 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
 // Update user role
 router.patch('/users/:id', isAdmin, async (req, res) => {
     try {
-        await User.updateUser(req.params.id, { role: req.body.role });
+        const { id } = req.params;
+        const { role } = req.body;
+
+        // Validate role
+        const validRoles = ['student', 'instructor', 'admin'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        // Update user role
+        await User.updateUserRole(id, role);
+        
         res.json({ message: 'User role updated successfully' });
     } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(500).json({ error: 'Error updating user' });
+        console.error('Error updating user role:', error);
+        res.status(500).json({ error: 'Error updating user role' });
     }
 });
 
@@ -80,5 +93,63 @@ router.get('/users/search', async (req, res) => {
         res.status(500).json({ error: 'Error searching users' })
     }
 })
+
+// Add new user
+router.post('/users', isAdmin, async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+        
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Name, email, and password are required' });
+        }
+
+        // Hash password before storing
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const userId = await User.createUser({
+            name,
+            email,
+            password: hashedPassword,
+            role: role || 'student'
+        });
+
+        res.status(201).json({ message: 'User created successfully', userId });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ error: 'Error creating user' });
+    }
+});
+
+// Update instructor
+router.patch('/instructors/:id', isAdmin, async (req, res) => {
+    console.log('Received PATCH request for instructor:', req.params.id);
+    console.log('Request body:', req.body);
+    
+    try {
+        const { hourly_rate, specialties, bio } = req.body;
+        console.log('Extracted values:', { hourly_rate, specialties, bio });
+        
+        await Instructor.updateInstructor(req.params.id, { 
+            hourly_rate, 
+            specialties, 
+            bio 
+        });
+        res.json({ message: 'Instructor updated successfully' });
+    } catch (error) {
+        console.error('Error updating instructor:', error);
+        res.status(500).json({ error: 'Error updating instructor' });
+    }
+});
+
+// Delete user
+router.delete('/instructors/:id', isAdmin, async (req, res) => {
+    try {
+        await Instructor.deleteInstructor(req.params.id);
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting instructor:', error);
+        res.status(500).json({ error: 'Error deleting instructor' });
+    }
+});
 
 module.exports = router; 

@@ -13,18 +13,19 @@ const handleLogout = () => {
 <template>
     <div class="app">
         <NavBar @logout="handleLogout" />
-
-        <main class="main-content">
-            <template v-if="!currentUser">
-                <div class="auth-forms">
-                    <LoginForm />
-                    <SignupForm />
-                </div>
-            </template>
-            <template v-else>
-                <router-view></router-view>
-            </template>
-        </main>
+        <div class="container">
+            <main class="main-content">
+                <template v-if="!currentUser">
+                    <div class="auth-forms">
+                        <LoginForm />
+                        <SignupForm />
+                    </div>
+                </template>
+                <template v-else>
+                    <router-view></router-view>
+                </template>
+            </main>
+        </div>
     </div>
 </template>
 
@@ -51,5 +52,11 @@ const handleLogout = () => {
     .auth-forms {
         grid-template-columns: 1fr;
     }
+}
+
+/* Move navbar outside container for full-width */
+.navbar {
+    width: 100%;
+    margin-bottom: var(--spacing-lg);
 }
 </style>
