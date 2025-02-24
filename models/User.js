@@ -212,6 +212,19 @@ const updateUserRole = (userId, role) => {
     });
 };
 
+const setApprovalStatus = (userId, isApproved) => {
+    return new Promise((resolve, reject) => {
+        db.run(
+            'UPDATE users SET is_approved = ? WHERE id = ?',
+            [isApproved ? 1 : 0, userId],
+            (err) => {
+                if (err) reject(err);
+                else resolve();
+            }
+        );
+    });
+};
+
 module.exports = {
     createUsersTable,
     clearCache,
@@ -221,5 +234,6 @@ module.exports = {
     findById,
     updateUser,
     deleteUser,
-    updateUserRole
+    updateUserRole,
+    setApprovalStatus
 }; 

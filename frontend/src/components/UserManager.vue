@@ -69,21 +69,19 @@ const fetchUsers = async () => {
     try {
         const response = await fetch('/api/admin/users', {
             headers: {
-                'Content-Type': 'application/json',
                 'user-id': currentUserId.value
             }
         })
-
-        const data = await response.json()
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to fetch users')
-        }
-
-        users.value = data
+        if (!response.ok) throw new Error('Failed to fetch users')
+        users.value = await response.json()
+        // Make sure is_approved is a boolean
+        users.value = users.value.map(user => ({
+            ...user,
+            is_approved: Boolean(user.is_approved)
+        }))
     } catch (err) {
-        console.error('Error in fetchUsers:', err)
-        error.value = 'Error fetching users: ' + err.message
+        error.value = 'Failed to load users'
+        console.error(err)
     }
 }
 
@@ -119,22 +117,35 @@ const closeEditModal = () => {
 
 const saveUserEdit = async () => {
     try {
-        const response = await fetch(`/api/admin/users/${editingUser.value.id}`, {
+        // Update role
+        const roleResponse = await fetch(`/api/admin/users/${editingUser.value.id}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'user-id': currentUserId.value
             },
             body: JSON.stringify({ role: editingUser.value.role })
-        })
+        });
         
-        if (!response.ok) throw new Error('Failed to update user role')
+        if (!roleResponse.ok) throw new Error('Failed to update user role');
+
+        // Update approval status
+        const approvalResponse = await fetch(`/api/users/${editingUser.value.id}/approval`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'user-id': currentUserId.value
+            },
+            body: JSON.stringify({ isApproved: editingUser.value.is_approved })
+        });
+
+        if (!approvalResponse.ok) throw new Error('Failed to update approval status');
         
-        success.value = 'User role updated successfully'
-        closeEditModal()
-        await fetchUsers()
+        success.value = 'User updated successfully';
+        closeEditModal();
+        await fetchUsers();
     } catch (err) {
-        error.value = 'Error updating user role: ' + err.message
+        error.value = 'Error updating user: ' + err.message;
     }
 }
 
@@ -275,6 +286,16 @@ onMounted(() => {
                             <option value="instructor">Instructor</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input 
+                                type="checkbox"
+                                v-model="editingUser.is_approved"
+                            >
+                            Account Approved
+                        </label>
                     </div>
                 </div>
                 

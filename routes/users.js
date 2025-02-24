@@ -35,4 +35,24 @@ router.patch('/:id', async (req, res) => {
     }
 });
 
+// Update user approval status (admin only)
+router.post('/:userId/approval', async (req, res) => {
+    try {
+        const { isApproved } = req.body;
+        const userId = req.params.userId;
+        const adminId = req.headers['user-id'];
+
+        // Check if user is admin
+        const admin = await User.findById(adminId);
+        if (!admin || admin.role !== 'admin') {
+            return res.status(403).json({ error: 'Only admins can approve users' });
+        }
+
+        await User.setApprovalStatus(userId, isApproved);
+        res.json({ message: 'User approval status updated successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error updating user approval status' });
+    }
+});
+
 module.exports = router; 
