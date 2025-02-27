@@ -57,23 +57,39 @@ router.post('/book', async (req, res) => {
         const studentId = req.headers['user-id'];
 
         // 1. Check if the time slot falls within instructor's weekly availability
-        const date = new Date(startTime);
-        const dayOfWeek = date.getDay();
-        
-        
+        const requestedDate = new Date(startTime);
+        const dayOfWeek = requestedDate.getDay();
+
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
         const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
-            if (slot.day_of_week !== dayOfWeek) return false;
+            if (slot.day_of_week !== dayOfWeek) {
+                return false;
+            }
             
-            const slotStart = new Date(`${date.toISOString().split('T')[0]}T${slot.start_time}`);
-            const slotEnd = new Date(`${date.toISOString().split('T')[0]}T${slot.end_time}`);
+            // Extract hours and minutes from the time strings
+            const [startHour, startMinute] = slot.start_time.split(':').map(Number);
+            const [endHour, endMinute] = slot.end_time.split(':').map(Number);
             
-            return date >= slotStart && new Date(endTime) <= slotEnd;
+            // Create Date objects for comparison
+            const slotStart = new Date(requestedDate);
+            slotStart.setHours(startHour, startMinute, 0, 0);
+            
+            const slotEnd = new Date(requestedDate);
+            slotEnd.setHours(endHour, endMinute, 0, 0);
+            
+            const requestedStart = new Date(startTime);
+            const requestedEnd = new Date(endTime);
+            
+            return requestedStart >= slotStart && requestedEnd <= slotEnd;
         });
 
         if (!isTimeInWeeklySchedule) {
-            return res.status(400).json({ error: 'Selected time is outside instructor\'s availability' });
+            return res.status(400).json({ 
+                error: 'Selected time is outside instructor\'s availability',
+                dayOfWeek,
+                availableDays: weeklyAvailability.map(slot => slot.day_of_week)
+            });
         }
 
         // 2. Check for any blocked times
