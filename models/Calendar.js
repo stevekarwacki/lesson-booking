@@ -1,33 +1,73 @@
 const db = require('../db');
 
-const createCalendarTable = async () => {
-    try {
-        return new Promise((resolve, reject) => {
-            db.run(`
-                CREATE TABLE IF NOT EXISTS calendar_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    instructor_id INTEGER NOT NULL,
-                    title TEXT NOT NULL,
-                    start_time DATETIME NOT NULL,
-                    end_time DATETIME NOT NULL,
-                    status TEXT DEFAULT 'available' CHECK(status IN ('available', 'booked', 'unavailable')),
-                    student_id INTEGER,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE,
-                    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL
-                )
-            `, (err) => {
-                if (err) reject(err);
-                resolve();
-            });
-        });
-    } catch (error) {
-        console.error('Error setting up calendar table:', error);
-        throw error;
-    }
-};
-
 const Calendar = {
+    createCalendarTable: async () => {
+        try {
+            return new Promise((resolve, reject) => {
+                db.run(`
+                    CREATE TABLE IF NOT EXISTS calendar_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        instructor_id INTEGER NOT NULL REFERENCES instructors(id),
+                        student_id INTEGER NOT NULL REFERENCES users(id),
+                        start_time DATETIME NOT NULL,
+                        end_time DATETIME NOT NULL,
+                        status TEXT NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        CHECK (end_time > start_time)
+                    );
+    
+                    CREATE INDEX IF NOT EXISTS idx_calendar_events_instructor_time 
+                    ON calendar_events(instructor_id, start_time, end_time);
+    
+                    CREATE INDEX IF NOT EXISTS idx_calendar_events_student 
+                    ON calendar_events(student_id);
+                `, (err) => {
+                    if (err) reject(err);
+                    resolve();
+                });
+            });
+        } catch (error) {
+            console.error('Error setting up calendar table:', error);
+            throw error;
+        }
+    },
+
+    bookLesson: async (instructorId, studentId, startTime, endTime, status = 'pending') => {
+        try {
+            return new Promise((resolve, reject) => {
+                const query = `
+                    INSERT INTO calendar_events (
+                        instructor_id,
+                        student_id,
+                        start_time,
+                        end_time,
+                        status
+                    ) VALUES (?, ?, ?, ?, ?)
+                `;
+                
+                db.run(
+                    query, 
+                    [
+                        instructorId,
+                        studentId,
+                        startTime,
+                        endTime,
+                        status
+                    ],
+                    function(err) {
+                        if (err) reject(err);
+                        resolve(this.lastID);
+                    }
+                );
+            });
+        } catch (error) {
+            console.error('Error booking lesson:', error);
+            throw error;
+        }
+    },
+
     createEvent: (event) => {
         return new Promise((resolve, reject) => {
             db.run(
@@ -102,7 +142,4 @@ const Calendar = {
     }
 };
 
-module.exports = {
-    Calendar,
-    createCalendarTable
-}; 
+module.exports = Calendar; 

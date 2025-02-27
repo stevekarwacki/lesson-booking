@@ -1,41 +1,41 @@
 const db = require('../db/index');
 
-const createAvailabilityTables = async () => {
-    try {
-        // Recreate with TIME type for more precise time storage
-        await db.run(`
-            CREATE TABLE IF NOT EXISTS instructor_weekly_availability (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                instructor_id INTEGER NOT NULL,
-                day_of_week INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
-                start_time TIME NOT NULL,
-                end_time TIME NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
-            )
-        `);
-
-        // Time blocks where instructor is unavailable (overrides weekly schedule)
-        await db.run(`
-            CREATE TABLE IF NOT EXISTS instructor_blocked_times (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                instructor_id INTEGER NOT NULL,
-                start_datetime DATETIME NOT NULL,
-                end_datetime DATETIME NOT NULL,
-                reason TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
-            )
-        `);
-
-        console.log('Availability tables recreated successfully');
-    } catch (error) {
-        console.error('Error creating availability tables:', error);
-        throw error;
-    }
-};
-
 const InstructorAvailability = {
+    createAvailabilityTables: async () => {
+        try {
+            // Recreate with TIME type for more precise time storage
+            await db.run(`
+                CREATE TABLE IF NOT EXISTS instructor_weekly_availability (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    instructor_id INTEGER NOT NULL,
+                    day_of_week INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
+                )
+            `);
+    
+            // Time blocks where instructor is unavailable (overrides weekly schedule)
+            await db.run(`
+                CREATE TABLE IF NOT EXISTS instructor_blocked_times (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    instructor_id INTEGER NOT NULL,
+                    start_datetime DATETIME NOT NULL,
+                    end_datetime DATETIME NOT NULL,
+                    reason TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
+                )
+            `);
+    
+            console.log('Availability tables created successfully');
+        } catch (error) {
+            console.error('Error creating availability tables:', error);
+            throw error;
+        }
+    },
+
     // Weekly schedule methods
     setWeeklyAvailability: (instructorId, schedules) => {
         return new Promise((resolve, reject) => {
@@ -95,20 +95,16 @@ const InstructorAvailability = {
 
     getWeeklyAvailability: (instructorId) => {
         return new Promise((resolve, reject) => {
-            db.all(
-                `SELECT day_of_week, start_time, end_time 
-                 FROM instructor_weekly_availability 
-                 WHERE instructor_id = ?`,
-                [instructorId],
-                (err, rows) => {
-                    if (err) {
-                        console.error('Database error:', err);
-                        reject(err);
-                        return;
-                    }
-                    resolve(rows);
-                }
-            );
+            const query = `
+                SELECT * FROM instructor_weekly_availability 
+                WHERE instructor_id = ?
+                ORDER BY day_of_week, start_time
+            `;
+            
+            db.all(query, [instructorId], (err, rows) => {
+                if (err) reject(err);
+                resolve(rows || []);
+            });
         });
     },
 
@@ -164,8 +160,4 @@ const InstructorAvailability = {
     }
 };
 
-// Export for use in setup
-module.exports = {
-    createAvailabilityTables,
-    InstructorAvailability
-}; 
+module.exports = InstructorAvailability; 
