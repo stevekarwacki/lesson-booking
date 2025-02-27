@@ -14,20 +14,6 @@ router.get('/instructor/:instructorId', async (req, res) => {
     }
 });
 
-// Create new calendar event (instructor only)
-router.post('/', async (req, res) => {
-    try {
-        const eventId = await Calendar.createEvent(req.body);
-        res.status(201).json({ 
-            message: 'Event created successfully',
-            eventId 
-        });
-    } catch (error) {
-        console.error('Error creating calendar event:', error);
-        res.status(500).json({ error: 'Error creating calendar event' });
-    }
-});
-
 // Update calendar event (instructor only)
 router.patch('/:eventId', async (req, res) => {
     try {
@@ -51,7 +37,7 @@ router.delete('/:eventId', async (req, res) => {
 });
 
 // Book a lesson
-router.post('/book', async (req, res) => {
+router.post('/addEvent', async (req, res) => {
     try {
         const { instructorId, startTime, endTime } = req.body;
         const studentId = req.headers['user-id'];
@@ -123,7 +109,7 @@ router.post('/book', async (req, res) => {
         */
 
         // 4. Create the booking
-        const bookingId = await Calendar.bookLesson(
+        const bookingId = await Calendar.addEvent(
             instructorId,
             studentId,
             startTime,

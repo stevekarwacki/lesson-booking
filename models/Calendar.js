@@ -9,8 +9,8 @@ const Calendar = {
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         instructor_id INTEGER NOT NULL REFERENCES instructors(id),
                         student_id INTEGER NOT NULL REFERENCES users(id),
-                        start_time DATETIME NOT NULL,
-                        end_time DATETIME NOT NULL,
+                        start_time DATETIME UNIQUE NOT NULL,
+                        end_time DATETIME UNIQUE NOT NULL,
                         status TEXT NOT NULL DEFAULT 'pending'
                             CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -34,7 +34,7 @@ const Calendar = {
         }
     },
 
-    bookLesson: async (instructorId, studentId, startTime, endTime, status = 'pending') => {
+    addEvent: async (instructorId, studentId, startTime, endTime, status = 'pending') => {
         try {
             return new Promise((resolve, reject) => {
                 const query = `
@@ -66,23 +66,6 @@ const Calendar = {
             console.error('Error booking lesson:', error);
             throw error;
         }
-    },
-
-    createEvent: (event) => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                `INSERT INTO calendar_events (instructor_id, title, start_time, end_time, status)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [event.instructor_id, event.title, event.start_time, event.end_time, event.status || 'available'],
-                function(err) {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    resolve(this.lastID);
-                }
-            );
-        });
     },
 
     getInstructorEvents: (instructorId) => {
