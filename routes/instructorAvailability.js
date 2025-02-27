@@ -8,19 +8,9 @@ const Instructor = require('../models/Instructor');
 router.get('/:instructorId/weekly', async (req, res) => {
     try {
         const instructorId = req.params.instructorId;
-        const userId = req.headers['user-id'];
+        const schedule = await InstructorAvailability.getWeeklyAvailability(instructorId);
+        res.json(schedule || []);
 
-        // Get the user and their instructor info if they are an instructor
-        const user = await User.findById(userId);
-        const instructor = await Instructor.findByUserId(userId);
-
-        // Allow access if user is the instructor (comparing instructor IDs) or an admin
-        if ((instructor && instructor.id.toString() === instructorId.toString()) || user.role === 'admin') {
-            const schedule = await InstructorAvailability.getWeeklyAvailability(instructorId);
-            res.json(schedule || []);
-        } else {
-            res.status(403).json({ error: 'Unauthorized to view this schedule' });
-        }
     } catch (error) {
         res.status(500).json({ error: 'Error fetching weekly schedule' });
     }
@@ -102,6 +92,56 @@ router.delete('/blocked/:blockedTimeId', async (req, res) => {
         res.json({ message: 'Blocked time removed successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Error removing blocked time' });
+    }
+});
+
+// Get instructor's availability for a specific date
+router.get('/:instructorId/daily/:date', async (req, res) => {
+    try {
+        const { instructorId, date } = req.params;
+        const userId = req.headers['user-id'];
+
+        // Create date object in local timezone and get day of week
+        const localDate = new Date(date);
+        const utcDay = localDate.getUTCDay();
+        
+        // Get weekly schedule for this day
+        const schedule = await InstructorAvailability.getWeeklyAvailability(instructorId);
+        const daySchedule = schedule.filter(slot => slot.day_of_week === utcDay);
+
+        // Get blocked times for this date
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const blockedTimes = await InstructorAvailability.getBlockedTimes(
+            instructorId,
+            startOfDay.toISOString(),
+            endOfDay.toISOString()
+        );
+
+        // Filter out any slots that overlap with blocked times
+        const availableSlots = daySchedule.filter(slot => {
+            const slotStart = new Date(`${date}T${slot.start_time}`);
+            const slotEnd = new Date(`${date}T${slot.end_time}`);
+
+            return !blockedTimes.some(blocked => {
+                const blockStart = new Date(blocked.start_datetime);
+                const blockEnd = new Date(blocked.end_datetime);
+                return (
+                    (slotStart >= blockStart && slotStart < blockEnd) ||
+                    (slotEnd > blockStart && slotEnd <= blockEnd) ||
+                    (slotStart <= blockStart && slotEnd >= blockEnd)
+                );
+            });
+        });
+
+        res.json(availableSlots);
+    } catch (error) {
+        console.error('Error fetching daily availability:', error);
+        res.status(500).json({ error: 'Error fetching daily availability' });
     }
 });
 

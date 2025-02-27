@@ -6,7 +6,7 @@
         <!-- Weekly Schedule Section -->
         <div class="schedule-section card">
             <h3>Weekly Schedule</h3>
-            <WeeklyScheduleView 
+            <InstructorAvailabilityView 
                 v-model:weeklySchedule="weeklySchedule"
                 :blocked-times="blockedTimes"
                 @save="saveWeeklySchedule"
@@ -78,7 +78,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { currentUser } from '../stores/userStore'
-import WeeklyScheduleView from './WeeklyScheduleView.vue'
+import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
 
 const props = defineProps({
     instructorId: {
@@ -262,7 +262,7 @@ const addBlockedTime = async () => {
         newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' }
         await fetchBlockedTimes()
         
-        // Increment counter to force re-render of WeeklyScheduleView
+        // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++
     } catch (err) {
         error.value = 'Failed to add blocked time'
@@ -284,7 +284,7 @@ const removeBlockedTime = async (blockId) => {
         success.value = 'Blocked time removed successfully'
         await fetchBlockedTimes()
         
-        // Increment counter to force re-render of WeeklyScheduleView
+        // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++
     } catch (err) {
         error.value = 'Failed to remove blocked time'
