@@ -3,11 +3,16 @@
         <div class="schedule-header">
             <div class="empty-corner"></div>
             <div 
-                v-for="day in daysOfWeek" 
+                v-for="(day, index) in daysOfWeek" 
                 :key="day.value"
                 class="day-header"
+                :class="{ 
+                    'current-day': isCurrentDay(index),
+                    'past-day': isPastDay(index)
+                }"
             >
-                {{ day.label }}
+                <div class="day-name">{{ day.label }}</div>
+                <div class="day-date">{{ formatDayDate(index) }}</div>
             </div>
         </div>
 
@@ -20,13 +25,15 @@
                 >
                     <div class="time-label">{{ timeSlot.label }}</div>
                     <div 
-                        v-for="day in daysOfWeek" 
+                        v-for="(day, index) in daysOfWeek" 
                         :key="day.value"
                         class="schedule-cell"
                         :class="{
                             'available': isTimeAvailable(day.value, timeSlot.value),
                             'unavailable': !isTimeAvailable(day.value, timeSlot.value),
-                            'blocked': isTimeBlocked(day.value, timeSlot.value)
+                            'blocked': isTimeBlocked(day.value, timeSlot.value),
+                            'current-day': isCurrentDay(index),
+                            'past': isPastTimeSlot(index, timeSlot.value)
                         }"
                         @click="handleCellClick(day.value, timeSlot.value)"
                     >
@@ -46,10 +53,15 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
         type: Object,
+        required: true
+    },
+    weekStartDate: {
+        type: Date,
         required: true
     },
     blockedTimes: {
@@ -61,34 +73,30 @@ const props = defineProps({
 const emit = defineEmits(['slot-selected'])
 
 const daysOfWeek = [
-    { value: 0, label: 'Sunday' },
-    { value: 1, label: 'Monday' },
-    { value: 2, label: 'Tuesday' },
-    { value: 3, label: 'Wednesday' },
-    { value: 4, label: 'Thursday' },
-    { value: 5, label: 'Friday' },
-    { value: 6, label: 'Saturday' }
+    { value: 0, label: 'Sun' },
+    { value: 1, label: 'Mon' },
+    { value: 2, label: 'Tue' },
+    { value: 3, label: 'Wed' },
+    { value: 4, label: 'Thu' },
+    { value: 5, label: 'Fri' },
+    { value: 6, label: 'Sat' }
 ]
 
+const formatDayDate = (dayIndex) => {
+    const date = new Date(props.weekStartDate)
+    date.setDate(date.getDate() + dayIndex)
+    return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric'
+    })
+}
+
 const timeSlots = computed(() => {
-    const slots = []
-    // Generate time slots from 7 AM to 7 PM in 30-minute increments
-    for (let hour = 7; hour <= 19; hour++) {
-        for (let minute of [0, 30]) {
-            // Skip 7:30 PM
-            if (hour === 19 && minute === 30) continue;
-            
-            const period = hour >= 12 ? 'PM' : 'AM'
-            let displayHour = hour > 12 ? hour - 12 : hour
-            if (displayHour === 0) displayHour = 12
-            
-            slots.push({
-                value: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-                label: `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`
-            })
-        }
-    }
-    return slots
+    // Use generateTimeSlots but transform the output for our needs
+    return generateTimeSlots().map(slot => ({
+        value: slot.time,
+        label: formatSlotTime(slot.time)
+    }))
 })
 
 const isTimeAvailable = (dayOfWeek, timeStr) => {
@@ -144,14 +152,53 @@ const getBlockedReason = (dayOfWeek, timeStr) => {
     return blocked?.reason
 }
 
-const handleCellClick = (dayOfWeek, timeStr) => {
-    if (isTimeAvailable(dayOfWeek, timeStr) && !isTimeBlocked(dayOfWeek, timeStr)) {
+const handleCellClick = (dayValue, timeStr) => {
+    // Prevent clicks on past time slots
+    if (isPastTimeSlot(daysOfWeek.findIndex(d => d.value === dayValue), timeStr)) {
+        return
+    }
+    
+    if (isTimeAvailable(dayValue, timeStr) && !isTimeBlocked(dayValue, timeStr)) {
         emit('slot-selected', {
-            dayOfWeek,
+            dayOfWeek: dayValue,
             time: timeStr,
-            formatted: `${timeSlots.value.find(slot => slot.value === timeStr).label} on ${daysOfWeek.find(day => day.value === dayOfWeek).label}`
+            formatted: `${timeSlots.value.find(slot => slot.value === timeStr).label} on ${daysOfWeek.find(day => day.value === dayValue).label}`
         })
     }
+}
+
+const isCurrentDay = (dayIndex) => {
+    const today = new Date()
+    const dayDate = new Date(props.weekStartDate)
+    dayDate.setDate(dayDate.getDate() + dayIndex)
+    
+    return today.toDateString() === dayDate.toDateString()
+}
+
+const isPastDay = (dayIndex) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Start of today
+    
+    const dayDate = new Date(props.weekStartDate)
+    dayDate.setDate(dayDate.getDate() + dayIndex)
+    dayDate.setHours(0, 0, 0, 0) // Start of day
+    
+    return dayDate < today
+}
+
+const isPastTimeSlot = (dayIndex, timeStr) => {
+    if (isPastDay(dayIndex)) return true
+    
+    if (isCurrentDay(dayIndex)) {
+        const now = new Date()
+        const [hours, minutes] = timeStr.split(':').map(Number)
+        const slotTime = new Date()
+        slotTime.setHours(hours, minutes, 0, 0)
+        
+        return slotTime < now
+    }
+    
+    return false
 }
 </script>
 
@@ -173,10 +220,20 @@ const handleCellClick = (dayOfWeek, timeStr) => {
 }
 
 .day-header {
-    padding: 10px;
     text-align: center;
-    font-weight: bold;
-    background: var(--background-light);
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+}
+
+.day-name {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.day-date {
+    font-size: 0.875rem;
+    color: var(--text-muted);
 }
 
 .schedule-body {
@@ -227,7 +284,7 @@ const handleCellClick = (dayOfWeek, timeStr) => {
 }
 
 .schedule-cell:hover {
-    opacity: 0.7;
+    opacity: 0.9 !important;
 }
 
 .blocked-indicator {
@@ -237,5 +294,59 @@ const handleCellClick = (dayOfWeek, timeStr) => {
     transform: translate(-50%, -50%);
     font-size: 0.8em;
     color: var(--text-dark);
+}
+
+.current-day::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 102, 255, 0.1); /* Semi-transparent blue */
+    pointer-events: none; /* Ensures clicks go through to the cell */
+}
+
+.day-header.current-day {
+    position: relative;
+}
+
+.schedule-cell {
+    position: relative; /* Needed for absolute positioning of the overlay */
+}
+
+/* Remove the previous current-day background styles */
+.schedule-cell.current-day {
+    opacity: 0.7;
+}
+
+.schedule-cell.current-day.available {
+    opacity: 0.7;
+}
+
+.schedule-cell.current-day.blocked {
+    opacity: 0.7;
+}
+
+.past-day {
+    color: var(--text-muted);
+}
+
+.schedule-cell.past {
+    opacity: 0.1;
+    cursor: not-allowed;
+}
+
+.schedule-cell.past.current-day.available {
+    opacity: 0.3;
+}
+
+.schedule-cell.past .blocked-indicator {
+    display: none;
+}
+
+/* Ensure the current-day overlay appears above the past styling */
+.schedule-cell.past.current-day::after {
+    z-index: 1;
 }
 </style> 

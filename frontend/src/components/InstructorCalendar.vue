@@ -1,56 +1,83 @@
 <template>
-    <!-- Date selection -->
-    <div class="view-controls" v-if="props.instructor">
-        <div>Viewing <strong>{{ props.instructor.name }}'s</strong> weekly schedule or <label for="date-select">select a specific date:</label></div>
+    <!-- Content only shows when loading is complete -->
+    <div v-if="isInstructorLoaded">
+        <!-- Date selection -->
+        <div class="view-controls" v-if="instructor">
+            <!-- Week navigation - only show when no specific date is selected -->
+            <div class="week-navigation" v-if="!selectedDate">
+                <button 
+                    class="btn btn-secondary"
+                    @click="previousWeek"
+                    :disabled="isPreviousWeekInPast"
+                >
+                    Previous Week
+                </button>
+                <span class="week-display">
+                    Week of {{ weekStart.toLocaleDateString() }}
+                </span>
+                <button 
+                    class="btn btn-secondary"
+                    @click="nextWeek"
+                >
+                    Next Week
+                </button>
+            </div>
 
-        <input 
-            type="date" 
-            id="date-select"
-            v-model="selectedDate"
-            :min="today"
-            @change="handleDateChange"
-        >
-        
-        <button 
-            v-if="selectedDate" 
-            class="btn btn-secondary"
-            @click="clearSelectedDate"
-        >
-            Back to Weekly View
-        </button>
+            <!-- Date selection -->
+            <div>
+                <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a specific date:</label>
+                <input 
+                    type="date" 
+                    id="date-select"
+                    v-model="selectedDate"
+                    :min="today"
+                    @change="handleDateChange"
+                >
+                
+                <button 
+                    v-if="selectedDate" 
+                    class="btn btn-secondary"
+                    @click="clearSelectedDate"
+                >
+                    Back to Weekly View
+                </button>
+            </div>
+        </div>
+
+        <!-- Weekly Schedule View -->
+        <div v-if="instructor && !selectedDate" class="schedule-view">
+            <WeeklyScheduleView 
+                :weeklySchedule="weeklySchedule"
+                :weekStartDate="weekStart"
+                :blocked-times="blockedTimes"
+            />
+        </div>
+
+        <!-- Daily Schedule View -->
+        <div v-if="selectedDate && formattedAvailability.length > 0" class="schedule-view">
+            <DailyScheduleView 
+                :available-slots="formattedAvailability"
+                :selected-day="selectedDay"
+                @slot-selected="handleSlotSelected"
+            />
+        </div>
+
+        <div v-else-if="selectedDate && formattedAvailability.length === 0" class="no-availability">
+            <p>No available time slots for this date.</p>
+        </div>
+
+        <div v-if="error" class="error-message">{{ error }}</div>
     </div>
-
-    <!-- Weekly Schedule View -->
-    <div v-if="props.instructor && !selectedDate" class="schedule-view">
-        <WeeklyScheduleView 
-            :weeklySchedule="weeklySchedule"
-            :blocked-times="blockedTimes"
-        />
-    </div>
-
-    <!-- Daily Schedule View -->
-    <div v-if="selectedDate && formattedAvailability.length > 0" class="schedule-view">
-        <DailyScheduleView 
-            :available-slots="formattedAvailability"
-            :selected-day="selectedDay"
-            @slot-selected="handleSlotSelected"
-        />
-    </div>
-
-    <div v-else-if="selectedDate && formattedAvailability.length === 0" class="no-availability">
-        <p>No available time slots for this date.</p>
-    </div>
-
-    <div v-if="error" class="error-message">{{ error }}</div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
+import { formatTime } from '../utils/timeFormatting'
 
-const props = defineProps({
+const { instructor } = defineProps({
     instructor: {
         type: Object,
         required: true
@@ -62,6 +89,10 @@ const weeklyScheduleData = ref([])
 const dailyAvailability = ref([])
 const blockedTimes = ref([])
 const error = ref('')
+const isInstructorLoaded = ref(false)
+
+// Week selection state
+const selectedWeek = ref(new Date())
 
 // Get today's date in YYYY-MM-DD format
 const today = computed(() => {
@@ -69,9 +100,29 @@ const today = computed(() => {
     return date.toISOString().split('T')[0]
 })
 
-const formatTime = (time) => {
-    return time.substring(0, 5) // Format HH:MM from HH:MM:SS
-}
+// Get start of week (Sunday)
+const weekStart = computed(() => {
+    const date = new Date(selectedWeek.value)
+    const day = date.getDay()
+    date.setDate(date.getDate() - day)
+    return date
+})
+
+// Check if previous week would be entirely in the past
+const isPreviousWeekInPast = computed(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Start of today
+    
+    const previousWeekStart = new Date(weekStart.value)
+    previousWeekStart.setDate(previousWeekStart.getDate() - 7)
+    
+    // Get end of previous week (Saturday)
+    const previousWeekEnd = new Date(previousWeekStart)
+    previousWeekEnd.setDate(previousWeekStart.getDate() + 6)
+    previousWeekEnd.setHours(23, 59, 59, 999) // End of day
+    
+    return previousWeekEnd < today
+})
 
 const handleDateChange = () => {
     if (selectedDate.value) {
@@ -90,10 +141,11 @@ const clearSelectedDate = () => {
 
 // Fetch weekly schedule
 const fetchWeeklySchedule = async () => {
-    if (!props.instructor) return
+    if (!instructor) return
 
+    isInstructorLoaded.value = false
     try {
-        const response = await fetch(`/api/availability/${props.instructor.id}/weekly`, {
+        const response = await fetch(`/api/availability/${instructor.id}/weekly`, {
             headers: {
                 'user-id': currentUser.value.id
             }
@@ -107,6 +159,8 @@ const fetchWeeklySchedule = async () => {
     } catch (err) {
         error.value = 'Error fetching weekly schedule'
         console.error(err)
+    } finally {
+        isInstructorLoaded.value = true
     }
 }
 
@@ -118,7 +172,7 @@ const fetchBlockedTimes = async () => {
         endDate.setMonth(endDate.getMonth() + 1)
 
         const response = await fetch(
-            `/api/availability/${props.instructor.id}/blocked?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+            `/api/availability/${instructor.id}/blocked?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
             {
                 headers: {
                     'user-id': currentUser.value.id
@@ -131,36 +185,6 @@ const fetchBlockedTimes = async () => {
         error.value = 'Failed to load blocked times'
         console.error(err)
     }
-}
-
-// Format weekly schedule data
-const formatWeeklySchedule = (data) => {
-    const schedule = {
-        0: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        1: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        2: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        3: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        4: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        5: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        6: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }
-    }
-
-    data.forEach(slot => {
-        const day = schedule[slot.day_of_week]
-
-        if (!day.isAvailable) {
-            day.isAvailable = true
-            day.startTime = formatTime(slot.start_time)
-            day.endTime = formatTime(slot.end_time)
-        } else {
-            day.ranges.push({
-                startTime: formatTime(slot.start_time),
-                endTime: formatTime(slot.end_time)
-            })
-        }
-    })
-
-    return schedule
 }
 
 const formattedAvailability = computed(() => {
@@ -182,11 +206,11 @@ const selectedDay = computed(() => {
 })
 
 const fetchDailyAvailability = async () => {
-    if (!props.instructor || !selectedDate.value) return
+    if (!instructor || !selectedDate.value) return
 
     try {
         const response = await fetch(
-            `/api/availability/${props.instructor.id}/daily/${selectedDate.value}`,
+            `/api/availability/${instructor.id}/daily/${selectedDate.value}`,
             {
                 headers: {
                     'user-id': currentUser.value.id
@@ -203,12 +227,7 @@ const fetchDailyAvailability = async () => {
 }
 
 const weeklySchedule = computed(() => {
-    if (weeklyScheduleData.value && weeklyScheduleData.value.length > 0) {
-        return formatWeeklySchedule(weeklyScheduleData.value)
-    }
-
-    // Return default empty schedule structure
-    return {
+    const schedule = {
         0: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
         1: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
         2: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
@@ -217,9 +236,40 @@ const weeklySchedule = computed(() => {
         5: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
         6: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }
     }
+
+    if (weeklyScheduleData.value && weeklyScheduleData.value.length > 0) {
+        weeklyScheduleData.value.forEach(slot => {
+            const day = schedule[slot.day_of_week]
+            if (!day.isAvailable) {
+                day.isAvailable = true
+                day.startTime = formatTime(slot.start_time)
+                day.endTime = formatTime(slot.end_time)
+            } else {
+                day.ranges.push({
+                    startTime: formatTime(slot.start_time),
+                    endTime: formatTime(slot.end_time)
+                })
+            }
+        })
+    }
+
+    return schedule
 })
 
-watch(() => props.instructor, async (newInstructor) => {
+// Navigation methods
+const previousWeek = () => {
+    const newDate = new Date(selectedWeek.value)
+    newDate.setDate(newDate.getDate() - 7)
+    selectedWeek.value = newDate
+}
+
+const nextWeek = () => {
+    const newDate = new Date(selectedWeek.value)
+    newDate.setDate(newDate.getDate() + 7)
+    selectedWeek.value = newDate
+}
+
+watch(() => instructor, async (newInstructor) => {
     if (newInstructor) {
         await fetchWeeklySchedule()
     }
@@ -233,11 +283,11 @@ watch(() => props.instructor, async (newInstructor) => {
     padding: 20px;
 }
 
-.props.instructor-info {
+.instructor-info {
     margin-bottom: 20px;
 }
 
-.props.instructor-info h3 {
+.instructor-info h3 {
     color: var(--secondary-color);
     margin: 0;
 }
@@ -300,5 +350,28 @@ watch(() => props.instructor, async (newInstructor) => {
 .btn-secondary:hover {
     opacity: 0.9;
     transform: translateY(-1px);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-color);
+}
+
+/* Add styles for week navigation */
+.week-navigation {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.week-display {
+    font-weight: bold;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style> 

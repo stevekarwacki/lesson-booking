@@ -30,6 +30,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatHour, formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
 
 const props = defineProps({
     availableSlots: {
@@ -49,32 +50,8 @@ const timeRange = computed(() => {
 })
 
 const timeSlots = computed(() => {
-    const slots = []
-    for (let hour = 7; hour <= 19; hour++) {
-        for (let minute of [0, 30]) {
-            if (hour === 19 && minute === 30) continue;
-            const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-            slots.push({ time })
-        }
-    }
-    return slots
+    return generateTimeSlots()
 })
-
-const formatHour = (hour) => {
-    let displayHour = hour % 12
-    if (displayHour === 0) displayHour = 12
-    const period = hour >= 12 ? 'PM' : 'AM'
-    return `${displayHour}:00 ${period}`
-}
-
-const formatSlotTime = (time) => {
-    const [hours, minutes] = time.split(':')
-    let hour = parseInt(hours)
-    let displayHour = hour % 12
-    if (displayHour === 0) displayHour = 12
-    const period = hour >= 12 ? 'PM' : 'AM'
-    return `${displayHour}:${minutes} ${period}`
-}
 
 const isTimeSlotAvailable = (slotTime) => {
     const [slotHour, slotMinute] = slotTime.split(':').map(Number)
