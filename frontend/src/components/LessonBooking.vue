@@ -2,13 +2,9 @@
     <div class="lesson-booking card">
         
         <!-- Instructor selection -->
-        <div class="form-group" v-if="instructors.length > 1">
+        <div class="instructor-selection" v-if="instructors.length > 1">
             <label for="instructor-select">Select Instructor:</label>
-            <select 
-                id="instructor-select"
-                v-model="selectedInstructor"
-                @change="handleInstructorChange(this.value)"
-            >
+            <select id="instructor-select" v-model="selectedInstructor">
                 <option value="">Choose an instructor</option>
                 <option 
                     v-for="instructor in instructors" 
@@ -20,7 +16,7 @@
             </select>
         </div>
 
-        <InstructorCalendar :instructor="selectedInstructor" />
+        <InstructorCalendar v-if="selectedInstructor.id" :instructor="selectedInstructor" />
 
         <div v-if="error" class="error-message">{{ error }}</div>
     </div>
@@ -34,10 +30,6 @@ import InstructorCalendar from './InstructorCalendar.vue'
 const instructors = ref([])
 const error = ref('')
 const selectedInstructor = ref({})
-
-const handleInstructorChange = (instructor) => {
-    selectedInstructor.value = instructor
-}
 
 // Fetch instructors
 const fetchInstructors = async () => {
@@ -66,6 +58,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.instructor-selection {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 20px;
+}
+
 .lesson-booking {
     max-width: 1200px;
     margin: 0 auto;

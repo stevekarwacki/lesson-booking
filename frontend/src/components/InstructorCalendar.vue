@@ -1,73 +1,71 @@
-<template>
-    <!-- Content only shows when loading is complete -->
-    <div v-if="isInstructorLoaded">
+<template v-if="instructor">
+
+    <!-- Date selection -->
+    <div class="view-controls">
+        <!-- Week navigation - only show when no specific date is selected -->
+        <div class="week-navigation" v-if="!selectedDate">
+            <button 
+                class="btn btn-secondary"
+                @click="previousWeek"
+                :disabled="isPreviousWeekInPast"
+            >
+                Previous Week
+            </button>
+            <span class="week-display">
+                Week of {{ weekStart.toLocaleDateString() }}
+            </span>
+            <button 
+                class="btn btn-secondary"
+                @click="nextWeek"
+            >
+                Next Week
+            </button>
+        </div>
+
         <!-- Date selection -->
-        <div class="view-controls" v-if="instructor">
-            <!-- Week navigation - only show when no specific date is selected -->
-            <div class="week-navigation" v-if="!selectedDate">
-                <button 
-                    class="btn btn-secondary"
-                    @click="previousWeek"
-                    :disabled="isPreviousWeekInPast"
-                >
-                    Previous Week
-                </button>
-                <span class="week-display">
-                    Week of {{ weekStart.toLocaleDateString() }}
-                </span>
-                <button 
-                    class="btn btn-secondary"
-                    @click="nextWeek"
-                >
-                    Next Week
-                </button>
-            </div>
-
-            <!-- Date selection -->
-            <div>
-                <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a specific date:</label>
-                <input 
-                    type="date" 
-                    id="date-select"
-                    v-model="selectedDate"
-                    :min="today"
-                    @change="handleDateChange"
-                >
-                
-                <button 
-                    v-if="selectedDate" 
-                    class="btn btn-secondary"
-                    @click="clearSelectedDate"
-                >
-                    Back to Weekly View
-                </button>
-            </div>
+        <div>
+            <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a specific date:</label>
+            <input 
+                type="date" 
+                id="date-select"
+                v-model="selectedDate"
+                :min="today"
+                @change="handleDateChange"
+            >
+            
+            <button 
+                v-if="selectedDate" 
+                class="btn btn-secondary"
+                @click="clearSelectedDate"
+            >
+                Back to Weekly View
+            </button>
         </div>
-
-        <!-- Weekly Schedule View -->
-        <div v-if="instructor && !selectedDate" class="schedule-view">
-            <WeeklyScheduleView 
-                :weeklySchedule="weeklySchedule"
-                :weekStartDate="weekStart"
-                :blocked-times="blockedTimes"
-            />
-        </div>
-
-        <!-- Daily Schedule View -->
-        <div v-if="selectedDate && formattedAvailability.length > 0" class="schedule-view">
-            <DailyScheduleView 
-                :available-slots="formattedAvailability"
-                :selected-day="selectedDay"
-                @slot-selected="handleSlotSelected"
-            />
-        </div>
-
-        <div v-else-if="selectedDate && formattedAvailability.length === 0" class="no-availability">
-            <p>No available time slots for this date.</p>
-        </div>
-
-        <div v-if="error" class="error-message">{{ error }}</div>
     </div>
+
+    <!-- Weekly Schedule View -->
+    <div v-if="!selectedDate" class="schedule-view">
+        <WeeklyScheduleView 
+            :weeklySchedule="weeklySchedule"
+            :weekStartDate="weekStart"
+            :blocked-times="blockedTimes"
+        />
+    </div>
+
+    <!-- Daily Schedule View -->
+    <div v-if="selectedDate && formattedAvailability.length > 0" class="schedule-view">
+        <DailyScheduleView 
+            :available-slots="formattedAvailability"
+            :selected-day="selectedDay"
+            @slot-selected="handleSlotSelected"
+        />
+    </div>
+
+    <div v-else-if="selectedDate && formattedAvailability.length === 0" class="no-availability">
+        <p>No available time slots for this date.</p>
+    </div>
+
+    <div v-if="error" class="error-message">{{ error }}</div>
 </template>
 
 <script setup>
@@ -89,7 +87,6 @@ const weeklyScheduleData = ref([])
 const dailyAvailability = ref([])
 const blockedTimes = ref([])
 const error = ref('')
-const isInstructorLoaded = ref(false)
 
 // Week selection state
 const selectedWeek = ref(new Date())
@@ -141,9 +138,8 @@ const clearSelectedDate = () => {
 
 // Fetch weekly schedule
 const fetchWeeklySchedule = async () => {
-    if (!instructor) return
+    if (!instructor.id) return
 
-    isInstructorLoaded.value = false
     try {
         const response = await fetch(`/api/availability/${instructor.id}/weekly`, {
             headers: {
@@ -159,8 +155,6 @@ const fetchWeeklySchedule = async () => {
     } catch (err) {
         error.value = 'Error fetching weekly schedule'
         console.error(err)
-    } finally {
-        isInstructorLoaded.value = true
     }
 }
 
@@ -206,7 +200,7 @@ const selectedDay = computed(() => {
 })
 
 const fetchDailyAvailability = async () => {
-    if (!instructor || !selectedDate.value) return
+    if (!instructor.id || !selectedDate.value) return
 
     try {
         const response = await fetch(
@@ -363,7 +357,6 @@ watch(() => instructor, async (newInstructor) => {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 1rem;
 }
 
 .week-display {
