@@ -53,7 +53,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
+import { formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay, isTimeSlotAvailable } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
@@ -100,33 +100,7 @@ const timeSlots = computed(() => {
 })
 
 const isTimeAvailable = (dayOfWeek, timeStr) => {
-    const daySchedule = props.weeklySchedule[dayOfWeek]
-    if (!daySchedule || !daySchedule.isAvailable) {
-        return false
-    }
-
-    const [hour, minute] = timeStr.split(':').map(Number)
-    const timeInMinutes = hour * 60 + minute
-    
-    // Check main availability
-    const [startHour, startMinute] = daySchedule.startTime.split(':').map(Number)
-    const [endHour, endMinute] = daySchedule.endTime.split(':').map(Number)
-    const startInMinutes = startHour * 60 + startMinute
-    const endInMinutes = endHour * 60 + endMinute
-
-    if (timeInMinutes >= startInMinutes && timeInMinutes < endInMinutes) {
-        return true
-    }
-
-    // Check additional ranges
-    return daySchedule.ranges.some(range => {
-        const [rangeStartHour, rangeStartMinute] = range.startTime.split(':').map(Number)
-        const [rangeEndHour, rangeEndMinute] = range.endTime.split(':').map(Number)
-        const rangeStartInMinutes = rangeStartHour * 60 + rangeStartMinute
-        const rangeEndInMinutes = rangeEndHour * 60 + rangeEndMinute
-        
-        return timeInMinutes >= rangeStartInMinutes && timeInMinutes < rangeEndInMinutes
-    })
+    return isTimeSlotAvailable(timeStr, props.weeklySchedule, dayOfWeek)
 }
 
 const isTimeBlocked = (dayOfWeek, timeStr) => {
@@ -171,18 +145,13 @@ const isCurrentDay = (dayIndex) => {
     const today = new Date()
     const dayDate = new Date(props.weekStartDate)
     dayDate.setDate(dayDate.getDate() + dayIndex)
-    
-    return today.toDateString() === dayDate.toDateString()
+    return isSameDay(today, dayDate)
 }
 
 const isPastDay = (dayIndex) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Start of today
-    
-    const dayDate = new Date(props.weekStartDate)
+    const today = getStartOfDay(new Date())
+    const dayDate = getStartOfDay(new Date(props.weekStartDate))
     dayDate.setDate(dayDate.getDate() + dayIndex)
-    dayDate.setHours(0, 0, 0, 0) // Start of day
-    
     return dayDate < today
 }
 

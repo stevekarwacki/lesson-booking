@@ -75,4 +75,74 @@ export const generateTimeSlots = (startHour = 7, endHour = 19, interval = 30) =>
         }
     }
     return slots
+}
+
+/**
+ * Checks if two dates are the same calendar day
+ * @param {Date} date1 - First date to compare
+ * @param {Date} date2 - Second date to compare
+ * @returns {boolean} - Whether dates are the same calendar day
+ */
+export const isSameDay = (date1, date2) => {
+    return date1.toDateString() === date2.toDateString()
+}
+
+/**
+ * Gets start of day (midnight) for a given date
+ * @param {Date} date - Date to get start of day for
+ * @returns {Date} - New date set to start of day
+ */
+export const getStartOfDay = (date) => {
+    const newDate = new Date(date)
+    newDate.setHours(0, 0, 0, 0)
+    return newDate
+}
+
+/**
+ * Checks if a time slot is available in a schedule
+ * @param {string} timeStr - Time in HH:MM format
+ * @param {Object|Array} schedule - Either a day schedule object or array of available slots
+ * @param {number} [dayOfWeek] - Optional day of week (0-6)
+ * @returns {boolean} - Whether the time slot is available
+ */
+export const isTimeSlotAvailable = (timeStr, schedule, dayOfWeek = null) => {
+    // Handle array of available slots (DailyScheduleView case)
+    if (Array.isArray(schedule)) {
+        const [slotHour, slotMinute] = timeStr.split(':').map(Number)
+        const slotStartMinutes = slotHour * 60 + slotMinute
+        
+        return schedule.some(slot => {
+            const [startHour, startMinute] = slot.startTime.split(':').map(Number)
+            const [endHour, endMinute] = slot.endTime.split(':').map(Number)
+            const startMinutes = startHour * 60 + startMinute
+            const endMinutes = endHour * 60 + endMinute
+            
+            return slotStartMinutes >= startMinutes && 
+                   (slotStartMinutes + 30) <= endMinutes
+        })
+    }
+    
+    // Handle weekly schedule object (WeeklyScheduleView case)
+    if (dayOfWeek === null) {
+        throw new Error('dayOfWeek is required for weekly schedule checks')
+    }
+    
+    const daySchedule = schedule[dayOfWeek]
+    if (!daySchedule || !daySchedule.isAvailable) {
+        return false
+    }
+
+    const time = parseTime(timeStr)
+    const startTime = parseTime(daySchedule.startTime)
+    const endTime = parseTime(daySchedule.endTime)
+
+    if (time >= startTime && time < endTime) {
+        return true
+    }
+
+    return daySchedule.ranges.some(range => {
+        const rangeStart = parseTime(range.startTime)
+        const rangeEnd = parseTime(range.endTime)
+        return time >= rangeStart && time < rangeEnd
+    })
 } 

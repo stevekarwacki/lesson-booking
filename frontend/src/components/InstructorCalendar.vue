@@ -22,6 +22,14 @@
             </button>
         </div>
 
+        <button 
+            v-if="selectedDate" 
+            class="btn btn-secondary"
+            @click="clearSelectedDate"
+        >
+            Back to Weekly View
+        </button>
+
         <!-- Date selection -->
         <div>
             <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a specific date:</label>
@@ -32,14 +40,6 @@
                 :min="today"
                 @change="handleDateChange"
             >
-            
-            <button 
-                v-if="selectedDate" 
-                class="btn btn-secondary"
-                @click="clearSelectedDate"
-            >
-                Back to Weekly View
-            </button>
         </div>
     </div>
 
@@ -73,7 +73,7 @@ import { ref, computed, watch } from 'vue'
 import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
-import { formatTime } from '../utils/timeFormatting'
+import { formatTime, getStartOfDay } from '../utils/timeFormatting'
 
 const { instructor } = defineProps({
     instructor: {
@@ -107,8 +107,7 @@ const weekStart = computed(() => {
 
 // Check if previous week would be entirely in the past
 const isPreviousWeekInPast = computed(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Start of today
+    const today = getStartOfDay(new Date())
     
     const previousWeekStart = new Date(weekStart.value)
     previousWeekStart.setDate(previousWeekStart.getDate() - 7)

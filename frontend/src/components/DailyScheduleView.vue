@@ -18,7 +18,7 @@
                     v-for="timeSlot in timeSlots" 
                     :key="timeSlot.time"
                     class="time-slot"
-                    :class="{ 'available': isTimeSlotAvailable(timeSlot.time) }"
+                    :class="{ 'available': isTimeAvailable(timeSlot.time) }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
                     <span class="slot-time">{{ formatSlotTime(timeSlot.time) }}</span>
@@ -30,7 +30,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatHour, formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
+import { formatHour, formatSlotTime, generateTimeSlots, isTimeSlotAvailable } from '../utils/timeFormatting'
 
 const props = defineProps({
     availableSlots: {
@@ -53,24 +53,12 @@ const timeSlots = computed(() => {
     return generateTimeSlots()
 })
 
-const isTimeSlotAvailable = (slotTime) => {
-    const [slotHour, slotMinute] = slotTime.split(':').map(Number)
-    
-    return props.availableSlots.some(availableSlot => {
-        const [startHour, startMinute] = availableSlot.startTime.split(':').map(Number)
-        const [endHour, endMinute] = availableSlot.endTime.split(':').map(Number)
-        
-        const slotStartMinutes = (slotHour - 7) * 60 + slotMinute
-        const availStartMinutes = (startHour - 7) * 60 + startMinute
-        const availEndMinutes = (endHour - 7) * 60 + endMinute
-        
-        return slotStartMinutes >= availStartMinutes && 
-               (slotStartMinutes + 30) <= availEndMinutes
-    })
+const isTimeAvailable = (slotTime) => {
+    return isTimeSlotAvailable(slotTime, props.availableSlots)
 }
 
 const handleTimeSlotClick = (timeSlot) => {
-    if (isTimeSlotAvailable(timeSlot.time)) {
+    if (isTimeAvailable(timeSlot.time)) {
         emit('slot-selected', timeSlot)
     }
 }
