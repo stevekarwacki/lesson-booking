@@ -67,7 +67,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { timeToSlot, slotToTime } from '../utils/slotHelpers'
+import { timeToSlot } from '../utils/slotHelpers'
 
 const props = defineProps({
     weeklySchedule: {
@@ -228,32 +228,6 @@ const timeSlots = computed(() => {
     }
     return slots
 })
-
-const parseTime = (timeStr) => {
-    if (!timeStr) return null
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    return hours + (minutes / 60)
-}
-
-const formatTime = (timeValue) => {
-    const hours = Math.floor(timeValue)
-    const minutes = Math.round((timeValue - hours) * 60)
-    return `${hours}:${minutes.toString().padStart(2, '0')}`
-}
-
-const isTimeBlocked = (dayOfWeek, hour) => {
-    if (!props.blockedTimes.length) return false
-
-    const today = new Date()
-    today.setHours(hour, 0, 0, 0)
-    today.setDate(today.getDate() + ((dayOfWeek - today.getDay() + 7) % 7))
-
-    return props.blockedTimes.some(block => {
-        const blockStart = new Date(block.start_datetime)
-        const blockEnd = new Date(block.end_datetime)
-        return today >= blockStart && today < blockEnd
-    })
-}
 
 const getBlockedReason = (dayOfWeek, hour) => {
     if (!props.blockedTimes.length) return null

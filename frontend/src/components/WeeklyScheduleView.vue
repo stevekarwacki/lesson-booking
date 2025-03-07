@@ -37,13 +37,6 @@
                         }"
                         @click="handleCellClick(day.value, timeSlot.value)"
                     >
-                        <!--div 
-                            v-if="getBlockedReason(day.value, timeSlot.value)"
-                            class="blocked-indicator"
-                            :title="getBlockedReason(day.value, timeSlot.value)"
-                        >
-                            Blocked
-                        </div-->
                     </div>
                 </div>
             </div>

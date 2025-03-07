@@ -76,10 +76,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { currentUser } from '../stores/userStore'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
-import { timeToSlot, slotToTime } from '../utils/slotHelpers'
+import { timeToSlot } from '../utils/slotHelpers'
 
 const props = defineProps({
     instructorId: {
@@ -139,17 +139,6 @@ const loadSchedule = async () => {
     } catch (error) {
         console.error('Error loading schedule:', error)
     }
-}
-
-const addTimeSlot = (dayOfWeek) => {
-    weeklySchedule.value[dayOfWeek].push({
-        startSlot: timeToSlot('09:00'),
-        duration: 16 // 4 hours (16 15-minute slots)
-    })
-}
-
-const removeTimeSlot = (dayOfWeek, index) => {
-    weeklySchedule.value[dayOfWeek].splice(index, 1)
 }
 
 const saveWeeklySchedule = async () => {
@@ -240,7 +229,7 @@ const addBlockedTime = async () => {
         
         success.value = 'Blocked time added successfully'
         newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' }
-        await fetchBlockedTimes()
+        // await fetchBlockedTimes()
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++
@@ -262,7 +251,7 @@ const removeBlockedTime = async (blockId) => {
         if (!response.ok) throw new Error('Failed to remove blocked time')
         
         success.value = 'Blocked time removed successfully'
-        await fetchBlockedTimes()
+        // await fetchBlockedTimes()
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++
@@ -281,14 +270,14 @@ const resetAndFetch = async () => {
     
     // Fetch fresh data
     await loadSchedule()
-    await fetchBlockedTimes()
+    // await fetchBlockedTimes()
 }
 
 defineExpose({ resetAndFetch })
 
 onMounted(async () => {
     await loadSchedule()
-    await fetchBlockedTimes()
+    // await fetchBlockedTimes()
 })
 </script>
 
