@@ -128,7 +128,7 @@ export const isTimeSlotAvailable = (timeStr, schedule, dayOfWeek = null) => {
     }
     
     const daySchedule = schedule[dayOfWeek]
-    if (!daySchedule || !daySchedule.isAvailable) {
+    if (!daySchedule) {
         return false
     }
 

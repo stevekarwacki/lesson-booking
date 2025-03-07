@@ -31,19 +31,19 @@
                         :class="{
                             'available': isTimeAvailable(day.value, timeSlot.value),
                             'unavailable': !isTimeAvailable(day.value, timeSlot.value),
-                            'blocked': isTimeBlocked(day.value, timeSlot.value),
+                            /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
                             'current-day': isCurrentDay(index),
                             'past': isPastTimeSlot(index, timeSlot.value)
                         }"
                         @click="handleCellClick(day.value, timeSlot.value)"
                     >
-                        <div 
+                        <!--div 
                             v-if="getBlockedReason(day.value, timeSlot.value)"
                             class="blocked-indicator"
                             :title="getBlockedReason(day.value, timeSlot.value)"
                         >
                             Blocked
-                        </div>
+                        </div-->
                     </div>
                 </div>
             </div>
@@ -53,20 +53,25 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay, isTimeSlotAvailable } from '../utils/timeFormatting'
+import { formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay } from '../utils/timeFormatting'
+import { slotToTime, timeToSlot } from '../utils/slotHelpers'
 
 const props = defineProps({
     weeklySchedule: {
         type: Object,
         required: true
     },
-    weekStartDate: {
-        type: Date,
-        required: true
-    },
     blockedTimes: {
         type: Array,
         default: () => []
+    },
+    isInstructor: {
+        type: Boolean,
+        default: false
+    },
+    weekStartDate: {
+        type: Date,
+        required: true
     }
 })
 
@@ -81,6 +86,29 @@ const daysOfWeek = [
     { value: 5, label: 'Fri' },
     { value: 6, label: 'Sat' }
 ]
+
+const eventsByDay = computed(() => {
+    const days = {}
+    daysOfWeek.forEach((_, index) => {
+        days[index] = []
+    })
+
+    // weeklySchedule contains days with slots arrays
+    Object.entries(props.weeklySchedule).forEach(([dayIndex, dayData]) => {
+        if (!dayData?.slots?.length) return
+        
+        dayData.slots.forEach(slot => {
+            days[dayIndex].push({
+                startTime: slotToTime(slot.start_slot),
+                endTime: slotToTime(slot.start_slot + slot.duration),
+                start_slot: slot.start_slot,
+                duration: slot.duration
+            })
+        })
+    })
+
+    return days
+})
 
 const formatDayDate = (dayIndex) => {
     const date = new Date(props.weekStartDate)
@@ -100,44 +128,31 @@ const timeSlots = computed(() => {
 })
 
 const isTimeAvailable = (dayOfWeek, timeStr) => {
-    return isTimeSlotAvailable(timeStr, props.weeklySchedule, dayOfWeek)
-}
-
-const isTimeBlocked = (dayOfWeek, timeStr) => {
-    if (!isTimeAvailable(dayOfWeek, timeStr)) return false
-    return !!getBlockedReason(dayOfWeek, timeStr)
-}
-
-const getBlockedReason = (dayOfWeek, timeStr) => {
-    const today = new Date()
-    const targetDate = new Date()
-    const daysToAdd = (dayOfWeek - today.getDay() + 7) % 7
-    targetDate.setDate(today.getDate() + daysToAdd)
+    const events = eventsByDay.value[dayOfWeek]
+    if (!events || !events.length) return false
     
-    const [hour, minute] = timeStr.split(':').map(Number)
-    targetDate.setHours(hour, minute, 0, 0)
-
-    const blocked = props.blockedTimes.find(block => {
-        const blockStart = new Date(block.start_datetime)
-        const blockEnd = new Date(block.end_datetime)
-        return targetDate >= blockStart && targetDate < blockEnd
-    })
-
-    return blocked?.reason
+    const timeSlot = timeToSlot(timeStr)
+    return events.some(event => 
+        timeSlot >= event.start_slot && 
+        timeSlot < (event.start_slot + event.duration)
+    )
 }
 
-const handleCellClick = (dayValue, timeStr) => {
+const handleCellClick = (dayValue, timeSlot) => {
     // Prevent clicks on past time slots
-    if (isPastTimeSlot(daysOfWeek.findIndex(d => d.value === dayValue), timeStr)) {
+    if (isPastTimeSlot(daysOfWeek.findIndex(d => d.value === dayValue), timeSlot)) {
         return
     }
     
-    if (isTimeAvailable(dayValue, timeStr) && !isTimeBlocked(dayValue, timeStr)) {
+    if (isTimeAvailable(dayValue, timeSlot)) {
         emit('slot-selected', {
             dayOfWeek: dayValue,
-            time: timeStr,
-            formatted: `${timeSlots.value.find(slot => slot.value === timeStr).label} on ${daysOfWeek.find(day => day.value === dayValue).label}`
+            startSlot: timeToSlot(timeSlot),
+            duration: 2, // 30 minutes
+            formatted: `${timeSlot} on ${daysOfWeek.find(day => day.value === dayValue).label}`
         })
+    } else {
+        console.log('nope')
     }
 }
 
@@ -160,11 +175,9 @@ const isPastTimeSlot = (dayIndex, timeStr) => {
     
     if (isCurrentDay(dayIndex)) {
         const now = new Date()
-        const [hours, minutes] = timeStr.split(':').map(Number)
-        const slotTime = new Date()
-        slotTime.setHours(hours, minutes, 0, 0)
-        
-        return slotTime < now
+        const timeSlot = timeToSlot(timeStr)
+        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
+        return timeSlot < currentSlot
     }
     
     return false

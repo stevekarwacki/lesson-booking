@@ -55,7 +55,6 @@ const findByEmail = (email) => {
 
 const createUser = async (userData) => {
     return new Promise((resolve, reject) => {
-        console.log(userData.name);
         db.run(
             'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [userData.name, userData.email, userData.password, userData.role || 'student'],

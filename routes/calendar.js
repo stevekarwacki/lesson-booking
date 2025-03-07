@@ -42,78 +42,69 @@ router.post('/addEvent', async (req, res) => {
         const { instructorId, startTime, endTime } = req.body;
         const studentId = req.headers['user-id'];
 
-        // 1. Check if the time slot falls within instructor's weekly availability
+        // 1. Calculate slots using UTC time
         const requestedDate = new Date(startTime);
-        const dayOfWeek = requestedDate.getDay();
+        const dayOfWeek = requestedDate.getUTCDay();
+        const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
+        const endSlot = Math.floor(new Date(endTime).getUTCHours() * 4 + new Date(endTime).getUTCMinutes() / 15);
+        const duration = endSlot - startSlot;
 
+        // 2. Get availability
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
+        // 3. Debug log after we have the data
+        console.log('Debug booking request:', {
+            dayOfWeek,
+            startSlot,
+            endSlot,
+            duration,
+            requestedDate: requestedDate.toString(),
+            weeklyAvailability
+        });
+
         const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
-            if (slot.day_of_week !== dayOfWeek) {
-                return false;
-            }
-            
-            // Extract hours and minutes from the time strings
-            const [startHour, startMinute] = slot.start_time.split(':').map(Number);
-            const [endHour, endMinute] = slot.end_time.split(':').map(Number);
-            
-            // Create Date objects for comparison
-            const slotStart = new Date(requestedDate);
-            slotStart.setHours(startHour, startMinute, 0, 0);
-            
-            const slotEnd = new Date(requestedDate);
-            slotEnd.setHours(endHour, endMinute, 0, 0);
-            
-            const requestedStart = new Date(startTime);
-            const requestedEnd = new Date(endTime);
-            
-            return requestedStart >= slotStart && requestedEnd <= slotEnd;
+            if (slot.day_of_week !== dayOfWeek) return false;
+            const slotEnd = slot.start_slot + slot.duration;
+            console.log('Checking slot:', {
+                slot,
+                slotEnd,
+                isValid: startSlot >= slot.start_slot && 
+                         startSlot < slotEnd && 
+                         (startSlot + duration) <= slotEnd
+            });
+            return startSlot >= slot.start_slot && 
+                   startSlot < slotEnd && 
+                   (startSlot + duration) <= slotEnd;
         });
 
         if (!isTimeInWeeklySchedule) {
             return res.status(400).json({ 
-                error: 'Selected time is outside instructor\'s availability',
-                dayOfWeek,
-                availableDays: weeklyAvailability.map(slot => slot.day_of_week)
+                error: 'Selected time is outside instructor\'s availability'
             });
         }
 
-        // 2. Check for any blocked times
-        const blockedTimes = await InstructorAvailability.getBlockedTimes(
-            instructorId,
-            startTime,
-            endTime
-        );
+        // 4. Check for existing bookings
+        const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
-        if (blockedTimes.length > 0) {
-            return res.status(400).json({ error: 'Selected time slot is blocked' });
-        }
-
-        /*
-        // 3. Check for existing bookings
-        const existingBookings = await Calendar.getEvents(
-            instructorId,
-            startTime,
-            endTime
-        );
-
-        const hasConflict = existingBookings.some(booking => 
-            booking.status === 'booked' && 
-            new Date(startTime) < new Date(booking.end_time) && 
-            new Date(endTime) > new Date(booking.start_time)
-        );
+        const hasConflict = existingBookings.some(booking => {
+            const bookingStart = booking.start_slot;
+            const bookingEnd = booking.start_slot + booking.duration;
+            return booking.status === 'booked' && 
+                   startSlot < bookingEnd && 
+                   (startSlot + duration) > bookingStart;
+        });
 
         if (hasConflict) {
             return res.status(400).json({ error: 'Time slot is already booked' });
         }
-        */
 
-        // 4. Create the booking
+        // 5. Create the booking
         const bookingId = await Calendar.addEvent(
             instructorId,
             studentId,
-            startTime,
-            endTime
+            requestedDate.toISOString().split('T')[0],
+            startSlot,
+            duration
         );
 
         res.status(201).json({

@@ -7,22 +7,15 @@ const Calendar = {
                 db.run(`
                     CREATE TABLE IF NOT EXISTS calendar_events (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        instructor_id INTEGER NOT NULL REFERENCES instructors(id),
-                        student_id INTEGER NOT NULL REFERENCES users(id),
-                        start_time DATETIME UNIQUE NOT NULL,
-                        end_time DATETIME UNIQUE NOT NULL,
-                        status TEXT NOT NULL DEFAULT 'pending'
-                            CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')),
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        CHECK (end_time > start_time)
+                        instructor_id INTEGER,
+                        student_id INTEGER,
+                        date DATE,
+                        start_slot INTEGER CHECK(start_slot BETWEEN 0 AND 95),
+                        duration INTEGER CHECK(duration > 0),
+                        status TEXT CHECK(status IN ('booked', 'blocked')),
+                        FOREIGN KEY (instructor_id) REFERENCES instructors(id),
+                        FOREIGN KEY (student_id) REFERENCES users(id)
                     );
-    
-                    CREATE INDEX IF NOT EXISTS idx_calendar_events_instructor_time 
-                    ON calendar_events(instructor_id, start_time, end_time);
-    
-                    CREATE INDEX IF NOT EXISTS idx_calendar_events_student 
-                    ON calendar_events(student_id);
                 `, (err) => {
                     if (err) reject(err);
                     resolve();
@@ -34,17 +27,18 @@ const Calendar = {
         }
     },
 
-    addEvent: async (instructorId, studentId, startTime, endTime, status = 'pending') => {
+    addEvent: async (instructorId, studentId, date, startSlot, duration, status = 'booked') => {
         try {
             return new Promise((resolve, reject) => {
                 const query = `
                     INSERT INTO calendar_events (
                         instructor_id,
                         student_id,
-                        start_time,
-                        end_time,
+                        date,
+                        start_slot,
+                        duration,
                         status
-                    ) VALUES (?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?)
                 `;
                 
                 db.run(
@@ -52,8 +46,9 @@ const Calendar = {
                     [
                         instructorId,
                         studentId,
-                        startTime,
-                        endTime,
+                        date,
+                        startSlot,
+                        duration,
                         status
                     ],
                     function(err) {
@@ -71,7 +66,9 @@ const Calendar = {
     getInstructorEvents: (instructorId) => {
         return new Promise((resolve, reject) => {
             db.all(
-                `SELECT * FROM calendar_events WHERE instructor_id = ? ORDER BY start_time`,
+                `SELECT * FROM calendar_events 
+                WHERE instructor_id = ? 
+                ORDER BY date, start_slot`,
                 [instructorId],
                 (err, rows) => {
                     if (err) {
@@ -86,17 +83,16 @@ const Calendar = {
     },
 
     updateEvent: (eventId, updates) => {
-        const { title, start_time, end_time, status, student_id } = updates;
+        const { start_slot, duration, status, student_id } = updates;
         return new Promise((resolve, reject) => {
             db.run(
                 `UPDATE calendar_events 
-                 SET title = COALESCE(?, title),
-                     start_time = COALESCE(?, start_time),
-                     end_time = COALESCE(?, end_time),
+                 SET start_slot = COALESCE(?, start_slot),
+                     duration = COALESCE(?, duration),
                      status = COALESCE(?, status),
                      student_id = COALESCE(?, student_id)
                  WHERE id = ?`,
-                [title, start_time, end_time, status, student_id, eventId],
+                [start_slot, duration, status, student_id, eventId],
                 (err) => {
                     if (err) {
                         reject(err);

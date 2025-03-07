@@ -49,19 +49,20 @@
             :weeklySchedule="weeklySchedule"
             :weekStartDate="weekStart"
             :blocked-times="blockedTimes"
+            @slot-selected="handleSlotSelected"
         />
     </div>
 
     <!-- Daily Schedule View -->
-    <div v-if="selectedDate && formattedAvailability.length > 0" class="schedule-view">
+    <div v-if="selectedDate && dailySchedule.length > 0" class="schedule-view">
         <DailyScheduleView 
-            :available-slots="formattedAvailability"
+            :available-slots="dailySchedule"
             :selected-day="selectedDay"
             @slot-selected="handleSlotSelected"
         />
     </div>
 
-    <div v-else-if="selectedDate && formattedAvailability.length === 0" class="no-availability">
+    <div v-else-if="selectedDate && dailySchedule.length === 0" class="no-availability">
         <p>No available time slots for this date.</p>
     </div>
 
@@ -69,11 +70,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
-import { formatTime, getStartOfDay } from '../utils/timeFormatting'
+import { getStartOfDay } from '../utils/timeFormatting'
 
 const { instructor } = defineProps({
     instructor: {
@@ -84,7 +85,7 @@ const { instructor } = defineProps({
 
 const selectedDate = ref('')
 const weeklyScheduleData = ref([])
-const dailyAvailability = ref([])
+const dailyScheduleData = ref([])
 const blockedTimes = ref([])
 const error = ref('')
 
@@ -122,7 +123,7 @@ const isPreviousWeekInPast = computed(() => {
 
 const handleDateChange = () => {
     if (selectedDate.value) {
-        fetchDailyAvailability()
+        fetchdailyScheduleData()
     }
 }
 
@@ -145,47 +146,40 @@ const fetchWeeklySchedule = async () => {
                 'user-id': currentUser.value.id
             }
         })
-        if (!response.ok) throw new Error('Failed to fetch weekly schedule')
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
         
-        weeklyScheduleData.value = await response.json()
+        const data = await response.json()
+
+        // Transform the data into the expected format
+        const formattedSchedule = {}
         
-        // Also fetch blocked times
-        await fetchBlockedTimes()
+        // Initialize all days as not available
+        for (let i = 0; i < 7; i++) {
+            formattedSchedule[i] = {
+                slots: []
+            }
+        }
+
+        // Add slots to their respective days
+        data.forEach(slot => {
+            const dayIndex = slot.day_of_week
+            formattedSchedule[dayIndex].slots.push({
+                start_slot: slot.start_slot,
+                duration: slot.duration
+            })
+        })
+
+        weeklyScheduleData.value = formattedSchedule
     } catch (err) {
         error.value = 'Error fetching weekly schedule'
-        console.error(err)
+        console.error('Fetch error:', err)
     }
 }
 
-// Fetch blocked times
-const fetchBlockedTimes = async () => {
-    try {
-        const startDate = new Date()
-        const endDate = new Date()
-        endDate.setMonth(endDate.getMonth() + 1)
-
-        const response = await fetch(
-            `/api/availability/${instructor.id}/blocked?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
-            {
-                headers: {
-                    'user-id': currentUser.value.id
-                }
-            }
-        )
-        if (!response.ok) throw new Error('Failed to fetch blocked times')
-        blockedTimes.value = await response.json()
-    } catch (err) {
-        error.value = 'Failed to load blocked times'
-        console.error(err)
-    }
-}
-
-const formattedAvailability = computed(() => {
-    return dailyAvailability.value.map(slot => ({
-        startTime: formatTime(slot.start_time),
-        endTime: formatTime(slot.end_time),
-        id: `${slot.start_time}-${slot.end_time}`
-    }))
+const dailySchedule = computed(() => {
+    return dailyScheduleData.value
 })
 
 const selectedDay = computed(() => {
@@ -198,7 +192,7 @@ const selectedDay = computed(() => {
     })
 })
 
-const fetchDailyAvailability = async () => {
+const fetchdailyScheduleData = async () => {
     if (!instructor.id || !selectedDate.value) return
 
     try {
@@ -212,7 +206,7 @@ const fetchDailyAvailability = async () => {
         )
         if (!response.ok) throw new Error('Failed to fetch daily availability')
         
-        dailyAvailability.value = await response.json()
+        dailyScheduleData.value = await response.json()
     } catch (err) {
         error.value = 'Error fetching daily availability'
         console.error(err)
@@ -220,30 +214,20 @@ const fetchDailyAvailability = async () => {
 }
 
 const weeklySchedule = computed(() => {
-    const schedule = {
-        0: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        1: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        2: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        3: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        4: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        5: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] },
-        6: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }
+    // Initialize empty schedule
+    let schedule = {
+        0: { slots: [] },
+        1: { slots: [] },
+        2: { slots: [] },
+        3: { slots: [] },
+        4: { slots: [] },
+        5: { slots: [] },
+        6: { slots: [] }
     }
 
-    if (weeklyScheduleData.value && weeklyScheduleData.value.length > 0) {
-        weeklyScheduleData.value.forEach(slot => {
-            const day = schedule[slot.day_of_week]
-            if (!day.isAvailable) {
-                day.isAvailable = true
-                day.startTime = formatTime(slot.start_time)
-                day.endTime = formatTime(slot.end_time)
-            } else {
-                day.ranges.push({
-                    startTime: formatTime(slot.start_time),
-                    endTime: formatTime(slot.end_time)
-                })
-            }
-        })
+    // If we have data, populate the slots
+    if (Object.keys(weeklyScheduleData.value).length) {
+        schedule = weeklyScheduleData.value
     }
 
     return schedule
@@ -261,6 +245,16 @@ const nextWeek = () => {
     newDate.setDate(newDate.getDate() + 7)
     selectedWeek.value = newDate
 }
+
+// Watch for changes to selected week
+watch(selectedWeek, () => {
+    fetchWeeklySchedule()
+})
+
+// Fetch data on component mount
+onMounted(() => {
+    fetchWeeklySchedule()
+})
 
 watch(() => instructor, async (newInstructor) => {
     if (newInstructor) {

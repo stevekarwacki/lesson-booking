@@ -79,6 +79,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { currentUser } from '../stores/userStore'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
+import { timeToSlot, slotToTime } from '../utils/slotHelpers'
 
 const props = defineProps({
     instructorId: {
@@ -92,13 +93,13 @@ const success = ref('')
 
 // Weekly Schedule
 const weeklySchedule = ref({
-    0: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Sunday
-    1: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Monday
-    2: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Tuesday
-    3: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Wednesday
-    4: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Thursday
-    5: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Friday
-    6: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }  // Saturday
+    0: [], // Sunday
+    1: [], // Monday
+    2: [], // Tuesday
+    3: [], // Wednesday
+    4: [], // Thursday
+    5: [], // Friday
+    6: []  // Saturday
 })
 
 // Blocked Times
@@ -116,110 +117,89 @@ const formatDateTime = (datetime) => {
     return new Date(datetime).toLocaleString()
 }
 
-const fetchWeeklySchedule = async () => {
+const loadSchedule = async () => {
     try {
-        const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
-            headers: {
-                'user-id': currentUser.value.id,
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            },
-            cache: 'no-store'
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch schedule');
+        const response = await fetch(`/api/availability/${props.instructorId}/weekly`)
+        if (!response.ok) throw new Error('Failed to fetch schedule')
+        
+        const slots = await response.json()
+        
+        // Reset schedule
+        for (let i = 0; i < 7; i++) {
+            weeklySchedule.value[i] = []
         }
-
-        const dbSchedule = await response.json();
-
-        const newSchedule = Array(7).fill().map(() => ({
-            isAvailable: false,
-            startTime: '09:00',
-            endTime: '17:00',
-            ranges: []
-        }));
-
-        const schedulesByDay = dbSchedule.reduce((acc, slot) => {
-            if (!acc[slot.day_of_week]) {
-                acc[slot.day_of_week] = [];
-            }
-            acc[slot.day_of_week].push(slot);
-            return acc;
-        }, {});
-
-        Object.entries(schedulesByDay).forEach(([dayIndex, slots]) => {
-            if (slots.length > 0) {
-                const day = newSchedule[dayIndex];
-                day.isAvailable = true;
-                day.startTime = slots[0].start_time;
-                day.endTime = slots[0].end_time;
-                
-                if (slots.length > 1) {
-                    day.ranges = slots.slice(1).map(slot => ({
-                        startTime: slot.start_time,
-                        endTime: slot.end_time
-                    }));
-                }
-            }
-        });
-
-        weeklySchedule.value = newSchedule;
-    } catch (err) {
-        if (err.message !== 'Failed to fetch schedule') {
-            error.value = 'Failed to load weekly schedule: ' + err.message;
-        }
+        
+        // Group slots by day
+        slots.forEach(slot => {
+            weeklySchedule.value[slot.day_of_week].push({
+                startSlot: slot.start_slot,
+                duration: slot.duration
+            })
+        })
+    } catch (error) {
+        console.error('Error loading schedule:', error)
     }
+}
+
+const addTimeSlot = (dayOfWeek) => {
+    weeklySchedule.value[dayOfWeek].push({
+        startSlot: timeToSlot('09:00'),
+        duration: 16 // 4 hours (16 15-minute slots)
+    })
+}
+
+const removeTimeSlot = (dayOfWeek, index) => {
+    weeklySchedule.value[dayOfWeek].splice(index, 1)
 }
 
 const saveWeeklySchedule = async () => {
     try {
-        const schedulesToSave = weeklySchedule.value
-            .map((day, index) => ({ day, index }))
-            .filter(({ day }) => day.isAvailable)
-            .flatMap(({ day, index }) => {
-                const ranges = [];
-                
-                if (day.startTime && day.endTime) {
-                    ranges.push({
-                        day_of_week: index,
-                        start_time: day.startTime,
-                        end_time: day.endTime
-                    });
+        const slots = []
+        
+        // Convert weeklySchedule format to array of slots
+        Object.entries(weeklySchedule.value).forEach(([dayOfWeek, daySlots]) => {
+            if (!daySlots.length) return
+            
+            // Sort slots by start time
+            daySlots.sort((a, b) => a.startSlot - b.startSlot)
+            
+            let currentSlot = {
+                dayOfWeek: parseInt(dayOfWeek),
+                startSlot: daySlots[0].startSlot,
+                duration: daySlots[0].duration
+            }
+            
+            // Combine consecutive slots
+            for (let i = 1; i < daySlots.length; i++) {
+                const slot = daySlots[i]
+                if (currentSlot.startSlot + currentSlot.duration === slot.startSlot) {
+                    // Slots are consecutive, extend duration
+                    currentSlot.duration += slot.duration
+                } else {
+                    // Gap between slots, save current and start new
+                    slots.push(currentSlot)
+                    currentSlot = {
+                        dayOfWeek: parseInt(dayOfWeek),
+                        startSlot: slot.startSlot,
+                        duration: slot.duration
+                    }
                 }
-                
-                if (day.ranges && day.ranges.length > 0) {
-                    day.ranges.forEach(range => {
-                        ranges.push({
-                            day_of_week: index,
-                            start_time: range.startTime,
-                            end_time: range.endTime
-                        });
-                    });
-                }
-                
-                return ranges;
-            });
+            }
+            // Push the last slot
+            slots.push(currentSlot)
+        })
 
         const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify(schedulesToSave)
-        });
+            body: JSON.stringify({ slots })
+        })
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to save schedule');
-        }
-
-        success.value = 'Weekly schedule updated successfully';
-        await fetchWeeklySchedule();
-    } catch (err) {
-        error.value = 'Failed to save weekly schedule: ' + err.message;
+        if (!response.ok) throw new Error('Failed to save schedule')
+    } catch (error) {
+        console.error('Error saving schedule:', error)
     }
 }
 
@@ -294,26 +274,20 @@ const removeBlockedTime = async (blockId) => {
 
 const resetAndFetch = async () => {
     // Reset all local state
-    weeklySchedule.value = {
-        0: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Sunday
-        1: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Monday
-        2: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Tuesday
-        3: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Wednesday
-        4: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Thursday
-        5: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }, // Friday
-        6: { isAvailable: false, startTime: '09:00', endTime: '17:00', ranges: [] }  // Saturday
+    for (let i = 0; i < 7; i++) {
+        weeklySchedule.value[i] = []
     }
     blockedTimes.value = []
     
     // Fetch fresh data
-    await fetchWeeklySchedule()
+    await loadSchedule()
     await fetchBlockedTimes()
 }
 
 defineExpose({ resetAndFetch })
 
 onMounted(async () => {
-    await fetchWeeklySchedule()
+    await loadSchedule()
     await fetchBlockedTimes()
 })
 </script>
