@@ -31,7 +31,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatHour, formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
-import { timeToSlot } from '../utils/slotHelpers'
+import { timeToSlot, isSlotAvailable } from '../utils/slotHelpers'
 
 const props = defineProps({
     availableSlots: {
@@ -55,14 +55,7 @@ const timeSlots = computed(() => {
 })
 
 const isTimeAvailable = (timeStr) => {
-    if (!props.availableSlots?.length) return false
-    
-    const timeSlot = timeToSlot(timeStr)
-
-    return props.availableSlots.some(slot => 
-        timeSlot >= slot.start_slot && 
-        timeSlot < (slot.start_slot + slot.duration)
-    )
+    return isSlotAvailable(timeStr, props.availableSlots)
 }
 
 const handleTimeSlotClick = (timeSlot) => {

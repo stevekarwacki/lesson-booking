@@ -47,7 +47,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay } from '../utils/timeFormatting'
-import { slotToTime, timeToSlot } from '../utils/slotHelpers'
+import { slotToTime, timeToSlot, isSlotAvailable } from '../utils/slotHelpers'
 
 const props = defineProps({
     weeklySchedule: {
@@ -122,13 +122,7 @@ const timeSlots = computed(() => {
 
 const isTimeAvailable = (dayOfWeek, timeStr) => {
     const events = eventsByDay.value[dayOfWeek]
-    if (!events || !events.length) return false
-    
-    const timeSlot = timeToSlot(timeStr)
-    return events.some(event => 
-        timeSlot >= event.start_slot && 
-        timeSlot < (event.start_slot + event.duration)
-    )
+    return isSlotAvailable(timeStr, events)
 }
 
 const handleCellClick = (dayValue, timeSlot) => {
@@ -170,7 +164,8 @@ const isPastTimeSlot = (dayIndex, timeStr) => {
         const now = new Date()
         const timeSlot = timeToSlot(timeStr)
         const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
-        return timeSlot < currentSlot
+
+        return timeSlot > currentSlot
     }
     
     return false
