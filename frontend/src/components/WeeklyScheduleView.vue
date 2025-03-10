@@ -27,7 +27,7 @@
                     <div 
                         v-for="(day) in daysOfWeek" 
                         :key="day.value"
-                        class="schedule-cell"
+                        class="time-slot"
                         :class="{
                             'available': isTimeAvailable(day.value, timeSlot.value),
                             'unavailable': !isTimeAvailable(day.value, timeSlot.value),
@@ -35,7 +35,7 @@
                             'current-day': isCurrentDay(day.date),
                             'past': isPastTimeSlot(day.date, timeSlot.value)
                         }"
-                        @click="handleCellClick({
+                        @click="handleTimeSlotClick({
                             date: day.date,
                             time: timeSlot.value,
                             dayOfWeek: day.value
@@ -142,7 +142,7 @@ const isTimeAvailable = (dayOfWeek, timeStr) => {
     return isSlotAvailable(timeStr, events)
 }
 
-const handleCellClick = (cellData) => {
+const handleTimeSlotClick = (cellData) => {
     const { date, time, dayOfWeek } = cellData
     
     // Prevent clicks on past time slots
@@ -216,7 +216,7 @@ const handleCellClick = (cellData) => {
     border-right: 1px solid var(--border-color);
 }
 
-.schedule-cell {
+.time-slot {
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid var(--border-color);
     min-height: 40px;
@@ -225,24 +225,24 @@ const handleCellClick = (cellData) => {
     transition: all 0.2s ease;
 }
 
-.schedule-cell.available {
+.time-slot.available {
     background-color: var(--success-color);
     opacity: 0.5;
 }
 
-.schedule-cell.unavailable {
+.time-slot.unavailable {
     background-color: var(--error-color);
     opacity: 0.3;
     cursor: not-allowed;
 }
 
-.schedule-cell.blocked {
+.time-slot.blocked {
     background-color: var(--warning-color);
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.schedule-cell:hover {
+.time-slot:hover {
     opacity: 0.9 !important;
 }
 
@@ -270,20 +270,20 @@ const handleCellClick = (cellData) => {
     position: relative;
 }
 
-.schedule-cell {
+.time-slot {
     position: relative; /* Needed for absolute positioning of the overlay */
 }
 
 /* Remove the previous current-day background styles */
-.schedule-cell.current-day {
+.time-slot.current-day {
     opacity: 0.7;
 }
 
-.schedule-cell.current-day.available {
+.time-slot.current-day.available {
     opacity: 0.7;
 }
 
-.schedule-cell.current-day.blocked {
+.time-slot.current-day.blocked {
     opacity: 0.7;
 }
 
@@ -291,21 +291,21 @@ const handleCellClick = (cellData) => {
     color: var(--text-muted);
 }
 
-.schedule-cell.past {
+.time-slot.past {
     opacity: 0.1;
     cursor: not-allowed;
 }
 
-.schedule-cell.past.current-day.available {
+.time-slot.past.current-day.available {
     opacity: 0.3;
 }
 
-.schedule-cell.past .blocked-indicator {
+.time-slot.past .blocked-indicator {
     display: none;
 }
 
 /* Ensure the current-day overlay appears above the past styling */
-.schedule-cell.past.current-day::after {
+.time-slot.past.current-day::after {
     z-index: 1;
 }
 </style> 
