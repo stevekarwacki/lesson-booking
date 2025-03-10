@@ -184,12 +184,17 @@ const dailySchedule = computed(() => {
 
 const selectedDay = computed(() => {
     if (!selectedDate.value) return ''
+
     const date = new Date(`${selectedDate.value}T00:00:00`)
-    return date.toLocaleDateString('en-US', { 
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric' 
-    })
+
+    return {
+        date: date,
+        formattedDate: date.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric' 
+        })
+    }
 })
 
 const fetchdailyScheduleData = async () => {

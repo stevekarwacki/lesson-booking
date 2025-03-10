@@ -1,7 +1,7 @@
 <template>
     <div class="daily-schedule">
         <div class="schedule-header">
-            {{ selectedDay }}
+            {{ selectedDay.formattedDate }}
         </div>
         <div class="schedule-grid">
             <div class="time-column">
@@ -16,12 +16,15 @@
             <div class="slots-column">
                 <button 
                     v-for="timeSlot in timeSlots" 
-                    :key="timeSlot.time"
+                    :key="timeSlot.value"
                     class="time-slot"
-                    :class="{ 'available': isTimeAvailable(timeSlot.time) }"
+                    :class="{
+                        'available': isTimeAvailable(timeSlot.value),
+                        'past': isPastTimeSlot(selectedDay.date, timeSlot.value)
+                    }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
-                    <span class="slot-time">{{ formatSlotTime(timeSlot.time) }}</span>
+                    <span class="slot-time">{{ timeSlot.label }}</span>
                 </button>
             </div>
         </div>
@@ -30,7 +33,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatHour, formatSlotTime, generateTimeSlots } from '../utils/timeFormatting'
+import { formatHour, formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay } from '../utils/timeFormatting'
 import { timeToSlot, isSlotAvailable } from '../utils/slotHelpers'
 
 const props = defineProps({
@@ -39,7 +42,7 @@ const props = defineProps({
         required: true
     },
     selectedDay: {
-        type: String,
+        type: Object,
         required: true
     }
 })
@@ -51,7 +54,10 @@ const timeRange = computed(() => {
 })
 
 const timeSlots = computed(() => {
-    return generateTimeSlots()
+    return generateTimeSlots().map(slot => ({
+        value: slot.time,
+        label: formatSlotTime(slot.time)
+    }))
 })
 
 const isTimeAvailable = (timeStr) => {
@@ -59,13 +65,37 @@ const isTimeAvailable = (timeStr) => {
 }
 
 const handleTimeSlotClick = (timeSlot) => {
-    if (isTimeAvailable(timeSlot.time)) {
+    if (isTimeAvailable(timeSlot.value)) {
         emit('slot-selected', {
-            startSlot: timeToSlot(timeSlot.time),
+            startSlot: timeToSlot(timeSlot.value),
             duration: 2,
-            formatted: `${timeSlot.time} on ${props.selectedDay}`
+            formatted: `${timeSlot.value} on ${props.selectedDay.formattedDate}`
         })
     }
+}
+
+const isCurrentDay = (date) => {
+    return isSameDay(new Date(), date)
+}
+
+const isPastDay = (date) => {
+    const today = getStartOfDay(new Date())
+    const checkDate = getStartOfDay(new Date(date))
+    return checkDate < today
+}
+
+const isPastTimeSlot = (date, timeStr) => {
+    if (isPastDay(date)) return true
+    
+    if (isCurrentDay(date)) {
+        const now = new Date()
+        const timeSlot = timeToSlot(timeStr)
+        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
+
+        return timeSlot > currentSlot
+    }
+    
+    return false
 }
 </script>
 
@@ -131,6 +161,11 @@ const handleTimeSlotClick = (timeSlot) => {
     background-color: var(--success-color);
     opacity: 0.5;
     cursor: pointer;
+}
+
+.time-slot.past {
+    opacity: 0.1;
+    cursor: not-allowed;
 }
 
 .time-slot:hover {
