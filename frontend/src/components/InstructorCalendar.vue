@@ -123,7 +123,7 @@ const isPreviousWeekInPast = computed(() => {
 
 const handleDateChange = () => {
     if (selectedDate.value) {
-        fetchdailyScheduleData()
+        fetchDailyScheduleData()
     }
 }
 
@@ -152,19 +152,22 @@ const fetchWeeklySchedule = async () => {
         
         const data = await response.json()
 
-        // Transform the data into the expected format
+        // Initialize empty schedule
         const formattedSchedule = {}
-        
-        // Initialize all days as not available
         for (let i = 0; i < 7; i++) {
+            const slotDate = new Date(`${selectedWeek.value}T00:00:00`)
+            slotDate.setDate(slotDate.getDate() + i)
+    
             formattedSchedule[i] = {
+                date: slotDate, // Store date as YYYY-MM-DD
                 slots: []
             }
         }
 
-        // Add slots to their respective days
+        // Add slots to their respective days with dates
         data.forEach(slot => {
             const dayIndex = slot.day_of_week
+
             formattedSchedule[dayIndex].slots.push({
                 start_slot: slot.start_slot,
                 duration: slot.duration
@@ -197,7 +200,7 @@ const selectedDay = computed(() => {
     }
 })
 
-const fetchdailyScheduleData = async () => {
+const fetchDailyScheduleData = async () => {
     if (!instructor.id || !selectedDate.value) return
 
     try {

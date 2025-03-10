@@ -7,8 +7,8 @@
                 :key="day.value"
                 class="day-header"
                 :class="{ 
-                    'current-day': isCurrentDay(index),
-                    'past-day': isPastDay(index)
+                    'current-day': isCurrentDay(day.date),
+                    'past-day': isPastDay(day.date)
                 }"
             >
                 <div class="day-name">{{ day.label }}</div>
@@ -25,17 +25,21 @@
                 >
                     <div class="time-label">{{ timeSlot.label }}</div>
                     <div 
-                        v-for="(day, index) in daysOfWeek" 
+                        v-for="(day) in daysOfWeek" 
                         :key="day.value"
                         class="schedule-cell"
                         :class="{
                             'available': isTimeAvailable(day.value, timeSlot.value),
                             'unavailable': !isTimeAvailable(day.value, timeSlot.value),
                             /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
-                            'current-day': isCurrentDay(index),
-                            'past': isPastTimeSlot(index, timeSlot.value)
+                            'current-day': isCurrentDay(day.date),
+                            'past': isPastTimeSlot(day.date, timeSlot.value)
                         }"
-                        @click="handleCellClick(day.value, timeSlot.value)"
+                        @click="handleCellClick({
+                            date: day.date,
+                            time: timeSlot.value,
+                            dayOfWeek: day.value
+                        })"
                     >
                     </div>
                 </div>
@@ -46,8 +50,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay } from '../utils/timeFormatting'
-import { slotToTime, timeToSlot, isSlotAvailable } from '../utils/slotHelpers'
+import { slotToTime, timeToSlot, isSlotAvailable, formatSlotTime, generateTimeSlots, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
@@ -70,32 +73,46 @@ const props = defineProps({
 
 const emit = defineEmits(['slot-selected'])
 
-const daysOfWeek = [
-    { value: 0, label: 'Sun' },
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' }
-]
+const daysOfWeek = computed(() => {
+    const days = [
+        { value: 0, label: 'Sun' },
+        { value: 1, label: 'Mon' },
+        { value: 2, label: 'Tue' },
+        { value: 3, label: 'Wed' },
+        { value: 4, label: 'Thu' },
+        { value: 5, label: 'Fri' },
+        { value: 6, label: 'Sat' }
+    ]
+
+    const startDate = new Date(props.weekStartDate)
+    days.forEach((day, index) => {
+        const date = new Date(startDate)
+        date.setDate(startDate.getDate() + index)
+        day.date = date
+    })
+
+    return days
+})
 
 const eventsByDay = computed(() => {
     const days = {}
-    daysOfWeek.forEach((_, index) => {
+    daysOfWeek.value.forEach((_, index) => {
         days[index] = []
     })
 
     // weeklySchedule contains days with slots arrays
     Object.entries(props.weeklySchedule).forEach(([dayIndex, dayData]) => {
         if (!dayData?.slots?.length) return
+
+        const date = dayData.date
         
         dayData.slots.forEach(slot => {
             days[dayIndex].push({
                 startTime: slotToTime(slot.start_slot),
                 endTime: slotToTime(slot.start_slot + slot.duration),
                 start_slot: slot.start_slot,
-                duration: slot.duration
+                duration: slot.duration,
+                date: date
             })
         })
     })
@@ -125,50 +142,22 @@ const isTimeAvailable = (dayOfWeek, timeStr) => {
     return isSlotAvailable(timeStr, events)
 }
 
-const handleCellClick = (dayValue, timeSlot) => {
+const handleCellClick = (cellData) => {
+    const { date, time, dayOfWeek } = cellData
+    
     // Prevent clicks on past time slots
-    if (isPastTimeSlot(daysOfWeek.findIndex(d => d.value === dayValue), timeSlot)) {
+    if (isPastTimeSlot(date, time)) {
         return
     }
     
-    if (isTimeAvailable(dayValue, timeSlot)) {
+    if (isTimeAvailable(dayOfWeek, time)) {
         emit('slot-selected', {
-            dayOfWeek: dayValue,
-            startSlot: timeToSlot(timeSlot),
+            date,
+            startSlot: timeToSlot(time),
             duration: 2, // 30 minutes
-            formatted: `${timeSlot} on ${daysOfWeek.find(day => day.value === dayValue).label}`
+            formatted: `${time} on ${daysOfWeek.value.find(day => day.value === dayOfWeek).label}`
         })
-    } else {
-        console.log('nope')
     }
-}
-
-const isCurrentDay = (dayIndex) => {
-    const today = new Date()
-    const dayDate = new Date(props.weekStartDate)
-    dayDate.setDate(dayDate.getDate() + dayIndex)
-    return isSameDay(today, dayDate)
-}
-
-const isPastDay = (dayIndex) => {
-    const today = getStartOfDay(new Date())
-    const dayDate = getStartOfDay(new Date(props.weekStartDate))
-    dayDate.setDate(dayDate.getDate() + dayIndex)
-    return dayDate < today
-}
-
-const isPastTimeSlot = (dayIndex, timeStr) => {
-    if (isPastDay(dayIndex)) return true
-    
-    if (isCurrentDay(dayIndex)) {
-        const now = new Date()
-        const timeSlot = timeToSlot(timeStr)
-        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
-
-        return timeSlot > currentSlot
-    }
-    
-    return false
 }
 </script>
 

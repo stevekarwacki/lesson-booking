@@ -33,8 +33,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatHour, formatSlotTime, generateTimeSlots, isSameDay, getStartOfDay } from '../utils/timeFormatting'
-import { timeToSlot, isSlotAvailable } from '../utils/slotHelpers'
+import { timeToSlot, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     availableSlots: {
@@ -67,35 +66,12 @@ const isTimeAvailable = (timeStr) => {
 const handleTimeSlotClick = (timeSlot) => {
     if (isTimeAvailable(timeSlot.value)) {
         emit('slot-selected', {
+            date: props.selectedDay.date,
             startSlot: timeToSlot(timeSlot.value),
             duration: 2,
             formatted: `${timeSlot.value} on ${props.selectedDay.formattedDate}`
         })
     }
-}
-
-const isCurrentDay = (date) => {
-    return isSameDay(new Date(), date)
-}
-
-const isPastDay = (date) => {
-    const today = getStartOfDay(new Date())
-    const checkDate = getStartOfDay(new Date(date))
-    return checkDate < today
-}
-
-const isPastTimeSlot = (date, timeStr) => {
-    if (isPastDay(date)) return true
-    
-    if (isCurrentDay(date)) {
-        const now = new Date()
-        const timeSlot = timeToSlot(timeStr)
-        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
-
-        return timeSlot > currentSlot
-    }
-    
-    return false
 }
 </script>
 

@@ -79,7 +79,6 @@
 import { ref, onMounted } from 'vue'
 import { currentUser } from '../stores/userStore'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
-import { timeToSlot } from '../utils/slotHelpers'
 
 const props = defineProps({
     instructorId: {

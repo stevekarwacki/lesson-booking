@@ -67,7 +67,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { timeToSlot } from '../utils/slotHelpers'
+import { timeToSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
