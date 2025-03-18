@@ -141,42 +141,92 @@ const fetchWeeklySchedule = async () => {
     if (!instructor.id) return
 
     try {
-        const response = await fetch(`/api/availability/${instructor.id}/weekly`, {
-            headers: {
-                'user-id': currentUser.value.id
-            }
-        })
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const data = await response.json()
+        // Get week start and end dates
+        const startDate = weekStart.value.toISOString().split('T')[0]
+        const endDate = new Date(weekStart.value)
+        endDate.setDate(endDate.getDate() + 6)
+        const endDateStr = endDate.toISOString().split('T')[0]
 
-        // Initialize empty schedule
+        // Fetch both availability and booked events
+        const [availabilityResponse, eventsResponse] = await Promise.all([
+            fetch(`/api/availability/${instructor.id}/weekly`, {
+                headers: { 'user-id': currentUser.value.id }
+            }),
+            fetch(`/api/calendar/events/${instructor.id}/${startDate}/${endDateStr}`, {
+                headers: { 'user-id': currentUser.value.id }
+            })
+        ])
+
+        if (!availabilityResponse.ok || !eventsResponse.ok) {
+            throw new Error('Failed to fetch data')
+        }
+
+        const [availabilityData, bookedEvents] = await Promise.all([
+            availabilityResponse.json(),
+            eventsResponse.json()
+        ])
+
+        // Initialize schedule with dates
         const formattedSchedule = {}
         for (let i = 0; i < 7; i++) {
             const slotDate = new Date(`${selectedWeek.value}T00:00:00`)
             slotDate.setDate(slotDate.getDate() + i)
-    
             formattedSchedule[i] = {
                 date: slotDate, // Store date as YYYY-MM-DD
                 slots: []
             }
         }
 
-        // Add slots to their respective days with dates
-        data.forEach(slot => {
+        // Add available slots
+        availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
-
             formattedSchedule[dayIndex].slots.push({
                 start_slot: slot.start_slot,
                 duration: slot.duration
             })
         })
 
+        // Remove booked slots
+        bookedEvents.forEach(event => {
+            const eventDate = new Date(event.date)
+            const dayIndex = eventDate.getDay() + 1
+            const eventEnd = event.start_slot + event.duration
+            
+            // For each day's slots, check for overlaps and split as needed
+            formattedSchedule[dayIndex].slots = formattedSchedule[dayIndex].slots.flatMap(slot => {
+                const slotEnd = slot.start_slot + slot.duration
+
+                // No overlap - keep slot as is
+                if (slotEnd <= event.start_slot || slot.start_slot >= eventEnd) {
+                    return [slot]
+                }
+
+                // Split the slot if needed
+                const blocks = []
+                
+                // Add first block if there's space before the event
+                if (slot.start_slot < event.start_slot) {
+                    blocks.push({
+                        start_slot: slot.start_slot,
+                        duration: event.start_slot - slot.start_slot
+                    })
+                }
+
+                // Add second block if there's space after the event
+                if (slotEnd > eventEnd) {
+                    blocks.push({
+                        start_slot: eventEnd,
+                        duration: slotEnd - eventEnd
+                    })
+                }
+
+                return blocks
+            })
+        })
+
         weeklyScheduleData.value = formattedSchedule
     } catch (err) {
-        error.value = 'Error fetching weekly schedule'
+        error.value = 'Error fetching schedule'
         console.error('Fetch error:', err)
     }
 }
@@ -204,20 +254,70 @@ const fetchDailyScheduleData = async () => {
     if (!instructor.id || !selectedDate.value) return
 
     try {
-        const response = await fetch(
-            `/api/availability/${instructor.id}/daily/${selectedDate.value}`,
-            {
-                headers: {
-                    'user-id': currentUser.value.id
+        // Fetch both availability and booked events
+        const [availabilityResponse, eventsResponse] = await Promise.all([
+            fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
+                headers: { 'user-id': currentUser.value.id }
+            }),
+            fetch(`/api/calendar/dailyEvents/${instructor.id}/${selectedDate.value}`, {
+                headers: { 'user-id': currentUser.value.id }
+            })
+        ])
+
+        if (!availabilityResponse.ok || !eventsResponse.ok) {
+            throw new Error('Failed to fetch data')
+        }
+
+        const [availabilityData, bookedEvents] = await Promise.all([
+            availabilityResponse.json(),
+            eventsResponse.json()
+        ])
+
+        // Start with available slots
+        let availableSlots = availabilityData.map(slot => ({
+            start_slot: slot.start_slot,
+            duration: slot.duration
+        }))
+
+        // Split slots around booked events
+        bookedEvents.forEach(event => {
+            const eventEnd = event.start_slot + event.duration
+            
+            availableSlots = availableSlots.flatMap(slot => {
+                const slotEnd = slot.start_slot + slot.duration
+
+                // No overlap - keep slot as is
+                if (slotEnd <= event.start_slot || slot.start_slot >= eventEnd) {
+                    return [slot]
                 }
-            }
-        )
-        if (!response.ok) throw new Error('Failed to fetch daily availability')
-        
-        dailyScheduleData.value = await response.json()
+
+                // Split the slot if needed
+                const blocks = []
+                
+                // Add first block if there's space before the event
+                if (slot.start_slot < event.start_slot) {
+                    blocks.push({
+                        start_slot: slot.start_slot,
+                        duration: event.start_slot - slot.start_slot
+                    })
+                }
+
+                // Add second block if there's space after the event
+                if (slotEnd > eventEnd) {
+                    blocks.push({
+                        start_slot: eventEnd,
+                        duration: slotEnd - eventEnd
+                    })
+                }
+
+                return blocks
+            })
+        })
+
+        dailyScheduleData.value = availableSlots
     } catch (err) {
-        error.value = 'Error fetching daily availability'
-        console.error(err)
+        error.value = 'Error fetching daily schedule'
+        console.error('Fetch error:', err)
     }
 }
 

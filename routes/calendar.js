@@ -52,16 +52,6 @@ router.post('/addEvent', async (req, res) => {
         // 2. Get availability
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
-        // 3. Debug log after we have the data
-        console.log('Debug booking request:', {
-            dayOfWeek,
-            startSlot,
-            endSlot,
-            duration,
-            requestedDate: requestedDate.toString(),
-            weeklyAvailability
-        });
-
         const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
             if (slot.day_of_week !== dayOfWeek) return false;
             const slotEnd = slot.start_slot + slot.duration;
@@ -83,22 +73,29 @@ router.post('/addEvent', async (req, res) => {
             });
         }
 
-        // 4. Check for existing bookings
+        // 3. Check for existing bookings
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
         const hasConflict = existingBookings.some(booking => {
-            const bookingStart = booking.start_slot;
-            const bookingEnd = booking.start_slot + booking.duration;
+            // First check if this booking is for the same day
+            if (new Date(booking.date).toDateString() !== new Date(requestedDate).toDateString()) {
+                return false
+            }
+
+            // If it's the same day, check for time slot conflicts
+            const bookingStart = booking.start_slot
+            const bookingEnd = booking.start_slot + booking.duration
+
             return booking.status === 'booked' && 
-                   startSlot < bookingEnd && 
-                   (startSlot + duration) > bookingStart;
+                   startSlot <= bookingEnd && 
+                   (startSlot + duration) >= bookingStart
         });
 
         if (hasConflict) {
             return res.status(400).json({ error: 'Time slot is already booked' });
         }
 
-        // 5. Create the booking
+        // 4. Create the booking
         const bookingId = await Calendar.addEvent(
             instructorId,
             studentId,
@@ -118,6 +115,39 @@ router.post('/addEvent', async (req, res) => {
             error: 'Failed to book lesson',
             details: error.message 
         });
+    }
+});
+
+router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
+    try {
+        const { instructorId, startDate, endDate } = req.params
+        const events = await Calendar.getInstructorEvents(instructorId)
+        
+        // Filter events within date range
+        const weekEvents = events.filter(event => {
+            const eventDate = event.date
+            return eventDate >= startDate && eventDate <= endDate
+        })
+        
+        res.json(weekEvents)
+    } catch (error) {
+        console.error('Error fetching events:', error)
+        res.status(500).json({ error: 'Error fetching events' })
+    }
+});
+
+router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
+    try {
+        const { instructorId, date } = req.params
+        const events = await Calendar.getInstructorEvents(instructorId)
+        
+        // Filter events for specific date
+        const dayEvents = events.filter(event => event.date === date)
+        
+        res.json(dayEvents)
+    } catch (error) {
+        console.error('Error fetching daily events:', error)
+        res.status(500).json({ error: 'Error fetching events' })
     }
 });
 
