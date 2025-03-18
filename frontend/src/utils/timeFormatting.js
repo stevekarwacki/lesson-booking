@@ -85,8 +85,8 @@ export const isPastTimeSlot = (date, timeStr) => {
         slotDate.setHours(slotHours)
         slotDate.setMinutes(slotMinutes)
 
-        const timeSlot = timeToSlot(`${slotDate.getUTCHours()}:${slotDate.getUTCMinutes()}`)
-        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
+        const timeSlot = timeToSlot(`${slotDate.getHours()}:${slotDate.getMinutes()}`)
+        const currentSlot = timeToSlot(`${now.getHours()}:${now.getMinutes()}`)
 
         return timeSlot < currentSlot
     }
