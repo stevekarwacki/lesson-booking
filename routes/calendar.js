@@ -44,6 +44,7 @@ router.post('/addEvent', async (req, res) => {
 
         // 1. Calculate slots using UTC time
         const requestedDate = new Date(startTime);
+        const formattedDate = requestedDate.toISOString().split('T')[0]
         const dayOfWeek = requestedDate.getUTCDay();
         const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
         const endSlot = Math.floor(new Date(endTime).getUTCHours() * 4 + new Date(endTime).getUTCMinutes() / 15);
@@ -55,13 +56,6 @@ router.post('/addEvent', async (req, res) => {
         const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
             if (slot.day_of_week !== dayOfWeek) return false;
             const slotEnd = slot.start_slot + slot.duration;
-            console.log('Checking slot:', {
-                slot,
-                slotEnd,
-                isValid: startSlot >= slot.start_slot && 
-                         startSlot < slotEnd && 
-                         (startSlot + duration) <= slotEnd
-            });
             return startSlot >= slot.start_slot && 
                    startSlot < slotEnd && 
                    (startSlot + duration) <= slotEnd;
@@ -77,8 +71,9 @@ router.post('/addEvent', async (req, res) => {
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
         const hasConflict = existingBookings.some(booking => {
+
             // First check if this booking is for the same day
-            if (new Date(booking.date).toDateString() !== new Date(requestedDate).toDateString()) {
+            if (booking.date !== formattedDate) {
                 return false
             }
 
@@ -86,9 +81,8 @@ router.post('/addEvent', async (req, res) => {
             const bookingStart = booking.start_slot
             const bookingEnd = booking.start_slot + booking.duration
 
-            return booking.status === 'booked' && 
-                   startSlot <= bookingEnd && 
-                   (startSlot + duration) >= bookingStart
+            return startSlot < bookingEnd && 
+                   (startSlot + duration) > bookingStart
         });
 
         if (hasConflict) {
@@ -99,7 +93,7 @@ router.post('/addEvent', async (req, res) => {
         const bookingId = await Calendar.addEvent(
             instructorId,
             studentId,
-            requestedDate.toISOString().split('T')[0],
+            formattedDate,
             startSlot,
             duration
         );

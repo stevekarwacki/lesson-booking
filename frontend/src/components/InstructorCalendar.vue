@@ -67,6 +67,13 @@
     </div>
 
     <div v-if="error" class="error-message">{{ error }}</div>
+
+    <BookingModal
+        v-if="showBookingModal"
+        :slot="selectedSlot"
+        @close="showBookingModal = false"
+        @booking-confirmed="handleBookingConfirmed"
+    />
 </template>
 
 <script setup>
@@ -75,6 +82,7 @@ import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import { getStartOfDay } from '../utils/timeFormatting'
+import BookingModal from './BookingModal.vue'
 
 const { instructor } = defineProps({
     instructor: {
@@ -127,9 +135,26 @@ const handleDateChange = () => {
     }
 }
 
+const showBookingModal = ref(false)
+const selectedSlot = ref(null)
+
 const handleSlotSelected = (slot) => {
-    console.log('Selected slot:', slot)
-    // We'll implement booking functionality here later
+    selectedSlot.value = {
+        ...slot,
+        instructorId: instructor.id
+    }
+    showBookingModal.value = true
+}
+
+const handleBookingConfirmed = () => {
+    showBookingModal.value = false
+    selectedSlot.value = null
+    // Refresh the schedule
+    if (selectedDate.value) {
+        fetchDailyScheduleData()
+    } else {
+        fetchWeeklySchedule()
+    }
 }
 
 const clearSelectedDate = () => {
