@@ -227,7 +227,6 @@ const handleTimeSlotClick = (cellData) => {
     border-right: 1px solid var(--border-color);
     min-height: 40px;
     position: relative;
-    cursor: pointer;
     transition: all 0.2s ease;
     background-color: var(--error-color);
     opacity: 0.3;

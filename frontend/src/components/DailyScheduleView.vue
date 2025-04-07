@@ -20,7 +20,8 @@
                     class="time-slot"
                     :class="{
                         'available': isTimeAvailable(timeSlot.value),
-                        'past': isPastTimeSlot(selectedDay.date, timeSlot.value)
+                        'past': isPastTimeSlot(selectedDay.date, timeSlot.value),
+                        'booked': isBooked(timeSlot.value)
                     }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
@@ -33,10 +34,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import { timeToSlot, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
+import { slotToTime, timeToSlot, isSlotBooked, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
-    availableSlots: {
+    dailySchedule: {
         type: Array,
         required: true
     },
@@ -59,8 +60,30 @@ const timeSlots = computed(() => {
     }))
 })
 
+const todayEvents = computed(() => {
+    const events = []
+
+    // dailySchedule is an array of slots
+    props.dailySchedule.forEach(slot => {
+        events.push({
+            startTime: slotToTime(slot.start_slot),
+            endTime: slotToTime(slot.start_slot + slot.duration),
+            start_slot: slot.start_slot,
+            duration: slot.duration,
+            date: props.selectedDay.date,
+            booked: !!('status' in slot && slot.status === 'booked')
+        })
+    })
+
+    return events
+})
+
+const isBooked = (timeStr) => {
+    return isSlotBooked(timeStr, todayEvents.value)
+}
+
 const isTimeAvailable = (timeStr) => {
-    return isSlotAvailable(timeStr, props.availableSlots)
+    return isSlotAvailable(timeStr, todayEvents.value)
 }
 
 const handleTimeSlotClick = (timeSlot) => {
@@ -125,16 +148,22 @@ const handleTimeSlotClick = (timeSlot) => {
 .time-slot {
     border: none;
     border-bottom: 1px solid var(--border-color);
-    background-color: var(--error-color);
-    opacity: 0.3;
-    cursor: not-allowed;
     padding: 0;
     position: relative;
     transition: all 0.2s ease;
+    background-color: var(--error-color);
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
 .time-slot.available {
     background-color: var(--success-color);
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.time-slot.booked {
+    background-color: var(--blue-color);
     opacity: 0.5;
     cursor: pointer;
 }

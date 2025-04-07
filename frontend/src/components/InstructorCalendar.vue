@@ -56,7 +56,7 @@
     <!-- Daily Schedule View -->
     <div v-if="selectedDate && dailySchedule.length > 0" class="schedule-view">
         <DailyScheduleView 
-            :available-slots="dailySchedule"
+            :dailySchedule="dailySchedule"
             :selected-day="selectedDay"
             @slot-selected="handleSlotSelected"
         />
@@ -342,6 +342,9 @@ const fetchDailyScheduleData = async () => {
 
                 return blocks
             })
+
+            // Add booked event to schedule
+            availableSlots.push(event)
         })
 
         dailyScheduleData.value = availableSlots
