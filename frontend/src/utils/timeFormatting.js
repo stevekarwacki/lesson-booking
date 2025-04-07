@@ -98,27 +98,38 @@ export const isPastTimeSlot = (date, timeStr) => {
 export const timeToSlot = (timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number);
     return (hours * 4) + Math.floor(minutes / 15);
-};
+}
 
 // Convert slot number to HH:MM
 export const slotToTime = (slot) => {
     const hours = Math.floor(slot / 4);
     const minutes = (slot % 4) * 15;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-};
+}
 
 // Calculate duration in slots
 export const calculateDuration = (startSlot, endSlot) => {
     return endSlot - startSlot;
-};
+}
 
-// Add this function to existing slotHelpers.js
-export const isSlotAvailable = (timeStr, slots) => {
-    if (!slots?.length) return false
+// check if slot if booked
+export const isSlotBooked = (timeStr, events) => {
+    if (!events || !events?.length) return false
     
     const timeSlot = timeToSlot(timeStr)
-    return slots.some(slot => 
-        timeSlot >= slot.start_slot && 
-        timeSlot < (slot.start_slot + slot.duration)
+    return events.some(event =>
+        event.booked &&
+         event.start_slot === timeSlot
+    )
+} 
+
+// Check if slot is available
+export const isSlotAvailable = (timeStr, events) => {
+    if (!events?.length || isSlotBooked(timeStr, events)) return false
+    
+    const timeSlot = timeToSlot(timeStr)
+    return events.some(event => 
+        timeSlot >= event.start_slot && 
+        timeSlot < (event.start_slot + event.duration)
     )
 } 

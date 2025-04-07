@@ -194,8 +194,10 @@ const fetchWeeklySchedule = async () => {
         // Initialize schedule with dates
         const formattedSchedule = {}
         for (let i = 0; i < 7; i++) {
-            const slotDate = new Date(`${selectedWeek.value}T00:00:00`)
+            const slotDate = new Date(selectedWeek.value)
             slotDate.setDate(slotDate.getDate() + i)
+            slotDate.setHours(0,0,0,0)
+
             formattedSchedule[i] = {
                 date: slotDate, // Store date as YYYY-MM-DD
                 slots: []
@@ -247,6 +249,9 @@ const fetchWeeklySchedule = async () => {
 
                 return blocks
             })
+
+            // Add booked event to schedule
+            formattedSchedule[dayIndex].slots.push(event)
         })
 
         weeklyScheduleData.value = formattedSchedule
