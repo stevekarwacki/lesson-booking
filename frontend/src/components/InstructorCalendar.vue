@@ -78,6 +78,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { slotToTime } from '../utils/timeFormatting'
 import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
@@ -161,6 +162,66 @@ const clearSelectedDate = () => {
     selectedDate.value = ''
 }
 
+/**
+ * Formats slot for display
+ * @param {Object} slot - slot to be formatted
+ * @returns {Object} - formatted slot
+ */
+const formatSlot = (slot, date) => {
+    return {
+        startTime: slotToTime(slot.start_slot),
+        endTime: slotToTime(slot.start_slot + slot.duration),
+        start_slot: slot.start_slot,
+        duration: slot.duration,
+        date: date,
+        type: slot.status || 'available'
+    }
+}
+
+/**
+ * 
+ * @param {Array<Object>} availableSlots - array of booked slots
+ * @param {Object} bookedEvent - booked slot
+ * @param {Date} date - the date
+ */
+const splitAvaialabilityBlocks = (availableSlots, bookedEvent, date) => {
+    const eventEnd = bookedEvent.start_slot + bookedEvent.duration
+    
+    return availableSlots.flatMap(slot => {
+        const slotEnd = slot.start_slot + slot.duration
+
+        // No overlap - keep slot as is
+        if (slotEnd <= bookedEvent.start_slot || slot.start_slot >= eventEnd) {
+            return [slot]
+        }
+
+        // Split the slot if needed
+        const blocks = []
+        
+        // Add first block if there's space before the event
+        if (slot.start_slot < bookedEvent.start_slot) {
+            const tempSlot = {
+                start_slot: slot.start_slot,
+                duration: bookedEvent.start_slot - slot.start_slot
+            }
+
+            blocks.push(formatSlot(tempSlot, date))
+        }
+
+        // Add second block if there's space after the event
+        if (slotEnd > eventEnd) {
+            const tempSlot = {
+                start_slot: eventEnd,
+                duration: slotEnd - eventEnd
+            }
+            
+            blocks.push(formatSlot(tempSlot, date))
+        }
+
+        return blocks
+    })
+}
+
 // Fetch weekly schedule
 const fetchWeeklySchedule = async () => {
     if (!instructor.id) return
@@ -204,54 +265,22 @@ const fetchWeeklySchedule = async () => {
             }
         }
 
-        // Add available slots
+        // Start with available slots
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
-            formattedSchedule[dayIndex].slots.push({
-                start_slot: slot.start_slot,
-                duration: slot.duration
-            })
+            formattedSchedule[dayIndex].slots.push(formatSlot(slot, formattedSchedule[dayIndex].date))
         })
 
-        // Remove booked slots
+        // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
             const eventDate = new Date(event.date)
             const dayIndex = eventDate.getDay() + 1
-            const eventEnd = event.start_slot + event.duration
             
             // For each day's slots, check for overlaps and split as needed
-            formattedSchedule[dayIndex].slots = formattedSchedule[dayIndex].slots.flatMap(slot => {
-                const slotEnd = slot.start_slot + slot.duration
-
-                // No overlap - keep slot as is
-                if (slotEnd <= event.start_slot || slot.start_slot >= eventEnd) {
-                    return [slot]
-                }
-
-                // Split the slot if needed
-                const blocks = []
-                
-                // Add first block if there's space before the event
-                if (slot.start_slot < event.start_slot) {
-                    blocks.push({
-                        start_slot: slot.start_slot,
-                        duration: event.start_slot - slot.start_slot
-                    })
-                }
-
-                // Add second block if there's space after the event
-                if (slotEnd > eventEnd) {
-                    blocks.push({
-                        start_slot: eventEnd,
-                        duration: slotEnd - eventEnd
-                    })
-                }
-
-                return blocks
-            })
+            formattedSchedule[dayIndex].slots = splitAvaialabilityBlocks(formattedSchedule[dayIndex].slots, event, eventDate)
 
             // Add booked event to schedule
-            formattedSchedule[dayIndex].slots.push(event)
+            formattedSchedule[dayIndex].slots.push(formatSlot(event, eventDate))
         })
 
         weeklyScheduleData.value = formattedSchedule
@@ -283,6 +312,7 @@ const selectedDay = computed(() => {
 const fetchDailyScheduleData = async () => {
     if (!instructor.id || !selectedDate.value) return
 
+
     try {
         // Fetch both availability and booked events
         const [availabilityResponse, eventsResponse] = await Promise.all([
@@ -298,53 +328,22 @@ const fetchDailyScheduleData = async () => {
             throw new Error('Failed to fetch data')
         }
 
+        const scheduleDate = new Date(selectedDate.value)
+
         const [availabilityData, bookedEvents] = await Promise.all([
             availabilityResponse.json(),
             eventsResponse.json()
         ])
 
         // Start with available slots
-        let availableSlots = availabilityData.map(slot => ({
-            start_slot: slot.start_slot,
-            duration: slot.duration
-        }))
+        let availableSlots = availabilityData.map(slot => (formatSlot(slot, scheduleDate)))
 
-        // Split slots around booked events
+        // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
-            const eventEnd = event.start_slot + event.duration
-            
-            availableSlots = availableSlots.flatMap(slot => {
-                const slotEnd = slot.start_slot + slot.duration
-
-                // No overlap - keep slot as is
-                if (slotEnd <= event.start_slot || slot.start_slot >= eventEnd) {
-                    return [slot]
-                }
-
-                // Split the slot if needed
-                const blocks = []
-                
-                // Add first block if there's space before the event
-                if (slot.start_slot < event.start_slot) {
-                    blocks.push({
-                        start_slot: slot.start_slot,
-                        duration: event.start_slot - slot.start_slot
-                    })
-                }
-
-                // Add second block if there's space after the event
-                if (slotEnd > eventEnd) {
-                    blocks.push({
-                        start_slot: eventEnd,
-                        duration: slotEnd - eventEnd
-                    })
-                }
-
-                return blocks
-            })
-
+            // Check for overlaps and split as needed
+            availableSlots = splitAvaialabilityBlocks(availableSlots, event, scheduleDate)
             // Add booked event to schedule
-            availableSlots.push(event)
+            availableSlots.push(formatSlot(event, scheduleDate))
         })
 
         dailyScheduleData.value = availableSlots

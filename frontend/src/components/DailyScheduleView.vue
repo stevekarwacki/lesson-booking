@@ -34,7 +34,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { slotToTime, timeToSlot, isSlotBooked, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
+import { timeToSlot, isSlotBooked, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     dailySchedule: {
@@ -60,30 +60,12 @@ const timeSlots = computed(() => {
     }))
 })
 
-const todayEvents = computed(() => {
-    const events = []
-
-    // dailySchedule is an array of slots
-    props.dailySchedule.forEach(slot => {
-        events.push({
-            startTime: slotToTime(slot.start_slot),
-            endTime: slotToTime(slot.start_slot + slot.duration),
-            start_slot: slot.start_slot,
-            duration: slot.duration,
-            date: props.selectedDay.date,
-            booked: !!('status' in slot && slot.status === 'booked')
-        })
-    })
-
-    return events
-})
-
 const isBooked = (timeStr) => {
-    return isSlotBooked(timeStr, todayEvents.value)
+    return isSlotBooked(timeStr, props.dailySchedule)
 }
 
 const isTimeAvailable = (timeStr) => {
-    return isSlotAvailable(timeStr, todayEvents.value)
+    return isSlotAvailable(timeStr, props.dailySchedule)
 }
 
 const handleTimeSlotClick = (timeSlot) => {

@@ -50,7 +50,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { slotToTime, timeToSlot, isSlotBooked, isSlotAvailable, formatSlotTime, generateTimeSlots, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
+import { timeToSlot, isSlotBooked, isSlotAvailable, formatSlotTime, generateTimeSlots, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
@@ -94,33 +94,6 @@ const daysOfWeek = computed(() => {
     return days
 })
 
-const eventsByDay = computed(() => {
-    const days = {}
-    daysOfWeek.value.forEach((_, index) => {
-        days[index] = []
-    })
-
-    // weeklySchedule contains days with slots arrays
-    Object.entries(props.weeklySchedule).forEach(([dayIndex, dayData]) => {
-        if (!dayData?.slots?.length) return
-
-        const date = dayData.date
-        
-        dayData.slots.forEach(slot => {
-            days[dayIndex].push({
-                startTime: slotToTime(slot.start_slot),
-                endTime: slotToTime(slot.start_slot + slot.duration),
-                start_slot: slot.start_slot,
-                duration: slot.duration,
-                date: date,
-                booked: !!('status' in slot && slot.status === 'booked')
-            })
-        })
-    })
-
-    return days
-})
-
 const formatDayDate = (dayIndex) => {
     const date = new Date(props.weekStartDate)
     date.setDate(date.getDate() + dayIndex)
@@ -139,12 +112,12 @@ const timeSlots = computed(() => {
 })
 
 const isBooked = (dayOfWeek, timeStr) => {
-    const events = eventsByDay.value[dayOfWeek]
+    const events = props.weeklySchedule[dayOfWeek].slots
     return isSlotBooked(timeStr, events)
 }
 
 const isTimeAvailable = (dayOfWeek, timeStr) => {
-    const events = eventsByDay.value[dayOfWeek]
+    const events = props.weeklySchedule[dayOfWeek].slots
     return isSlotAvailable(timeStr, events)
 }
 

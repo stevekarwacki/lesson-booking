@@ -118,8 +118,8 @@ export const isSlotBooked = (timeStr, events) => {
     
     const timeSlot = timeToSlot(timeStr)
     return events.some(event =>
-        event.booked &&
-         event.start_slot === timeSlot
+        event.type === 'booked' &&
+        event.start_slot === timeSlot
     )
 } 
 
@@ -130,6 +130,6 @@ export const isSlotAvailable = (timeStr, events) => {
     const timeSlot = timeToSlot(timeStr)
     return events.some(event => 
         timeSlot >= event.start_slot && 
-        timeSlot < (event.start_slot + event.duration)
+        timeSlot <= (event.start_slot + event.duration)
     )
 } 
