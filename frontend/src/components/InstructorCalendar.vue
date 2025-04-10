@@ -99,7 +99,7 @@ const blockedTimes = ref([])
 const error = ref('')
 
 // Week selection state
-const selectedWeek = ref(new Date())
+const selectedWeek = ref(firstDayOfWeek(new Date()))
 
 // Get today's date in YYYY-MM-DD format
 const today = computed(() => {
@@ -114,6 +114,19 @@ const weekStart = computed(() => {
     date.setDate(date.getDate() - day)
     return date
 })
+
+function firstDayOfWeek(dateObject, firstDayOfWeekIndex = 0) {
+    const dayOfWeek = dateObject.getDay(),
+        firstDayOfWeek = new Date(dateObject),
+        diff = dayOfWeek >= firstDayOfWeekIndex ?
+            dayOfWeek - firstDayOfWeekIndex :
+            6 - dayOfWeek
+
+    firstDayOfWeek.setDate(dateObject.getDate() - diff)
+    firstDayOfWeek.setHours(0,0,0,0)
+
+    return firstDayOfWeek
+}
 
 // Check if previous week would be entirely in the past
 const isPreviousWeekInPast = computed(() => {
@@ -179,8 +192,8 @@ const formatSlot = (slot, date) => {
 }
 
 /**
- * 
- * @param {Array<Object>} availableSlots - array of booked slots
+ * Splits up blocks of availability by booked events
+ * @param {Array<Object>} availableSlots - array of available slots
  * @param {Object} bookedEvent - booked slot
  * @param {Date} date - the date
  */
@@ -274,7 +287,8 @@ const fetchWeeklySchedule = async () => {
         // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
             const eventDate = new Date(event.date)
-            const dayIndex = eventDate.getDay() + 1
+            eventDate.setDate(eventDate.getDate() + 1)
+            const dayIndex = eventDate.getDay()
             
             // For each day's slots, check for overlaps and split as needed
             formattedSchedule[dayIndex].slots = splitAvaialabilityBlocks(formattedSchedule[dayIndex].slots, event, eventDate)
