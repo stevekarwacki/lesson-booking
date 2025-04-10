@@ -1,4 +1,5 @@
 const db = require('../db');
+const Users = require('./User');
 
 const Calendar = {
     createCalendarTable: async () => {
@@ -70,13 +71,26 @@ const Calendar = {
                 WHERE instructor_id = ? 
                 ORDER BY date, start_slot`,
                 [instructorId],
-                (err, rows) => {
+                async (err, rows) => {
                     if (err) {
                         console.error('Database error:', err);
                         reject(err);
                         return;
                     }
-                    resolve(rows);
+                    
+                    try {
+                        // Enrich the data with student names
+                        const enrichedRows = await Promise.all(rows.map(async (row) => {
+                            if (row.student_id) {
+                                const studentName = await Users.getUserName(row.student_id);
+                                return { ...row, student_name: studentName };
+                            }
+                            return { ...row, student_name: null };
+                        }));
+                        resolve(enrichedRows);
+                    } catch (error) {
+                        reject(error);
+                    }
                 }
             );
         });

@@ -67,6 +67,20 @@ const createUser = async (userData) => {
     });
 };
 
+// Add this method to Users model
+const getUserName = async (userId) => {
+    return new Promise((resolve, reject) => {
+        db.get(
+            'SELECT name FROM users WHERE id = ?',
+            [userId],
+            (err, row) => {
+                if (err) reject(err);
+                resolve(row ? row.name : null);
+            }
+        );
+    });
+} 
+
 const findAll = () => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -228,6 +242,7 @@ module.exports = {
     createUsersTable,
     clearCache,
     createUser,
+    getUserName,
     findByEmail,
     findAll,
     findById,

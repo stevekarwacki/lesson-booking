@@ -181,14 +181,24 @@ const clearSelectedDate = () => {
  * @returns {Object} - formatted slot
  */
 const formatSlot = (slot, date) => {
-    return {
+    const formattedSlot = {
         startTime: slotToTime(slot.start_slot),
         endTime: slotToTime(slot.start_slot + slot.duration),
         start_slot: slot.start_slot,
         duration: slot.duration,
         date: date,
-        type: slot.status || 'available'
+        type: slot.status || 'available',
+        student: null
     }
+
+    if (slot.student_id) {
+        formattedSlot.student = {
+            id: slot.student_id,
+            name: slot.student_name
+        }
+    }
+
+    return formattedSlot
 }
 
 /**
