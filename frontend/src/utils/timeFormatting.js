@@ -1,46 +1,14 @@
-
-/**
- * Formats hour to 12-hour format with AM/PM
- * @param {number} hour - Hour in 24-hour format
- * @returns {string} - Formatted time (e.g., "9:00 AM")
- */
-export const formatHour = (hour) => {
-    let displayHour = hour % 12
-    if (displayHour === 0) displayHour = 12
-    const period = hour >= 12 ? 'PM' : 'AM'
-    return `${displayHour}:00 ${period}`
-}
-
 /**
  * Formats time slot for display
  * @param {string} time - Time in HH:MM format
  * @returns {string} - Formatted time (e.g., "9:30 AM")
  */
-export const formatSlotTime = (time) => {
+export const formatTime = (time) => {
     const [hours, minutes] = time.split(':').map(Number)
     let displayHour = hours % 12
     if (displayHour === 0) displayHour = 12
     const period = hours >= 12 ? 'PM' : 'AM'
     return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`
-}
-
-/**
- * Generates array of time slots
- * @param {number} startHour - Starting hour (24-hour format)
- * @param {number} endHour - Ending hour (24-hour format)
- * @param {number} interval - Interval in minutes
- * @returns {Array} - Array of time slot objects
- */
-export const generateTimeSlots = (startHour = 7, endHour = 19, interval = 30) => {
-    const slots = []
-    for (let hour = startHour; hour <= endHour; hour++) {
-        for (let minute = 0; minute < 60; minute += interval) {
-            if (hour === endHour && minute > 0) continue
-            const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-            slots.push({ time })
-        }
-    }
-    return slots
 }
 
 /**
@@ -65,7 +33,7 @@ export const getStartOfDay = (date) => {
 }
 
 export const isCurrentDay = (date) => {
-    return isSameDay(new Date(), date)
+    return isSameDay(new Date(), new Date(date))
 }
 
 export const isPastDay = (date) => {
@@ -74,18 +42,11 @@ export const isPastDay = (date) => {
     return checkDate < today
 }
 
-export const isPastTimeSlot = (date, timeStr) => {
+export const isPastTimeSlot = (date, timeSlot) => {
     if (isPastDay(date)) return true
     
     if (isCurrentDay(date)) {
         const now = new Date()
-        const slotDate = new Date(date)
-        const [ slotHours, slotMinutes ] = timeStr.split(':')
-
-        slotDate.setHours(slotHours)
-        slotDate.setMinutes(slotMinutes)
-
-        const timeSlot = timeToSlot(`${slotDate.getHours()}:${slotDate.getMinutes()}`)
         const currentSlot = timeToSlot(`${now.getHours()}:${now.getMinutes()}`)
 
         return timeSlot < currentSlot
@@ -106,30 +67,3 @@ export const slotToTime = (slot) => {
     const minutes = (slot % 4) * 15;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
-
-// Calculate duration in slots
-export const calculateDuration = (startSlot, endSlot) => {
-    return endSlot - startSlot;
-}
-
-// check if slot if booked
-export const isSlotBooked = (timeStr, events) => {
-    if (!events || !events?.length) return false
-    
-    const timeSlot = timeToSlot(timeStr)
-    return events.some(event =>
-        event.type === 'booked' &&
-        event.start_slot === timeSlot
-    )
-} 
-
-// Check if slot is available
-export const isSlotAvailable = (timeStr, events) => {
-    if (!events?.length || isSlotBooked(timeStr, events)) return false
-    
-    const timeSlot = timeToSlot(timeStr)
-    return events.some(event => 
-        timeSlot >= event.start_slot && 
-        timeSlot <= (event.start_slot + event.duration)
-    )
-} 

@@ -3,29 +3,25 @@
         <div class="schedule-header">
             {{ selectedDay.formattedDate }}
         </div>
-        <div class="schedule-grid">
-            <div class="time-column">
-                <div 
-                    v-for="hour in timeRange" 
-                    :key="hour"
-                    class="time-cell"
-                >
-                    {{ formatHour(hour) }}
-                </div>
-            </div>
-            <div class="slots-column">
-                <button 
-                    v-for="timeSlot in timeSlots" 
-                    :key="timeSlot.value"
+        <div class="schedule-body">
+            <div 
+                v-for="[timeSlotKey, timeSlot] of Object.entries(props.dailySchedule)" 
+                :key="timeSlotKey"
+                class="time-row"
+            >
+                <div class="time-label">{{ formatTime(slotToTime(timeSlotKey)) }}</div>
+            
+                <button  
+                    :key="timeSlotKey"
                     class="time-slot"
                     :class="{
-                        'available': isTimeAvailable(timeSlot.value),
-                        'past': isPastTimeSlot(selectedDay.date, timeSlot.value),
-                        'booked': isBooked(timeSlot.value)
+                        'available': (timeSlot.type === 'available'),
+                        'past': isPastTimeSlot(selectedDay.date, timeSlot),
+                        'booked': (timeSlot.type === 'booked')
                     }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
-                    <span class="slot-time">{{ timeSlot.label }}</span>
+                    <span class="slot-time">{{ formatTime(slotToTime(timeSlot.start_slot)) }}</span>
                 </button>
             </div>
         </div>
@@ -33,12 +29,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { timeToSlot, isSlotBooked, isSlotAvailable, formatHour, formatSlotTime, generateTimeSlots, isPastTimeSlot } from '../utils/timeFormatting'
+import { formatTime, timeToSlot, slotToTime, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     dailySchedule: {
-        type: Array,
+        type: Object,
         required: true
     },
     selectedDay: {
@@ -49,32 +44,12 @@ const props = defineProps({
 
 const emit = defineEmits(['slot-selected'])
 
-const timeRange = computed(() => {
-    return Array.from({ length: 13 }, (_, i) => i + 7)
-})
-
-const timeSlots = computed(() => {
-    return generateTimeSlots().map(slot => ({
-        value: slot.time,
-        label: formatSlotTime(slot.time)
-    }))
-})
-
-const isBooked = (timeStr) => {
-    return isSlotBooked(timeStr, props.dailySchedule)
-}
-
-const isTimeAvailable = (timeStr) => {
-    return isSlotAvailable(timeStr, props.dailySchedule)
-}
-
 const handleTimeSlotClick = (timeSlot) => {
-    if (isTimeAvailable(timeSlot.value)) {
+    if (timeSlot.type === 'available') {
         emit('slot-selected', {
             date: props.selectedDay.date,
-            startSlot: timeToSlot(timeSlot.value),
-            duration: 2,
-            formatted: `${timeSlot.value} on ${props.selectedDay.formattedDate}`
+            startSlot: timeSlot.start_slot,
+            duration: 2
         })
     }
 }
@@ -85,7 +60,6 @@ const handleTimeSlotClick = (timeSlot) => {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     background: white;
-    height: 600px;
     display: flex;
     flex-direction: column;
 }
@@ -98,10 +72,13 @@ const handleTimeSlotClick = (timeSlot) => {
     font-weight: bold;
 }
 
-.schedule-grid {
-    display: flex;
-    flex: 1;
+.schedule-body {
     overflow: hidden;
+}
+
+.time-row {
+    display: grid;
+    grid-template-columns: 10% 90%;
 }
 
 .time-column {
@@ -111,7 +88,7 @@ const handleTimeSlotClick = (timeSlot) => {
     flex-direction: column;
 }
 
-.time-cell {
+.time-label {
     height: calc(600px / 13);
     display: flex;
     align-items: center;
@@ -119,12 +96,6 @@ const handleTimeSlotClick = (timeSlot) => {
     padding-right: 8px;
     font-size: 0.8em;
     color: var(--text-light);
-}
-
-.slots-column {
-    flex: 1;
-    display: grid;
-    grid-template-rows: repeat(24, 1fr);
 }
 
 .time-slot {

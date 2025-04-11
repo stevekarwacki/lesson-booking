@@ -19,28 +19,29 @@
         <div class="schedule-body">
             <div class="time-slots">
                 <div 
-                    v-for="timeSlot in timeSlots" 
-                    :key="timeSlot.value"
+                    v-for="[timeSlotKey, days] of Object.entries(props.weeklySchedule)" 
+                    :key="timeSlotKey"
                     class="time-row"
                 >
-                    <div class="time-label">{{ timeSlot.label }}</div>
+                    <div class="time-label">{{ formatTime(slotToTime(timeSlotKey)) }}</div>
                     <div 
-                        v-for="(day) in daysOfWeek" 
-                        :key="day.value"
+                        v-for="[dayIndex, slot] of Object.entries(days)" 
+                        :key="dayIndex"
                         class="time-slot"
                         :class="{
-                            'available': isTimeAvailable(day.value, timeSlot.value),
+                            'available': (slot.type === 'available'),
                             /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
-                            'current-day': isCurrentDay(day.date),
-                            'past': isPastTimeSlot(day.date, timeSlot.value),
-                            'booked': isBooked(day.value, timeSlot.value)
+                            'current-day': isCurrentDay(slot.date),
+                            'past': isPastTimeSlot(slot.date, timeSlotKey),
+                            'booked': (slot.type === 'booked')
                         }"
                         @click="handleTimeSlotClick({
-                            date: day.date,
-                            time: timeSlot.value,
-                            dayOfWeek: day.value
+                            date: slot.date,
+                            time: timeSlotKey,
+                            type: slot.type
                         })"
                     >
+                        <span class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
                     </div>
                 </div>
             </div>
@@ -50,7 +51,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { timeToSlot, isSlotBooked, isSlotAvailable, formatSlotTime, generateTimeSlots, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
+import { formatTime, slotToTime, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     weeklySchedule: {
@@ -103,38 +104,19 @@ const formatDayDate = (dayIndex) => {
     })
 }
 
-const timeSlots = computed(() => {
-    // Use generateTimeSlots but transform the output for our needs
-    return generateTimeSlots().map(slot => ({
-        value: slot.time,
-        label: formatSlotTime(slot.time)
-    }))
-})
-
-const isBooked = (dayOfWeek, timeStr) => {
-    const events = props.weeklySchedule[dayOfWeek].slots
-    return isSlotBooked(timeStr, events)
-}
-
-const isTimeAvailable = (dayOfWeek, timeStr) => {
-    const events = props.weeklySchedule[dayOfWeek].slots
-    return isSlotAvailable(timeStr, events)
-}
-
 const handleTimeSlotClick = (cellData) => {
-    const { date, time, dayOfWeek } = cellData
+    const { date, time, type } = cellData
     
     // Prevent clicks on past time slots
     if (isPastTimeSlot(date, time)) {
         return
     }
     
-    if (isTimeAvailable(dayOfWeek, time)) {
+    if (type === 'available') {
         emit('slot-selected', {
             date,
-            startSlot: timeToSlot(time),
-            duration: 2, // 30 minutes
-            formatted: `${time} on ${daysOfWeek.value.find(day => day.value === dayOfWeek).label}`
+            startSlot: time,
+            duration: 2 // 30 minutes
         })
     }
 }
@@ -225,6 +207,20 @@ const handleTimeSlotClick = (cellData) => {
 
 .time-slot:hover {
     opacity: 0.9 !important;
+}
+
+.slot-time {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.8em;
+    color: var(--text-dark);
+}
+
+.time-slot:hover .slot-time {
+    display: block;
 }
 
 .blocked-indicator {

@@ -5,7 +5,7 @@
             
             <div class="booking-details">
                 <p>Date: {{ slot.date.toISOString().split('T')[0] }}</p>
-                <p>Time: {{ slotToTime(slot.startSlot) }} - {{ slotToTime(slot.startSlot + slot.duration) }}</p>
+                <p>Time: {{ slotToTime(slot.startSlot) }} - {{ slotToTime(parseInt(slot.startSlot) + parseInt(slot.duration)) }}</p>
             </div>
 
             <div class="booking-options">
@@ -59,12 +59,12 @@ const confirmBooking = async () => {
     error.value = null
 
     try {
-        const date = props.slot.date
+        const date = new Date(props.slot.date)
         date.setHours(0, 0, 0, 0)
         const localizedDate = date.toISOString().split('T')[0]
         
         const startTime = slotToTime(props.slot.startSlot)
-        const endTime = slotToTime(props.slot.startSlot + props.slot.duration) 
+        const endTime = slotToTime(parseInt(props.slot.startSlot) + parseInt(props.slot.duration)) 
         const startDate = new Date(`${localizedDate}T${startTime}Z`)
         const endDate = new Date(`${localizedDate}T${endTime}Z`)
 

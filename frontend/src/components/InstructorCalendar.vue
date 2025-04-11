@@ -48,13 +48,12 @@
         <WeeklyScheduleView 
             :weeklySchedule="weeklySchedule"
             :weekStartDate="weekStart"
-            :blocked-times="blockedTimes"
             @slot-selected="handleSlotSelected"
         />
     </div>
 
     <!-- Daily Schedule View -->
-    <div v-if="selectedDate && dailySchedule.length > 0" class="schedule-view">
+    <div v-if="selectedDate && dailySchedule" class="schedule-view">
         <DailyScheduleView 
             :dailySchedule="dailySchedule"
             :selected-day="selectedDay"
@@ -78,7 +77,6 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { slotToTime } from '../utils/timeFormatting'
 import { currentUser } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
@@ -92,10 +90,11 @@ const { instructor } = defineProps({
     }
 })
 
+const SLOT_DURATION = 2
+
 const selectedDate = ref('')
 const weeklyScheduleData = ref([])
 const dailyScheduleData = ref([])
-const blockedTimes = ref([])
 const error = ref('')
 
 // Week selection state
@@ -145,7 +144,7 @@ const isPreviousWeekInPast = computed(() => {
 
 const handleDateChange = () => {
     if (selectedDate.value) {
-        fetchDailyScheduleData()
+        fetchDailySchedule()
     }
 }
 
@@ -165,7 +164,7 @@ const handleBookingConfirmed = () => {
     selectedSlot.value = null
     // Refresh the schedule
     if (selectedDate.value) {
-        fetchDailyScheduleData()
+        fetchDailySchedule()
     } else {
         fetchWeeklySchedule()
     }
@@ -182,8 +181,6 @@ const clearSelectedDate = () => {
  */
 const formatSlot = (slot, date) => {
     const formattedSlot = {
-        startTime: slotToTime(slot.start_slot),
-        endTime: slotToTime(slot.start_slot + slot.duration),
         start_slot: slot.start_slot,
         duration: slot.duration,
         date: date,
@@ -199,50 +196,6 @@ const formatSlot = (slot, date) => {
     }
 
     return formattedSlot
-}
-
-/**
- * Splits up blocks of availability by booked events
- * @param {Array<Object>} availableSlots - array of available slots
- * @param {Object} bookedEvent - booked slot
- * @param {Date} date - the date
- */
-const splitAvaialabilityBlocks = (availableSlots, bookedEvent, date) => {
-    const eventEnd = bookedEvent.start_slot + bookedEvent.duration
-    
-    return availableSlots.flatMap(slot => {
-        const slotEnd = slot.start_slot + slot.duration
-
-        // No overlap - keep slot as is
-        if (slotEnd <= bookedEvent.start_slot || slot.start_slot >= eventEnd) {
-            return [slot]
-        }
-
-        // Split the slot if needed
-        const blocks = []
-        
-        // Add first block if there's space before the event
-        if (slot.start_slot < bookedEvent.start_slot) {
-            const tempSlot = {
-                start_slot: slot.start_slot,
-                duration: bookedEvent.start_slot - slot.start_slot
-            }
-
-            blocks.push(formatSlot(tempSlot, date))
-        }
-
-        // Add second block if there's space after the event
-        if (slotEnd > eventEnd) {
-            const tempSlot = {
-                start_slot: eventEnd,
-                duration: slotEnd - eventEnd
-            }
-            
-            blocks.push(formatSlot(tempSlot, date))
-        }
-
-        return blocks
-    })
 }
 
 // Fetch weekly schedule
@@ -277,34 +230,43 @@ const fetchWeeklySchedule = async () => {
 
         // Initialize schedule with dates
         const formattedSchedule = {}
+        const slotTemplate = {}
+        
         for (let i = 0; i < 7; i++) {
             const slotDate = new Date(selectedWeek.value)
             slotDate.setDate(slotDate.getDate() + i)
             slotDate.setHours(0,0,0,0)
 
-            formattedSchedule[i] = {
-                date: slotDate, // Store date as YYYY-MM-DD
-                slots: []
+            slotTemplate[i] = {
+                date: slotDate,
+                type: 'unavailable'
             }
         }
 
         // Start with available slots
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
-            formattedSchedule[dayIndex].slots.push(formatSlot(slot, formattedSchedule[dayIndex].date))
+
+            for (let i = 0; i < slot.duration; i += SLOT_DURATION) {
+                const slotStart = slot.start_slot + i
+                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: SLOT_DURATION });
+
+                if (!(slotStart in formattedSchedule)) {
+                    formattedSchedule[slotStart] = Object.assign({}, slotTemplate)
+                }
+
+                formattedSchedule[slotStart][dayIndex] = formatSlot(newSlot, formattedSchedule[slotStart][dayIndex].date)
+            }
         })
 
-        // Split availability slots around booked events and add booked events to schedule
+        // Overwrite availability with booked events
         bookedEvents.forEach(event => {
             const eventDate = new Date(event.date)
             eventDate.setDate(eventDate.getDate() + 1)
             const dayIndex = eventDate.getDay()
+            const slotStart = event.start_slot
             
-            // For each day's slots, check for overlaps and split as needed
-            formattedSchedule[dayIndex].slots = splitAvaialabilityBlocks(formattedSchedule[dayIndex].slots, event, eventDate)
-
-            // Add booked event to schedule
-            formattedSchedule[dayIndex].slots.push(formatSlot(event, eventDate))
+            formattedSchedule[slotStart][dayIndex] = formatSlot(event, eventDate)
         })
 
         weeklyScheduleData.value = formattedSchedule
@@ -333,9 +295,8 @@ const selectedDay = computed(() => {
     }
 })
 
-const fetchDailyScheduleData = async () => {
+const fetchDailySchedule = async () => {
     if (!instructor.id || !selectedDate.value) return
-
 
     try {
         // Fetch both availability and booked events
@@ -359,18 +320,24 @@ const fetchDailyScheduleData = async () => {
             eventsResponse.json()
         ])
 
-        // Start with available slots
-        let availableSlots = availabilityData.map(slot => (formatSlot(slot, scheduleDate)))
+        const formattedSchedule = {}
+
+        availabilityData.forEach(slot => {
+            for (let i = 0; i < slot.duration; i += SLOT_DURATION) {
+                const slotStart = slot.start_slot + i
+                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: SLOT_DURATION });
+
+                formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
+            }
+        })
 
         // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
-            // Check for overlaps and split as needed
-            availableSlots = splitAvaialabilityBlocks(availableSlots, event, scheduleDate)
             // Add booked event to schedule
-            availableSlots.push(formatSlot(event, scheduleDate))
+            formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
         })
 
-        dailyScheduleData.value = availableSlots
+        dailyScheduleData.value = formattedSchedule
     } catch (err) {
         error.value = 'Error fetching daily schedule'
         console.error('Fetch error:', err)
@@ -380,13 +347,15 @@ const fetchDailyScheduleData = async () => {
 const weeklySchedule = computed(() => {
     // Initialize empty schedule
     let schedule = {
-        0: { slots: [] },
-        1: { slots: [] },
-        2: { slots: [] },
-        3: { slots: [] },
-        4: { slots: [] },
-        5: { slots: [] },
-        6: { slots: [] }
+        0: {
+            0: { },
+            1: { },
+            2: { },
+            3: { },
+            4: { },
+            5: { },
+            6: { }
+        }
     }
 
     // If we have data, populate the slots
@@ -418,6 +387,7 @@ watch(selectedWeek, () => {
 // Fetch data on component mount
 onMounted(() => {
     fetchWeeklySchedule()
+    fetchDailySchedule()
 })
 
 watch(() => instructor, async (newInstructor) => {
