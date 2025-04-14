@@ -39,7 +39,7 @@ router.delete('/:eventId', async (req, res) => {
 // Book a lesson
 router.post('/addEvent', async (req, res) => {
     try {
-        const { instructorId, startTime, endTime } = req.body;
+        const { instructorId, startTime, endTime, paymentMethod = 'credits' } = req.body;
         const studentId = req.headers['user-id'];
 
         // 1. Calculate slots using UTC time
@@ -71,7 +71,6 @@ router.post('/addEvent', async (req, res) => {
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
         const hasConflict = existingBookings.some(booking => {
-
             // First check if this booking is for the same day
             if (booking.date !== formattedDate) {
                 return false
@@ -95,7 +94,9 @@ router.post('/addEvent', async (req, res) => {
             studentId,
             formattedDate,
             startSlot,
-            duration
+            duration,
+            'booked',
+            paymentMethod
         );
 
         res.status(201).json({
@@ -105,6 +106,9 @@ router.post('/addEvent', async (req, res) => {
 
     } catch (error) {
         console.error('Detailed error in booking lesson:', error);
+        if (error.message === 'INSUFFICIENT_CREDITS') {
+            return res.status(400).json({ error: 'INSUFFICIENT_CREDITS' });
+        }
         res.status(500).json({ 
             error: 'Failed to book lesson',
             details: error.message 

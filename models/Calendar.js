@@ -1,5 +1,6 @@
 const db = require('../db');
 const Users = require('./User');
+const Credits = require('./Credits');
 
 const Calendar = {
     createCalendarTable: async () => {
@@ -28,8 +29,30 @@ const Calendar = {
         }
     },
 
-    addEvent: async (instructorId, studentId, date, startSlot, duration, status = 'booked') => {
+    addEvent: async (instructorId, studentId, date, startSlot, duration, status = 'booked', paymentMethod = 'credits') => {
         try {
+            // Check if user has sufficient credits if using credits
+            if (paymentMethod === 'credits') {
+                const hasCredits = await new Promise((resolve, reject) => {
+                    db.get(
+                        `SELECT SUM(credits_remaining) as total_credits
+                         FROM user_credits
+                         WHERE user_id = ?
+                         AND (expiry_date IS NULL OR expiry_date >= DATE('now'))`,
+                        [studentId],
+                        (err, row) => {
+                            if (err) reject(err);
+                            resolve(row?.total_credits > 0);
+                        }
+                    );
+                });
+
+                if (!hasCredits) {
+                    throw new Error('INSUFFICIENT_CREDITS');
+                }
+            }
+
+            // Proceed with booking
             return new Promise((resolve, reject) => {
                 const query = `
                     INSERT INTO calendar_events (
@@ -52,9 +75,31 @@ const Calendar = {
                         duration,
                         status
                     ],
-                    function(err) {
-                        if (err) reject(err);
-                        resolve(this.lastID);
+                    async function(err) {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+
+                        // If using credits, deduct them
+                        if (paymentMethod === 'credits') {
+                            try {
+                                await Credits.useCredit(studentId, this.lastID);
+                                resolve(this.lastID);
+                            } catch (error) {
+                                // If credit deduction fails, rollback the booking
+                                await new Promise((resolve) => {
+                                    db.run(
+                                        'DELETE FROM calendar_events WHERE id = ?',
+                                        [this.lastID],
+                                        () => resolve()
+                                    );
+                                });
+                                reject(error);
+                            }
+                        } else {
+                            resolve(this.lastID);
+                        }
                     }
                 );
             });

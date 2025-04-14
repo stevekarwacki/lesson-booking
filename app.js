@@ -5,6 +5,7 @@ const adminRoutes = require('./routes/admin');
 const instructorRoutes = require('./routes/instructors');
 const userRoutes = require('./routes/users');
 const calendarRoutes = require('./routes/calendar');
+const paymentsRoutes = require('./routes/payments');
 const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
 const User = require('./models/User');
 const Instructor = require('./models/Instructor');
@@ -38,6 +39,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/availability', instructorAvailabilityRoutes);
 
 // Catch all route for Vue app
