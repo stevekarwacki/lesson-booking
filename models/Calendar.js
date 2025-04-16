@@ -177,6 +177,27 @@ const Calendar = {
                 }
             );
         });
+    },
+
+    getStudentEvents: (studentId) => {
+        return new Promise((resolve, reject) => {
+            db.all(
+                `SELECT 
+                    calendar_events.*,
+                    users.name as instructor_name
+                 FROM calendar_events
+                 JOIN instructors ON calendar_events.instructor_id = instructors.id
+                 JOIN users ON instructors.user_id = users.id
+                 WHERE calendar_events.student_id = ?
+                 AND calendar_events.date >= DATE('now')
+                 ORDER BY calendar_events.date, calendar_events.start_slot`,
+                [studentId],
+                (err, rows) => {
+                    if (err) reject(err);
+                    resolve(rows);
+                }
+            );
+        });
     }
 };
 

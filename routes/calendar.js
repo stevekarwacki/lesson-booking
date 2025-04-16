@@ -149,4 +149,16 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
     }
 });
 
+// Add this new route
+router.get('/student/:studentId', async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const events = await Calendar.getStudentEvents(studentId);
+        res.json(events);
+    } catch (error) {
+        console.error('Error fetching student bookings:', error);
+        res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
+});
+
 module.exports = router; 

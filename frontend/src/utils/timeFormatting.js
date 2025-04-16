@@ -67,3 +67,31 @@ export const slotToTime = (slot) => {
     const minutes = (slot % 4) * 15;
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Formats a date string into the specified format
+ * @param {string|Date} date - The date to format (can be a Date object or ISO string)
+ * @param {string} [format='MM-DD-YYYY'] - The desired output format ('MM-DD-YYYY' or 'Day Mon XX')
+ * @returns {string} - Formatted date string
+ */
+export const formatDate = (date, format = 'nm') => {
+    const dateObj = new Date(date);
+    
+    if (format === 'nm') { //numeric
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const year = dateObj.getFullYear();
+        return `${month}-${day}-${year}`;
+    } else if (format === 'anm-abbr') { //alphanumeric-short
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        const dayName = days[dateObj.getDay()];
+        const monthName = months[dateObj.getMonth()];
+        const day = dateObj.getDate();
+        
+        return `${dayName} ${monthName} ${day}`;
+    }
+    
+    throw new Error('Unsupported date format');
+}

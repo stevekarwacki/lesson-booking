@@ -1,5 +1,6 @@
 <template>
     <div class="lesson-booking card">
+        <h2>Book A Lesson</h2>
         
         <!-- Instructor selection -->
         <div class="instructor-selection" v-if="instructors.length > 1">

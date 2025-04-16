@@ -1,14 +1,13 @@
 <template>
     <div class="booking-page">
-        <div class="page-header">
-            <h1>Book a Lesson</h1>
-        </div>
+        <UserBookings />
         <LessonBooking />
     </div>
 </template>
 
 <script setup>
 import LessonBooking from '../components/LessonBooking.vue'
+import UserBookings from '../components/UserBookings.vue'
 </script>
 
 <style scoped>

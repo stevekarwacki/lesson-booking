@@ -88,9 +88,6 @@ const handleLogout = () => {
                     <router-link to="/book-lesson" class="nav-link">
                         Book Lesson
                     </router-link>
-                    <router-link to="/my-bookings" class="nav-link">
-                        My Bookings
-                    </router-link>
                 </template>
 
                 <!-- Common Links for logged-in users -->
