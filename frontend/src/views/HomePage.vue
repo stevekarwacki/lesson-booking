@@ -15,7 +15,6 @@ import { currentUser } from '../stores/userStore'
 .home-page {
     max-width: 1200px;
     margin: 0 auto;
-    padding: var(--spacing-lg);
 }
 
 .welcome-message {

@@ -91,8 +91,8 @@ const handleLogout = () => {
                 </template>
 
                 <!-- Common Links for logged-in users -->
-                <router-link to="/profile" class="nav-link">
-                    Profile
+                <router-link to="/account" class="nav-link">
+                    Account
                 </router-link>
             </div>
 

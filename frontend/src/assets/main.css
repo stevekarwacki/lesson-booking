@@ -83,6 +83,7 @@ input, select, textarea {
 .form-group select,
 .form-group textarea {
     width: 100%;
+    box-sizing: border-box;
     padding: 8px 12px;
     transition: border-color 0.2s ease;
 }

@@ -6,7 +6,6 @@
         <div v-if="success" class="success-message">{{ success }}</div>
 
         <div class="card">
-            <h3>Account Details</h3>
             <form @submit.prevent="updateProfile">
                 <div class="form-group">
                     <label for="name">Name</label>
@@ -130,12 +129,6 @@ const updateProfile = async () => {
 }
 
 h2 {
-    margin-bottom: var(--spacing-lg);
-    color: var(--secondary-color);
-}
-
-h3 {
-    margin-top: 0;
     margin-bottom: var(--spacing-md);
     color: var(--secondary-color);
 }

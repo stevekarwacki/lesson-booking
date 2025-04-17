@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ManageInstructorsPage from '../views/ManageInstructorsPage.vue'
 import ManageUsersPage from '../views/ManageUsersPage.vue'
-import ProfilePage from '../views/ProfilePage.vue'
+import AccountPage from '../views/AccountPage.vue'
 import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
@@ -15,8 +15,8 @@ const routes = [
         component: () => import('../views/HomePage.vue')
     },
     {
-        path: '/profile',
-        component: ProfilePage,
+        path: '/account',
+        component: AccountPage,
         meta: { requiresAuth: true }
     },
     {
