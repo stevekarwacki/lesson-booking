@@ -5,6 +5,7 @@ import AccountPage from '../views/AccountPage.vue'
 import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
+import PaymentsPage from '../views/PaymentsPage.vue'
 import { currentUser } from '../stores/userStore'
 // Import other views as needed
 
@@ -17,6 +18,11 @@ const routes = [
     {
         path: '/account',
         component: AccountPage,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/payments',
+        component: PaymentsPage,
         meta: { requiresAuth: true }
     },
     {

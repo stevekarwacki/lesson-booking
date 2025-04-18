@@ -94,6 +94,9 @@ const handleLogout = () => {
                 <router-link to="/account" class="nav-link">
                     Account
                 </router-link>
+                <router-link to="/payments" class="nav-link">
+                    Payments
+                </router-link>
             </div>
 
             <div class="nav-auth">

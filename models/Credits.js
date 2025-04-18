@@ -20,13 +20,33 @@ module.exports = {
 
     addCredits: (userId, credits, expiryDate = null) => {
         return new Promise((resolve, reject) => {
+            // First try to update an existing non-expired record
             db.run(
-                `INSERT INTO user_credits (user_id, credits_remaining, expiry_date)
-                 VALUES (?, ?, ?)`,
-                [userId, credits, expiryDate],
+                `UPDATE user_credits
+                 SET credits_remaining = credits_remaining + ?
+                 WHERE user_id = ?
+                 AND (expiry_date IS NULL OR expiry_date >= DATE('now'))`,
+                [credits, userId],
                 function(err) {
-                    if (err) reject(err);
-                    resolve(this.lastID);
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    // If no record was updated, create a new one
+                    if (this.changes === 0) {
+                        db.run(
+                            `INSERT INTO user_credits (user_id, credits_remaining, expiry_date)
+                             VALUES (?, ?, ?)`,
+                            [userId, credits, expiryDate],
+                            function(err) {
+                                if (err) reject(err);
+                                resolve(this.lastID);
+                            }
+                        );
+                    } else {
+                        resolve(this.changes);
+                    }
                 }
             );
         });
