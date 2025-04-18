@@ -21,13 +21,13 @@ import Profile from '../components/Profile.vue'
 }
 
 h1 {
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
     color: var(--secondary-color);
 }
 
 .account-sections {
     display: grid;
-    gap: var(--spacing-xl);
+    gap: var(--spacing-lg);
 }
 
 .account-section {

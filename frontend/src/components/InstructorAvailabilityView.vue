@@ -276,7 +276,7 @@ const getBlockedReason = (dayOfWeek, hour) => {
 }
 
 .btn:hover {
-    opacity: 0.9;
+    opacity: 0.7;
 }
 
 .btn-primary {
@@ -333,7 +333,7 @@ const getBlockedReason = (dayOfWeek, hour) => {
 .schedule-cell {
     height: 50px;
     border-left: 1px solid var(--border-color);
-    padding: var(--spacing-xs);
+    padding: var(--spacing-sm);
     user-select: none; /* Prevent text selection while dragging */
 }
 
@@ -365,7 +365,7 @@ const getBlockedReason = (dayOfWeek, hour) => {
 .blocked-indicator {
     background: var(--warning-color);
     color: white;
-    padding: var(--spacing-xs) var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-sm);
     border-radius: var(--border-radius);
     font-size: 0.75rem;
     display: inline-block;

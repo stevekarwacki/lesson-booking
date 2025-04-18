@@ -112,7 +112,7 @@ const emit = defineEmits(['purchase-success'])
 }
 
 .plan-type {
-    margin: var(--spacing-xs) 0 0;
+    margin: var(--spacing-sm) 0 0;
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
