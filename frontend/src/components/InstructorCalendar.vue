@@ -1,5 +1,20 @@
 <template v-if="instructor">
 
+    <!-- Booked Lessons List -->
+    <div v-if="dailyBookings.length > 0" class="booked-lessons-list card">
+        <h3>Today's Booked Lessons</h3>
+        <div class="bookings-list">
+            <div v-for="booking in dailyBookings" :key="booking.id" class="booking-item">
+                <div class="booking-time">
+                    {{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}
+                </div>
+                <div class="booking-student">
+                    {{ booking.student?.name }}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Date selection -->
     <div class="view-controls">
         <!-- Week navigation - only show when no specific date is selected -->
@@ -48,6 +63,7 @@
         <WeeklyScheduleView 
             :weeklySchedule="weeklySchedule"
             :weekStartDate="weekStart"
+            :isInstructorOrAdmin="isInstructorOrAdmin"
             @slot-selected="handleSlotSelected"
         />
     </div>
@@ -57,6 +73,7 @@
         <DailyScheduleView 
             :dailySchedule="dailySchedule"
             :selected-day="selectedDay"
+            :isInstructorOrAdmin="isInstructorOrAdmin"
             @slot-selected="handleSlotSelected"
         />
     </div>
@@ -77,10 +94,10 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { currentUser, isInstructor, isAdmin } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
-import { getStartOfDay } from '../utils/timeFormatting'
+import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 
 const { instructor } = defineProps({
@@ -96,6 +113,7 @@ const selectedDate = ref('')
 const weeklyScheduleData = ref([])
 const dailyScheduleData = ref([])
 const error = ref('')
+const dailyBookings = ref([])
 
 // Week selection state
 const selectedWeek = ref(firstDayOfWeek(new Date()))
@@ -185,13 +203,25 @@ const formatSlot = (slot, date) => {
         duration: slot.duration,
         date: date,
         type: slot.status || 'available',
-        student: null
+        student: null,
+        startTime: null,
+        endTime: null
     }
+
+    // Calculate start and end times
+    const startHour = Math.floor(slot.start_slot / 4)
+    const startMinute = (slot.start_slot % 4) * 15
+    const endHour = Math.floor((slot.start_slot + slot.duration) / 4)
+    const endMinute = ((slot.start_slot + slot.duration) % 4) * 15
+
+    formattedSlot.startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`
+    formattedSlot.endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
 
     if (slot.student_id) {
         formattedSlot.student = {
             id: slot.student_id,
-            name: slot.student_name
+            name: slot.student_name,
+            email: slot.student_email
         }
     }
 
@@ -387,7 +417,7 @@ watch(selectedWeek, () => {
 // Fetch data on component mount
 onMounted(() => {
     fetchWeeklySchedule()
-    fetchDailySchedule()
+    fetchDailyBookings()
 })
 
 watch(() => instructor, async (newInstructor) => {
@@ -395,6 +425,37 @@ watch(() => instructor, async (newInstructor) => {
         await fetchWeeklySchedule()
     }
 }, { immediate: true })
+
+const isInstructorOrAdmin = computed(() => {
+    return isInstructor.value || isAdmin.value
+})
+
+const fetchDailyBookings = async () => {
+    if (!instructor.id) return
+
+    const bookingDate = selectedDate.value || new Date().toISOString().split('T')[0]
+
+    try {
+        const response = await fetch(`/api/calendar/dailyEvents/${instructor.id}/${bookingDate}`, {
+            headers: { 'user-id': currentUser.value.id }
+        })
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch daily bookings')
+        }
+
+        const events = await response.json()
+        dailyBookings.value = events.map(event => (formatSlot(event)))
+    } catch (error) {
+        console.error('Error fetching daily bookings:', error)
+        dailyBookings.value = []
+    }
+}
+
+// Watch for changes to selected date
+watch(selectedDate, () => {
+    fetchDailyBookings()
+})
 </script>
 
 <style scoped>
@@ -493,5 +554,64 @@ watch(() => instructor, async (newInstructor) => {
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.tooltip {
+    position: absolute;
+    background: white;
+    padding: 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    min-width: 200px;
+    font-size: 0.9rem;
+}
+
+.tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.tooltip-content {
+    color: var(--text-secondary);
+}
+
+.tooltip-content p {
+    margin: 4px 0;
+}
+
+.booked-lessons-list {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+}
+
+.booked-lessons-list h3 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    color: var(--secondary-color);
+}
+
+.bookings-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.booking-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+}
+
+.booking-time {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.booking-student {
+    color: var(--text-secondary);
 }
 </style> 

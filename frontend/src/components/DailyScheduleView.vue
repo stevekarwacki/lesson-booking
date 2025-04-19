@@ -21,7 +21,23 @@
                     }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
-                    <span class="slot-time">{{ formatTime(slotToTime(timeSlot.start_slot)) }}</span>
+                    <span v-if="!isInstructorOrAdmin" class="slot-time">{{ slotToTime(timeSlot.start_slot) }}</span>
+                    
+                    <div v-if="timeSlot.type === 'booked'" 
+                        class="booked-slot-content"
+                        :class="{ 'show-details': isInstructorOrAdmin }"
+                    >
+                        <span v-if="isInstructorOrAdmin" class="student-name">
+                            {{ timeSlot.student?.name }}
+                        </span>
+                        <div v-if="isInstructorOrAdmin" class="tooltip">
+                            <div class="tooltip-title">Booking Details</div>
+                            <div class="tooltip-content">
+                                <p>Time: {{ slotToTime(timeSlot.start_slot) }} - {{ slotToTime(timeSlot.start_slot + timeSlot.duration) }}</p>
+                                <p>Student: {{ timeSlot.student?.name }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </button>
             </div>
         </div>
@@ -29,7 +45,7 @@
 </template>
 
 <script setup>
-import { formatTime, timeToSlot, slotToTime, isPastTimeSlot } from '../utils/timeFormatting'
+import { formatTime, slotToTime, isPastTimeSlot } from '../utils/timeFormatting'
 
 const props = defineProps({
     dailySchedule: {
@@ -39,6 +55,10 @@ const props = defineProps({
     selectedDay: {
         type: Object,
         required: true
+    },
+    isInstructorOrAdmin: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -147,5 +167,54 @@ const handleTimeSlotClick = (timeSlot) => {
 
 .time-slot:hover .slot-time {
     display: block;
+}
+
+.booked-slot-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-size: 0.7rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.booked-slot-content.show-details {
+    position: relative;
+}
+
+.booked-slot-content.show-details:hover .tooltip {
+    display: block;
+}
+
+.tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    min-width: 200px;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.tooltip-content {
+    color: var(--text-secondary);
+}
+
+.tooltip-content p {
+    margin: 4px 0;
 }
 </style> 

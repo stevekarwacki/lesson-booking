@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const storedUser = localStorage.getItem('currentUser')
 
@@ -15,6 +15,14 @@ if (storedUser) {
         localStorage.removeItem('currentUser')
     }
 }
+
+export const isInstructor = computed(() => {
+    return currentUser.value?.role === 'instructor'
+})
+
+export const isAdmin = computed(() => {
+    return currentUser.value?.role === 'admin'
+})
 
 export function setUser(user) {
     currentUser.value = user

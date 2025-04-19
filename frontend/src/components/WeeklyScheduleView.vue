@@ -41,7 +41,23 @@
                             type: slot.type
                         })"
                     >
-                        <span class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
+                        <span v-if="!isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
+                        
+                        <div v-if="slot.type === 'booked'" 
+                            class="booked-slot-content"
+                            :class="{ 'show-details': isInstructorOrAdmin }"
+                        >
+                            <span v-if="isInstructorOrAdmin" class="student-name">
+                                {{ slot.student?.name }}
+                            </span>
+                            <div v-if="isInstructorOrAdmin" class="tooltip">
+                                <div class="tooltip-title">Booking Details</div>
+                                <div class="tooltip-content">
+                                    <p>Time: {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}</p>
+                                    <p>Student: {{ slot.student?.name }}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -62,7 +78,7 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-    isInstructor: {
+    isInstructorOrAdmin: {
         type: Boolean,
         default: false
     },
@@ -284,5 +300,54 @@ const handleTimeSlotClick = (cellData) => {
 /* Ensure the current-day overlay appears above the past styling */
 .time-slot.past.current-day::after {
     z-index: 1;
+}
+
+.booked-slot-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-size: 0.7rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.booked-slot-content.show-details {
+    position: relative;
+}
+
+.booked-slot-content.show-details:hover .tooltip {
+    display: block;
+}
+
+.tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -20%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    min-width: 200px;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.tooltip-content {
+    color: var(--text-secondary);
+}
+
+.tooltip-content p {
+    margin: 4px 0;
 }
 </style> 
