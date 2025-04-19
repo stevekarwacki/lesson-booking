@@ -1,7 +1,7 @@
 <template v-if="instructor">
 
     <!-- Booked Lessons List -->
-    <div v-if="dailyBookings.length > 0" class="booked-lessons-list card">
+    <div v-if="isInstructorOrAdmin && dailyBookings.length > 0" class="booked-lessons-list card">
         <h3>Today's Booked Lessons</h3>
         <div class="bookings-list">
             <div v-for="booking in dailyBookings" :key="booking.id" class="booking-item">

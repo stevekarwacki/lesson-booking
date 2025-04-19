@@ -21,7 +21,7 @@
                     }"
                     @click="handleTimeSlotClick(timeSlot)"
                 >
-                    <span v-if="!isInstructorOrAdmin" class="slot-time">{{ slotToTime(timeSlot.start_slot) }}</span>
+                    <span v-if="timeSlot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlot.start_slot)) }}</span>
                     
                     <div v-if="timeSlot.type === 'booked'" 
                         class="booked-slot-content"
@@ -33,7 +33,7 @@
                         <div v-if="isInstructorOrAdmin" class="tooltip">
                             <div class="tooltip-title">Booking Details</div>
                             <div class="tooltip-content">
-                                <p>Time: {{ slotToTime(timeSlot.start_slot) }} - {{ slotToTime(timeSlot.start_slot + timeSlot.duration) }}</p>
+                                <p>Time: {{ formatTime(slotToTime(timeSlot.start_slot)) }} - {{ formatTime(slotToTime(timeSlot.start_slot + timeSlot.duration)) }}</p>
                                 <p>Student: {{ timeSlot.student?.name }}</p>
                             </div>
                         </div>

@@ -41,8 +41,8 @@
                             type: slot.type
                         })"
                     >
-                        <span v-if="!isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
-                        
+                        <span v-if="slot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
+
                         <div v-if="slot.type === 'booked'" 
                             class="booked-slot-content"
                             :class="{ 'show-details': isInstructorOrAdmin }"
