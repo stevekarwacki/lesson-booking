@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
-const User = require('../models/User');
-const Instructor = require('../models/Instructor');
 
 // Get instructor's weekly availability
 router.get('/:instructorId/weekly', async (req, res) => {
