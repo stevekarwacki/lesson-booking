@@ -11,6 +11,7 @@ const User = require('./models/User');
 const Instructor = require('./models/Instructor');
 const instructorAvailability = require('./models/InstructorAvailability');
 const Calendar = require('./models/Calendar');
+const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 
 const app = express();
 
@@ -33,14 +34,16 @@ Promise.all([
     console.error('Database initialization failed:', err);
 });
 
-// Routes
+// Public routes
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/instructors', instructorRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/calendar', calendarRoutes);
-app.use('/api/payments', paymentsRoutes);
-app.use('/api/availability', instructorAvailabilityRoutes);
+
+// Protected routes
+app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
+app.use('/api/instructors', authMiddleware, instructorRoutes);
+app.use('/api/users', authMiddleware, userRoutes);
+app.use('/api/calendar', authMiddleware, calendarRoutes);
+app.use('/api/payments', authMiddleware, paymentsRoutes);
+app.use('/api/availability', authMiddleware, instructorAvailabilityRoutes);
 
 // Catch all route for Vue app
 app.get('*', (req, res) => {

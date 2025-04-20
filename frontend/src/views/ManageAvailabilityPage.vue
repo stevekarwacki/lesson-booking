@@ -38,16 +38,18 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
 
+const userStore = useUserStore()
 const error = ref('')
 const instructors = ref([])
 const selectedInstructorId = ref('')
 const availabilityManager = ref(null)
 const instructorId = ref('')
+const loading = ref(false)
 
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const isAdmin = computed(() => userStore.isAdmin)
 
 const effectiveInstructorId = computed(() => {
     if (isAdmin.value) {
@@ -65,31 +67,51 @@ const showAvailabilityManager = computed(() => {
 
 const fetchInstructors = async () => {
     try {
+        loading.value = true;
+        error.value = null;
+        
         const response = await fetch('/api/instructors', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
-        })
-        if (!response.ok) throw new Error('Failed to fetch instructors')
-        instructors.value = await response.json()
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch instructors');
+        }
+        
+        const data = await response.json();
+        instructors.value = data;
     } catch (err) {
-        error.value = 'Failed to load instructors'
-        console.error(err)
+        error.value = 'Error fetching instructors: ' + err.message;
+        console.error('Error fetching instructors:', err);
+    } finally {
+        loading.value = false;
     }
 }
 
 const fetchInstructorId = async () => {
     try {
-        const response = await fetch(`/api/instructors/user/${currentUser.value.id}`, {
+        loading.value = true;
+        error.value = null;
+        
+        const response = await fetch(`/api/instructors/user/${userStore.user.id}`, {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         });
-        if (!response.ok) throw new Error('Failed to fetch instructor information');
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch instructor information');
+        }
+        
         const instructor = await response.json();
         instructorId.value = instructor.id;
     } catch (err) {
-        error.value = 'Failed to fetch instructor information';
+        error.value = 'Error fetching instructor information: ' + err.message;
+        console.error('Error fetching instructor information:', err);
+    } finally {
+        loading.value = false;
     }
 }
 

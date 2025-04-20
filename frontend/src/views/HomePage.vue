@@ -1,12 +1,14 @@
 <script setup>
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
+
+const userStore = useUserStore()
 </script>
 
 <template>
     <div class="home-page">
         <h1>Welcome to Lesson Booking</h1>
-        <div v-if="currentUser" class="welcome-message">
-            <p>Welcome back, {{ currentUser.name }}!</p>
+        <div v-if="userStore.user" class="welcome-message">
+            <p>Welcome back, {{ userStore.user.name }}!</p>
         </div>
     </div>
 </template>

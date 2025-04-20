@@ -6,7 +6,7 @@ import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 // Import other views as needed
 
 const routes = [
@@ -70,24 +70,29 @@ const router = createRouter({
 
 // Updated navigation guard
 router.beforeEach(async (to, from, next) => {
-    await new Promise(resolve => setTimeout(resolve, 300))
+    const userStore = useUserStore()
     
-    if (to.meta.requiresAuth && !currentUser.value) {
-        next('/')
-        return
-    } 
-    
-    if (to.meta.requiresAdmin && (!currentUser.value || currentUser.value.role !== 'admin')) {
-        next('/')
-        return
+    // If we have a token but no user, wait for initialization
+    if (userStore.token && !userStore.user) {
+        try {
+            await userStore.fetchUser()
+        } catch (error) {
+            console.error('Failed to fetch user:', error)
+            userStore.clearUser()
+            next('/')
+            return
+        }
     }
     
-    if (to.meta.requiresInstructor && (!currentUser.value || currentUser.value.role !== 'instructor')) {
+    if (to.meta.requiresAuth && !userStore.user) {
         next('/')
-        return
+    } else if (to.meta.requiresAdmin && (!userStore.user || userStore.user.role !== 'admin')) {
+        next('/')
+    } else if (to.meta.requiresInstructor && (!userStore.user || userStore.user.role !== 'instructor')) {
+        next('/')
+    } else {
+        next()
     }
-    
-    next()
 })
 
 export default router 

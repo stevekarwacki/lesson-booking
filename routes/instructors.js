@@ -3,29 +3,11 @@ const router = express.Router();
 const Instructor = require('../models/Instructor');
 const User = require('../models/User');
 
-// Middleware to check if user is admin
-const isAdmin = async (req, res, next) => {
-    const userId = req.headers['user-id']; // We'll replace this with proper auth later
-    try {
-        const user = await User.findById(userId);
-        if (user && user.role === 'admin') {
-            next();
-        } else {
-            res.status(403).json({ error: 'Access denied. Admin only.' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Error checking admin status' });
-    }
-};
-
-// Public route - Get all instructors
+// Get all instructors
 router.get('/', async (req, res) => {
     try {
-        const userId = req.headers['user-id'];
-        const user = await User.findById(userId);
-        
         // Admins can see all instructors, others only see active ones
-        const instructors = user.role === 'admin' 
+        const instructors = req.user.role === 'admin' 
             ? await Instructor.getAll()
             : await Instructor.getAllActive();
             
@@ -36,10 +18,10 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Public route - Get instructor by user ID
+// Get instructor by user ID
 router.get('/user/:userId', async (req, res) => {
     try {
-        const userId = req.params.userId;
+        const userId = parseInt(req.params.userId, 10);
         const instructor = await Instructor.findByUserId(userId);
         
         if (!instructor) {
@@ -52,9 +34,13 @@ router.get('/user/:userId', async (req, res) => {
     }
 });
 
-// Add instructor
+// Add instructor (admin only)
 router.post('/', async (req, res) => {
     try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin only.' });
+        }
+
         await Instructor.createInstructor(req.body);
         res.json({ message: 'Instructor added successfully' });
     } catch (error) {
@@ -69,10 +55,15 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Admin only - Update instructor
-router.put('/:userId', isAdmin, async (req, res) => {
+// Update instructor (admin only)
+router.put('/:userId', async (req, res) => {
     try {
-        await Instructor.updateInstructor(req.params.userId, req.body);
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin only.' });
+        }
+
+        const userId = parseInt(req.params.userId, 10);
+        await Instructor.updateInstructor(userId, req.body);
         res.json({ message: 'Instructor updated successfully' });
     } catch (error) {
         console.error('Error updating instructor:', error);
@@ -80,10 +71,15 @@ router.put('/:userId', isAdmin, async (req, res) => {
     }
 });
 
-// Remove instructor
+// Remove instructor (admin only)
 router.delete('/:id', async (req, res) => {
     try {
-        await Instructor.deleteInstructor(req.params.id);
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin only.' });
+        }
+
+        const instructorId = parseInt(req.params.id, 10);
+        await Instructor.deleteInstructor(instructorId);
         res.json({ message: 'Instructor removed successfully' });
     } catch (error) {
         console.error('Error removing instructor:', error);
@@ -91,11 +87,15 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Add new route for toggling active status (admin only)
+// Toggle active status (admin only)
 router.patch('/:id/toggle-active', async (req, res) => {
     try {
-        const { id } = req.params;
-        await Instructor.toggleActive(id);
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admin only.' });
+        }
+
+        const instructorId = parseInt(req.params.id, 10);
+        await Instructor.toggleActive(instructorId);
         res.json({ message: 'Instructor active status updated successfully' });
     } catch (error) {
         console.error('Error updating instructor active status:', error);

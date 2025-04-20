@@ -17,6 +17,10 @@ router.get('/instructor/:instructorId', async (req, res) => {
 // Update calendar event (instructor only)
 router.patch('/:eventId', async (req, res) => {
     try {
+        if (req.user.role !== 'instructor') {
+            return res.status(403).json({ error: 'Access denied. Instructor only.' });
+        }
+
         await Calendar.updateEvent(req.params.eventId, req.body);
         res.json({ message: 'Event updated successfully' });
     } catch (error) {
@@ -28,6 +32,10 @@ router.patch('/:eventId', async (req, res) => {
 // Delete calendar event (instructor only)
 router.delete('/:eventId', async (req, res) => {
     try {
+        if (req.user.role !== 'instructor') {
+            return res.status(403).json({ error: 'Access denied. Instructor only.' });
+        }
+
         await Calendar.deleteEvent(req.params.eventId);
         res.json({ message: 'Event deleted successfully' });
     } catch (error) {
@@ -40,15 +48,35 @@ router.delete('/:eventId', async (req, res) => {
 router.post('/addEvent', async (req, res) => {
     try {
         const { instructorId, startTime, endTime, paymentMethod = 'credits' } = req.body;
-        const studentId = req.headers['user-id'];
+        const studentId = req.user.id;
 
-        // 1. Calculate slots using UTC time
+        // Validate required fields
+        if (!instructorId || !startTime || !endTime) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate and parse dates
         const requestedDate = new Date(startTime);
-        const formattedDate = requestedDate.toISOString().split('T')[0]
+        const endDate = new Date(endTime);
+
+        // Check if dates are valid
+        if (isNaN(requestedDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid date format' });
+        }
+
+        // Format date to YYYY-MM-DD
+        const formattedDate = requestedDate.toISOString().split('T')[0];
         const dayOfWeek = requestedDate.getUTCDay();
+
+        // Calculate time slots
         const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
-        const endSlot = Math.floor(new Date(endTime).getUTCHours() * 4 + new Date(endTime).getUTCMinutes() / 15);
+        const endSlot = Math.floor(endDate.getUTCHours() * 4 + endDate.getUTCMinutes() / 15);
         const duration = endSlot - startSlot;
+
+        // Validate slot duration
+        if (duration <= 0) {
+            return res.status(400).json({ error: 'Invalid time slot duration' });
+        }
 
         // 2. Get availability
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
@@ -116,6 +144,7 @@ router.post('/addEvent', async (req, res) => {
     }
 });
 
+// Get events for a date range
 router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
     try {
         const { instructorId, startDate, endDate } = req.params
@@ -134,6 +163,7 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
     }
 });
 
+// Get daily events
 router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
     try {
         const { instructorId, date } = req.params
@@ -149,10 +179,17 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
     }
 });
 
-// Add this new route
+// Get student bookings
 router.get('/student/:studentId', async (req, res) => {
     try {
-        const { studentId } = req.params;
+        // Convert studentId to number for comparison
+        const studentId = parseInt(req.params.studentId, 10);
+        
+        // Ensure user can only access their own bookings
+        if (req.user.id !== studentId && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const events = await Calendar.getStudentEvents(studentId);
         res.json(events);
     } catch (error) {

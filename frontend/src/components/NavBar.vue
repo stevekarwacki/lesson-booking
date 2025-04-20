@@ -1,14 +1,15 @@
 <script setup>
 import { ref } from 'vue'
-import { currentUser, clearUser } from '../stores/userStore'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/userStore'
 
 const router = useRouter()
+const userStore = useUserStore()
 const isMenuOpen = ref(false)
 
-const isAdmin = () => currentUser.value?.role === 'admin'
-const isInstructor = () => currentUser.value?.role === 'instructor'
-const isStudent = () => currentUser.value?.role === 'student'
+const isAdmin = () => userStore.user?.role === 'admin'
+const isInstructor = () => userStore.user?.role === 'instructor'
+const isStudent = () => userStore.user?.role === 'student'
 
 const toggleMenu = () => {
     isMenuOpen.value = !isMenuOpen.value
@@ -19,7 +20,7 @@ const closeMenu = () => {
 }
 
 const handleLogout = () => {
-    clearUser()
+    userStore.clearUser()
     router.push('/')
     isMenuOpen.value = false
 }
@@ -37,7 +38,7 @@ const handleLogout = () => {
         </div>
 
         <div class="nav-content" :class="{ 'is-open': isMenuOpen }">
-            <div class="nav-links" v-if="currentUser" @click="closeMenu">
+            <div class="nav-links" v-if="userStore.user" @click="closeMenu">
                 <router-link to="/" class="nav-link">Home</router-link>
                 
                 <!-- Admin Links -->
@@ -100,8 +101,8 @@ const handleLogout = () => {
             </div>
 
             <div class="nav-auth">
-                <template v-if="currentUser">
-                    <span class="user-name">{{ currentUser.name }}</span>
+                <template v-if="userStore.user">
+                    <span class="user-name">{{ userStore.user.name }}</span>
                     <button @click="handleLogout" class="logout-button">
                         Log Out
                     </button>

@@ -45,72 +45,106 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import PaymentPlans from '../components/PaymentPlans.vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import { formatDate } from '../utils/timeFormatting'
 
+const userStore = useUserStore()
 const userCredits = ref(0)
 const nextExpiry = ref(null)
 const transactions = ref([])
 const allPlans = ref([])
+const loading = ref(false)
+const error = ref(null)
 
 const lessonPlans = computed(() => allPlans.value.filter(plan => plan.type === 'package'))
 const membershipPlans = computed(() => allPlans.value.filter(plan => plan.type === 'membership'))
 
-const fetchUserCredits = async () => {
+const fetchCredits = async () => {
     try {
+        loading.value = true;
+        error.value = null;
+        
         const response = await fetch('/api/payments/credits', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
-        })
-        if (!response.ok) throw new Error('Failed to fetch credits')
+        });
         
-        const data = await response.json()
+        if (!response.ok) {
+            throw new Error('Failed to fetch credits');
+        }
+        
+        const data = await response.json();
         userCredits.value = data.total_credits || 0
         nextExpiry.value = data.next_expiry
-    } catch (error) {
-        console.error('Error fetching credits:', error)
+    } catch (err) {
+        error.value = 'Error fetching credits: ' + err.message;
+        console.error('Error fetching credits:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const fetchPaymentPlans = async () => {
     try {
-        const response = await fetch('/api/payments/plans')
-        if (!response.ok) throw new Error('Failed to fetch payment plans')
+        loading.value = true;
+        error.value = null;
         
-        allPlans.value = await response.json()
-    } catch (error) {
-        console.error('Error fetching payment plans:', error)
+        const response = await fetch('/api/payments/plans', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch payment plans');
+        }
+        
+        const data = await response.json();
+        allPlans.value = data;
+    } catch (err) {
+        error.value = 'Error fetching payment plans: ' + err.message;
+        console.error('Error fetching payment plans:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const fetchTransactions = async () => {
     try {
-        const response = await fetch(`/api/payments/transactions`,
-            {
-                headers: {
-                    'user-id': currentUser.value.id
-                }
-            }
-        )
-        if (!response.ok) throw new Error('Failed to fetch transactions')
+        loading.value = true;
+        error.value = null;
         
-        transactions.value = await response.json()
-    } catch (error) {
-        console.error('Error fetching transactions:', error)
+        const response = await fetch('/api/payments/transactions', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch transactions');
+        }
+        
+        const data = await response.json();
+        transactions.value = data;
+    } catch (err) {
+        error.value = 'Error fetching transactions: ' + err.message;
+        console.error('Error fetching transactions:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const refreshData = async () => {
     await Promise.all([
-        fetchUserCredits(),
+        fetchCredits(),
         fetchTransactions()
     ]);
 };
 
 onMounted(async () => {
     await Promise.all([
-        fetchUserCredits(),
+        fetchCredits(),
         fetchPaymentPlans(),
         fetchTransactions()
     ])

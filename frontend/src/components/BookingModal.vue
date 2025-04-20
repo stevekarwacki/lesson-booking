@@ -63,7 +63,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import { slotToTime } from '../utils/timeFormatting'
 
 const props = defineProps({
@@ -74,6 +74,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'booking-confirmed'])
+
+const userStore = useUserStore()
 
 const loading = ref(false)
 const error = ref(null)
@@ -86,7 +88,7 @@ onMounted(async () => {
     try {
         const response = await fetch('/api/payments/credits', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         })
         
@@ -113,24 +115,28 @@ onMounted(async () => {
 })
 
 const confirmBooking = async () => {
-    loading.value = true
-    error.value = null
-
     try {
-        const date = new Date(props.slot.date)
-        date.setHours(0, 0, 0, 0)
-        const localizedDate = date.toISOString().split('T')[0]
+        loading.value = true;
+        error.value = null;
+
+        // Get the date in UTC
+        const date = new Date(props.slot.date);
+        date.setUTCHours(0, 0, 0, 0);
+        const utcDate = date.toISOString().split('T')[0];
         
-        const startTime = slotToTime(props.slot.startSlot)
-        const endTime = slotToTime(parseInt(props.slot.startSlot) + parseInt(props.slot.duration)) 
-        const startDate = new Date(`${localizedDate}T${startTime}Z`)
-        const endDate = new Date(`${localizedDate}T${endTime}Z`)
+        // Convert slot times to UTC
+        const startTime = slotToTime(props.slot.startSlot);
+        const endTime = slotToTime(parseInt(props.slot.startSlot) + parseInt(props.slot.duration));
+        
+        // Create UTC dates
+        const startDate = new Date(`${utcDate}T${startTime}:00.000Z`);
+        const endDate = new Date(`${utcDate}T${endTime}:00.000Z`);
 
         const response = await fetch('/api/calendar/addEvent', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
                 instructorId: props.slot.instructorId,
@@ -138,7 +144,7 @@ const confirmBooking = async () => {
                 endTime: endDate.toISOString(),
                 paymentMethod: paymentMethod.value
             })
-        })
+        });
 
         if (!response.ok) {
             const data = await response.json()

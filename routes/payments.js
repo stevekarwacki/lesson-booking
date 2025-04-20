@@ -4,6 +4,7 @@ const PaymentPlan = require('../models/PaymentPlan');
 const Credits = require('../models/Credits');
 const Transactions = require('../models/Transactions');
 
+// Public route - Get all payment plans
 router.get('/plans', async (req, res) => {
     try {
         const plans = await PaymentPlan.getAll();
@@ -14,14 +15,10 @@ router.get('/plans', async (req, res) => {
     }
 });
 
+// Get user credits
 router.get('/credits', async (req, res) => {
     try {
-        const userId = req.headers['user-id'];
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
-
-        const credits = await Credits.getUserCredits(userId);
+        const credits = await Credits.getUserCredits(req.user.id);
         res.json(credits);
     } catch (error) {
         console.error('Error fetching user credits:', error);
@@ -29,16 +26,12 @@ router.get('/credits', async (req, res) => {
     }
 });
 
+// Purchase a plan
 router.post('/purchase', async (req, res) => {
     const { planId, paymentMethod } = req.body;
-    const userId = req.headers['user-id'];
     
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID is required' });
-    }
-
     try {
-        const result = await PaymentPlan.purchase(userId, planId, paymentMethod);
+        const result = await PaymentPlan.purchase(req.user.id, planId, paymentMethod);
         res.json(result);
     } catch (error) {
         console.error('Error processing purchase:', error);
@@ -46,14 +39,10 @@ router.post('/purchase', async (req, res) => {
     }
 });
 
+// Get user transactions
 router.get('/transactions', async (req, res) => {
     try {
-        const userId = req.headers['user-id'];
-        if (!userId) {
-            return res.status(400).json({ error: 'User ID is required' });
-        }
-
-        const transactions = await Transactions.getTransactions(userId);
+        const transactions = await Transactions.getTransactions(req.user.id);
         res.json(transactions);
     } catch (error) {
         console.error('Error fetching transactions:', error);

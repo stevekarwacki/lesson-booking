@@ -1,14 +1,14 @@
 <script setup>
 import UserManager from '../components/UserManager.vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+const userStore = useUserStore()
 const router = useRouter()
 
 onMounted(() => {
-    // Redirect if not admin
-    if (!currentUser.value || currentUser.value.role !== 'admin') {
+    if (!userStore.isAdmin) {
         router.push('/')
     }
 })

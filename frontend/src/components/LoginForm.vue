@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import { setUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
+
+const userStore = useUserStore()
 
 const email = ref('')
 const password = ref('')
@@ -17,32 +19,18 @@ const handleSubmit = async () => {
     }
 
     try {
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: email.value,
-                password: password.value
-            })
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Login failed')
-        }
-
-        success.value = 'Login successful!'
-        setUser(data.user)
+        const success = await userStore.login(email.value, password.value)
         
-        // Reset form
-        email.value = ''
-        password.value = ''
-
+        if (success) {
+            success.value = 'Login successful!'
+            // Reset form
+            email.value = ''
+            password.value = ''
+        } else {
+            error.value = 'Invalid email or password'
+        }
     } catch (err) {
-        error.value = err.message
+        error.value = err.message || 'An error occurred during login'
     }
 }
 </script>

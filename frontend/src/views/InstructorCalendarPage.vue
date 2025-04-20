@@ -9,32 +9,45 @@
 
 <script setup>
 import InstructorCalendar from '../components/InstructorCalendar.vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+const userStore = useUserStore()
 const router = useRouter()
 const instructor = ref(null)
+const error = ref(null)
+const loading = ref(false)
 
 const fetchInstructor = async () => {
     try {
-        const response = await fetch(`/api/instructors/user/${currentUser.value.id}`, {
+        loading.value = true;
+        error.value = null;
+        
+        const response = await fetch(`/api/instructors/user/${userStore.user.id}`, {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         });
-        if (!response.ok) throw new Error('Failed to fetch instructor information');
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch instructor information');
+        }
+        
         const data = await response.json();
         instructor.value = data;
     } catch (err) {
-        error.value = 'Failed to fetch instructor information';
+        error.value = 'Error fetching instructor information: ' + err.message;
+        console.error('Error fetching instructor information:', err);
+    } finally {
+        loading.value = false;
     }
 }
 
 onMounted(() => {
-    if (!currentUser.value || currentUser.value.role !== 'instructor') {
+    if (!userStore.isInstructor) {
         router.push('/')
-    } else if (currentUser.value.role === 'instructor') {
+    } else {
         fetchInstructor()
     }
 })

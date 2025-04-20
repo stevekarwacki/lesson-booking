@@ -39,18 +39,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 
+const userStore = useUserStore()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref(null)
 
 const fetchBookings = async () => {
     try {
-        const response = await fetch(`/api/calendar/student/${currentUser.value.id}`, {
+        loading.value = true
+        error.value = null
+        
+        const response = await fetch(`/api/calendar/student/${userStore.user.id}`, {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         })
         
@@ -61,14 +65,16 @@ const fetchBookings = async () => {
         const data = await response.json()
         bookings.value = data
     } catch (err) {
+        error.value = 'Error fetching bookings: ' + err.message
         console.error('Error fetching bookings:', err)
-        error.value = err.message
     } finally {
         loading.value = false
     }
 }
 
-onMounted(fetchBookings)
+onMounted(async () => {
+    await fetchBookings()
+})
 </script>
 
 <style scoped>

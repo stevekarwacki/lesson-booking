@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import { setUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
+
+const userStore = useUserStore()
 
 const name = ref('')
 const email = ref('')
@@ -26,41 +28,24 @@ const handleSubmit = async () => {
     }
 
     try {
-        const response = await fetch('/api/auth/signup', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                name: name.value,
-                email: email.value,
-                password: password.value
-            })
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Error creating account')
-        }
-
-        // Set the user in the store
-        setUser({
-            id: data.userId,
+        const success = await userStore.register({
             name: name.value,
             email: email.value,
-            role: 'student' // Default role for new users
+            password: password.value
         })
 
-        success.value = 'Account created successfully!'
-        // Reset form
-        name.value = ''
-        email.value = ''
-        password.value = ''
-        confirmPassword.value = ''
-
+        if (success) {
+            success.value = 'Account created successfully!'
+            // Reset form
+            name.value = ''
+            email.value = ''
+            password.value = ''
+            confirmPassword.value = ''
+        } else {
+            error.value = 'Failed to create account'
+        }
     } catch (err) {
-        error.value = err.message
+        error.value = err.message || 'An error occurred during registration'
     }
 }
 </script>

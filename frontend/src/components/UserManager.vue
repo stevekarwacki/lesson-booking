@@ -1,16 +1,18 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 
+const userStore = useUserStore()
 const users = ref([])
 const error = ref('')
 const success = ref('')
 const showAddForm = ref(false)
 const showEditModal = ref(false)
 const editingUser = ref(null)
+const loading = ref(true)
 
 // Computed property to safely get current user ID
-const currentUserId = computed(() => currentUser.value?.id)
+const currentUserId = computed(() => userStore.user?.id)
 
 // New user form data
 const newUser = ref({
@@ -40,7 +42,7 @@ const addUser = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUserId.value
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify(newUser.value)
         })
@@ -60,50 +62,57 @@ const addUser = async () => {
 }
 
 const fetchUsers = async () => {
-    if (!currentUserId.value) {
-        console.error('No currentUser.id available')
-        error.value = 'User not properly authenticated'
-        return
-    }
-
     try {
+        loading.value = true;
+        error.value = null;
+        
         const response = await fetch('/api/admin/users', {
             headers: {
-                'user-id': currentUserId.value
+                'Authorization': `Bearer ${userStore.token}`
             }
-        })
-        if (!response.ok) throw new Error('Failed to fetch users')
-        users.value = await response.json()
-        // Make sure is_approved is a boolean
-        users.value = users.value.map(user => ({
-            ...user,
-            is_approved: Boolean(user.is_approved)
-        }))
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch users');
+        }
+        
+        const data = await response.json();
+        users.value = data;
     } catch (err) {
-        error.value = 'Failed to load users'
-        console.error(err)
+        error.value = 'Error fetching users: ' + err.message;
+        console.error('Error fetching users:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const deleteUser = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user?')) return
-
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    
     try {
+        loading.value = true;
+        error.value = null;
+        
         const response = await fetch(`/api/admin/users/${userId}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
-                'user-id': currentUserId.value
+                'Authorization': `Bearer ${userStore.token}`
             }
-        })
-        if (!response.ok) throw new Error('Failed to delete user')
+        });
         
-        success.value = 'User deleted successfully'
-        await fetchUsers()
+        if (!response.ok) {
+            throw new Error('Failed to delete user');
+        }
+        
+        await fetchUsers();
+        success.value = 'User deleted successfully';
     } catch (err) {
-        error.value = 'Error deleting user: ' + err.message
+        error.value = 'Error deleting user: ' + err.message;
+        console.error('Error deleting user:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const openEditModal = (user) => {
     editingUser.value = { ...user }
@@ -122,7 +131,7 @@ const saveUserEdit = async () => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUserId.value
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({ role: editingUser.value.role })
         });
@@ -134,7 +143,7 @@ const saveUserEdit = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUserId.value
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({ isApproved: editingUser.value.is_approved })
         });
@@ -149,10 +158,8 @@ const saveUserEdit = async () => {
     }
 }
 
-onMounted(() => {
-    if (currentUserId.value) {
-        fetchUsers()
-    }
+onMounted(async () => {
+    await fetchUsers()
 })
 </script>
 
@@ -219,7 +226,7 @@ onMounted(() => {
             </form>
         </div>
 
-        <div v-if="users.length === 0" class="loading">Loading users...</div>
+        <div v-if="loading" class="loading">Loading users...</div>
 
         <div v-else class="users-table">
             <table>
@@ -462,5 +469,29 @@ select:disabled {
 .btn-secondary {
     background-color: #6c757d;
     color: white;
+}
+
+.loading {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--text-muted);
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+}
+
+.btn-danger:hover {
+    opacity: 0.8;
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style> 

@@ -6,11 +6,10 @@ const bcrypt = require('bcrypt');
 // Update user profile
 router.patch('/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const userId = req.headers['user-id'];
+        const userId = parseInt(req.params.id, 10);
         
         // Ensure user can only update their own profile
-        if (id !== userId) {
+        if (userId !== req.user.id) {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
@@ -22,7 +21,7 @@ router.patch('/:id', async (req, res) => {
             hashedPassword = await bcrypt.hash(password, 10);
         }
 
-        await User.updateUser(id, {
+        await User.updateUser(userId, {
             name,
             email,
             password: hashedPassword
@@ -38,15 +37,12 @@ router.patch('/:id', async (req, res) => {
 // Update user approval status (admin only)
 router.post('/:userId/approval', async (req, res) => {
     try {
-        const { isApproved } = req.body;
-        const userId = req.params.userId;
-        const adminId = req.headers['user-id'];
-
-        // Check if user is admin
-        const admin = await User.findById(adminId);
-        if (!admin || admin.role !== 'admin') {
+        if (req.user.role !== 'admin') {
             return res.status(403).json({ error: 'Only admins can approve users' });
         }
+
+        const { isApproved } = req.body;
+        const userId = parseInt(req.params.userId, 10);
 
         await User.setApprovalStatus(userId, isApproved);
         res.json({ message: 'User approval status updated successfully' });

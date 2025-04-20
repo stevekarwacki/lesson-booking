@@ -94,11 +94,13 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { currentUser, isInstructor, isAdmin } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
+
+const userStore = useUserStore()
 
 const { instructor } = defineProps({
     instructor: {
@@ -242,10 +244,10 @@ const fetchWeeklySchedule = async () => {
         // Fetch both availability and booked events
         const [availabilityResponse, eventsResponse] = await Promise.all([
             fetch(`/api/availability/${instructor.id}/weekly`, {
-                headers: { 'user-id': currentUser.value.id }
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
             }),
             fetch(`/api/calendar/events/${instructor.id}/${startDate}/${endDateStr}`, {
-                headers: { 'user-id': currentUser.value.id }
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
             })
         ])
 
@@ -332,10 +334,10 @@ const fetchDailySchedule = async () => {
         // Fetch both availability and booked events
         const [availabilityResponse, eventsResponse] = await Promise.all([
             fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
-                headers: { 'user-id': currentUser.value.id }
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
             }),
             fetch(`/api/calendar/dailyEvents/${instructor.id}/${selectedDate.value}`, {
-                headers: { 'user-id': currentUser.value.id }
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
             })
         ])
 
@@ -427,7 +429,7 @@ watch(() => instructor, async (newInstructor) => {
 }, { immediate: true })
 
 const isInstructorOrAdmin = computed(() => {
-    return isInstructor.value || isAdmin.value
+    return userStore.isInstructor || userStore.isAdmin
 })
 
 const fetchDailyBookings = async () => {
@@ -437,7 +439,7 @@ const fetchDailyBookings = async () => {
 
     try {
         const response = await fetch(`/api/calendar/dailyEvents/${instructor.id}/${bookingDate}`, {
-            headers: { 'user-id': currentUser.value.id }
+            headers: { 'Authorization': `Bearer ${userStore.token}` }
         })
 
         if (!response.ok) {
@@ -456,6 +458,8 @@ const fetchDailyBookings = async () => {
 watch(selectedDate, () => {
     fetchDailyBookings()
 })
+
+
 </script>
 
 <style scoped>

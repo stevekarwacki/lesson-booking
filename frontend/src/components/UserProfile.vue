@@ -20,15 +20,16 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useUserStore } from '../stores/userStore'
 
-// ... other code ...
+const userStore = useUserStore()
 
 const isInstructor = computed(() => {
     return props.user?.role === 'instructor'
 })
 
 const canEditRole = computed(() => {
-    return currentUser.value?.role === 'admin'
+    return userStore.user?.role === 'admin'
 })
 
 // Remove 'instructor' from direct role assignments

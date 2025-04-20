@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 
+const userStore = useUserStore()
 const instructors = ref([])
 const allUsers = ref([])
 const error = ref('')
@@ -12,6 +13,7 @@ const editingInstructor = ref(null)
 const searchQuery = ref('')
 const selectedUser = ref(null)
 const isSearchFocused = ref(false)
+const loading = ref(true)
 
 const newInstructor = ref({
     user_id: '',
@@ -38,7 +40,7 @@ const fetchUsers = async () => {
     try {
         const response = await fetch('/api/admin/users', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         }) 
         if (!response.ok) {
@@ -53,9 +55,12 @@ const fetchUsers = async () => {
 
 const fetchInstructors = async () => {
     try {
+        loading.value = true
+        error.value = null
+
         const response = await fetch('/api/instructors', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         })
         if (!response.ok) throw new Error('Failed to fetch instructors')
@@ -63,6 +68,8 @@ const fetchInstructors = async () => {
         instructors.value = data
     } catch (err) {
         error.value = 'Error fetching instructors: ' + err.message
+    } finally {
+        loading.value = false
     }
 }
 
@@ -77,7 +84,7 @@ const handleAddInstructor = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
                 user_id: selectedUser.value.id,
@@ -134,10 +141,10 @@ const deleteInstructor = async (instructorId) => {
     if (!confirm('Are you sure you want to delete this instructor?')) return
 
     try {
-        const response = await fetch(`/api/admin/instructors/${instructorId}`, {
+        const response = await fetch(`/api/instructors/${instructorId}`, {
             method: 'DELETE',
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         })
         if (!response.ok) throw new Error('Failed to delete instructor')
@@ -168,11 +175,11 @@ const saveInstructorEdit = async () => {
         };
         console.log('Sending update data:', updateData);
         
-        const response = await fetch(`/api/admin/instructors/${editingInstructor.value.id}`, {
-            method: 'PATCH',
+        const response = await fetch(`/api/instructors/${editingInstructor.value.user_id}`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify(updateData)
         });
@@ -200,7 +207,7 @@ const toggleInstructorActive = async (instructor) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         });
 
@@ -217,9 +224,9 @@ const toggleInstructorActive = async (instructor) => {
     }
 };
 
-onMounted(() => {
-    fetchUsers()
-    fetchInstructors()
+onMounted(async () => {
+    await fetchUsers()
+    await fetchInstructors()
 })
 </script>
 

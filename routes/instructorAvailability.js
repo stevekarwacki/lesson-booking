@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
+const instructorAuth = require('../middleware/instructorAuth');
 
 // Get instructor's weekly availability
 router.get('/:instructorId/weekly', async (req, res) => {
     try {
-        const { instructorId } = req.params;
+        const instructorId = parseInt(req.params.instructorId, 10);
         const schedule = await InstructorAvailability.getWeeklyAvailability(instructorId);
         res.json(schedule);
     } catch (error) {
@@ -15,9 +16,9 @@ router.get('/:instructorId/weekly', async (req, res) => {
 });
 
 // Update instructor's weekly availability
-router.post('/:instructorId/weekly', async (req, res) => {
+router.post('/:instructorId/weekly', instructorAuth, async (req, res) => {
     try {
-        const { instructorId } = req.params;
+        const instructorId = parseInt(req.params.instructorId, 10);
         const { slots } = req.body;
 
         // Validate input
@@ -62,6 +63,7 @@ router.post('/:instructorId/weekly', async (req, res) => {
 router.get('/:instructorId/blocked', async (req, res) => {
     try {
         const { start_date, end_date } = req.query;
+        const instructorId = parseInt(req.params.instructorId, 10);
         
         if (!start_date || !end_date) {
             return res.status(400).json({ 
@@ -70,7 +72,7 @@ router.get('/:instructorId/blocked', async (req, res) => {
         }
 
         const blockedTimes = await InstructorAvailability.getBlockedTimes(
-            req.params.instructorId,
+            instructorId,
             start_date,
             end_date
         );
@@ -81,8 +83,9 @@ router.get('/:instructorId/blocked', async (req, res) => {
 });
 
 // Add a blocked time period
-router.post('/:instructorId/blocked', async (req, res) => {
+router.post('/:instructorId/blocked', instructorAuth, async (req, res) => {
     try {
+        const instructorId = parseInt(req.params.instructorId, 10);
         const { startDateTime, endDateTime, reason } = req.body;
         
         if (!startDateTime || !endDateTime) {
@@ -92,7 +95,7 @@ router.post('/:instructorId/blocked', async (req, res) => {
         }
 
         const blockedTimeId = await InstructorAvailability.addBlockedTime(
-            req.params.instructorId,
+            instructorId,
             { startDateTime, endDateTime, reason }
         );
         res.status(201).json({ 
@@ -105,9 +108,20 @@ router.post('/:instructorId/blocked', async (req, res) => {
 });
 
 // Remove a blocked time period
-router.delete('/blocked/:blockedTimeId', async (req, res) => {
+router.delete('/blocked/:blockedTimeId', instructorAuth, async (req, res) => {
     try {
-        await InstructorAvailability.removeBlockedTime(req.params.blockedTimeId);
+        const blockedTimeId = parseInt(req.params.blockedTimeId, 10);
+        const blockedTime = await InstructorAvailability.getBlockedTime(blockedTimeId);
+        if (!blockedTime) {
+            return res.status(404).json({ error: 'Blocked time not found' });
+        }
+
+        // Verify the blocked time belongs to the instructor
+        if (blockedTime.instructor_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        await InstructorAvailability.removeBlockedTime(blockedTimeId);
         res.json({ message: 'Blocked time removed successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Error removing blocked time' });
@@ -117,7 +131,8 @@ router.delete('/blocked/:blockedTimeId', async (req, res) => {
 // Get instructor's availability for a specific date
 router.get('/:instructorId/daily/:date', async (req, res) => {
     try {
-        const { instructorId, date } = req.params;
+        const instructorId = parseInt(req.params.instructorId, 10);
+        const { date } = req.params;
 
         // Create date object in local timezone and get day of week
         const localDate = new Date(date);

@@ -5,17 +5,11 @@ const bcrypt = require('bcrypt');
 const Instructor = require('../models/Instructor');
 
 // Middleware to check if user is admin
-const isAdmin = async (req, res, next) => {
-    const userId = req.headers['user-id']; // We'll replace this with proper auth later
-    try {
-        const user = await User.findById(userId);
-        if (user && user.role === 'admin') {
-            next();
-        } else {
-            res.status(403).json({ error: 'Access denied' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Error checking admin status' });
+const isAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Access denied' });
     }
 };
 
@@ -32,11 +26,11 @@ router.get('/users', isAdmin, async (req, res) => {
 
 // Update user
 router.put('/users/:id', isAdmin, async (req, res) => {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id, 10);
     const { name, email, role } = req.body;
     
     try {
-        await User.updateUser(id, { name, email, role });
+        await User.updateUser(userId, { name, email, role });
         res.json({ message: 'User updated successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Error updating user' });
@@ -46,7 +40,8 @@ router.put('/users/:id', isAdmin, async (req, res) => {
 // Delete user
 router.delete('/users/:id', isAdmin, async (req, res) => {
     try {
-        await User.deleteUser(req.params.id);
+        const userId = parseInt(req.params.id, 10);
+        await User.deleteUser(userId);
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
         console.error('Error deleting user:', error);
@@ -57,7 +52,7 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
 // Update user role
 router.patch('/users/:id', isAdmin, async (req, res) => {
     try {
-        const { id } = req.params;
+        const userId = parseInt(req.params.id, 10);
         const { role } = req.body;
 
         // Validate role
@@ -67,7 +62,7 @@ router.patch('/users/:id', isAdmin, async (req, res) => {
         }
 
         // Update user role
-        await User.updateUserRole(id, role);
+        await User.updateUserRole(userId, role);
         
         res.json({ message: 'User role updated successfully' });
     } catch (error) {
@@ -77,7 +72,7 @@ router.patch('/users/:id', isAdmin, async (req, res) => {
 });
 
 // Add this new route for user search
-router.get('/users/search', async (req, res) => {
+router.get('/users/search', isAdmin, async (req, res) => {
     try {
         const searchQuery = req.query.q.toLowerCase()
         const users = await User.findAll()
@@ -122,14 +117,11 @@ router.post('/users', isAdmin, async (req, res) => {
 
 // Update instructor
 router.patch('/instructors/:id', isAdmin, async (req, res) => {
-    console.log('Received PATCH request for instructor:', req.params.id);
-    console.log('Request body:', req.body);
-    
     try {
+        const instructorId = parseInt(req.params.id, 10);
         const { hourly_rate, specialties, bio } = req.body;
-        console.log('Extracted values:', { hourly_rate, specialties, bio });
         
-        await Instructor.updateInstructor(req.params.id, { 
+        await Instructor.updateInstructor(instructorId, { 
             hourly_rate, 
             specialties, 
             bio 
@@ -141,10 +133,11 @@ router.patch('/instructors/:id', isAdmin, async (req, res) => {
     }
 });
 
-// Delete user
+// Delete instructor
 router.delete('/instructors/:id', isAdmin, async (req, res) => {
     try {
-        await Instructor.deleteInstructor(req.params.id);
+        const instructorId = parseInt(req.params.id, 10);
+        await Instructor.deleteInstructor(instructorId);
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
         console.error('Error deleting instructor:', error);

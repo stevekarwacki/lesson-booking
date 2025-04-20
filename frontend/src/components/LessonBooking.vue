@@ -24,10 +24,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { ref, onMounted } from 'vue'
+import { useUserStore } from '../stores/userStore'
 import InstructorCalendar from './InstructorCalendar.vue'
 
+const userStore = useUserStore()
 const instructors = ref([])
 const error = ref('')
 const selectedInstructor = ref({})
@@ -37,7 +38,7 @@ const fetchInstructors = async () => {
     try {
         const response = await fetch('/api/instructors', {
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
         })
         if (!response.ok) throw new Error('Failed to fetch instructors')

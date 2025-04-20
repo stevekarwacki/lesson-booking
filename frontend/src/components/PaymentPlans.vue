@@ -30,7 +30,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 
 const props = defineProps({
     plans: {
@@ -39,23 +39,23 @@ const props = defineProps({
     }
 })
 
+const userStore = useUserStore()
 const processing = ref(false)
 const error = ref(null)
 
 const purchasePlan = async (plan) => {
-    processing.value = true
-    error.value = null
-    
     try {
+        processing.value = true
+        error.value = null
+
         const response = await fetch('/api/payments/purchase', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'user-id': userStore.user.id
             },
             body: JSON.stringify({
-                planId: plan.id,
-                paymentMethod: 'cash' // For now
+                planId: plan.id
             })
         })
         

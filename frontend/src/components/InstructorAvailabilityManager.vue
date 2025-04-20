@@ -77,8 +77,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
+
+const userStore = useUserStore()
+const error = ref(null)
+const success = ref('')
+const loading = ref(false)
 
 const props = defineProps({
     instructorId: {
@@ -86,9 +91,6 @@ const props = defineProps({
         required: true
     }
 })
-
-const error = ref('')
-const success = ref('')
 
 // Weekly Schedule
 const weeklySchedule = ref({
@@ -118,14 +120,18 @@ const formatDateTime = (datetime) => {
 
 const loadSchedule = async () => {
     try {
-        const response = await fetch(`/api/availability/${props.instructorId}/weekly`)
-        if (!response.ok) throw new Error('Failed to fetch schedule')
+        const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to fetch schedule');
         
-        const slots = await response.json()
+        const slots = await response.json();
         
         // Reset schedule
         for (let i = 0; i < 7; i++) {
-            weeklySchedule.value[i] = []
+            weeklySchedule.value[i] = [];
         }
         
         // Group slots by day
@@ -133,132 +139,150 @@ const loadSchedule = async () => {
             weeklySchedule.value[slot.day_of_week].push({
                 startSlot: slot.start_slot,
                 duration: slot.duration
-            })
-        })
+            });
+        });
     } catch (error) {
-        console.error('Error loading schedule:', error)
+        console.error('Error loading schedule:', error);
+        error.value = 'Failed to load schedule';
     }
-}
+};
 
 const saveWeeklySchedule = async () => {
     try {
-        const slots = []
+        loading.value = true;
+        error.value = null;
+        success.value = '';
+        
+        const slots = [];
         
         // Convert weeklySchedule format to array of slots
         Object.entries(weeklySchedule.value).forEach(([dayOfWeek, daySlots]) => {
-            if (!daySlots.length) return
+            if (!daySlots.length) return;
             
             // Sort slots by start time
-            daySlots.sort((a, b) => a.startSlot - b.startSlot)
+            daySlots.sort((a, b) => a.startSlot - b.startSlot);
             
             let currentSlot = {
                 dayOfWeek: parseInt(dayOfWeek),
                 startSlot: daySlots[0].startSlot,
                 duration: daySlots[0].duration
-            }
+            };
             
             // Combine consecutive slots
             for (let i = 1; i < daySlots.length; i++) {
-                const slot = daySlots[i]
+                const slot = daySlots[i];
                 if (currentSlot.startSlot + currentSlot.duration === slot.startSlot) {
                     // Slots are consecutive, extend duration
-                    currentSlot.duration += slot.duration
+                    currentSlot.duration += slot.duration;
                 } else {
                     // Gap between slots, save current and start new
-                    slots.push(currentSlot)
+                    slots.push(currentSlot);
                     currentSlot = {
                         dayOfWeek: parseInt(dayOfWeek),
                         startSlot: slot.startSlot,
                         duration: slot.duration
-                    }
+                    };
                 }
             }
             // Push the last slot
-            slots.push(currentSlot)
-        })
+            slots.push(currentSlot);
+        });
 
         const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({ slots })
-        })
+        });
 
-        if (!response.ok) throw new Error('Failed to save schedule')
-    } catch (error) {
-        console.error('Error saving schedule:', error)
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save schedule');
+        }
+        
+        success.value = 'Schedule saved successfully';
+    } catch (err) {
+        error.value = 'Error saving schedule: ' + err.message;
+        console.error('Error saving schedule:', err);
+    } finally {
+        loading.value = false;
     }
-}
+};
 
 const fetchBlockedTimes = async () => {
     try {
-        const startDate = new Date()
-        const endDate = new Date()
-        endDate.setMonth(endDate.getMonth() + 3) // Get next 3 months
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 3); // Get next 3 months
 
         const response = await fetch(
             `/api/availability/${props.instructorId}/blocked?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
             {
                 headers: {
-                    'user-id': currentUser.value.id
+                    'Authorization': `Bearer ${userStore.token}`
                 }
             }
-        )
-        if (!response.ok) throw new Error('Failed to fetch blocked times')
-        blockedTimes.value = await response.json()
+        );
+        if (!response.ok) throw new Error('Failed to fetch blocked times');
+        blockedTimes.value = await response.json();
     } catch (err) {
-        error.value = 'Failed to load blocked times'
-        console.error(err)
+        error.value = 'Failed to load blocked times';
+        console.error(err);
     }
-}
+};
 
 const addBlockedTime = async () => {
     try {
-        const response = await fetch(`/api/availability/${props.instructorId}/blocked`, {
+        const response = await fetch(`/api/availability/${userStore.user.id}/blocked`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             },
-            body: JSON.stringify(newBlockedTime.value)
-        })
+            body: JSON.stringify({
+                startDateTime: newBlockedTime.value.startDateTime,
+                endDateTime: newBlockedTime.value.endDateTime,
+                reason: newBlockedTime.value.reason
+            })
+        });
 
-        if (!response.ok) throw new Error('Failed to add blocked time')
+        if (!response.ok) throw new Error('Failed to add blocked time');
         
-        success.value = 'Blocked time added successfully'
-        newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' }
-        // await fetchBlockedTimes()
+        success.value = 'Blocked time added successfully';
+        newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' };
+        await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
-        scheduleUpdateCounter.value++
+        scheduleUpdateCounter.value++;
     } catch (err) {
-        error.value = 'Failed to add blocked time'
-        console.error(err)
+        error.value = 'Failed to add blocked time';
+        console.error(err);
     }
-}
+};
 
 const removeBlockedTime = async (blockId) => {
     try {
         const response = await fetch(`/api/availability/blocked/${blockId}`, {
             method: 'DELETE',
             headers: {
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             }
-        })
+        });
 
-        if (!response.ok) throw new Error('Failed to remove blocked time')
+        if (!response.ok) throw new Error('Failed to remove blocked time');
         
-        success.value = 'Blocked time removed successfully'
-        // await fetchBlockedTimes()
+        success.value = 'Blocked time removed successfully';
+        await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
-        scheduleUpdateCounter.value++
+        scheduleUpdateCounter.value++;
     } catch (err) {
-        error.value = 'Failed to remove blocked time'
-        console.error(err)
+        error.value = 'Failed to remove blocked time';
+        console.error(err);
     }
-}
+};
 
 const resetAndFetch = async () => {
     // Reset all local state

@@ -3,10 +3,16 @@ import { ref, onMounted } from 'vue'
 import SignupForm from './components/SignupForm.vue'
 import LoginForm from './components/LoginForm.vue'
 import NavBar from './components/NavBar.vue'
-import { currentUser, clearUser } from './stores/userStore'
+import { useUserStore } from './stores/userStore'
+
+const userStore = useUserStore()
+
+onMounted(() => {
+    userStore.initialize()
+})
 
 const handleLogout = () => {
-    clearUser()
+    userStore.clearUser()
 }
 </script>
 
@@ -15,15 +21,11 @@ const handleLogout = () => {
         <NavBar @logout="handleLogout" />
         <div class="container">
             <main class="main-content">
-                <template v-if="!currentUser">
-                    <div class="auth-forms">
-                        <LoginForm />
-                        <SignupForm />
-                    </div>
-                </template>
-                <template v-else>
-                    <router-view></router-view>
-                </template>
+                <router-view v-if="userStore.token"></router-view>
+                <div v-else class="auth-forms">
+                    <LoginForm />
+                    <SignupForm />
+                </div>
             </main>
         </div>
     </div>

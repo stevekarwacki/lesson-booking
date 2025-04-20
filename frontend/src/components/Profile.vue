@@ -56,8 +56,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { currentUser } from '../stores/userStore'
+import { useUserStore } from '../stores/userStore'
 
+const userStore = useUserStore()
 const error = ref('')
 const success = ref('')
 const profileData = ref({
@@ -68,9 +69,9 @@ const profileData = ref({
 })
 
 onMounted(async () => {
-    if (currentUser.value) {
-        profileData.value.name = currentUser.value.name
-        profileData.value.email = currentUser.value.email
+    if (userStore.user) {
+        profileData.value.name = userStore.user.name
+        profileData.value.email = userStore.user.email
     }
 })
 
@@ -86,11 +87,11 @@ const updateProfile = async () => {
     }
 
     try {
-        const response = await fetch(`/api/users/${currentUser.value.id}`, {
+        const response = await fetch(`/api/users/${userStore.user.id}`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': currentUser.value.id
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
                 name: profileData.value.name,
@@ -111,8 +112,8 @@ const updateProfile = async () => {
         profileData.value.confirmPassword = ''
         
         // Update current user data
-        currentUser.value = {
-            ...currentUser.value,
+        userStore.user = {
+            ...userStore.user,
             name: profileData.value.name,
             email: profileData.value.email
         }
