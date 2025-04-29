@@ -9,7 +9,8 @@ const isMenuOpen = ref(false)
 
 const isAdmin = () => userStore.user?.role === 'admin'
 const isInstructor = () => userStore.user?.role === 'instructor'
-const isStudent = () => userStore.user?.role === 'student'
+const isStudent = () => userStore.user?.role === 'student' && !!userStore.user?.is_approved
+const isStudentUnapproved = () => userStore.user?.role === 'student' && !userStore.user?.is_approved
 
 const toggleMenu = () => {
     isMenuOpen.value = !isMenuOpen.value
@@ -39,23 +40,27 @@ const handleLogout = () => {
 
         <div class="nav-content" :class="{ 'is-open': isMenuOpen }">
             <div class="nav-links" v-if="userStore.user" @click="closeMenu">
-                <router-link to="/" class="nav-link">Home</router-link>
+                <template v-if="isStudentUnapproved()">
+                    <router-link to="/" class="nav-link">
+                        Home
+                    </router-link>
+                </template>
                 
                 <!-- Admin Links -->
                 <template v-if="isAdmin()">
-                    <router-link 
-                        to="/admin/instructors" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        Manage Instructors
-                    </router-link>
                     <router-link 
                         to="/admin/users" 
                         class="nav-link"
                         @click="closeMenu"
                     >
-                        Manage Users
+                        Users
+                    </router-link>
+                    <router-link 
+                        to="/admin/instructors" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
+                        Instructors
                     </router-link>
                     <router-link 
                         v-if="$mq.lgPlus"
@@ -63,7 +68,7 @@ const handleLogout = () => {
                         class="nav-link"
                         @click="closeMenu"
                     >
-                        Manage Availability
+                        Instructor Availability
                     </router-link>
                 </template>
 

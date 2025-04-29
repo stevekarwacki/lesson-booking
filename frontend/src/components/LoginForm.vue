@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useRouter } from 'vue-router'
 
 const userStore = useUserStore()
+const router = useRouter()
 
 const email = ref('')
 const password = ref('')
@@ -19,13 +21,25 @@ const handleSubmit = async () => {
     }
 
     try {
-        const success = await userStore.login(email.value, password.value)
+        const loginSuccess = await userStore.login(email.value, password.value)
         
-        if (success) {
+        if (loginSuccess) {
             success.value = 'Login successful!'
             // Reset form
             email.value = ''
             password.value = ''
+            
+            // Ensure user data is available before redirecting
+            if (userStore.user) {
+                // Redirect based on role
+                if (userStore.user.role === 'admin') {
+                    await router.push('/admin/users')
+                } else if (userStore.user.role === 'instructor') {
+                    await router.push('/instructor/calendar')
+                } else if (userStore.user.role === 'student' && !!userStore.user.is_approved) {
+                    await router.push('/book-lesson')
+                }
+            }
         } else {
             error.value = 'Invalid email or password'
         }
