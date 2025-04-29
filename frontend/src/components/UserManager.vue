@@ -233,16 +233,16 @@ onMounted(async () => {
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
+                        <th v-if="$mq.lgPlus">Email</th>
+                        <th v-if="$mq.lgPlus">Role</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="user in users" :key="user.id">
                         <td>{{ user.name }}</td>
-                        <td>{{ user.email }}</td>
-                        <td>{{ user.role }}</td>
+                        <td v-if="$mq.lgPlus">{{ user.email }}</td>
+                        <td v-if="$mq.lgPlus">{{ user.role }}</td>
                         <td class="actions">
                             <button 
                                 @click="openEditModal(user)"

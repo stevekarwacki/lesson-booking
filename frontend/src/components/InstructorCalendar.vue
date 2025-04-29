@@ -18,7 +18,7 @@
     <!-- Date selection -->
     <div class="view-controls">
         <!-- Week navigation - only show when no specific date is selected -->
-        <div class="week-navigation" v-if="!selectedDate">
+        <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
             <button 
                 class="btn btn-secondary"
                 @click="previousWeek"
@@ -38,7 +38,7 @@
         </div>
 
         <button 
-            v-if="selectedDate" 
+            v-if="selectedDate && $mq.lgPlus" 
             class="btn btn-secondary"
             @click="clearSelectedDate"
         >
@@ -47,7 +47,7 @@
 
         <!-- Date selection -->
         <div>
-            <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a specific date:</label>
+            <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</label>
             <input 
                 type="date" 
                 id="date-select"
@@ -59,7 +59,7 @@
     </div>
 
     <!-- Weekly Schedule View -->
-    <div v-if="!selectedDate" class="schedule-view">
+    <div v-if="!selectedDate && $mq.lgPlus" class="schedule-view">
         <WeeklyScheduleView 
             :weeklySchedule="weeklySchedule"
             :weekStartDate="weekStart"
@@ -69,7 +69,7 @@
     </div>
 
     <!-- Daily Schedule View -->
-    <div v-if="selectedDate && dailySchedule" class="schedule-view">
+    <div v-if="(!$mq.lgPlus || selectedDate) && dailySchedule" class="schedule-view">
         <DailyScheduleView 
             :dailySchedule="dailySchedule"
             :selected-day="selectedDay"
@@ -94,6 +94,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useMq } from 'vue3-mq'
 import { useUserStore } from '../stores/userStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
@@ -111,7 +112,7 @@ const { instructor } = defineProps({
 
 const SLOT_DURATION = 2
 
-const selectedDate = ref('')
+const selectedDate = useMq().lgPlus ? ref('') : ref(new Date().toISOString().split('T')[0])
 const weeklyScheduleData = ref([])
 const dailyScheduleData = ref([])
 const error = ref('')
@@ -416,9 +417,15 @@ watch(selectedWeek, () => {
     fetchWeeklySchedule()
 })
 
+// Watch for changes to selected date
+watch(selectedDate, () => {
+    fetchDailyBookings()
+})
+
 // Fetch data on component mount
 onMounted(() => {
     fetchWeeklySchedule()
+    fetchDailySchedule()
     fetchDailyBookings()
 })
 
@@ -433,16 +440,19 @@ const isInstructorOrAdmin = computed(() => {
 })
 
 const fetchDailyBookings = async () => {
-    if (!instructor.id) return
+    if (!instructor.id || !selectedDate.value) {
+        dailyBookings.value = []
+        return
+    }
 
-    const bookingDate = selectedDate.value || new Date().toISOString().split('T')[0]
+    const bookingDate = selectedDate.value
 
     try {
         const response = await fetch(`/api/calendar/dailyEvents/${instructor.id}/${bookingDate}`, {
             headers: { 'Authorization': `Bearer ${userStore.token}` }
         })
 
-        if (!response.ok) {
+        if (!response.ok) { 
             throw new Error('Failed to fetch daily bookings')
         }
 
@@ -453,12 +463,6 @@ const fetchDailyBookings = async () => {
         dailyBookings.value = []
     }
 }
-
-// Watch for changes to selected date
-watch(selectedDate, () => {
-    fetchDailyBookings()
-})
-
 
 </script>
 

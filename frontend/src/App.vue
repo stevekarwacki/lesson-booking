@@ -55,10 +55,4 @@ const handleLogout = () => {
         grid-template-columns: 1fr;
     }
 }
-
-/* Move navbar outside container for full-width */
-.navbar {
-    width: 100%;
-    margin-bottom: var(--spacing-lg);
-}
 </style>

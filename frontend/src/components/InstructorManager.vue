@@ -237,40 +237,12 @@ onMounted(async () => {
         <div v-if="error" class="alert alert-danger">{{ error }}</div>
         <div v-if="success" class="alert alert-success">{{ success }}</div>
 
-        <button class="btn btn-primary mb-3" @click="showAddForm = true">Add Instructor</button>
-
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Specialties</th>
-                    <th>Rate</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="instructor in instructors" :key="instructor.id">
-                    <td>{{ instructor.name }}</td>
-                    <td>{{ instructor.email }}</td>
-                    <td>{{ instructor.specialties || 'Not specified' }}</td>
-                    <td>${{ instructor.hourly_rate || '0' }}/hr</td>
-                    <td>
-                        <span :class="['badge', instructor.is_active ? 'badge-success' : 'badge-warning']">
-                            {{ instructor.is_active ? 'Active' : 'Inactive' }}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-secondary me-1" @click="openEditModal(instructor)">Edit</button>
-                        <button class="btn btn-sm btn-warning me-1" @click="toggleInstructorActive(instructor)">
-                            {{ instructor.is_active ? 'Deactivate' : 'Activate' }}
-                        </button>
-                        <button class="btn btn-sm btn-danger" @click="deleteInstructor(instructor.id)">Delete</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <button 
+                class="btn btn-primary mb-3"
+                @click="showAddForm = !showAddForm"
+            >
+                {{ showAddForm ? 'Cancel' : 'Add Instructor' }}
+            </button>
 
         <div v-if="showAddForm" class="add-form">
             <h3>Add New Instructor</h3>
@@ -374,6 +346,39 @@ onMounted(async () => {
                 <button type="submit" class="submit-button">Add Instructor</button>
             </form>
         </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th v-if="$mq.lgPlus">Email</th>
+                    <th v-if="$mq.lgPlus">Specialties</th>
+                    <th v-if="$mq.lgPlus">Rate</th>
+                    <th v-if="$mq.lgPlus">Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="instructor in instructors" :key="instructor.id">
+                    <td>{{ instructor.name }}</td>
+                    <td v-if="$mq.lgPlus">{{ instructor.email }}</td>
+                    <td v-if="$mq.lgPlus">{{ instructor.specialties || 'Not specified' }}</td>
+                    <td v-if="$mq.lgPlus">${{ instructor.hourly_rate || '0' }}/hr</td>
+                    <td v-if="$mq.lgPlus">
+                        <span :class="['badge', instructor.is_active ? 'badge-success' : 'badge-warning']">
+                            {{ instructor.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary me-1" @click="openEditModal(instructor)">Edit</button>
+                        <button class="btn btn-sm btn-warning me-1" @click="toggleInstructorActive(instructor)">
+                            {{ instructor.is_active ? 'Deactivate' : 'Activate' }}
+                        </button>
+                        <button class="btn btn-sm btn-danger" @click="deleteInstructor(instructor.id)">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
         <!-- Edit Modal -->
         <div v-if="showEditModal" class="modal">

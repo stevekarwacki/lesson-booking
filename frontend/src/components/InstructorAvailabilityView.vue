@@ -331,9 +331,8 @@ const getBlockedReason = (dayOfWeek, hour) => {
 }
 
 .schedule-cell {
-    height: 50px;
+    min-height: 40px;
     border-left: 1px solid var(--border-color);
-    padding: var(--spacing-sm);
     user-select: none; /* Prevent text selection while dragging */
 }
 

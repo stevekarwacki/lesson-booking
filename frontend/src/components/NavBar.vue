@@ -58,6 +58,7 @@ const handleLogout = () => {
                         Manage Users
                     </router-link>
                     <router-link 
+                        v-if="$mq.lgPlus"
                         to="/admin/availability" 
                         class="nav-link"
                         @click="closeMenu"
@@ -76,6 +77,7 @@ const handleLogout = () => {
                         My Calendar
                     </router-link>
                     <router-link 
+                        v-if="$mq.lgPlus"
                         to="/availability" 
                         class="nav-link"
                         @click="closeMenu"
@@ -89,14 +91,15 @@ const handleLogout = () => {
                     <router-link to="/book-lesson" class="nav-link">
                         Book Lesson
                     </router-link>
+
+                    <router-link to="/payments" class="nav-link">
+                        Payments
+                    </router-link>
                 </template>
 
                 <!-- Common Links for logged-in users -->
                 <router-link to="/account" class="nav-link">
                     Account
-                </router-link>
-                <router-link to="/payments" class="nav-link">
-                    Payments
                 </router-link>
             </div>
 
@@ -114,8 +117,11 @@ const handleLogout = () => {
 
 <style scoped>
 .navbar {
-    background: white;
+    box-sizing: border-box;
+    width: 100%;
+    margin-bottom: var(--spacing-lg);
     padding: 1rem var(--spacing-lg);
+    background: white;
     box-shadow: var(--card-shadow);
     position: sticky;
     top: 0;
@@ -129,7 +135,7 @@ const handleLogout = () => {
 }
 
 .nav-brand h1 {
-    margin: 0;
+    margin: 0 0 0 10px;
     color: var(--primary-color);
     font-size: 1.5rem;
 }
@@ -192,7 +198,7 @@ const handleLogout = () => {
 /* Hamburger menu styles */
 .hamburger {
     display: none;
-    padding: 10px;
+    padding: 10px 10px 0;
     background: none;
     border: none;
     cursor: pointer;
@@ -211,6 +217,8 @@ const handleLogout = () => {
     height: 2px;
     background-color: var(--primary-color);
     transition: all 0.3s;
+    top: 6px;
+    left: 0;
 }
 
 .hamburger-inner::before,
@@ -221,6 +229,7 @@ const handleLogout = () => {
     height: 2px;
     background-color: var(--primary-color);
     transition: all 0.3s;
+    left: 0;
 }
 
 .hamburger-inner::before {
