@@ -19,7 +19,7 @@
                         :key="instructor.id" 
                         :value="instructor.id"
                     >
-                        {{ instructor.name }}
+                        {{ instructor.User.name }}
                     </option>
                 </select>
             </div>

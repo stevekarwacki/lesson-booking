@@ -1,329 +1,124 @@
-const db = require('../db/index');
-const { clearCache } = require('./User');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../db/index');
+const { User } = require('./User');
 
-// Create triggers for instructor role management
-const createTriggers = async () => {
-    return new Promise((resolve, reject) => {
-        db.serialize(async () => {
-            try {
-                // First check if triggers exist
-                const existingTriggers = await new Promise((resolve, reject) => {
-                    db.get(
-                        "SELECT name FROM sqlite_master WHERE type='trigger' AND name='after_instructor_insert'",
-                        (err, row) => {
-                            if (err) reject(err);
-                            else resolve(row);
-                        }
-                    );
-                });
-
-                // Only create triggers if they don't exist
-                if (!existingTriggers) {
-                    await new Promise((resolve, reject) => {
-                        db.run(`
-                            CREATE TRIGGER after_instructor_insert
-                            AFTER INSERT ON instructors
-                            BEGIN
-                                UPDATE users 
-                                SET role = 'instructor' 
-                                WHERE id = NEW.user_id;
-                            END;
-                        `, (err) => {
-                            if (err) reject(err);
-                            else resolve();
-                        });
-                    });
-
-                    await new Promise((resolve, reject) => {
-                        db.run(`
-                            CREATE TRIGGER after_instructor_delete
-                            AFTER DELETE ON instructors
-                            BEGIN
-                                UPDATE users 
-                                SET role = 'student' 
-                                WHERE id = OLD.user_id;
-                            END;
-                        `, (err) => {
-                            if (err) reject(err);
-                            else resolve();
-                        });
-                    });
-                }
-                resolve();
-            } catch (error) {
-                console.error('Error creating triggers:', error);
-                reject(error);
-            }
-        });
-    });
-};
-
-const createInstructorsTable = async () => {
-    try {
-        return new Promise((resolve, reject) => {
-            db.run(`
-                CREATE TABLE IF NOT EXISTS instructors (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER UNIQUE,
-                    bio TEXT,
-                    specialties TEXT,
-                    hourly_rate DECIMAL(10,2),
-                    is_active BOOLEAN DEFAULT 1,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) 
-                        REFERENCES users(id) 
-                        ON DELETE CASCADE
-                )
-            `, async (err) => {
-                if (err) reject(err);
-                // Create triggers after table is created
-                await createTriggers();
-                resolve();
-            });
-        });
-    } catch (error) {
-        console.error('Error setting up instructors table:', error);
-        throw error;
+const Instructor = sequelize.define('Instructor', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        unique: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    bio: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    specialties: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    hourly_rate: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
+}, {
+    tableName: 'instructors',
+    timestamps: false
+});
+
+// Hooks to manage user role
+Instructor.afterCreate(async (instructor) => {
+    await User.updateUserRole(instructor.user_id, 'instructor');
+});
+
+Instructor.afterDestroy(async (instructor) => {
+    await User.updateUserRole(instructor.user_id, 'student');
+});
+
+// Static methods
+Instructor.createInstructor = async function(data) {
+    const instructor = await this.create(data);
+    return instructor;
 };
 
-const createInstructor = async (data) => {
-    return new Promise((resolve, reject) => {
-        db.serialize(async () => {
-            try {
-                const { user_id, bio, specialties, hourly_rate } = data;
-                
-                // Check if user exists
-                const user = await new Promise((resolve, reject) => {
-                    db.get('SELECT id, role FROM users WHERE id = ?', [user_id], (err, row) => {
-                        if (err) reject(err);
-                        else resolve(row);
-                    });
-                });
+Instructor.getInstructorByUserId = async function(userId) {
+    return this.findOne({ where: { user_id: userId } });
+};
 
-                if (!user) {
-                    throw new Error('User not found');
-                }
-
-                // Check if already an instructor
-                const instructor = await new Promise((resolve, reject) => {
-                    db.get('SELECT * FROM instructors WHERE user_id = ?', [user_id], (err, row) => {
-                        if (err) reject(err);
-                        else resolve(row);
-                    });
-                });
-
-                if (instructor) {
-                    throw new Error('User is already an instructor');
-                }
-
-                // Begin transaction
-                await new Promise((resolve, reject) => {
-                    db.run('BEGIN TRANSACTION', (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
-
-                // Add to instructors table
-                await new Promise((resolve, reject) => {
-                    db.run(
-                        `INSERT INTO instructors 
-                        (user_id, is_active, bio, specialties, hourly_rate) 
-                        VALUES (?, 1, ?, ?, ?)`,
-                        [user_id, bio, specialties, hourly_rate],
-                        (err) => {
-                            if (err) reject(err);
-                            else resolve();
-                        }
-                    );
-                });
-
-                // Commit transaction
-                await new Promise((resolve, reject) => {
-                    db.run('COMMIT', (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    });
-                });
-
-                // Clear the user's cache entry
-                await clearCache(user_id);
-
-                resolve();
-            } catch (error) {
-                db.run('ROLLBACK', () => {
-                    reject(error);
-                });
-            }
-        });
+Instructor.getAllInstructors = async function() {
+    return this.findAll({
+        include: [{
+            model: User,
+            attributes: ['name', 'email']
+        }]
     });
 };
 
-const getInstructorByUserId = (userId) => {
-    return new Promise((resolve, reject) => {
-        db.get(
-            `SELECT i.*, u.name, u.email 
-             FROM instructors i
-             JOIN users u ON i.user_id = u.id
-             WHERE i.user_id = ?`,
-            [userId],
-            (err, row) => {
-                if (err) reject(err);
-                resolve(row);
-            }
-        );
+Instructor.updateInstructor = async function(instructorId, updates) {
+    const instructor = await this.findByPk(instructorId);
+    if (!instructor) {
+        throw new Error('Instructor not found');
+    }
+    await instructor.update(updates);
+    return instructor;
+};
+
+Instructor.deleteInstructor = async function(instructorId) {
+    const instructor = await this.findByPk(instructorId);
+    if (!instructor) {
+        throw new Error('Instructor not found');
+    }
+    await instructor.destroy();
+};
+
+Instructor.toggleActive = async function(id) {
+    const instructor = await this.findByPk(id);
+    if (!instructor) {
+        throw new Error('Instructor not found');
+    }
+    await instructor.update({ is_active: !instructor.is_active });
+    return instructor;
+};
+
+Instructor.getAll = async function() {
+    return this.findAll({
+        include: [{
+            model: User,
+            attributes: ['name', 'email']
+        }]
     });
 };
 
-const getAllInstructors = () => {
-    return new Promise((resolve, reject) => {
-        db.all(
-            `SELECT i.*, u.name, u.email 
-             FROM instructors i
-             JOIN users u ON i.user_id = u.id`,
-            [],
-            (err, rows) => {
-                if (err) reject(err);
-                resolve(rows);
-            }
-        );
+Instructor.getAllActive = async function() {
+    return this.findAll({
+        where: { is_active: true },
+        include: [{
+            model: User,
+            attributes: ['name', 'email']
+        }]
     });
 };
 
-const updateInstructor = async (instructorId, updates) => {
-    console.log('Updating instructor:', instructorId);
-    console.log('Update data:', updates);
-    
-    return new Promise((resolve, reject) => {
-        const { hourly_rate, specialties, bio } = updates;
-        
-        const query = `
-            UPDATE instructors 
-            SET hourly_rate = ?, 
-                specialties = ?, 
-                bio = ?
-            WHERE id = ?`;
-        const params = [hourly_rate, specialties, bio, instructorId];
-        
-        console.log('SQL Query:', query);
-        console.log('Parameters:', params);
-        
-        db.run(query, params, function(err) {
-            if (err) {
-                console.error('Database error:', err);
-                reject(err);
-            } else {
-                console.log('Rows affected:', this.changes);
-                resolve();
-            }
-        });
+Instructor.findByUserId = async function(userId) {
+    return this.findOne({
+        where: { user_id: userId },
+        include: [{
+            model: User,
+            attributes: ['name', 'email']
+        }]
     });
 };
 
-const deleteInstructor = async (instructorId) => {
-    return new Promise((resolve, reject) => {
-        db.get('SELECT user_id FROM instructors WHERE id = ?', [instructorId], (err, row) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            if (!row) {
-                reject(new Error('Instructor not found'));
-                return;
-            }
-
-            db.run('DELETE FROM instructors WHERE id = ?', [instructorId], (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve();
-            });
-        });
-    });
-};
-
-const toggleActive = (id) => {
-    return new Promise((resolve, reject) => {
-        db.run(
-            'UPDATE instructors SET is_active = NOT is_active WHERE id = ?',
-            [id],
-            (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve();
-            }
-        );
-    });
-};
-
-const getAll = () => {
-    return new Promise((resolve, reject) => {
-        db.all(
-            `SELECT i.*, u.name, u.email 
-             FROM instructors i
-             JOIN users u ON i.user_id = u.id`,
-            [],
-            (err, rows) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(rows);
-            }
-        );
-    });
-};
-
-const getAllActive = () => {
-    return new Promise((resolve, reject) => {
-        db.all(
-            `SELECT i.*, u.name, u.email 
-             FROM instructors i
-             JOIN users u ON i.user_id = u.id
-             WHERE i.is_active = 1`,
-            [],
-            (err, rows) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(rows);
-            }
-        );
-    });
-};
-
-const findByUserId = (userId) => {
-    return new Promise((resolve, reject) => {
-        db.get(
-            'SELECT * FROM instructors WHERE user_id = ?',
-            [userId],
-            (err, row) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(row);
-            }
-        );
-    });
-};
-
-const Instructor = {
-    createInstructorsTable,
-    createInstructor,
-    getInstructorByUserId,
-    getAllInstructors,
-    updateInstructor,
-    deleteInstructor,
-    toggleActive,
-    getAll,
-    getAllActive,
-    findByUserId
-};
-
-module.exports = Instructor 
+module.exports = { Instructor }; 

@@ -360,8 +360,8 @@ onMounted(async () => {
             </thead>
             <tbody>
                 <tr v-for="instructor in instructors" :key="instructor.id">
-                    <td>{{ instructor.name }}</td>
-                    <td v-if="$mq.lgPlus">{{ instructor.email }}</td>
+                    <td>{{ instructor.User.name }}</td>
+                    <td v-if="$mq.lgPlus">{{ instructor.User.email }}</td>
                     <td v-if="$mq.lgPlus">{{ instructor.specialties || 'Not specified' }}</td>
                     <td v-if="$mq.lgPlus">${{ instructor.hourly_rate || '0' }}/hr</td>
                     <td v-if="$mq.lgPlus">

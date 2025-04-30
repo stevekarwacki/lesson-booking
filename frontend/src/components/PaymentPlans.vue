@@ -52,10 +52,11 @@ const purchasePlan = async (plan) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'user-id': userStore.user.id
+                'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
-                planId: plan.id
+                planId: plan.id,
+                paymentMethod: 'cash' // Default to cash for now
             })
         })
         

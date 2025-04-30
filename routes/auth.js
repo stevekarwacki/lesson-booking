@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { User } = require('../models/User');
 
 // Secret key for JWT - in production, this should be in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -20,32 +20,28 @@ router.post('/signup', async (req, res) => {
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const userId = await User.createUser({
+        const user = await User.create({
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role: 'student'
         });
 
-        console.log('User created successfully:', userId);
+        console.log('User created successfully:', user.id);
         
         // Create token for new user
-        const token = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
         
         // Return user data and token
         res.json({
             message: 'User created successfully',
             token,
-            user: {
-                id: userId,
-                name,
-                email,
-                role: 'student'
-            }
+            user: User.getPlainObject(user)
         });
     } catch (error) {
         console.error('Signup error:', error);
         
-        if (error.message.includes('UNIQUE constraint failed')) {
+        if (error.name === 'SequelizeUniqueConstraintError') {
             return res.status(400).json({ error: 'Email already exists' });
         }
         
@@ -79,13 +75,13 @@ router.post('/login', async (req, res) => {
         // Create token
         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
         
-        // Don't send password back to client
-        const { password: _, ...userWithoutPassword } = user;
+        // Get plain object representation of user
+        const userData = User.getPlainObject(user);
         
         res.json({
             message: 'Login successful',
             token,
-            user: userWithoutPassword
+            user: userData
         });
         
     } catch (error) {
@@ -109,8 +105,7 @@ router.get('/me', async (req, res) => {
             return res.status(401).json({ error: 'User not found' });
         }
 
-        const { password: _, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
+        res.json(User.getPlainObject(user));
     } catch (error) {
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ error: 'Invalid token' });

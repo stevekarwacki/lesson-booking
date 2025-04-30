@@ -25,7 +25,7 @@
                     <tr v-for="booking in bookings" :key="booking.id">
                         <td>{{ formatDate(booking.date, 'anm-abbr') }}</td>
                         <td>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</td>
-                        <td>{{ booking.instructor_name }}</td>
+                        <td>{{ booking.Instructor.User.name }}</td>
                         <td>{{ booking.duration * 15 }} minutes</td>
                         <td class="actions">
                             <button class="btn btn-primary">Edit</button>

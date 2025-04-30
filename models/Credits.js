@@ -1,97 +1,159 @@
-const db = require('../db');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../db/index');
 
-module.exports = {
-    getUserCredits: (userId) => {
-        return new Promise((resolve, reject) => {
-            db.get(
-                `SELECT SUM(credits_remaining) as total_credits,
-                 MIN(expiry_date) as next_expiry
-                 FROM user_credits
-                 WHERE user_id = ?
-                 AND (expiry_date IS NULL OR expiry_date >= DATE('now'))`,
-                [userId],
-                (err, row) => {
-                    if (err) reject(err);
-                    resolve(row || { total_credits: 0, next_expiry: null });
-                }
-            );
+const UserCredits = sequelize.define('UserCredits', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    credits_remaining: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+    },
+    expiry_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+    }
+}, {
+    tableName: 'user_credits',
+    timestamps: false
+});
+
+const CreditUsage = sequelize.define('CreditUsage', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    calendar_event_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'calendar_events',
+            key: 'id'
+        }
+    }
+}, {
+    tableName: 'credit_usage',
+    timestamps: false
+});
+
+// Static methods
+const Credits = {
+    getUserCredits: async (userId) => {
+        const result = await UserCredits.findOne({
+            where: {
+                user_id: userId,
+                [sequelize.Op.or]: [
+                    { expiry_date: null },
+                    { expiry_date: { [sequelize.Op.gte]: new Date() } }
+                ]
+            },
+            attributes: [
+                [sequelize.fn('SUM', sequelize.col('credits_remaining')), 'total_credits'],
+                [sequelize.fn('MIN', sequelize.col('expiry_date')), 'next_expiry']
+            ],
+            raw: true
         });
+
+        return {
+            total_credits: result?.total_credits || 0,
+            next_expiry: result?.next_expiry || null
+        };
     },
 
-    addCredits: (userId, credits, expiryDate = null) => {
-        return new Promise((resolve, reject) => {
-            // First try to update an existing non-expired record
-            db.run(
-                `UPDATE user_credits
-                 SET credits_remaining = credits_remaining + ?
-                 WHERE user_id = ?
-                 AND (expiry_date IS NULL OR expiry_date >= DATE('now'))`,
-                [credits, userId],
-                function(err) {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-
-                    // If no record was updated, create a new one
-                    if (this.changes === 0) {
-                        db.run(
-                            `INSERT INTO user_credits (user_id, credits_remaining, expiry_date)
-                             VALUES (?, ?, ?)`,
-                            [userId, credits, expiryDate],
-                            function(err) {
-                                if (err) reject(err);
-                                resolve(this.lastID);
-                            }
-                        );
-                    } else {
-                        resolve(this.changes);
+    addCredits: async (userId, credits, expiryDate = null) => {
+        try {
+            // Try to update existing non-expired record
+            const [updated] = await UserCredits.update(
+                { credits_remaining: sequelize.literal(`credits_remaining + ${credits}`) },
+                {
+                    where: {
+                        user_id: userId,
+                        [sequelize.Op.or]: [
+                            { expiry_date: null },
+                            { expiry_date: { [sequelize.Op.gte]: new Date() } }
+                        ]
                     }
                 }
             );
-        });
+
+            // If no record was updated, create a new one
+            if (updated === 0) {
+                const newCredit = await UserCredits.create({
+                    user_id: userId,
+                    credits_remaining: credits,
+                    expiry_date: expiryDate
+                });
+                return newCredit.id;
+            }
+
+            return updated;
+        } catch (error) {
+            console.error('Error adding credits:', error);
+            throw error;
+        }
     },
 
-    // New method to use a credit
     useCredit: async (userId, eventId) => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                `UPDATE user_credits
-                 SET credits_remaining = credits_remaining - 1
-                 WHERE user_id = ?
-                 AND credits_remaining > 0
-                 AND (expiry_date IS NULL OR expiry_date >= DATE('now'))`,
-                [userId],
-                async function(err) {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
+        const transaction = await sequelize.transaction();
 
-                    if (this.changes === 0) {
-                        reject(new Error('INSUFFICIENT_CREDITS'));
-                        return;
-                    }
-
-                    // Record credit usage
-                    try {
-                        await new Promise((resolve, reject) => {
-                            db.run(
-                                `INSERT INTO credit_usage (user_id, calendar_event_id)
-                                 VALUES (?, ?)`,
-                                [userId, eventId],
-                                (err) => {
-                                    if (err) reject(err);
-                                    resolve();
-                                }
-                            );
-                        });
-                        resolve();
-                    } catch (error) {
-                        reject(error);
-                    }
+        try {
+            // Update credits
+            const [updated] = await UserCredits.update(
+                { credits_remaining: sequelize.literal('credits_remaining - 1') },
+                {
+                    where: {
+                        user_id: userId,
+                        credits_remaining: { [sequelize.Op.gt]: 0 },
+                        [sequelize.Op.or]: [
+                            { expiry_date: null },
+                            { expiry_date: { [sequelize.Op.gte]: new Date() } }
+                        ]
+                    },
+                    transaction
                 }
             );
-        });
+
+            if (updated === 0) {
+                throw new Error('INSUFFICIENT_CREDITS');
+            }
+
+            // Record credit usage
+            await CreditUsage.create({
+                user_id: userId,
+                calendar_event_id: eventId
+            }, { transaction });
+
+            await transaction.commit();
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    },
+
+    hasSufficientCredits: async (userId) => {
+        const credits = await Credits.getUserCredits(userId);
+        return credits.total_credits > 0;
     }
 };
+
+module.exports = { Credits };

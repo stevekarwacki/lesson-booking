@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Calendar = require('../models/Calendar');
+const { Calendar } = require('../models/Calendar');
 const InstructorAvailability = require('../models/InstructorAvailability');
 
 // Get instructor's calendar events

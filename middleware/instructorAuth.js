@@ -1,4 +1,4 @@
-const Instructor = require('../models/Instructor');
+const { Instructor } = require('../models/Instructor');
 
 /**
  * Middleware to check if the authenticated user is either the instructor or an admin

@@ -1,41 +1,68 @@
-const db = require('../db');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../db/index');
 
-module.exports = {
-    recordTransaction: (userId, planId, amount, paymentMethod, status = 'completed') => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                `INSERT INTO transactions (
-                    user_id, 
-                    payment_plan_id, 
-                    amount, 
-                    payment_method, 
-                    status
-                ) VALUES (?, ?, ?, ?, ?)`,
-                [userId, planId, amount, paymentMethod, status],
-                function(err) {
-                    if (err) reject(err);
-                    resolve(this.lastID);
-                }
-            );
-        });
+const Transactions = sequelize.define('Transactions', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
     },
-
-    getTransactions: (userId) => {
-        return new Promise((resolve, reject) => {
-            db.all(
-                `SELECT 
-                    t.*,
-                    p.name as plan_name
-                FROM transactions t
-                LEFT JOIN payment_plans p ON t.payment_plan_id = p.id
-                WHERE t.user_id = ?
-                ORDER BY t.created_at DESC`,
-                [userId],
-                (err, rows) => {
-                    if (err) reject(err);
-                    resolve(rows);
-                }
-            );
-        });
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    payment_plan_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'payment_plans',
+            key: 'id'
+        }
+    },
+    amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false
+    },
+    payment_method: {
+        type: DataTypes.ENUM('stripe', 'cash', 'credits'),
+        allowNull: false
+    },
+    status: {
+        type: DataTypes.ENUM('pending', 'completed', 'failed'),
+        allowNull: false,
+        defaultValue: 'completed'
     }
-}; 
+}, {
+    tableName: 'transactions',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false
+});
+
+// Static methods
+Transactions.recordTransaction = async function(userId, planId, amount, paymentMethod, status = 'completed') {
+    return this.create({
+        user_id: userId,
+        payment_plan_id: planId,
+        amount,
+        payment_method: paymentMethod,
+        status
+    });
+};
+
+Transactions.getTransactions = async function(userId) {
+    return this.findAll({
+        where: { user_id: userId },
+        include: [{
+            model: sequelize.models.PaymentPlan,
+            attributes: ['name']
+        }],
+        order: [['created_at', 'DESC']]
+    });
+};
+
+module.exports = { Transactions }; 

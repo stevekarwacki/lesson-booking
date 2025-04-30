@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const PaymentPlan = require('../models/PaymentPlan');
-const Credits = require('../models/Credits');
-const Transactions = require('../models/Transactions');
+const { PaymentPlan } = require('../models/PaymentPlan');
+const { Credits } = require('../models/Credits');
+const { Transactions } = require('../models/Transactions');
 
 // Public route - Get all payment plans
 router.get('/plans', async (req, res) => {
@@ -28,7 +28,15 @@ router.get('/credits', async (req, res) => {
 
 // Purchase a plan
 router.post('/purchase', async (req, res) => {
-    const { planId, paymentMethod } = req.body;
+    const { planId, paymentMethod = 'credits' } = req.body;
+    
+    if (!planId) {
+        return res.status(400).json({ error: 'Plan ID is required' });
+    }
+
+    if (!paymentMethod) {
+        return res.status(400).json({ error: 'Payment method is required' });
+    }
     
     try {
         const result = await PaymentPlan.purchase(req.user.id, planId, paymentMethod);

@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Instructor = require('../models/Instructor');
-const User = require('../models/User');
+const { Instructor } = require('../models/Instructor');
 
 // Get all instructors
 router.get('/', async (req, res) => {

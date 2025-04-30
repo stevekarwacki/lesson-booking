@@ -1,70 +1,78 @@
-const db = require('../db');
-const Credits = require('./Credits');
-const Transactions = require('./Transactions');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../db/index');
+const { Credits } = require('./Credits');
+const { Transactions } = require('./Transactions');
 
-module.exports = {
-    getAll: () => {
-        return new Promise((resolve, reject) => {
-            db.all('SELECT * FROM payment_plans ORDER BY price ASC', [], (err, rows) => {
-                if (err) reject(err);
-                resolve(rows);
-            });
-        });
+const PaymentPlan = sequelize.define('PaymentPlan', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
     },
-
-    getById: (id) => {
-        return new Promise((resolve, reject) => {
-            db.get('SELECT * FROM payment_plans WHERE id = ?', [id], (err, row) => {
-                if (err) reject(err);
-                resolve(row);
-            });
-        });
+    name: {
+        type: DataTypes.STRING,
+        allowNull: false
     },
+    price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false
+    },
+    credits: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    type: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'one-time'
+    },
+    duration_days: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    }
+}, {
+    tableName: 'payment_plans',
+    timestamps: false
+});
 
-    purchase: async (userId, planId, paymentMethod) => {
-        return new Promise(async (resolve, reject) => {
-            try {
-                // Start a transaction
-                await new Promise((resolve, reject) => {
-                    db.run('BEGIN TRANSACTION', (err) => {
-                        if (err) reject(err);
-                        resolve();
-                    });
-                });
+// Static methods
+PaymentPlan.getAll = async function() {
+    return this.findAll({
+        order: [['price', 'ASC']]
+    });
+};
 
-                // Get the plan
-                const plan = await module.exports.getById(planId);
-                if (!plan) {
-                    throw new Error('Plan not found');
-                }
+PaymentPlan.getById = async function(id) {
+    return this.findByPk(id);
+};
 
-                // Calculate expiry date if it's a membership
-                const expiryDate = plan.type === 'membership' 
-                    ? new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000)
-                    : null;
+PaymentPlan.purchase = async function(userId, planId, paymentMethod) {
+    const transaction = await sequelize.transaction();
 
-                // Record the transaction
-                await Transactions.recordTransaction(userId, planId, plan.price, paymentMethod);
+    try {
+        // Get the plan
+        const plan = await this.findByPk(planId);
+        if (!plan) {
+            throw new Error('Plan not found');
+        }
 
-                // Add credits
-                await Credits.addCredits(userId, plan.credits, expiryDate);
+        // Calculate expiry date if it's a membership
+        const expiryDate = plan.type === 'membership' 
+            ? new Date(Date.now() + plan.duration_days * 24 * 60 * 60 * 1000)
+            : null;
 
-                // Commit the transaction
-                await new Promise((resolve, reject) => {
-                    db.run('COMMIT', (err) => {
-                        if (err) reject(err);
-                        resolve();
-                    });
-                });
+        // Record the transaction
+        await Transactions.recordTransaction(userId, planId, plan.price, paymentMethod);
 
-                resolve({ success: true });
-            } catch (error) {
-                // Rollback on error
-                await new Promise((resolve) => {
-                    db.run('ROLLBACK', () => resolve());
-                });
-                reject(error);
-            }
-        });
+        // Add credits
+        await Credits.addCredits(userId, plan.credits, expiryDate);
+
+        await transaction.commit();
+        return { success: true };
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
     }
 };
+
+module.exports = { PaymentPlan };

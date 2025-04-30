@@ -1,133 +1,133 @@
-const db = require('../db/index');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../db/index');
 
-const InstructorAvailability = {
-    createAvailabilityTables: async () => {
-        try {
-            // Recreate with TIME type for more precise time storage
-            await db.run(`
-                CREATE TABLE IF NOT EXISTS instructor_weekly_availability (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    instructor_id INTEGER NOT NULL,
-                    day_of_week INTEGER NOT NULL,
-                    start_slot INTEGER NOT NULL,
-                    duration INTEGER NOT NULL,
-                    FOREIGN KEY (instructor_id) REFERENCES instructors(id)
-                )
-            `);
-            console.log('Availability table created successfully');
-        } catch (error) {
-            console.error('Error creating availability table:', error);
-            throw error;
+const InstructorAvailability = sequelize.define('InstructorAvailability', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    instructor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'instructors',
+            key: 'id'
         }
     },
-
-    // Weekly schedule methods
-    setWeeklyAvailability: (instructorId, slots) => {
-        return new Promise((resolve, reject) => {
-            db.run('BEGIN TRANSACTION', (err) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
-                // Delete existing slots
-                db.run(
-                    'DELETE FROM instructor_weekly_availability WHERE instructor_id = ?',
-                    [instructorId],
-                    (err) => {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            reject(err);
-                            return;
-                        }
-
-                        // Insert new slots
-                        const stmt = db.prepare(
-                            `INSERT INTO instructor_weekly_availability 
-                            (instructor_id, day_of_week, start_slot, duration) 
-                            VALUES (?, ?, ?, ?)`
-                        );
-
-                        let hasError = false;
-                        slots.forEach(slot => {
-                            stmt.run(
-                                [instructorId, slot.dayOfWeek, slot.startSlot, slot.duration],
-                                (err) => {
-                                    if (err) hasError = err;
-                                }
-                            );
-                        });
-
-                        stmt.finalize((err) => {
-                            if (err || hasError) {
-                                db.run('ROLLBACK');
-                                reject(err || hasError);
-                                return;
-                            }
-
-                            db.run('COMMIT', (err) => {
-                                if (err) {
-                                    db.run('ROLLBACK');
-                                    reject(err);
-                                } else {
-                                    resolve();
-                                }
-                            });
-                        });
-                    }
-                );
-            });
-        });
+    day_of_week: {
+        type: DataTypes.INTEGER,
+        allowNull: false
     },
-
-    getWeeklyAvailability: (instructorId) => {
-        return new Promise((resolve, reject) => {
-            db.all(
-                `SELECT * FROM instructor_weekly_availability 
-                WHERE instructor_id = ? 
-                ORDER BY day_of_week, start_slot`,
-                [instructorId],
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                }
-            );
-        });
+    start_slot: {
+        type: DataTypes.INTEGER,
+        allowNull: false
     },
+    duration: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    }
+}, {
+    tableName: 'instructor_weekly_availability',
+    timestamps: false
+});
 
-    // Blocked times methods
-    addBlockedTime: (instructorId, blockedTime) => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                `INSERT INTO instructor_blocked_times 
-                (instructor_id, start_datetime, end_datetime, reason)
-                VALUES (?, ?, ?, ?)`,
-                [
-                    instructorId, 
-                    blockedTime.startDateTime, 
-                    blockedTime.endDateTime, 
-                    blockedTime.reason
-                ],
-                function(err) {
-                    if (err) reject(err);
-                    else resolve(this.lastID);
-                }
-            );
-        });
-    },
-
-    removeBlockedTime: (id) => {
-        return new Promise((resolve, reject) => {
-            db.run(
-                'DELETE FROM instructor_blocked_times WHERE id = ?',
-                [id],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
-                }
-            );
-        });
-    },
+// Create the table if it doesn't exist
+const createAvailabilityTables = async () => {
+    try {
+        await InstructorAvailability.sync();
+        console.log('Availability table created successfully');
+    } catch (error) {
+        console.error('Error creating availability table:', error);
+        throw error;
+    }
 };
 
-module.exports = InstructorAvailability; 
+// Weekly schedule methods
+const setWeeklyAvailability = (instructorId, slots) => {
+    return new Promise((resolve, reject) => {
+        sequelize.transaction(async (t) => {
+            try {
+                // Delete existing slots
+                await InstructorAvailability.destroy({
+                    where: {
+                        instructor_id: instructorId
+                    }
+                }, { transaction: t });
+
+                // Insert new slots
+                const stmt = await InstructorAvailability.bulkCreate(
+                    slots.map(slot => ({
+                        instructor_id: instructorId,
+                        day_of_week: slot.dayOfWeek,
+                        start_slot: slot.startSlot,
+                        duration: slot.duration
+                    })),
+                    { transaction: t }
+                );
+
+                resolve(stmt);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+};
+
+const getWeeklyAvailability = (instructorId) => {
+    return new Promise((resolve, reject) => {
+        InstructorAvailability.findAll({
+            where: {
+                instructor_id: instructorId
+            },
+            order: [['day_of_week', 'ASC'], ['start_slot', 'ASC']]
+        })
+        .then(rows => resolve(rows || []))
+        .catch(err => reject(err));
+    });
+};
+
+// Blocked times methods
+const addBlockedTime = (instructorId, blockedTime) => {
+    return new Promise((resolve, reject) => {
+        sequelize.transaction(async (t) => {
+            try {
+                const stmt = await Instructor_blocked_times.create({
+                    instructor_id: instructorId,
+                    start_datetime: blockedTime.startDateTime,
+                    end_datetime: blockedTime.endDateTime,
+                    reason: blockedTime.reason
+                }, { transaction: t });
+                resolve(stmt.id);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+};
+
+const removeBlockedTime = (id) => {
+    return new Promise((resolve, reject) => {
+        sequelize.transaction(async (t) => {
+            try {
+                await Instructor_blocked_times.destroy({
+                    where: {
+                        id: id
+                    }
+                }, { transaction: t });
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+};
+
+module.exports = {
+    InstructorAvailability,
+    createAvailabilityTables,
+    setWeeklyAvailability,
+    getWeeklyAvailability,
+    addBlockedTime,
+    removeBlockedTime
+}; 

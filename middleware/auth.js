@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { User } = require('../models/User');
 
 // Secret key for JWT - in production, this should be in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -22,13 +22,13 @@ const authMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         
         // Get user from database
-        const user = await User.findById(decoded.id);
+        const user = await User.findByPk(decoded.id);
         if (!user) {
             return res.status(401).json({ error: 'User not found' });
         }
 
         // Attach user to request object
-        req.user = user;
+        req.user = User.getPlainObject(user);
         next();
     } catch (error) {
         if (error.name === 'JsonWebTokenError') {

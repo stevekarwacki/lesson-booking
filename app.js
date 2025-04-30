@@ -7,10 +7,6 @@ const userRoutes = require('./routes/users');
 const calendarRoutes = require('./routes/calendar');
 const paymentsRoutes = require('./routes/payments');
 const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
-const User = require('./models/User');
-const Instructor = require('./models/Instructor');
-const instructorAvailability = require('./models/InstructorAvailability');
-const Calendar = require('./models/Calendar');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 
 const app = express();
@@ -21,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 // Initialize database tables
+/*
 Promise.all([
     User.createUsersTable(),
     Instructor.createInstructorsTable(),
@@ -33,6 +30,7 @@ Promise.all([
 .catch(err => {
     console.error('Database initialization failed:', err);
 });
+*/
 
 // Public routes
 app.use('/api/auth', authRoutes);

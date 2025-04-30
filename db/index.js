@@ -1,16 +1,23 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Sequelize, Op } = require('sequelize');
+const config = require('../config/database');
 
-// Connect to database
-const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'), (err) => {
-    if (err) {
-        console.error('Error connecting to database:', err);
-    } else {
-        console.log('Connected to SQLite database');
+// Create Sequelize instance
+const sequelize = new Sequelize(config);
+
+// Add operators to sequelize instance
+sequelize.Op = Op;
+
+// Test the connection
+const testConnection = async () => {
+    try {
+        await sequelize.authenticate();
+        console.log('Database connection has been established successfully.');
+    } catch (error) {
+        console.error('Unable to connect to the database:', error);
+        process.exit(1);
     }
-});
+};
 
-// Enable foreign key support
-db.run('PRAGMA foreign_keys = ON');
+testConnection();
 
-module.exports = db;
+module.exports = sequelize;

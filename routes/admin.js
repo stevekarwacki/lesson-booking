@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
 const bcrypt = require('bcrypt');
-const Instructor = require('../models/Instructor');
+const { User } = require('../models/User');
+const { Instructor } = require('../models/Instructor');
 
 // Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
@@ -16,7 +16,7 @@ const isAdmin = (req, res, next) => {
 // Get all users - now protected by isAdmin middleware
 router.get('/users', isAdmin, async (req, res) => {
     try {
-        const users = await User.findAll();
+        const users = await User.getAllUsers();
         res.json(users);
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -75,7 +75,7 @@ router.patch('/users/:id', isAdmin, async (req, res) => {
 router.get('/users/search', isAdmin, async (req, res) => {
     try {
         const searchQuery = req.query.q.toLowerCase()
-        const users = await User.findAll()
+        const users = await User.getAllUsers()
         
         const filteredUsers = users.filter(user => 
             user.name.toLowerCase().includes(searchQuery) ||
