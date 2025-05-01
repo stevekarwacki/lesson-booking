@@ -20,7 +20,7 @@
 *.db4
 *.db5
 *.rdb
-/migrations
+/db/migrations
 
 # Log files
 npm-debug.log*

@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../db/index');
+const { sequelize } = require('../db/index');
 const cache = require('../db/cache');
 
 const CACHE_KEYS = {
