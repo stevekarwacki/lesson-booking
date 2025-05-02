@@ -26,7 +26,6 @@ const initModels = async () => {
         console.log('All models were synchronized successfully.');
     } catch (error) {
         console.error('Error synchronizing models:', error);
-        throw error;
     }
 };
 
