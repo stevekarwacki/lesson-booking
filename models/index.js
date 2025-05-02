@@ -4,6 +4,7 @@ const { User } = require('./User');
 const { Instructor } = require('./Instructor');
 const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
+const runSeeds = require('../seeds');
 
 // Define associations
 User.hasOne(Instructor, { foreignKey: 'user_id' });
@@ -24,6 +25,18 @@ const initModels = async () => {
     try {
         await sequelize.sync();
         console.log('All models were synchronized successfully.');
+        
+        // Run seeds after sync
+        if (process.env.RUN_SEEDS === 'true') {
+            const models = {
+                User,
+                Instructor,
+                InstructorAvailability,
+                PaymentPlan,
+                Transactions
+            };
+            await runSeeds(models);
+        }
     } catch (error) {
         console.error('Error synchronizing models:', error);
     }
