@@ -2,17 +2,17 @@ const bcrypt = require('bcrypt');
 
 const createAdminUser = async (models) => {
     try {
-        // Check if admin already exists
+        // Check if any admin user exists
         const existingAdmin = await models.User.findOne({
-            where: { email: process.env.ADMIN_EMAIL || 'admin@example.com' }
+            where: { role: 'admin' }
         });
 
         if (existingAdmin) {
-            console.log('Admin user already exists');
+            console.log('An admin user already exists');
             return;
         }
 
-        // Create admin user
+        // Create default admin user
         const hashedPassword = await bcrypt.hash(
             process.env.ADMIN_PASSWORD || 'admin123',
             10
@@ -26,7 +26,7 @@ const createAdminUser = async (models) => {
             credits: 0
         });
 
-        console.log('Admin user created successfully');
+        console.log('Default admin user created successfully');
     } catch (error) {
         console.error('Error creating admin user:', error);
         throw error;
