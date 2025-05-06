@@ -35,6 +35,15 @@
                     >
                     <label for="payNow">Pay Now ($50)</label>
                 </div>
+
+                <!-- Stripe Payment Form -->
+                <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
+                    <StripePaymentForm
+                        :amount="50.00"
+                        @payment-success="handleStripeSuccess"
+                        @payment-error="handleStripeError"
+                    />
+                </div>
             </div>
 
             <div class="action-buttons">
@@ -46,6 +55,7 @@
                     Cancel
                 </button>
                 <button 
+                    v-if="paymentMethod !== 'direct'"
                     class="btn-confirm" 
                     @click="confirmBooking"
                     :disabled="loading"
@@ -65,6 +75,7 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime } from '../utils/timeFormatting'
+import StripePaymentForm from './StripePaymentForm.vue'
 
 const props = defineProps({
     slot: {
@@ -113,6 +124,24 @@ onMounted(async () => {
         showPaymentOptions.value = true
     }
 })
+
+const handleStripeSuccess = async () => {
+    try {
+        loading.value = true
+        error.value = null
+        await confirmBooking()
+    } catch (err) {
+        error.value = err.message || 'Failed to process payment'
+        console.error('Payment success error:', err)
+    } finally {
+        loading.value = false
+    }
+}
+
+const handleStripeError = (err) => {
+    error.value = err.message || 'Payment failed'
+    console.error('Stripe payment error:', err)
+}
 
 const confirmBooking = async () => {
     try {
@@ -183,7 +212,7 @@ const confirmBooking = async () => {
     background: white;
     padding: var(--spacing-lg);
     border-radius: var(--border-radius);
-    max-width: 400px;
+    max-width: 500px;
     width: 100%;
 }
 
@@ -218,14 +247,59 @@ const confirmBooking = async () => {
     gap: var(--spacing-sm);
 }
 
+.stripe-form-container {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+}
+
 .action-buttons {
     display: flex;
     gap: var(--spacing-md);
     margin-top: var(--spacing-lg);
 }
 
+.btn-cancel {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--text-secondary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn-confirm {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-confirm:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn-cancel:disabled,
+.btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .error-message {
     color: var(--error-color);
     margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: rgba(255, 0, 0, 0.1);
+    border-radius: var(--border-radius);
 }
 </style> 

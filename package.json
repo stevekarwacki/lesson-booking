@@ -23,6 +23,7 @@
     "pinia": "^3.0.2",
     "sequelize": "^6.35.1",
     "sqlite3": "^5.1.7",
+    "stripe": "^18.1.0",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {

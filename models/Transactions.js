@@ -17,7 +17,7 @@ const Transactions = sequelize.define('Transactions', {
     },
     payment_plan_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'payment_plans',
             key: 'id'
@@ -35,6 +35,14 @@ const Transactions = sequelize.define('Transactions', {
         type: DataTypes.ENUM('pending', 'completed', 'failed'),
         allowNull: false,
         defaultValue: 'completed'
+    },
+    payment_intent_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    stripe_customer_id: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 }, {
     tableName: 'transactions',
@@ -44,13 +52,15 @@ const Transactions = sequelize.define('Transactions', {
 });
 
 // Static methods
-Transactions.recordTransaction = async function(userId, planId, amount, paymentMethod, status = 'completed') {
+Transactions.recordTransaction = async function(userId, amount, paymentMethod, status = 'completed', paymentIntentId = null, stripeCustomerId = null, planId = null) {
     return this.create({
         user_id: userId,
         payment_plan_id: planId,
         amount,
         payment_method: paymentMethod,
-        status
+        status,
+        payment_intent_id: paymentIntentId,
+        stripe_customer_id: stripeCustomerId
     });
 };
 

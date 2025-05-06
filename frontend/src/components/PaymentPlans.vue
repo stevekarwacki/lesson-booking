@@ -17,9 +17,19 @@
                 </p>
             </div>
 
+            <div v-if="selectedPlan?.id === plan.id" class="payment-section">
+                <StripePaymentForm
+                    :amount="plan.price"
+                    :planId="plan.id"
+                    @payment-success="handlePaymentSuccess"
+                    @payment-error="handlePaymentError"
+                />
+            </div>
+
             <button 
+                v-else
                 class="purchase-button"
-                @click="purchasePlan(plan)"
+                @click="selectPlan(plan)"
                 :disabled="processing"
             >
                 {{ processing ? 'Processing...' : 'Purchase' }}
@@ -30,7 +40,14 @@
 
 <script setup>
 import { ref } from 'vue'
+import StripePaymentForm from './StripePaymentForm.vue'
 import { useUserStore } from '../stores/userStore'
+
+const userStore = useUserStore()
+
+const processing = ref(false)
+const error = ref(null)
+const selectedPlan = ref(null)
 
 const props = defineProps({
     plans: {
@@ -39,11 +56,7 @@ const props = defineProps({
     }
 })
 
-const userStore = useUserStore()
-const processing = ref(false)
-const error = ref(null)
-
-const purchasePlan = async (plan) => {
+const handlePaymentSuccess = async () => {
     try {
         processing.value = true
         error.value = null
@@ -78,6 +91,12 @@ const purchasePlan = async (plan) => {
     } finally {
         processing.value = false
     }
+}
+
+const handlePaymentError = (err) => {
+    error.value = err.message || 'Payment failed'
+    console.error('Payment error:', err)
+    selectedPlan.value = null
 }
 
 const emit = defineEmits(['purchase-success'])
@@ -169,6 +188,10 @@ const emit = defineEmits(['purchase-success'])
 .purchase-button:disabled {
     background: var(--text-secondary);
     cursor: not-allowed;
+}
+
+.payment-section {
+    margin-top: var(--spacing-md);
 }
 
 @media (max-width: 768px) {
