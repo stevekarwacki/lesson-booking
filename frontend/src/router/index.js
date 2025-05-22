@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ManageInstructorsPage from '../views/ManageInstructorsPage.vue'
 import ManageUsersPage from '../views/ManageUsersPage.vue'
+import ManagePackagesPage from '../views/ManagePackagesPage.vue'
 import AccountPage from '../views/AccountPage.vue'
 import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
@@ -35,6 +36,12 @@ const routes = [
         path: '/admin/users',
         name: 'manage-users',
         component: ManageUsersPage,
+        meta: { requiresAdmin: true }
+    },
+    {
+        path: '/admin/packages',
+        name: 'manage-packages',
+        component: ManagePackagesPage,
         meta: { requiresAdmin: true }
     },
     {

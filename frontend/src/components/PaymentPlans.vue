@@ -3,7 +3,7 @@
         <div v-for="plan in plans" :key="plan.id" class="plan-card">
             <div class="plan-header">
                 <h3>{{ plan.name }}</h3>
-                <p class="plan-type">{{ plan.type === 'package' ? 'Lesson Package' : 'Membership' }}</p>
+                <p class="plan-type">{{ plan.type === 'membership' ? 'Membership' : 'Lesson Package' }}</p>
             </div>
             
             <div class="plan-details">
@@ -56,6 +56,10 @@ const props = defineProps({
     }
 })
 
+const selectPlan = (plan) => {
+    selectedPlan.value = plan
+}
+
 const handlePaymentSuccess = async () => {
     try {
         processing.value = true
@@ -68,7 +72,7 @@ const handlePaymentSuccess = async () => {
                 'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
-                planId: plan.id,
+                planId: selectedPlan.value.id,
                 paymentMethod: 'cash' // Default to cash for now
             })
         })
@@ -82,6 +86,7 @@ const handlePaymentSuccess = async () => {
         if (data.success) {
             // Emit event to parent to refresh credits and transactions
             emit('purchase-success')
+            selectedPlan.value = null
         } else {
             throw new Error('Purchase was not successful')
         }

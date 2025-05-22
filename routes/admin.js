@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const { User } = require('../models/User');
 const { Instructor } = require('../models/Instructor');
+const { PaymentPlan } = require('../models/PaymentPlan');
 
 // Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
@@ -142,6 +143,97 @@ router.delete('/instructors/:id', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error deleting instructor:', error);
         res.status(500).json({ error: 'Error deleting instructor' });
+    }
+});
+
+// Get all payment plans
+router.get('/packages', isAdmin, async (req, res) => {
+    try {
+        const plans = await PaymentPlan.getAll();
+        res.json(plans);
+    } catch (error) {
+        console.error('Error fetching payment plans:', error);
+        res.status(500).json({ error: 'Error fetching payment plans' });
+    }
+});
+
+// Create new payment plan
+router.post('/packages', isAdmin, async (req, res) => {
+    try {
+        const { name, price, credits, type, duration_days } = req.body;
+        
+        if (!name || !price || !credits || !type) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        if (type === 'membership' && !duration_days) {
+            return res.status(400).json({ error: 'Duration days required for membership plans' });
+        }
+
+        const plan = await PaymentPlan.create({
+            name,
+            price,
+            credits,
+            type,
+            duration_days: type === 'membership' ? duration_days : null
+        });
+
+        res.status(201).json(plan);
+    } catch (error) {
+        console.error('Error creating payment plan:', error);
+        res.status(500).json({ error: 'Error creating payment plan' });
+    }
+});
+
+// Update payment plan
+router.put('/packages/:id', isAdmin, async (req, res) => {
+    try {
+        const planId = parseInt(req.params.id, 10);
+        const { name, price, credits, type, duration_days } = req.body;
+
+        if (!name || !price || !credits || !type) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        if (type === 'membership' && !duration_days) {
+            return res.status(400).json({ error: 'Duration days required for membership plans' });
+        }
+
+        const plan = await PaymentPlan.findByPk(planId);
+        if (!plan) {
+            return res.status(404).json({ error: 'Payment plan not found' });
+        }
+
+        await plan.update({
+            name,
+            price,
+            credits,
+            type,
+            duration_days: type === 'membership' ? duration_days : null
+        });
+
+        res.json(plan);
+    } catch (error) {
+        console.error('Error updating payment plan:', error);
+        res.status(500).json({ error: 'Error updating payment plan' });
+    }
+});
+
+// Delete payment plan
+router.delete('/packages/:id', isAdmin, async (req, res) => {
+    try {
+        const planId = parseInt(req.params.id, 10);
+        const plan = await PaymentPlan.findByPk(planId);
+        
+        if (!plan) {
+            return res.status(404).json({ error: 'Payment plan not found' });
+        }
+
+        await plan.destroy();
+        res.json({ message: 'Payment plan deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting payment plan:', error);
+        res.status(500).json({ error: 'Error deleting payment plan' });
     }
 });
 

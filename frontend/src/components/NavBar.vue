@@ -63,6 +63,13 @@ const handleLogout = () => {
                         Instructors
                     </router-link>
                     <router-link 
+                        to="/admin/packages" 
+                        class="nav-link"
+                        @click="closeMenu"
+                    >
+                        Packages
+                    </router-link>
+                    <router-link 
                         v-if="$mq.lgPlus"
                         to="/admin/availability" 
                         class="nav-link"

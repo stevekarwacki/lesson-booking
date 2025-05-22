@@ -56,7 +56,7 @@ const allPlans = ref([])
 const loading = ref(false)
 const error = ref(null)
 
-const lessonPlans = computed(() => allPlans.value.filter(plan => plan.type === 'package'))
+const lessonPlans = computed(() => allPlans.value.filter(plan => plan.type === 'one-time'))
 const membershipPlans = computed(() => allPlans.value.filter(plan => plan.type === 'membership'))
 
 const fetchCredits = async () => {
