@@ -62,7 +62,7 @@ PaymentPlan.purchase = async function(userId, planId, paymentMethod) {
             : null;
 
         // Record the transaction
-        await Transactions.recordTransaction(userId, planId, plan.price, paymentMethod);
+        await Transactions.recordTransaction(userId, plan.price, paymentMethod, 'completed', null, null, planId);
 
         // Add credits
         await Credits.addCredits(userId, plan.credits, expiryDate);
