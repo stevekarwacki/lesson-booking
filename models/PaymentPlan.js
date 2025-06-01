@@ -29,6 +29,10 @@ const PaymentPlan = sequelize.define('PaymentPlan', {
     duration_days: {
         type: DataTypes.INTEGER,
         allowNull: true
+    },
+    stripe_price_id: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 }, {
     tableName: 'payment_plans',

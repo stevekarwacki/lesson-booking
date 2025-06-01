@@ -44,7 +44,6 @@ import StripePaymentForm from './StripePaymentForm.vue'
 import { useUserStore } from '../stores/userStore'
 
 const userStore = useUserStore()
-
 const processing = ref(false)
 const error = ref(null)
 const selectedPlan = ref(null)
@@ -65,30 +64,47 @@ const handlePaymentSuccess = async () => {
         processing.value = true
         error.value = null
 
-        const response = await fetch('/api/payments/purchase', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                planId: selectedPlan.value.id,
-                paymentMethod: 'cash' // Default to cash for now
+        if (selectedPlan.value.type === 'membership') {
+            // Handle subscription
+            const response = await fetch('/api/subscriptions/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userStore.token}`
+                },
+                body: JSON.stringify({
+                    planId: selectedPlan.value.id
+                })
             })
-        })
-        
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to process payment')
-        }
-        
-        const data = await response.json()
-        if (data.success) {
-            // Emit event to parent to refresh credits and transactions
+            
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to create subscription')
+            }
+            
             emit('purchase-success')
             selectedPlan.value = null
         } else {
-            throw new Error('Purchase was not successful')
+            // Handle one-time purchase
+            const response = await fetch('/api/payments/purchase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userStore.token}`
+                },
+                body: JSON.stringify({
+                    planId: selectedPlan.value.id,
+                    paymentMethod: 'stripe'
+                })
+            })
+            
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to process payment')
+            }
+            
+            emit('purchase-success')
+            selectedPlan.value = null
         }
     } catch (err) {
         error.value = err.message || 'Failed to process payment'

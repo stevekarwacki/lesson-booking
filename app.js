@@ -7,6 +7,7 @@ const userRoutes = require('./routes/users');
 const calendarRoutes = require('./routes/calendar');
 const paymentsRoutes = require('./routes/payments');
 const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
+const subscriptionsRoutes = require('./routes/subscriptions');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/calendar', authMiddleware, calendarRoutes);
 app.use('/api/payments', authMiddleware, paymentsRoutes);
 app.use('/api/availability', authMiddleware, instructorAvailabilityRoutes);
+app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 
 // Catch all route for Vue app
 app.get('*', (req, res) => {

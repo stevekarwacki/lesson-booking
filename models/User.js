@@ -39,6 +39,10 @@ const User = sequelize.define('User', {
     is_approved: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+    },
+    stripe_customer_id: {
+        type: DataTypes.STRING,
+        allowNull: true
     }
 }, {
     tableName: 'users',
