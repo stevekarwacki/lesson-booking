@@ -84,8 +84,11 @@ const handlePaymentSuccess = async () => {
             }
         }
         
-        emit('purchase-success')
-        selectedPlan.value = null
+        // Wait a moment to show the success message before resetting
+        setTimeout(() => {
+            emit('purchase-success')
+            selectedPlan.value = null
+        }, 7000)
     } catch (err) {
         error.value = err.message || 'Failed to process payment'
         console.error('Payment error:', err)

@@ -11,11 +11,16 @@
 
         <div v-else-if="paymentSuccess" class="success-state">
             <div class="success-icon">✓</div>
-            <h3>Payment Successful!</h3>
-            <p>Your payment has been processed successfully.</p>
+            <h3>Subscription Active!</h3>
+            <p>Your subscription has been successfully activated. You can now start using your credits.</p>
         </div>
 
-        <div v-else>
+        <div v-else class="form-container">
+            <div v-if="processing" class="spinner-overlay">
+                <div class="spinner"></div>
+                <p>Processing your payment...</p>
+            </div>
+            
             <div ref="paymentElement" class="payment-element"></div>
             
             <button 
@@ -68,7 +73,7 @@ onMounted(async () => {
         await initializeStripe()
         
         // Mount card element
-        await mountPaymentElement(paymentElement.value)
+        await mountPaymentElement(paymentElement.value, props.amount)
     } catch (err) {
         emit('payment-error', err)
     }
@@ -88,10 +93,20 @@ const handleSubmit = async () => {
         processing.value = true
         error.value = null
 
-        // Create payment method from card details
+        // Submit the payment element first
+        const { error: submitError } = await elements.value.submit();
+        if (submitError) {
+            throw new Error(submitError.message);
+        }
+
+        // Create payment method from payment element
         const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
-            type: 'card',
-            card: elements.value.getElement('card'),
+            elements: elements.value,
+            params: {
+                billing_details: {
+                    email: userStore.user?.email
+                }
+            }
         });
 
         if (paymentMethodError) {
@@ -138,6 +153,47 @@ const handleSubmit = async () => {
     max-width: 500px;
     margin: 0 auto;
     padding: var(--spacing-md);
+    position: relative;
+}
+
+.form-container {
+    position: relative;
+}
+
+.spinner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    border-radius: var(--border-radius);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner-overlay p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 1rem;
 }
 
 .payment-element {
@@ -146,9 +202,9 @@ const handleSubmit = async () => {
     border-radius: var(--border-radius);
     margin-bottom: var(--spacing-md);
     background: white;
-    min-height: 200px; /* Ensure the element has space to render */
-    max-height: 400px;
-    overflow-y: scroll;
+    min-height: 300px;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
 .submit-button {
@@ -192,20 +248,58 @@ const handleSubmit = async () => {
     background: rgba(0, 255, 0, 0.1);
     border-radius: var(--border-radius);
     margin: var(--spacing-md) 0;
+    border: 1px solid var(--success-color);
 }
 
 .success-icon {
-    font-size: 2rem;
+    font-size: 2.5rem;
     color: var(--success-color);
     margin-bottom: var(--spacing-sm);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0, 255, 0, 0.1);
+    margin: 0 auto var(--spacing-md);
 }
 
 .success-state h3 {
     color: var(--success-color);
     margin-bottom: var(--spacing-sm);
+    font-size: 1.5rem;
 }
 
 .success-state p {
     color: var(--text-secondary);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Add styles for the payment element tabs */
+:deep(.ElementsApp) {
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+:deep(.Tab) {
+    padding: 12px 16px;
+    font-size: 16px;
+}
+
+:deep(.Tab--selected) {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+:deep(.Input) {
+    padding: 12px;
+    font-size: 16px;
+    border-radius: var(--border-radius);
+}
+
+:deep(.Input:focus) {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
 }
 </style> 

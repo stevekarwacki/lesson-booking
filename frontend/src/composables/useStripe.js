@@ -50,13 +50,17 @@ export function useStripe() {
         }
     }
 
-    const mountPaymentElement = async (element) => {
+    const mountPaymentElement = async (element, amount) => {
         try {
             if (!stripe.value) {
                 await initializeStripe()
             }
 
             elements.value = stripe.value.elements({
+                mode: 'subscription',
+                amount: Math.round(amount * 100), // Convert to cents
+                currency: 'usd',
+                paymentMethodCreation: 'manual',
                 appearance: {
                     theme: 'stripe',
                     variables: {
@@ -67,13 +71,27 @@ export function useStripe() {
                         fontFamily: 'system-ui, sans-serif',
                         spacingUnit: '4px',
                         borderRadius: '4px'
+                    },
+                    rules: {
+                        '.Input': {
+                            padding: '12px',
+                            fontSize: '16px'
+                        },
+                        '.Input:focus': {
+                            borderColor: '#4F46E5'
+                        }
                     }
                 }
             })
 
-            const cardElement = elements.value.create('card')
-            await cardElement.mount(element)
-            return cardElement
+            const paymentElement = elements.value.create('payment', {
+                layout: {
+                    type: 'tabs',
+                    defaultCollapsed: false
+                }
+            })
+            await paymentElement.mount(element)
+            return paymentElement
         } catch (err) {
             error.value = err.message
             throw err
