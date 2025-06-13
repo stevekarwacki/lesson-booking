@@ -10,10 +10,10 @@ const { User } = require('../models/User');
 // Create a new subscription
 router.post('/create', async (req, res) => {
     try {
-        const { planId } = req.body;
+        const { planId, paymentMethodId } = req.body;
         
-        if (!planId) {
-            return res.status(400).json({ error: 'Plan ID is required' });
+        if (!planId || !paymentMethodId) {
+            return res.status(400).json({ error: 'Plan ID and payment method ID are required' });
         }
 
         // Get the plan
@@ -45,6 +45,18 @@ router.post('/create', async (req, res) => {
                 { where: { id: user.id } }
             );
         }
+
+        // Attach payment method to customer
+        await stripe.paymentMethods.attach(paymentMethodId, {
+            customer: customer.id,
+        });
+
+        // Set as default payment method
+        await stripe.customers.update(customer.id, {
+            invoice_settings: {
+                default_payment_method: paymentMethodId,
+            },
+        });
 
         // Create Stripe price if it doesn't exist
         let price;
@@ -78,35 +90,18 @@ router.post('/create', async (req, res) => {
             planId: plan.id
         });
 
-        // Get the payment intent from the latest invoice
-        const invoice = subscription.latest_invoice;
-        let clientSecret;
-
-        if (invoice && invoice.payment_intent) {
-            clientSecret = invoice.payment_intent.client_secret;
-        } else {
-            // If no payment intent exists, create one
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: Math.round(plan.price * 100),
-                currency: 'usd',
-                customer: customer.id,
-                payment_method_types: ['card'],
-                metadata: {
-                    subscriptionId: subscription.id,
-                    userId: user.id,
-                    planId: plan.id
-                }
-            });
-            clientSecret = paymentIntent.client_secret;
-        }
+        // Calculate period dates based on plan duration
+        const now = new Date();
+        const periodStart = now;
+        const periodEnd = new Date(now.getTime() + (plan.duration_days * 24 * 60 * 60 * 1000));
 
         // Create subscription record
         const dbSubscription = await Subscription.createSubscription(
             user.id,
             plan.id,
             subscription.id,
-            new Date(subscription.current_period_start * 1000),
-            new Date(subscription.current_period_end * 1000)
+            periodStart,
+            periodEnd
         );
 
         // Record subscription event
@@ -114,7 +109,7 @@ router.post('/create', async (req, res) => {
 
         res.json({
             subscriptionId: subscription.id,
-            clientSecret
+            status: subscription.status
         });
     } catch (error) {
         console.error('Error creating subscription:', error);
@@ -174,17 +169,36 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             case 'customer.subscription.updated':
             case 'customer.subscription.deleted': {
                 const subscription = event.data.object;
+                console.log('Webhook received subscription update:', {
+                    id: subscription.id,
+                    status: subscription.status,
+                    current_period_start: subscription.current_period_start,
+                    current_period_end: subscription.current_period_end
+                });
+
                 const dbSubscription = await Subscription.findOne({
                     where: { stripe_subscription_id: subscription.id }
                 });
 
                 if (dbSubscription) {
+                    console.log('Updating database subscription:', {
+                        id: dbSubscription.id,
+                        old_status: dbSubscription.status,
+                        new_status: subscription.status,
+                        old_period_start: dbSubscription.current_period_start,
+                        new_period_start: new Date(subscription.current_period_start * 1000),
+                        old_period_end: dbSubscription.current_period_end,
+                        new_period_end: new Date(subscription.current_period_end * 1000)
+                    });
+
                     await dbSubscription.update({
                         status: subscription.status,
                         current_period_start: new Date(subscription.current_period_start * 1000),
                         current_period_end: new Date(subscription.current_period_end * 1000),
                         cancel_at_period_end: subscription.cancel_at_period_end
                     });
+
+                    console.log('Database subscription updated successfully');
 
                     await SubscriptionEvent.recordEvent(dbSubscription.id, event.type, subscription);
 

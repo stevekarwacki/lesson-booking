@@ -36,11 +36,11 @@ const Subscription = sequelize.define('Subscription', {
     },
     current_period_start: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true
     },
     current_period_end: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true
     },
     cancel_at_period_end: {
         type: DataTypes.BOOLEAN,

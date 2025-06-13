@@ -32,6 +32,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useStripe } from '../composables/useStripe'
+import { useUserStore } from '../stores/userStore'
 
 const props = defineProps({
     amount: {
@@ -59,16 +60,15 @@ const {
     mountPaymentElement 
 } = useStripe()
 
+const userStore = useUserStore()
+
 onMounted(async () => {
     try {
         // Initialize Stripe
         await initializeStripe()
         
-        // Create payment intent
-        const { clientSecret } = await createPaymentIntent(props.amount, props.planId)
-        
-        // Mount payment element
-        await mountPaymentElement(paymentElement.value, clientSecret)
+        // Mount card element
+        await mountPaymentElement(paymentElement.value)
     } catch (err) {
         emit('payment-error', err)
     }
@@ -88,17 +88,42 @@ const handleSubmit = async () => {
         processing.value = true
         error.value = null
 
-        const { error: submitError } = await stripe.value.confirmPayment({
-            elements: elements.value,
-            redirect: 'if_required'
-        })
+        // Create payment method from card details
+        const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
+            type: 'card',
+            card: elements.value.getElement('card'),
+        });
 
-        if (submitError) {
-            throw new Error(submitError.message)
+        if (paymentMethodError) {
+            throw new Error(paymentMethodError.message);
         }
 
-        paymentSuccess.value = true
-        emit('payment-success')
+        // Create subscription with payment method
+        const response = await fetch('/api/subscriptions/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
+            },
+            body: JSON.stringify({
+                planId: props.planId,
+                paymentMethodId: paymentMethod.id
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to create subscription')
+        }
+
+        const { subscriptionId, status } = await response.json()
+
+        if (status === 'active') {
+            paymentSuccess.value = true
+            emit('payment-success')
+        } else {
+            throw new Error('Subscription creation failed')
+        }
     } catch (err) {
         error.value = err.message || 'Payment failed'
         emit('payment-error', err)

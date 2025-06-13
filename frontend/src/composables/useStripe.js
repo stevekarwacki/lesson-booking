@@ -50,14 +50,13 @@ export function useStripe() {
         }
     }
 
-    const mountPaymentElement = async (element, clientSecret) => {
+    const mountPaymentElement = async (element) => {
         try {
             if (!stripe.value) {
                 await initializeStripe()
             }
 
             elements.value = stripe.value.elements({
-                clientSecret,
                 appearance: {
                     theme: 'stripe',
                     variables: {
@@ -72,9 +71,9 @@ export function useStripe() {
                 }
             })
 
-            const paymentElement = elements.value.create('payment')
-            await paymentElement.mount(element)
-            return paymentElement
+            const cardElement = elements.value.create('card')
+            await cardElement.mount(element)
+            return cardElement
         } catch (err) {
             error.value = err.message
             throw err

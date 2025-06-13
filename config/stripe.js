@@ -42,10 +42,8 @@ async function createSubscription(customerId, priceId, metadata = {}) {
             customer: customerId,
             items: [{ price: priceId }],
             metadata,
-            payment_behavior: 'default_incomplete',
             payment_settings: { save_default_payment_method: 'on_subscription' },
-            collection_method: 'charge_automatically',
-            expand: ['latest_invoice']
+            collection_method: 'charge_automatically'
         });
 
         return subscription;

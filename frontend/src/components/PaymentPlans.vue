@@ -64,27 +64,7 @@ const handlePaymentSuccess = async () => {
         processing.value = true
         error.value = null
 
-        if (selectedPlan.value.type === 'membership') {
-            // Handle subscription
-            const response = await fetch('/api/subscriptions/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userStore.token}`
-                },
-                body: JSON.stringify({
-                    planId: selectedPlan.value.id
-                })
-            })
-            
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || 'Failed to create subscription')
-            }
-            
-            emit('purchase-success')
-            selectedPlan.value = null
-        } else {
+        if (selectedPlan.value.type !== 'membership') {
             // Handle one-time purchase
             const response = await fetch('/api/payments/purchase', {
                 method: 'POST',
@@ -102,10 +82,10 @@ const handlePaymentSuccess = async () => {
                 const data = await response.json()
                 throw new Error(data.error || 'Failed to process payment')
             }
-            
-            emit('purchase-success')
-            selectedPlan.value = null
         }
+        
+        emit('purchase-success')
+        selectedPlan.value = null
     } catch (err) {
         error.value = err.message || 'Failed to process payment'
         console.error('Payment error:', err)
