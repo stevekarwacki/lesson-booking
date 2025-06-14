@@ -198,4 +198,112 @@ router.get('/student/:studentId', async (req, res) => {
     }
 });
 
+// Update student booking
+router.patch('/student/:bookingId', async (req, res) => {
+    try {
+        const bookingId = parseInt(req.params.bookingId, 10);
+        const { startTime, endTime } = req.body;
+        const studentId = req.user.id;
+
+        // Validate required fields
+        if (!startTime || !endTime) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate and parse dates
+        const requestedDate = new Date(startTime);
+        const endDate = new Date(endTime);
+
+        // Check if dates are valid
+        if (isNaN(requestedDate.getTime()) || isNaN(endDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid date format' });
+        }
+
+        // Format date to YYYY-MM-DD
+        const formattedDate = requestedDate.toISOString().split('T')[0];
+        const dayOfWeek = requestedDate.getUTCDay();
+
+        // Calculate time slots
+        const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
+        const endSlot = Math.floor(endDate.getUTCHours() * 4 + endDate.getUTCMinutes() / 15);
+        const duration = endSlot - startSlot;
+
+        // Validate slot duration
+        if (duration <= 0) {
+            return res.status(400).json({ error: 'Invalid time slot duration' });
+        }
+
+        // Get the booking to update
+        const booking = await Calendar.findByPk(bookingId);
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        // Verify the booking belongs to the student
+        if (booking.student_id !== studentId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Get instructor availability
+        const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(booking.instructor_id);
+
+        const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
+            if (slot.day_of_week !== dayOfWeek) return false;
+            const slotEnd = slot.start_slot + slot.duration;
+            return startSlot >= slot.start_slot && 
+                   startSlot < slotEnd && 
+                   (startSlot + duration) <= slotEnd;
+        });
+
+        if (!isTimeInWeeklySchedule) {
+            return res.status(400).json({ 
+                error: 'Selected time is outside instructor\'s availability'
+            });
+        }
+
+        // Check for existing bookings (excluding the current booking)
+        const existingBookings = await Calendar.getInstructorEvents(booking.instructor_id);
+
+        const hasConflict = existingBookings.some(existingBooking => {
+            // Skip the booking being updated
+            if (existingBooking.id === bookingId) return false;
+
+            // First check if this booking is for the same day
+            if (existingBooking.date !== formattedDate) {
+                return false;
+            }
+
+            // If it's the same day, check for time slot conflicts
+            const bookingStart = existingBooking.start_slot;
+            const bookingEnd = existingBooking.start_slot + existingBooking.duration;
+
+            return startSlot < bookingEnd && 
+                   (startSlot + duration) > bookingStart;
+        });
+
+        if (hasConflict) {
+            return res.status(400).json({ error: 'Time slot is already booked' });
+        }
+
+        // Update the booking
+        await booking.update({
+            date: formattedDate,
+            start_slot: startSlot,
+            duration: duration
+        });
+
+        res.json({
+            message: 'Booking updated successfully',
+            booking
+        });
+
+    } catch (error) {
+        console.error('Error updating booking:', error);
+        res.status(500).json({ 
+            error: 'Failed to update booking',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router; 

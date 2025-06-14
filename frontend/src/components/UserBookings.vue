@@ -23,17 +23,29 @@
                 </thead>
                 <tbody>
                     <tr v-for="booking in bookings" :key="booking.id">
-                        <td>{{ formatDate(booking.date, 'anm-abbr') }}</td>
+                        <td>{{ formatDate(new Date(booking.date + 'T00:00:00'), 'anm-abbr') }}</td>
                         <td>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</td>
                         <td>{{ booking.Instructor.User.name }}</td>
                         <td>{{ booking.duration * 15 }} minutes</td>
                         <td class="actions">
-                            <button class="btn btn-primary">Edit</button>
+                            <button 
+                                class="btn btn-primary"
+                                @click="openEditModal(booking)"
+                            >
+                                Edit
+                            </button>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
+        <EditBookingModal
+            v-if="showEditModal"
+            :booking="selectedBooking"
+            @close="closeEditModal"
+            @booking-updated="handleBookingUpdated"
+        />
     </div>
 </template>
 
@@ -41,11 +53,14 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
+import EditBookingModal from './EditBookingModal.vue'
 
 const userStore = useUserStore()
 const bookings = ref([])
 const loading = ref(true)
 const error = ref(null)
+const showEditModal = ref(false)
+const selectedBooking = ref(null)
 
 const fetchBookings = async () => {
     try {
@@ -70,6 +85,21 @@ const fetchBookings = async () => {
     } finally {
         loading.value = false
     }
+}
+
+const openEditModal = (booking) => {
+    selectedBooking.value = booking
+    showEditModal.value = true
+}
+
+const closeEditModal = () => {
+    showEditModal.value = false
+    selectedBooking.value = null
+}
+
+const handleBookingUpdated = async () => {
+    closeEditModal()
+    await fetchBookings()
 }
 
 onMounted(async () => {
