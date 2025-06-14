@@ -6,6 +6,7 @@ const { SubscriptionEvent } = require('../models/SubscriptionEvent');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Credits } = require('../models/Credits');
 const { User } = require('../models/User');
+const { authMiddleware } = require('../middleware/auth');
 
 // Create a new subscription
 router.post('/create', async (req, res) => {
@@ -204,7 +205,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
                     // If subscription is active, add credits
                     if (subscription.status === 'active') {
-                        const plan = await PaymentPlan.findByPk(dbSubscription.payment_plan_id);
+                        const plan = await PaymentPlan.findByPk(dbSubscription.plan_id);
                         if (plan) {
                             await Credits.addCredits(
                                 dbSubscription.user_id,
@@ -222,6 +223,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     } catch (error) {
         console.error('Webhook error:', error);
         res.status(400).send(`Webhook Error: ${error.message}`);
+    }
+});
+
+// Add route to update subscription periods
+router.post('/update-periods', authMiddleware, async (req, res) => {
+    try {
+        const result = await User.updateSubscriptionPeriods(req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Error updating subscription periods:', error);
+        res.status(500).json({ error: 'Failed to update subscription periods' });
     }
 });
 

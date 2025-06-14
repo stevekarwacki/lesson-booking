@@ -1,9 +1,10 @@
 const { sequelize } = require('../db/index');
 const { InstructorAvailability } = require('./InstructorAvailability');
-const { User } = require('./User');
+const { User, setupAssociations: setupUserAssociations } = require('./User');
 const { Instructor } = require('./Instructor');
 const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
+const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
 const runSeeds = require('../seeds');
 
 // Define associations
@@ -20,6 +21,19 @@ Transactions.belongsTo(User, { foreignKey: 'user_id' });
 PaymentPlan.hasMany(Transactions, { foreignKey: 'payment_plan_id' });
 Transactions.belongsTo(PaymentPlan, { foreignKey: 'payment_plan_id' });
 
+// Set up model associations
+const models = {
+    User,
+    Subscription,
+    PaymentPlan,
+    Instructor,
+    InstructorAvailability,
+    Transactions
+};
+
+setupUserAssociations(models);
+setupSubscriptionAssociations(models);
+
 // Initialize all models
 const initModels = async () => {
     try {
@@ -28,13 +42,6 @@ const initModels = async () => {
         
         // Run seeds after sync
         if (process.env.RUN_SEEDS === 'true') {
-            const models = {
-                User,
-                Instructor,
-                InstructorAvailability,
-                PaymentPlan,
-                Transactions
-            };
             await runSeeds(models);
         }
     } catch (error) {
@@ -49,5 +56,6 @@ module.exports = {
     Instructor,
     InstructorAvailability,
     PaymentPlan,
-    Transactions
+    Transactions,
+    Subscription
 }; 

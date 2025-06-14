@@ -4,6 +4,7 @@ import SignupForm from './components/SignupForm.vue'
 import LoginForm from './components/LoginForm.vue'
 import NavBar from './components/NavBar.vue'
 import { useUserStore } from './stores/userStore'
+import SubscriptionPeriodUpdater from './components/SubscriptionPeriodUpdater.vue'
 
 const userStore = useUserStore()
 
@@ -21,6 +22,7 @@ const handleLogout = () => {
         <NavBar @logout="handleLogout" />
         <div class="container">
             <main class="main-content">
+                <SubscriptionPeriodUpdater />
                 <router-view v-if="userStore.token"></router-view>
                 <div v-else class="auth-forms">
                     <LoginForm />

@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
 const cache = require('../db/cache');
+const { stripe } = require('../config/stripe');
 
 const CACHE_KEYS = {
     allUsers: 'users:all',
@@ -132,6 +133,66 @@ User.getPlainObject = function(user) {
     return user.get({ plain: true });
 };
 
+// Add a method to update subscription periods
+User.updateSubscriptionPeriods = async function(userId) {
+    try {
+        const { Subscription } = require('./Subscription');
+        // Get user's active subscription
+        const subscription = await Subscription.findActiveByUserId(userId);
+
+        if (subscription) {
+            // Check if current period is in the past
+            const now = new Date();
+            if (subscription.current_period_end > now) {
+                return { success: true, updated: false };
+            }
+
+            // Retrieve subscription from Stripe to get latest period dates
+            const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+
+            // Convert Unix timestamps to Date objects
+            const periodStart = new Date(stripeSubscription.billing_cycle_anchor * 1000);
+            
+            // Calculate period end based on plan interval
+            const periodEnd = new Date(periodStart);
+            const intervalCount = stripeSubscription.plan.interval_count || 1;
+            
+            switch (stripeSubscription.plan.interval) {
+                case 'day':
+                    periodEnd.setDate(periodEnd.getDate() + intervalCount);
+                    break;
+                case 'week':
+                    periodEnd.setDate(periodEnd.getDate() + (7 * intervalCount));
+                    break;
+                case 'month':
+                    periodEnd.setMonth(periodEnd.getMonth() + intervalCount);
+                    break;
+                case 'year':
+                    periodEnd.setFullYear(periodEnd.getFullYear() + intervalCount);
+                    break;
+            }
+            
+            // Update subscription with new period dates
+            const updatedSubscription = await subscription.update({
+                current_period_start: periodStart,
+                current_period_end: periodEnd
+            });
+
+            return { success: true, updated: true };
+        }
+
+        return { success: true, updated: false };
+    } catch (error) {
+        console.error('Error updating subscription periods:', error);
+        throw error;
+    }
+};
+
+// Function to set up associations
+const setupAssociations = (models) => {
+    User.hasMany(models.Subscription, { foreignKey: 'user_id' });
+};
+
 // Hooks
 User.afterCreate(async (user) => {
     await clearCache();
@@ -145,4 +206,4 @@ User.afterDestroy(async (user) => {
     await clearCache(user.id);
 });
 
-module.exports = { User, clearCache }; 
+module.exports = { User, clearCache, setupAssociations }; 
