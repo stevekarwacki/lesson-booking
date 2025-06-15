@@ -79,17 +79,19 @@ const handleTimeSlotClick = (timeSlot) => {
 .daily-schedule {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    background: white;
+    background: var(--background-light);
     display: flex;
     flex-direction: column;
 }
 
 .schedule-header {
-    padding: 10px;
+    padding: var(--spacing-sm);
     text-align: center;
     border-bottom: 1px solid var(--border-color);
     background: var(--background-light);
-    font-weight: bold;
+    font-weight: 500;
+    font-size: var(--font-size-lg);
+    color: var(--text-primary);
 }
 
 .schedule-body {
@@ -98,24 +100,18 @@ const handleTimeSlotClick = (timeSlot) => {
 
 .time-row {
     display: grid;
-    grid-template-columns: 10% 90%;
-}
-
-.time-column {
-    width: 80px;
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
+    grid-template-columns: max-content auto;
 }
 
 .time-label {
     height: calc(600px / 13);
+    min-width: 85px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding-right: 8px;
-    font-size: 0.8em;
-    color: var(--text-light);
+    padding-right: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
 }
 
 .time-slot {
@@ -136,7 +132,7 @@ const handleTimeSlotClick = (timeSlot) => {
 }
 
 .time-slot.booked {
-    background-color: var(--blue-color);
+    background-color: var(--primary-color);
     opacity: 0.5;
     cursor: pointer;
 }
@@ -161,8 +157,8 @@ const handleTimeSlotClick = (timeSlot) => {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.8em;
-    color: var(--text-dark);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
 }
 
 .time-slot:hover .slot-time {
@@ -174,8 +170,8 @@ const handleTimeSlotClick = (timeSlot) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 4px;
-    font-size: 0.7rem;
+    padding: 0 var(--spacing-xs);
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -195,19 +191,20 @@ const handleTimeSlotClick = (timeSlot) => {
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    background: white;
-    padding: 8px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: var(--background-light);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
     z-index: 1000;
     min-width: 200px;
-    font-size: 0.9rem;
-    margin-top: 4px;
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
 }
 
 .tooltip-title {
-    font-weight: bold;
-    margin-bottom: 4px;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
 }
 
 .tooltip-content {
@@ -215,6 +212,16 @@ const handleTimeSlotClick = (timeSlot) => {
 }
 
 .tooltip-content p {
-    margin: 4px 0;
+    margin: var(--spacing-xs) 0;
+}
+
+@media (max-width: 768px) {
+    .schedule-header {
+        font-size: var(--font-size-base);
+    }
+
+    .time-label {
+        font-size: var(--font-size-xs);
+    }
 }
 </style> 

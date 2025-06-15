@@ -339,14 +339,19 @@ onMounted(fetchPackages)
                         >
                     </div>
 
-                    <div class="modal-actions">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <div class="modal-footer">
                         <button 
-                            type="button" 
-                            class="btn btn-secondary" 
+                            type="button"
+                            class="form-button form-button-secondary"
                             @click="closeEditModal"
                         >
                             Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="form-button"
+                        >
+                            Save Changes
                         </button>
                     </div>
                 </form>
@@ -391,12 +396,6 @@ onMounted(fetchPackages)
     display: grid;
     gap: var(--spacing-md);
     max-width: 500px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
 }
 
 .form-group label {
@@ -472,10 +471,11 @@ onMounted(fetchPackages)
     width: 100%;
 }
 
-.modal-actions {
+.modal-footer {
     display: flex;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
     margin-top: var(--spacing-lg);
+    justify-content: flex-end;
 }
 
 .loading,

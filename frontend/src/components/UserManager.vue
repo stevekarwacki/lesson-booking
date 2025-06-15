@@ -307,8 +307,19 @@ onMounted(async () => {
                 </div>
                 
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="closeEditModal">Cancel</button>
-                    <button class="btn btn-primary" @click="saveUserEdit">Save Changes</button>
+                    <button 
+                        type="button"
+                        class="form-button form-button-secondary"
+                        @click="closeEditModal"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        class="form-button"
+                    >
+                        Save Changes
+                    </button>
                 </div>
             </div>
         </div>
@@ -458,11 +469,10 @@ select:disabled {
 }
 
 .modal-footer {
-    padding: var(--spacing-md);
-    border-top: 1px solid #ddd;
     display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
     justify-content: flex-end;
-    gap: var(--spacing-sm);
 }
 
 /* Add to main.css if you want to reuse across components */

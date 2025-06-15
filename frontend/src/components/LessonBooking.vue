@@ -1,25 +1,29 @@
 <template>
     <div class="lesson-booking card">
-        <h2>Book A Lesson</h2>
-        
-        <!-- Instructor selection -->
-        <div class="instructor-selection" v-if="instructors.length > 1">
-            <label for="instructor-select">Select Instructor:</label>
-            <select id="instructor-select" v-model="selectedInstructor">
-                <option value="">Choose an instructor</option>
-                <option 
-                    v-for="instructor in instructors" 
-                    :key="instructor.id" 
-                    :value="instructor"
-                >
-                    {{ instructor.name }}
-                </option>
-            </select>
+        <div class="card-header">
+            <h2>Book A Lesson</h2>
         </div>
+        
+        <div class="card-body">
+            <!-- Instructor selection -->
+            <div class="form-group" v-if="instructors.length > 1">
+                <label for="instructor-select" class="form-label">Select Instructor:</label>
+                <select id="instructor-select" v-model="selectedInstructor" class="form-input">
+                    <option value="">Choose an instructor</option>
+                    <option 
+                        v-for="instructor in instructors" 
+                        :key="instructor.id" 
+                        :value="instructor"
+                    >
+                        {{ instructor.name }}
+                    </option>
+                </select>
+            </div>
 
-        <InstructorCalendar v-if="selectedInstructor.id" :instructor="selectedInstructor" />
+            <InstructorCalendar v-if="selectedInstructor.id" :instructor="selectedInstructor" />
 
-        <div v-if="error" class="error-message">{{ error }}</div>
+            <div v-if="error" class="form-message error-message">{{ error }}</div>
+        </div>
     </div>
 </template>
 
@@ -60,36 +64,19 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.instructor-selection {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 20px;
-}
-
 .lesson-booking {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: var(--spacing-lg);
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg);
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.form-group select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-}
-
-.error-message {
-    color: var(--error-color);
-    margin-top: 10px;
+@media (max-width: 768px) {
+    .lesson-booking {
+        padding: var(--spacing-md);
+    }
 }
 </style> 

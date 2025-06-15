@@ -1,12 +1,12 @@
 <template>
     <div class="payment-plans">
-        <div v-for="plan in plans" :key="plan.id" class="plan-card">
-            <div class="plan-header">
+        <div v-for="plan in plans" :key="plan.id" class="card">
+            <div class="card-header">
                 <h3>{{ plan.name }}</h3>
                 <p class="plan-type">{{ plan.type === 'membership' ? 'Membership' : 'Lesson Package' }}</p>
             </div>
             
-            <div class="plan-details">
+            <div class="card-body">
                 <p class="price">${{ plan.price }}</p>
                 <p class="credits">{{ plan.credits }} Lesson Credits</p>
                 <p v-if="plan.type === 'membership'" class="duration">
@@ -17,7 +17,7 @@
                 </p>
             </div>
 
-            <div v-if="selectedPlan?.id === plan.id" class="payment-section">
+            <div v-if="selectedPlan?.id === plan.id" class="card-footer">
                 <StripePaymentForm
                     :amount="plan.price"
                     :planId="plan.id"
@@ -28,7 +28,7 @@
 
             <button 
                 v-else
-                class="purchase-button"
+                class="form-button"
                 @click="selectPlan(plan)"
                 :disabled="processing"
             >
@@ -114,8 +114,8 @@ const emit = defineEmits(['purchase-success'])
     margin-top: var(--spacing-md);
 }
 
-.plan-card {
-    background: white;
+.card {
+    background: var(--background-light);
     border-radius: var(--border-radius);
     padding: var(--spacing-lg);
     box-shadow: var(--card-shadow);
@@ -124,24 +124,24 @@ const emit = defineEmits(['purchase-success'])
     gap: var(--spacing-md);
 }
 
-.plan-header {
+.card-header {
     text-align: center;
     margin-bottom: var(--spacing-md);
 }
 
-.plan-header h3 {
+.card-header h3 {
     margin: 0;
     color: var(--secondary-color);
-    font-size: 1.5rem;
+    font-size: var(--font-size-xl);
 }
 
 .plan-type {
     margin: var(--spacing-sm) 0 0;
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
 }
 
-.plan-details {
+.card-body {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -150,14 +150,14 @@ const emit = defineEmits(['purchase-success'])
 }
 
 .price {
-    font-size: 2rem;
+    font-size: var(--font-size-2xl);
     font-weight: bold;
     color: var(--primary-color);
     margin: 0;
 }
 
 .credits {
-    font-size: 1.2rem;
+    font-size: var(--font-size-lg);
     color: var(--text-primary);
     margin: 0;
 }
@@ -170,31 +170,10 @@ const emit = defineEmits(['purchase-success'])
 .description {
     color: var(--text-secondary);
     margin: var(--spacing-sm) 0 0;
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
 }
 
-.purchase-button {
-    width: 100%;
-    padding: var(--spacing-md);
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.purchase-button:hover:not(:disabled) {
-    opacity: 0.7;
-}
-
-.purchase-button:disabled {
-    background: var(--text-secondary);
-    cursor: not-allowed;
-}
-
-.payment-section {
+.card-footer {
     margin-top: var(--spacing-md);
 }
 

@@ -231,189 +231,189 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="instructor-manager">
-        <h2>Manage Instructors</h2>
+    <div class="instructor-manager card">
+        <div class="card-header">
+            <h2>Manage Instructors</h2>
+        </div>
         
-        <div v-if="error" class="alert alert-danger">{{ error }}</div>
-        <div v-if="success" class="alert alert-success">{{ success }}</div>
+        <div class="card-body">
+            <div v-if="error" class="form-message error-message">{{ error }}</div>
+            <div v-if="success" class="form-message success-message">{{ success }}</div>
 
-        <button 
-                class="btn btn-primary mb-3"
+            <button 
+                class="form-button"
                 @click="showAddForm = !showAddForm"
             >
                 {{ showAddForm ? 'Cancel' : 'Add Instructor' }}
             </button>
 
-        <div v-if="showAddForm" class="add-form">
-            <h3>Add New Instructor</h3>
-            <form @submit.prevent="handleAddInstructor">
-                <div class="form-group">
-                    <label for="user-search">Search User</label>
-                    <div class="search-container">
-                        <input 
-                            id="user-search"
-                            v-model="searchQuery"
-                            type="text"
-                            placeholder="Search by name or email"
-                            :class="{ 'has-selection': selectedUser }"
-                            autocomplete="off"
-                            @focus="handleSearchFocus"
-                            @blur="handleSearchBlur"
-                        >
-                        <button 
-                            v-if="selectedUser" 
-                            type="button" 
-                            class="clear-button"
-                            @click="clearSelection"
-                        >
-                            ×
-                        </button>
-                    </div>
-                    
-                    <div 
-                        v-if="isSearchFocused && searchResults.length > 0" 
-                        class="search-results"
-                    >
-                        <div 
-                            v-for="user in searchResults" 
-                            :key="user.id"
-                            class="search-result-item"
-                            @click="selectUser(user)"
-                        >
-                            <div class="user-info">
-                                <strong>{{ user.name }}</strong>
-                                <span>{{ user.email }}</span>
+            <div v-if="showAddForm" class="add-form card">
+                <div class="card-header">
+                    <h3>Add New Instructor</h3>
+                </div>
+                <div class="card-body">
+                    <form @submit.prevent="handleAddInstructor">
+                        <div class="form-group">
+                            <label class="form-label">Search User:</label>
+                            <div class="search-container">
+                                <input 
+                                    type="text"
+                                    v-model="searchQuery"
+                                    @focus="handleSearchFocus"
+                                    @blur="handleSearchBlur"
+                                    placeholder="Search by name or email..."
+                                    class="form-input"
+                                >
+                                <div v-if="isSearchFocused && searchResults.length > 0" class="search-results">
+                                    <div 
+                                        v-for="user in searchResults" 
+                                        :key="user.id"
+                                        class="search-result-item"
+                                        @mousedown="selectUser(user)"
+                                    >
+                                        <div class="user-name">{{ user.name }}</div>
+                                        <div class="user-email">{{ user.email }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div 
-                        v-else-if="isSearchFocused && searchQuery.length >= 2" 
-                        class="no-results"
-                    >
-                        No matching users found
-                    </div>
-                </div>
 
-                <div v-if="selectedUser" class="selected-user">
-                    <p>Selected: {{ selectedUser.name }} ({{ selectedUser.email }})</p>
-                </div>
+                        <div class="form-group">
+                            <label for="useCredits" class="form-label">Bio:</label>
+                            <textarea 
+                                v-model="newInstructor.bio"
+                                class="form-input"
+                                rows="3"
+                            ></textarea>
+                        </div>
 
-                <div class="form-group">
-                    <label for="bio">Bio</label>
-                    <textarea 
-                        id="bio"
-                        v-model="newInstructor.bio"
-                        required
-                        rows="3"
-                        placeholder="Enter instructor bio"
-                    ></textarea>
-                </div>
+                        <div class="form-group">
+                            <label class="form-label">Specialties:</label>
+                            <input 
+                                type="text"
+                                v-model="newInstructor.specialties"
+                                class="form-input"
+                                placeholder="e.g., Piano, Jazz, Classical"
+                            >
+                        </div>
 
-                <div class="form-group">
-                    <label for="specialties">Specialties</label>
-                    <input 
-                        id="specialties"
-                        v-model="newInstructor.specialties"
-                        type="text"
-                        required
-                        placeholder="e.g., Jazz, Classical, Piano"
-                    >
-                </div>
+                        <div class="form-group">
+                            <label class="form-label">Hourly Rate ($):</label>
+                            <input 
+                                type="number"
+                                v-model="newInstructor.hourly_rate"
+                                class="form-input"
+                                min="0"
+                                step="0.01"
+                            >
+                        </div>
 
-                <div class="form-group">
-                    <label for="hourly_rate">Hourly Rate ($)</label>
-                    <input 
-                        id="hourly_rate"
-                        v-model="newInstructor.hourly_rate"
-                        type="number"
-                        required
-                        min="0"
-                        step="0.01"
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="availability">Availability</label>
-                    <textarea 
-                        id="availability"
-                        v-model="newInstructor.availability"
-                        required
-                        rows="2"
-                        placeholder="e.g., Weekdays 9AM-5PM"
-                    ></textarea>
-                </div>
-
-                <button type="submit" class="submit-button">Add Instructor</button>
-            </form>
-        </div>
-
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th v-if="$mq.lgPlus">Email</th>
-                    <th v-if="$mq.lgPlus">Specialties</th>
-                    <th v-if="$mq.lgPlus">Rate</th>
-                    <th v-if="$mq.lgPlus">Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="instructor in instructors" :key="instructor.id">
-                    <td>{{ instructor.User.name }}</td>
-                    <td v-if="$mq.lgPlus">{{ instructor.User.email }}</td>
-                    <td v-if="$mq.lgPlus">{{ instructor.specialties || 'Not specified' }}</td>
-                    <td v-if="$mq.lgPlus">${{ instructor.hourly_rate || '0' }}/hr</td>
-                    <td v-if="$mq.lgPlus">
-                        <span :class="['badge', instructor.is_active ? 'badge-success' : 'badge-warning']">
-                            {{ instructor.is_active ? 'Active' : 'Inactive' }}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-secondary me-1" @click="openEditModal(instructor)">Edit</button>
-                        <button class="btn btn-sm btn-warning me-1" @click="toggleInstructorActive(instructor)">
-                            {{ instructor.is_active ? 'Deactivate' : 'Activate' }}
+                        <button 
+                            type="submit"
+                            class="form-button"
+                            :disabled="!selectedUser"
+                        >
+                            Add Instructor
                         </button>
-                        <button class="btn btn-sm btn-danger" @click="deleteInstructor(instructor.id)">Delete</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                    </form>
+                </div>
+            </div>
 
-        <!-- Edit Modal -->
-        <div v-if="showEditModal" class="modal">
-            <div class="modal-content">
+            <div v-if="loading" class="loading-state">
+                Loading instructors...
+            </div>
+
+            <div v-else class="instructors-list">
+                <div v-for="instructor in instructors" :key="instructor.id" class="instructor-card card">
+                    <div class="card-body">
+                        <div class="instructor-header">
+                            <h3>{{ instructor.User.name }}</h3>
+                            <div class="instructor-actions">
+                                <button 
+                                    class="form-button form-button-secondary"
+                                    @click="openEditModal(instructor)"
+                                >
+                                    Edit
+                                </button>
+                                <button 
+                                    class="form-button form-button-secondary"
+                                    @click="toggleInstructorActive(instructor)"
+                                >
+                                    {{ instructor.is_active ? 'Deactivate' : 'Activate' }}
+                                </button>
+                                <button 
+                                    class="form-button form-button-danger"
+                                    @click="deleteInstructor(instructor.id)"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="instructor-details">
+                            <p><strong>Email:</strong> {{ instructor.User.email }}</p>
+                            <p><strong>Bio:</strong> {{ instructor.bio }}</p>
+                            <p><strong>Specialties:</strong> {{ instructor.specialties }}</p>
+                            <p><strong>Hourly Rate:</strong> ${{ instructor.hourly_rate }}</p>
+                            <p><strong>Status:</strong> {{ instructor.is_active ? 'Active' : 'Inactive' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div v-if="showEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h3>Edit Instructor</h3>
+            </div>
+            <div class="modal-body">
                 <form @submit.prevent="saveInstructorEdit">
                     <div class="form-group">
-                        <label>Hourly Rate ($)</label>
-                        <input 
-                            type="number" 
-                            v-model="editingInstructor.hourly_rate"
-                            class="form-control"
-                            required
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label>Specialties</label>
-                        <input 
-                            type="text" 
-                            v-model="editingInstructor.specialties"
-                            class="form-control"
-                            required
-                        >
-                    </div>
-                    <div class="form-group">
-                        <label>Bio</label>
+                        <label class="form-label">Bio:</label>
                         <textarea 
                             v-model="editingInstructor.bio"
-                            class="form-control"
-                            required
+                            class="form-input"
+                            rows="3"
                         ></textarea>
                     </div>
-                    <div class="modal-actions">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <button type="button" class="btn btn-secondary" @click="closeEditModal">Cancel</button>
+
+                    <div class="form-group">
+                        <label class="form-label">Specialties:</label>
+                        <input 
+                            type="text"
+                            v-model="editingInstructor.specialties"
+                            class="form-input"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Hourly Rate ($):</label>
+                        <input 
+                            type="number"
+                            v-model="editingInstructor.hourly_rate"
+                            class="form-input"
+                            min="0"
+                            step="0.01"
+                        >
+                    </div>
+
+                    <div class="modal-footer">
+                        <button 
+                            type="button"
+                            class="form-button form-button-secondary"
+                            @click="closeEditModal"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="form-button"
+                        >
+                            Save Changes
+                        </button>
                     </div>
                 </form>
             </div>
@@ -423,44 +423,74 @@ onMounted(async () => {
 
 <style scoped>
 .instructor-manager {
-    background: white;
+    max-width: 1200px;
+    margin: 0 auto;
     padding: var(--spacing-lg);
+}
+
+.add-form {
+    margin-top: var(--spacing-lg);
+}
+
+.search-container {
+    position: relative;
+    margin-left: 10px;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--background-light);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     box-shadow: var(--card-shadow);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
-.instructors-table {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: var(--spacing-md);
-}
-
-th, td {
+.search-result-item {
     padding: var(--spacing-sm);
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-th {
-    background-color: var(--background-color);
-    font-weight: 600;
-    color: var(--secondary-color);
+.search-result-item:hover {
+    background-color: var(--background-hover);
 }
 
-.header-actions {
-    margin-bottom: var(--spacing-lg);
-    display: flex;
-    justify-content: flex-end;
+.user-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.user-email {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.instructors-list {
+    margin-top: var(--spacing-lg);
+    display: grid;
+    gap: var(--spacing-md);
 }
 
 .instructor-card {
+    background: var(--background-light);
+}
+
+.instructor-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.instructor-header h3 {
+    margin: 0;
+    color: var(--text-primary);
 }
 
 .instructor-actions {
@@ -468,6 +498,41 @@ th {
     gap: var(--spacing-sm);
 }
 
+.instructor-details {
+    color: var(--text-secondary);
+}
+
+.instructor-details p {
+    margin: var(--spacing-xs) 0;
+}
+
+.instructor-details strong {
+    color: var(--text-primary);
+}
+
+.loading-state {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .instructor-manager {
+        padding: var(--spacing-md);
+    }
+
+    .instructor-header {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .instructor-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* Modal Styles */
 .modal {
     position: fixed;
     top: 0;
@@ -482,32 +547,23 @@ th {
 }
 
 .modal-content {
-    background: white;
+    background: var(--background-light);
     border-radius: var(--border-radius);
-    width: 90%;
-    max-width: 500px;
     box-shadow: var(--card-shadow);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-header {
     padding: var(--spacing-md);
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h3 {
     margin: 0;
-    color: var(--secondary-color);
-}
-
-.close-button {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--secondary-color);
+    color: var(--text-primary);
 }
 
 .modal-body {
@@ -515,31 +571,16 @@ th {
 }
 
 .modal-footer {
-    padding: var(--spacing-md);
-    border-top: 1px solid #ddd;
     display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
     justify-content: flex-end;
-    gap: var(--spacing-sm);
 }
 
-.table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table th,
-.table td {
-    padding: 8px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-.table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-}
-
-.me-1 {
-    margin-right: 4px;
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: var(--spacing-sm);
+    }
 }
 </style> 

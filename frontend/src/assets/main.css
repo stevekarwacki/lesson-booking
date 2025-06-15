@@ -73,8 +73,7 @@ input, select, textarea {
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0;
     font-weight: 500;
     color: var(--text-color);
 }
@@ -82,7 +81,6 @@ input, select, textarea {
 .form-group input,
 .form-group select,
 .form-group textarea {
-    width: 100%;
     box-sizing: border-box;
     padding: 8px 12px;
     transition: border-color 0.2s ease;

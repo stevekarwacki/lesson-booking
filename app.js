@@ -17,22 +17,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
-// Initialize database tables
-/*
-Promise.all([
-    User.createUsersTable(),
-    Instructor.createInstructorsTable(),
-    instructorAvailability.createAvailabilityTables(),
-    Calendar.createCalendarTable()
-])
-.then(() => {
-    console.log('All tables initialized');
-})
-.catch(err => {
-    console.error('Database initialization failed:', err);
-});
-*/
-
 // Public routes
 app.use('/api/auth', authRoutes);
 

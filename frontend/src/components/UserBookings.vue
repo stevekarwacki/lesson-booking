@@ -1,43 +1,47 @@
 <template>
-    <div class="user-bookings">
-        <h2>Your Upcoming Bookings</h2>
-        
-        <div v-if="loading" class="loading">
-            Loading bookings...
+    <div class="user-bookings card">
+        <div class="card-header">
+            <h2>Your Upcoming Bookings</h2>
         </div>
         
-        <div v-else-if="bookings.length === 0" class="no-bookings">
-            <p>You don't have any upcoming lessons booked.</p>
-        </div>
-        
-        <div v-else class="bookings-list">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Instructor</th>
-                        <th>Duration</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="booking in bookings" :key="booking.id">
-                        <td>{{ formatDate(new Date(booking.date + 'T00:00:00'), 'anm-abbr') }}</td>
-                        <td>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</td>
-                        <td>{{ booking.Instructor.User.name }}</td>
-                        <td>{{ booking.duration * 15 }} minutes</td>
-                        <td class="actions">
-                            <button 
-                                class="btn btn-primary"
-                                @click="openEditModal(booking)"
-                            >
-                                Edit
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="card-body">
+            <div v-if="loading" class="loading-state">
+                Loading bookings...
+            </div>
+            
+            <div v-else-if="bookings.length === 0" class="form-message">
+                <p>You don't have any upcoming lessons booked.</p>
+            </div>
+            
+            <div v-else class="bookings-list">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Instructor</th>
+                            <th v-if="useMq().lgPlus">Duration</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="booking in bookings" :key="booking.id">
+                            <td>{{ formatDate(new Date(booking.date + 'T00:00:00'), 'anm-abbr') }}</td>
+                            <td>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</td>
+                            <td>{{ booking.Instructor.User.name }}</td>
+                            <td v-if="useMq().lgPlus">{{ booking.duration * 15 }} minutes</td>
+                            <td class="actions">
+                                <button 
+                                    class="form-button form-button-secondary"
+                                    @click="openEditModal(booking)"
+                                >
+                                    Edit
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <EditBookingModal
@@ -54,6 +58,7 @@ import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 import EditBookingModal from './EditBookingModal.vue'
+import { useMq } from 'vue3-mq'
 
 const userStore = useUserStore()
 const bookings = ref([])
@@ -110,21 +115,12 @@ onMounted(async () => {
 <style scoped>
 .user-bookings {
     margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
 }
 
-h2 {
-    margin-bottom: var(--spacing-md);
-    color: var(--text-dark);
-}
-
-.loading, .no-bookings {
+.loading-state {
     text-align: center;
     padding: var(--spacing-lg);
-    color: var(--text-muted);
+    color: var(--text-secondary);
 }
 
 .bookings-list {
@@ -140,13 +136,13 @@ table {
 th, td {
     padding: var(--spacing-sm);
     text-align: left;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
 }
 
 th {
-    background-color: var(--background-color);
-    font-weight: 600;
-    color: var(--secondary-color);
+    background-color: var(--background-light);
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
 .actions {
@@ -154,25 +150,13 @@ th {
     gap: var(--spacing-sm);
 }
 
-.btn {
-    padding: 4px 8px;
-    border: none;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    font-size: 0.9em;
-}
+@media (max-width: 768px) {
+    table {
+        font-size: var(--font-size-sm);
+    }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.btn-danger {
-    background-color: var(--error-color);
-    color: white;
-}
-
-.btn:hover {
-    opacity: 0.7;
+    th, td {
+        padding: var(--spacing-xs);
+    }
 }
 </style> 

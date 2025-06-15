@@ -1,88 +1,99 @@
 <template v-if="instructor">
 
     <!-- Booked Lessons List -->
-    <div v-if="isInstructorOrAdmin && dailyBookings.length > 0" class="booked-lessons-list card">
-        <h3>Today's Booked Lessons</h3>
-        <div class="bookings-list">
-            <div v-for="booking in dailyBookings" :key="booking.id" class="booking-item">
-                <div class="booking-time">
-                    {{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}
-                </div>
-                <div class="booking-student">
-                    {{ booking.student?.name }}
+    <div v-if="isInstructorOrAdmin && dailyBookings.length > 0" class="card">
+        <div class="card-header">
+            <h3>Today's Booked Lessons</h3>
+        </div>
+        <div class="card-body">
+            <div class="bookings-list">
+                <div v-for="booking in dailyBookings" :key="booking.id" class="booking-item">
+                    <div class="booking-time">
+                        {{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}
+                    </div>
+                    <div class="booking-student">
+                        {{ booking.student?.name }}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Date selection -->
-    <div class="view-controls">
-        <!-- Week navigation - only show when no specific date is selected -->
-        <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
-            <button 
-                class="btn btn-secondary"
-                @click="previousWeek"
-                :disabled="isPreviousWeekInPast"
-            >
-                Previous Week
-            </button>
-            <span class="week-display">
-                Week of {{ weekStart.toLocaleDateString() }}
-            </span>
-            <button 
-                class="btn btn-secondary"
-                @click="nextWeek"
-            >
-                Next Week
-            </button>
-        </div>
+    <div class="view-controls card">
+        <div class="card-body">
+            <!-- Week navigation - only show when no specific date is selected -->
+            <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
+                <button 
+                    class="form-button form-button-secondary"
+                    @click="previousWeek"
+                    :disabled="isPreviousWeekInPast"
+                >
+                    Previous Week
+                </button>
+                <span class="week-display">
+                    Week of {{ weekStart.toLocaleDateString() }}
+                </span>
+                <button 
+                    class="form-button form-button-secondary"
+                    @click="nextWeek"
+                >
+                    Next Week
+                </button>
+            </div>
 
-        <button 
-            v-if="selectedDate && $mq.lgPlus" 
-            class="btn btn-secondary"
-            @click="clearSelectedDate"
-        >
-            Back to Weekly View
-        </button>
-
-        <!-- Date selection -->
-        <div>
-            <label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</label>
-            <input 
-                type="date" 
-                id="date-select"
-                v-model="selectedDate"
-                :min="today"
-                @change="handleDateChange"
+            <button 
+                v-if="selectedDate && $mq.lgPlus" 
+                class="form-button form-button-secondary"
+                @click="clearSelectedDate"
             >
+                Back to Weekly View
+            </button>
+
+            <!-- Date selection -->
+            <div class="form-group">
+                <label for="date-select" class="form-label">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</label>
+                <input 
+                    type="date" 
+                    id="date-select"
+                    v-model="selectedDate"
+                    :min="today"
+                    @change="handleDateChange"
+                    class="form-input"
+                >
+            </div>
         </div>
     </div>
 
     <!-- Weekly Schedule View -->
-    <div v-if="!selectedDate && $mq.lgPlus" class="schedule-view">
-        <WeeklyScheduleView 
-            :weeklySchedule="weeklySchedule"
-            :weekStartDate="weekStart"
-            :isInstructorOrAdmin="isInstructorOrAdmin"
-            @slot-selected="handleSlotSelected"
-        />
+    <div v-if="!selectedDate && $mq.lgPlus" class="schedule-view card">
+        <div class="card-body">
+            <WeeklyScheduleView 
+                :weeklySchedule="weeklySchedule"
+                :weekStartDate="weekStart"
+                :isInstructorOrAdmin="isInstructorOrAdmin"
+                @slot-selected="handleSlotSelected"
+            />
+        </div>
     </div>
 
     <!-- Daily Schedule View -->
-    <div v-if="(!$mq.lgPlus || selectedDate) && dailySchedule" class="schedule-view">
-        <DailyScheduleView 
-            :dailySchedule="dailySchedule"
-            :selected-day="selectedDay"
-            :isInstructorOrAdmin="isInstructorOrAdmin"
-            @slot-selected="handleSlotSelected"
-        />
+    <div v-if="(!$mq.lgPlus || selectedDate) && dailySchedule" class="schedule-view card">
+        <div class="card-body">
+            <DailyScheduleView 
+                :dailySchedule="dailySchedule"
+                :selected-day="selectedDay"
+                :isInstructorOrAdmin="isInstructorOrAdmin"
+                @slot-selected="handleSlotSelected"
+            />
+        </div>
     </div>
 
-    <div v-else-if="selectedDate && dailySchedule.length === 0" class="no-availability">
+    <div v-else-if="selectedDate && dailySchedule.length === 0" class="form-message">
         <p>No available time slots for this date.</p>
     </div>
 
-    <div v-if="error" class="error-message">{{ error }}</div>
+    <div v-if="error" class="form-message error-message">{{ error }}</div>
 
     <BookingModal
         v-if="showBookingModal"
@@ -467,142 +478,20 @@ const fetchDailyBookings = async () => {
 </script>
 
 <style scoped>
-.lesson-booking {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.instructor-info {
-    margin-bottom: 20px;
-}
-
-.instructor-info h3 {
-    color: var(--secondary-color);
-    margin: 0;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.form-group select,
-.form-group input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-}
-
-.schedule-view {
-    margin-top: 20px;
-}
-
-.no-availability {
-    text-align: center;
-    padding: 20px;
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-    margin-top: 20px;
-}
-
-.error-message {
-    color: var(--error-color);
-    margin-top: 10px;
-}
-
 .view-controls {
-    display: flex;
-    gap: 20px;
-    align-items: flex-end;
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg);
 }
 
-.view-controls label {
-    font-weight: bold;
-}
-
-.btn-secondary {
-    background-color: var(--secondary-color);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-}
-
-.loading {
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-color);
-}
-
-/* Add styles for week navigation */
 .week-navigation {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
 }
 
 .week-display {
-    font-weight: bold;
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.tooltip {
-    position: absolute;
-    background: white;
-    padding: 8px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 1000;
-    min-width: 200px;
-    font-size: 0.9rem;
-}
-
-.tooltip-title {
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-
-.tooltip-content {
-    color: var(--text-secondary);
-}
-
-.tooltip-content p {
-    margin: 4px 0;
-}
-
-.booked-lessons-list {
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-}
-
-.booked-lessons-list h3 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: var(--secondary-color);
-}
-
-.bookings-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
+    font-size: var(--font-size-lg);
+    color: var(--text-primary);
 }
 
 .booking-item {
@@ -621,5 +510,16 @@ const fetchDailyBookings = async () => {
 
 .booking-student {
     color: var(--text-secondary);
+}
+
+.schedule-view {
+    margin-top: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+    .week-navigation {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
 }
 </style> 

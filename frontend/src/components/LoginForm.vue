@@ -50,114 +50,47 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-    <div class="login-form">
+    <div class="form-container">
         <h2>Login</h2>
         
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="form-message error-message">
             {{ error }}
         </div>
         
-        <div v-if="success" class="success-message">
+        <div v-if="success" class="form-message success-message">
             {{ success }}
         </div>
 
         <form @submit.prevent="handleSubmit">
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email" class="form-label">Email</label>
                 <input 
                     id="email"
                     v-model="email"
                     type="email"
                     placeholder="Enter your email"
                     required
+                    class="form-input"
                 >
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password" class="form-label">Password</label>
                 <input 
                     id="password"
                     v-model="password"
                     type="password"
                     placeholder="Enter your password"
                     required
+                    class="form-input"
                 >
             </div>
 
-            <button type="submit" class="submit-button">Login</button>
+            <button type="submit" class="form-button">Login</button>
         </form>
     </div>
 </template>
 
 <style scoped>
-.login-form {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: var(--spacing-lg);
-    box-shadow: var(--card-shadow);
-}
-
-h2 {
-    color: var(--primary-color);
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-}
-
-.form-group {
-    margin-bottom: var(--spacing-md);
-}
-
-label {
-    display: block;
-    margin-bottom: var(--spacing-sm);
-    color: var(--secondary-color);
-    font-weight: 500;
-}
-
-input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    transition: border-color 0.2s;
-}
-
-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-}
-
-.submit-button {
-    width: 100%;
-    padding: 12px;
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    font-weight: 500;
-    transition: background 0.2s;
-}
-
-.submit-button:hover {
-    background: var(--primary-dark);
-}
-
-.error-message {
-    color: #dc3545;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #dc3545;
-    border-radius: 4px;
-    background: #fff8f8;
-}
-
-.success-message {
-    color: #28a745;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #28a745;
-    border-radius: 4px;
-    background: #f8fff8;
-}
+/* No additional styles needed as we're using shared styles */
 </style> 

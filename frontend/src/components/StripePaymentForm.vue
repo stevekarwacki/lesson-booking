@@ -1,7 +1,7 @@
 // frontend/src/components/StripePaymentForm.vue
 <template>
-    <div class="stripe-payment-form">
-        <div v-if="error" class="error-message">
+    <div class="form-container">
+        <div v-if="error" class="form-message error-message">
             {{ error }}
         </div>
 
@@ -9,13 +9,13 @@
             Processing payment...
         </div>
 
-        <div v-else-if="paymentSuccess" class="success-state">
+        <div v-else-if="paymentSuccess" class="form-message success-message">
             <div class="success-icon">✓</div>
             <h3>Subscription Active!</h3>
             <p>Your subscription has been successfully activated. You can now start using your credits.</p>
         </div>
 
-        <div v-else class="form-container">
+        <div v-else class="payment-form">
             <div v-if="processing" class="spinner-overlay">
                 <div class="spinner"></div>
                 <p>Processing your payment...</p>
@@ -24,7 +24,7 @@
             <div ref="paymentElement" class="payment-element"></div>
             
             <button 
-                class="submit-button"
+                class="form-button"
                 @click="handleSubmit"
                 :disabled="processing || !stripe || !elements"
             >
@@ -149,14 +149,7 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.stripe-payment-form {
-    max-width: 500px;
-    margin: 0 auto;
-    padding: var(--spacing-md);
-    position: relative;
-}
-
-.form-container {
+.payment-form {
     position: relative;
 }
 
@@ -191,9 +184,9 @@ const handleSubmit = async () => {
 }
 
 .spinner-overlay p {
-    color: var(--text-secondary);
+    color: var(--secondary-color);
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--font-size-base);
 }
 
 .payment-element {
@@ -201,105 +194,21 @@ const handleSubmit = async () => {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     margin-bottom: var(--spacing-md);
-    background: white;
+    background: var(--background-light);
     min-height: 300px;
     max-height: 500px;
     overflow-y: auto;
 }
 
-.submit-button {
-    width: 100%;
-    padding: var(--spacing-md);
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.submit-button:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.submit-button:disabled {
-    background: var(--text-secondary);
-    cursor: not-allowed;
-}
-
-.error-message {
-    color: var(--error-color);
-    margin-bottom: var(--spacing-md);
-    padding: var(--spacing-sm);
-    background: rgba(255, 0, 0, 0.1);
-    border-radius: var(--border-radius);
-}
-
 .loading-state {
     text-align: center;
     padding: var(--spacing-lg);
-    color: var(--text-secondary);
-}
-
-.success-state {
-    text-align: center;
-    padding: var(--spacing-lg);
-    background: rgba(0, 255, 0, 0.1);
-    border-radius: var(--border-radius);
-    margin: var(--spacing-md) 0;
-    border: 1px solid var(--success-color);
+    color: var(--secondary-color);
 }
 
 .success-icon {
-    font-size: 2.5rem;
+    font-size: var(--font-size-2xl);
     color: var(--success-color);
-    margin-bottom: var(--spacing-sm);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: rgba(0, 255, 0, 0.1);
-    margin: 0 auto var(--spacing-md);
-}
-
-.success-state h3 {
-    color: var(--success-color);
-    margin-bottom: var(--spacing-sm);
-    font-size: 1.5rem;
-}
-
-.success-state p {
-    color: var(--text-secondary);
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-/* Add styles for the payment element tabs */
-:deep(.ElementsApp) {
-    font-family: system-ui, -apple-system, sans-serif;
-}
-
-:deep(.Tab) {
-    padding: 12px 16px;
-    font-size: 16px;
-}
-
-:deep(.Tab--selected) {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-:deep(.Input) {
-    padding: 12px;
-    font-size: 16px;
-    border-radius: var(--border-radius);
-}
-
-:deep(.Input:focus) {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 1px var(--primary-color);
+    margin-bottom: var(--spacing-md);
 }
 </style> 

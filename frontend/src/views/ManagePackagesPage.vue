@@ -27,7 +27,6 @@ onMounted(() => {
 .manage-packages-page {
     max-width: 1200px;
     margin: 0 auto;
-    padding: var(--spacing-lg);
 }
 
 .page-header {

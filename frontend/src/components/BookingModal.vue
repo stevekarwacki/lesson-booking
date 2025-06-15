@@ -1,54 +1,68 @@
 <template>
     <div class="modal-overlay">
         <div class="modal-content">
-            <h2>Confirm Booking</h2>
+            <div class="modal-header">
+                <h2>Confirm Booking</h2>
+            </div>
             
-            <div class="booking-details">
-                <p>Date: {{ slot.date.toISOString().split('T')[0] }}</p>
-                <p>Time: {{ slotToTime(slot.startSlot) }} - {{ slotToTime(parseInt(slot.startSlot) + parseInt(slot.duration)) }}</p>
-            </div>
-
-            <div class="booking-options">
-                <h3>Single Lesson</h3>
-                <p>30 minutes - $50</p>
-            </div>
-
-            <div v-if="showPaymentOptions" class="payment-options">
-                <h3>Payment Method</h3>
-                <div v-if="userCredits > 0" class="payment-method">
-                    <input 
-                        type="radio" 
-                        id="useCredits" 
-                        v-model="paymentMethod" 
-                        value="credits"
-                    >
-                    <label for="useCredits">
-                        Use Lesson Credits ({{ userCredits }} remaining)
-                    </label>
-                </div>
-                <div class="payment-method">
-                    <input 
-                        type="radio" 
-                        id="payNow" 
-                        v-model="paymentMethod" 
-                        value="direct"
-                    >
-                    <label for="payNow">Pay Now ($50)</label>
+            <div class="modal-body">
+                <div class="booking-details">
+                    <p>Date: {{ slot.date.toISOString().split('T')[0] }}</p>
+                    <p>Time: {{ slotToTime(slot.startSlot) }} - {{ slotToTime(parseInt(slot.startSlot) + parseInt(slot.duration)) }}</p>
                 </div>
 
-                <!-- Stripe Payment Form -->
-                <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
-                    <StripePaymentForm
-                        :amount="50.00"
-                        @payment-success="handleStripeSuccess"
-                        @payment-error="handleStripeError"
-                    />
+                <div class="booking-options">
+                    <h3>Single Lesson</h3>
+                    <p>30 minutes - $50</p>
+                </div>
+
+                <div v-if="showPaymentOptions" class="payment-options">
+                    <h3>Payment Method</h3>
+                    <div class="form-group">
+                        <div class="form-input-group">
+                            <div v-if="userCredits > 0" class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="useCredits" 
+                                    v-model="paymentMethod" 
+                                    value="credits"
+                                    class="form-input"
+                                >
+                                <label for="useCredits" class="form-radio-label">
+                                    Use Lesson Credits ({{ userCredits }} remaining)
+                                </label>
+                            </div>
+                            <div class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="payNow" 
+                                    v-model="paymentMethod" 
+                                    value="direct"
+                                    class="form-input"
+                                >
+                                <label for="payNow" class="form-radio-label">Pay Now ($50)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stripe Payment Form -->
+                    <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
+                        <StripePaymentForm
+                            :amount="50.00"
+                            @payment-success="handleStripeSuccess"
+                            @payment-error="handleStripeError"
+                        />
+                    </div>
+                </div>
+
+                <div v-if="error" class="form-message error-message">
+                    {{ error }}
                 </div>
             </div>
 
-            <div class="action-buttons">
+            <div class="modal-footer">
                 <button 
-                    class="btn-cancel" 
+                    class="form-button form-button-secondary" 
                     @click="$emit('close')"
                     :disabled="loading"
                 >
@@ -56,16 +70,12 @@
                 </button>
                 <button 
                     v-if="paymentMethod !== 'direct'"
-                    class="btn-confirm" 
+                    class="form-button" 
                     @click="confirmBooking"
                     :disabled="loading"
                 >
                     {{ loading ? 'Processing...' : 'Confirm Booking' }}
                 </button>
-            </div>
-
-            <div v-if="error" class="error-message">
-                {{ error }}
             </div>
         </div>
     </div>
@@ -232,19 +242,32 @@ const confirmBooking = async () => {
     padding: var(--spacing-md);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
+    background: var(--background-light);
 }
 
-.payment-method {
+.payment-options h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.form-radio-group {
     margin: var(--spacing-sm) 0;
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
 }
 
-.payment-method label {
+.form-radio-label {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.form-input[type="radio"] {
+    width: auto;
+    margin: 0;
 }
 
 .stripe-form-container {
@@ -253,53 +276,24 @@ const confirmBooking = async () => {
     border-top: 1px solid var(--border-color);
 }
 
-.action-buttons {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-}
-
-.btn-cancel {
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: var(--text-secondary);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-cancel:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.btn-confirm {
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-confirm:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.btn-cancel:disabled,
-.btn-confirm:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.error-message {
-    color: var(--error-color);
+.form-message {
     margin-top: var(--spacing-md);
     padding: var(--spacing-sm);
     background: rgba(255, 0, 0, 0.1);
     border-radius: var(--border-radius);
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    justify-content: flex-end;
+}
+
+/* Remove old button styles since we're using form-button classes */
+.modal-button,
+.modal-button-secondary,
+.modal-button-primary {
+    display: none;
 }
 </style> 

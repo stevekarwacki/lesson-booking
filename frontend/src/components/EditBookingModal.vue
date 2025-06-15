@@ -1,60 +1,74 @@
 <template>
     <div class="modal-overlay">
         <div class="modal-content">
-            <h2>Reschedule Lesson</h2>
+            <div class="modal-header">
+                <h2>Reschedule Lesson</h2>
+            </div>
             
-            <div class="booking-details">
-                <p>Current Booking:</p>
-                <p>Date: {{ formatDate(booking.date, 'anm-abbr') }}</p>
-                <p>Time: {{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</p>
-                <p>Instructor: {{ booking.Instructor.User.name }}</p>
+            <div class="modal-body">
+                <div class="booking-details">
+                    <h3>Current Booking Information</h3>
+                    <div>
+                        <span>Date:</span>
+                        <span>{{ formatDate(booking.date, 'anm-abbr') }}</span>
+                    </div>
+                    <div>
+                        <span>Time:</span>
+                        <span>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</span>
+                    </div>
+                    <div>
+                        <span>Instructor:</span>
+                        <span>{{ booking.Instructor.User.name }}</span>
+                    </div>
+                </div>
+
+                <div class="schedule-section">
+                    <h3>Select New Time</h3>
+                    <div class="form-group">
+                        <label for="date-select" class="form-label">Select a date:</label>
+                        <input 
+                            type="date" 
+                            id="date-select"
+                            v-model="selectedDate"
+                            :min="today"
+                            @change="handleDateChange"
+                            class="form-input"
+                        >
+                    </div>
+
+                    <div v-if="dailySchedule" class="schedule-view">
+                        <DailyScheduleView 
+                            :dailySchedule="dailySchedule"
+                            :selected-day="selectedDay"
+                            :isInstructorOrAdmin="false"
+                            @slot-selected="handleSlotSelected"
+                        />
+                    </div>
+                    <div v-else-if="selectedDate" class="no-availability">
+                        <p>No available time slots for this date.</p>
+                    </div>
+                </div>
+
+                <div v-if="error" class="form-message error-message">
+                    {{ error }}
+                </div>
             </div>
 
-            <div class="schedule-section">
-                <h3>Select New Time</h3>
-                <div class="date-selection">
-                    <label for="date-select">Select a date:</label>
-                    <input 
-                        type="date" 
-                        id="date-select"
-                        v-model="selectedDate"
-                        :min="today"
-                        @change="handleDateChange"
-                    >
-                </div>
-
-                <div v-if="dailySchedule" class="schedule-view">
-                    <DailyScheduleView 
-                        :dailySchedule="dailySchedule"
-                        :selected-day="selectedDay"
-                        :isInstructorOrAdmin="false"
-                        @slot-selected="handleSlotSelected"
-                    />
-                </div>
-                <div v-else-if="selectedDate" class="no-availability">
-                    <p>No available time slots for this date.</p>
-                </div>
-            </div>
-
-            <div class="action-buttons">
+            <div class="modal-footer">
                 <button 
-                    class="btn-cancel" 
+                    class="form-button form-button-secondary" 
                     @click="$emit('close')"
                     :disabled="loading"
                 >
                     Cancel
                 </button>
                 <button 
-                    class="btn-confirm" 
+                    class="form-button" 
                     @click="updateBooking"
-                    :disabled="loading || !selectedSlot"
+                    :disabled="loading"
                 >
                     {{ loading ? 'Processing...' : 'Update Booking' }}
                 </button>
-            </div>
-
-            <div v-if="error" class="error-message">
-                {{ error }}
             </div>
         </div>
     </div>
@@ -84,6 +98,16 @@ const selectedSlot = ref(null)
 
 // Get today's date in YYYY-MM-DD format
 const today = new Date().toISOString().split('T')[0]
+
+// Set the initial selected date to the booking's date
+onMounted(() => {
+    // Create a date object from the booking's date
+    const date = new Date(props.booking.date + 'T00:00:00')
+    // Format it as YYYY-MM-DD
+    selectedDate.value = date.toISOString().split('T')[0]
+    // Trigger the date change handler to load the schedule
+    handleDateChange()
+})
 
 const selectedDay = computed(() => {
     if (!selectedDate.value) return null
@@ -240,48 +264,66 @@ const updateBooking = async () => {
 .booking-details {
     margin: var(--spacing-md) 0;
     padding: var(--spacing-md);
-    background: var(--background-light);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
+}
+
+.booking-details h3 {
+    margin-bottom: var(--spacing-md);
+}
+
+.booking-details > div {
+    margin: var(--spacing-sm) 0;
+    display: flex;
+    gap: var(--spacing-md);
 }
 
 .schedule-section {
     margin: var(--spacing-md) 0;
 }
 
-.date-selection {
+.schedule-section h3 {
     margin-bottom: var(--spacing-md);
 }
 
-.date-selection label {
-    display: block;
+.schedule-view {
+    margin-top: var(--spacing-md);
+}
+
+.no-availability {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    text-align: center;
+    color: var(--secondary-color);
+    background: var(--background-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-label {
     margin-bottom: var(--spacing-sm);
     font-weight: 500;
 }
 
-.date-selection input {
+.form-input {
     padding: var(--spacing-sm);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
 }
 
-.no-availability {
-    text-align: center;
-    padding: var(--spacing-lg);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-    margin-top: var(--spacing-md);
-}
-
-.action-buttons {
+.modal-footer {
     display: flex;
     gap: var(--spacing-md);
     margin-top: var(--spacing-lg);
+    justify-content: flex-end;
 }
 
-.btn-cancel {
+.form-button {
     padding: var(--spacing-md) var(--spacing-lg);
-    background: var(--text-secondary);
-    color: white;
     border: none;
     border-radius: var(--border-radius);
     font-weight: 500;
@@ -289,27 +331,12 @@ const updateBooking = async () => {
     transition: all 0.2s;
 }
 
-.btn-cancel:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.btn-confirm {
-    padding: var(--spacing-md) var(--spacing-lg);
+.form-button {
     background: var(--primary-color);
     color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
 }
 
-.btn-confirm:hover:not(:disabled) {
-    opacity: 0.9;
-}
-
-.btn-cancel:disabled,
-.btn-confirm:disabled {
+.form-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }

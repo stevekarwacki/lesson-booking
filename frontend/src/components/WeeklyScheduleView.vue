@@ -142,7 +142,7 @@ const handleTimeSlotClick = (cellData) => {
 .weekly-schedule {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
-    background: white;
+    background: var(--background-light);
 }
 
 .schedule-header {
@@ -163,13 +163,13 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .day-name {
-    font-size: 1rem;
-    margin-bottom: 0.25rem;
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-xs);
 }
 
 .day-date {
-    font-size: 0.875rem;
-    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
 }
 
 .schedule-body {
@@ -186,10 +186,10 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .time-label {
-    padding: 10px;
+    padding: var(--spacing-sm);
     text-align: right;
-    font-size: 0.8em;
-    color: var(--text-light);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
     border-right: 1px solid var(--border-color);
 }
 
@@ -211,7 +211,7 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .time-slot.booked {
-    background-color: var(--blue-color);
+    background-color: var(--primary-color);
     opacity: 0.5;
     cursor: pointer;
 }
@@ -231,8 +231,8 @@ const handleTimeSlotClick = (cellData) => {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.8em;
-    color: var(--text-dark);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
 }
 
 .time-slot:hover .slot-time {
@@ -244,8 +244,8 @@ const handleTimeSlotClick = (cellData) => {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.8em;
-    color: var(--text-dark);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
 }
 
 .current-day::after {
@@ -303,44 +303,38 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .booked-slot-content {
+    position: relative;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 4px;
-    font-size: 0.7rem;
+}
+
+.student-name {
+    font-size: var(--font-size-sm);
     color: var(--text-primary);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.booked-slot-content.show-details {
-    position: relative;
-}
-
-.booked-slot-content.show-details:hover .tooltip {
-    display: block;
 }
 
 .tooltip {
-    display: none;
     position: absolute;
-    top: 100%;
-    left: -20%;
-    transform: translateX(-50%);
-    background: white;
-    padding: 8px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: var(--background-light);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
     z-index: 1000;
     min-width: 200px;
-    font-size: 0.9rem;
-    margin-top: 4px;
+    font-size: var(--font-size-sm);
+    display: none;
+}
+
+.booked-slot-content:hover .tooltip {
+    display: block;
 }
 
 .tooltip-title {
-    font-weight: bold;
-    margin-bottom: 4px;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
 }
 
 .tooltip-content {
@@ -348,6 +342,20 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .tooltip-content p {
-    margin: 4px 0;
+    margin: var(--spacing-xs) 0;
+}
+
+@media (max-width: 768px) {
+    .schedule-header {
+        grid-template-columns: 60px repeat(7, 1fr);
+    }
+
+    .day-name {
+        font-size: var(--font-size-sm);
+    }
+
+    .day-date {
+        font-size: var(--font-size-xs);
+    }
 }
 </style> 
