@@ -179,182 +179,214 @@ onMounted(fetchPackages)
         <div class="actions">
             <button 
                 class="form-button"
-                :class="{ 'form-button-cancel': showAddForm }"
-                @click="showAddForm = !showAddForm"
+                @click="showAddForm = true"
             >
-                {{ showAddForm ? 'Cancel' : 'Add New Package' }}
+                Add New Package
             </button>
         </div>
 
-        <!-- Add Package Form -->
-        <div v-if="showAddForm" class="form-container">
-            <h2>Add New Package</h2>
-            <form @submit.prevent="addPackage" class="package-form">
-                <div class="form-group">
-                    <label for="name">Name:</label>
-                    <input 
-                        type="text" 
-                        id="name" 
-                        v-model="newPackage.name" 
-                        required
-                    >
+        <!-- Add Package Modal -->
+        <div v-if="showAddForm" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New Package</h3>
+                    <button class="modal-close" @click="showAddForm = false">&times;</button>
                 </div>
+                <div class="modal-body">
+                    <form @submit.prevent="addPackage" class="package-form">
+                        <div class="form-group">
+                            <label class="form-label">Name:</label>
+                            <input 
+                                type="text" 
+                                v-model="newPackage.name" 
+                                class="form-input"
+                                required
+                            >
+                        </div>
 
-                <div class="form-group">
-                    <label for="price">Price:</label>
-                    <input 
-                        type="number" 
-                        id="price" 
-                        v-model="newPackage.price" 
-                        step="0.01" 
-                        required
-                    >
+                        <div class="form-group">
+                            <label class="form-label">Price:</label>
+                            <input 
+                                type="number" 
+                                v-model="newPackage.price" 
+                                class="form-input"
+                                step="0.01" 
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Credits:</label>
+                            <input 
+                                type="number" 
+                                v-model="newPackage.credits" 
+                                class="form-input"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Type:</label>
+                            <select 
+                                v-model="newPackage.type" 
+                                class="form-input"
+                                required
+                            >
+                                <option value="one-time">One-time</option>
+                                <option value="membership">Membership</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" v-if="newPackage.type === 'membership'">
+                            <label class="form-label">Duration (days):</label>
+                            <input 
+                                type="number" 
+                                v-model="newPackage.duration_days" 
+                                class="form-input"
+                                required
+                            >
+                        </div>
+
+                        <div class="modal-footer">
+                            <button 
+                                type="button"
+                                class="form-button form-button-cancel"
+                                @click="showAddForm = false"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit"
+                                class="form-button"
+                            >
+                                Create Package
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="form-group">
-                    <label for="credits">Credits:</label>
-                    <input 
-                        type="number" 
-                        id="credits" 
-                        v-model="newPackage.credits" 
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label for="type">Type:</label>
-                    <select 
-                        id="type" 
-                        v-model="newPackage.type" 
-                        required
-                    >
-                        <option value="one-time">One-time</option>
-                        <option value="membership">Membership</option>
-                    </select>
-                </div>
-
-                <div class="form-group" v-if="newPackage.type === 'membership'">
-                    <label for="duration_days">Duration (days):</label>
-                    <input 
-                        type="number" 
-                        id="duration_days" 
-                        v-model="newPackage.duration_days" 
-                        required
-                    >
-                </div>
-
-                <button type="submit" class="btn btn-primary">Create Package</button>
-            </form>
+            </div>
         </div>
 
         <!-- Packages List -->
-        <div v-if="loading" class="loading">
+        <div v-if="loading" class="loading-state">
             Loading packages...
         </div>
         <div v-else-if="packages.length === 0" class="no-packages">
             No packages found
         </div>
         <div v-else class="packages-list">
-            <div v-for="pkg in packages" :key="pkg.id" class="package-card">
-                <div class="package-info">
+            <div v-for="pkg in packages" :key="pkg.id" class="package-card card">
+                <div class="card-header">
                     <h3>{{ pkg.name }}</h3>
-                    <p class="price">${{ pkg.price }}</p>
-                    <p class="credits">{{ pkg.credits }} credits</p>
-                    <p class="type">{{ pkg.type }}</p>
-                    <p v-if="pkg.type === 'membership'" class="duration">
-                        Duration: {{ pkg.duration_days }} days
-                    </p>
+                    <p class="package-type">{{ pkg.type === 'membership' ? 'Membership' : 'One-time' }}</p>
                 </div>
-                <div class="package-actions">
-                    <button 
-                        class="form-button form-button-edit"
-                        @click="openEditModal(pkg)"
-                    >
-                        Edit
-                    </button>
-                    <button 
-                        class="form-button form-button-danger"
-                        @click="deletePackage(pkg.id)"
-                    >
-                        Delete
-                    </button>
+                <div class="card-body">
+                    <div class="package-info">
+                        <p class="price">${{ pkg.price }}</p>
+                        <p class="credits">{{ pkg.credits }} credits</p>
+                        <p v-if="pkg.type === 'membership'" class="duration">
+                            Duration: {{ pkg.duration_days }} days
+                        </p>
+                    </div>
+                    <div class="package-actions">
+                        <button 
+                            class="form-button form-button-edit"
+                            @click="openEditModal(pkg)"
+                        >
+                            Edit
+                        </button>
+                        <button 
+                            class="form-button form-button-danger"
+                            @click="deletePackage(pkg.id)"
+                        >
+                            Delete
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Edit Modal -->
-        <div v-if="showEditModal" class="modal">
+        <div v-if="showEditModal" class="modal-overlay">
             <div class="modal-content">
-                <h2>Edit Package</h2>
-                <form @submit.prevent="updatePackage" class="package-form">
-                    <div class="form-group">
-                        <label for="edit-name">Name:</label>
-                        <input 
-                            type="text" 
-                            id="edit-name" 
-                            v-model="editingPackage.name" 
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="edit-price">Price:</label>
-                        <input 
-                            type="number" 
-                            id="edit-price" 
-                            v-model="editingPackage.price" 
-                            step="0.01" 
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="edit-credits">Credits:</label>
-                        <input 
-                            type="number" 
-                            id="edit-credits" 
-                            v-model="editingPackage.credits" 
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="edit-type">Type:</label>
-                        <select 
-                            id="edit-type" 
-                            v-model="editingPackage.type" 
-                            required
-                        >
-                            <option value="one-time">One-time</option>
-                            <option value="membership">Membership</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" v-if="editingPackage.type === 'membership'">
-                        <label for="edit-duration_days">Duration (days):</label>
-                        <input 
-                            type="number" 
-                            id="edit-duration_days" 
-                            v-model="editingPackage.duration_days" 
-                            required
-                        >
-                    </div>
-
-                    <div class="modal-footer">
-                        <button 
-                            class="form-button form-button-cancel"
-                            @click="closeEditModal"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            type="submit"
-                            class="form-button"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
+                <div class="modal-header">
+                    <h3>Edit Package</h3>
+                </div>
+                
+                <div class="modal-body">
+                    <form @submit.prevent="updatePackage">
+                        <div class="form-group">
+                            <label class="form-label">Name:</label>
+                            <input 
+                                type="text" 
+                                v-model="editingPackage.name" 
+                                class="form-input"
+                                required
+                            >
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Type:</label>
+                            <select 
+                                v-model="editingPackage.type" 
+                                class="form-input"
+                                required
+                            >
+                                <option value="credits">Credits</option>
+                                <option value="membership">Membership</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Price:</label>
+                            <input 
+                                type="number" 
+                                v-model="editingPackage.price" 
+                                class="form-input"
+                                min="0"
+                                step="0.01"
+                                required
+                            >
+                        </div>
+                        
+                        <div class="form-group" v-if="editingPackage.type === 'credits'">
+                            <label class="form-label">Credits:</label>
+                            <input 
+                                type="number" 
+                                v-model="editingPackage.credits" 
+                                class="form-input"
+                                min="1"
+                                required
+                            >
+                        </div>
+                        
+                        <div class="form-group" v-if="editingPackage.type === 'membership'">
+                            <label class="form-label">Duration (days):</label>
+                            <input 
+                                type="number" 
+                                v-model="editingPackage.duration_days" 
+                                class="form-input"
+                                min="1"
+                                required
+                            >
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button 
+                                class="form-button form-button-cancel"
+                                @click="closeEditModal"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit"
+                                class="form-button"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -362,7 +394,9 @@ onMounted(fetchPackages)
 
 <style scoped>
 .package-manager {
-    position: relative;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
 }
 
 .error-message {
@@ -385,50 +419,42 @@ onMounted(fetchPackages)
     margin-bottom: var(--spacing-lg);
 }
 
-.form-container {
-    background-color: var(--background-color);
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-lg);
-}
-
-.package-form {
-    display: grid;
-    gap: var(--spacing-md);
-    max-width: 500px;
-}
-
-.form-group label {
-    font-weight: bold;
-}
-
-.form-group input,
-.form-group select {
-    padding: var(--spacing-sm);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-}
-
 .packages-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
 }
 
 .package-card {
-    background-color: var(--background-color);
-    padding: var(--spacing-lg);
+    background: var(--background-light);
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--card-shadow);
+}
+
+.card-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.package-type {
+    margin: var(--spacing-xs) 0 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.card-body {
+    padding: var(--spacing-md);
 }
 
 .package-info {
     margin-bottom: var(--spacing-md);
-}
-
-.package-info h3 {
-    margin: 0 0 var(--spacing-sm);
-    color: var(--primary-color);
 }
 
 .price {
@@ -439,7 +465,6 @@ onMounted(fetchPackages)
 }
 
 .credits,
-.type,
 .duration {
     margin: var(--spacing-sm) 0;
     color: var(--text-color);
@@ -448,40 +473,42 @@ onMounted(fetchPackages)
 .package-actions {
     display: flex;
     gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
 }
 
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background-color: white;
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius);
-    max-width: 500px;
-    width: 100%;
-}
-
-.modal-footer {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    justify-content: flex-end;
-}
-
-.loading,
+.loading-state,
 .no-packages {
     text-align: center;
     padding: var(--spacing-lg);
-    color: var(--text-color);
+    color: var(--text-muted);
+}
+
+.package-form {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-input {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--background-light);
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color-light);
 }
 </style> 

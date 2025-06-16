@@ -143,6 +143,12 @@ onMounted(async () => {
     align-items: center;
 }
 
+.page-header h1 {
+    color: var(--secondary-color);
+    font-size: 2rem;
+    margin: 0;
+}
+
 .instructor-select {
     display: flex;
     gap: var(--spacing-md);

@@ -166,6 +166,11 @@ const closeEditModal = () => {
     showEditModal.value = false
 }
 
+const closeAddForm = () => {
+    showAddForm.value = false
+    clearSelection()
+}
+
 const saveInstructorEdit = async () => {
     try {
         const updateData = {
@@ -231,92 +236,100 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="instructor-manager card">
-        <div class="card-header">
-            <h2>Manage Instructors</h2>
-        </div>
-        
+    <div class="instructor-manager card">       
         <div class="card-body">
             <div v-if="error" class="form-message error-message">{{ error }}</div>
             <div v-if="success" class="form-message success-message">{{ success }}</div>
 
             <button 
                 class="form-button"
-                :class="{ 'form-button-cancel': showAddForm }"
-                @click="showAddForm = !showAddForm"
+                @click="showAddForm = true"
             >
-                {{ showAddForm ? 'Cancel' : 'Add Instructor' }}
+                Add Instructor
             </button>
 
-            <div v-if="showAddForm" class="add-form card">
-                <div class="card-header">
-                    <h3>Add New Instructor</h3>
-                </div>
-                <div class="card-body">
-                    <form @submit.prevent="handleAddInstructor">
-                        <div class="form-group">
-                            <label class="form-label">Search User:</label>
-                            <div class="search-container">
-                                <input 
-                                    type="text"
-                                    v-model="searchQuery"
-                                    @focus="handleSearchFocus"
-                                    @blur="handleSearchBlur"
-                                    placeholder="Search by name or email..."
-                                    class="form-input"
-                                >
-                                <div v-if="isSearchFocused && searchResults.length > 0" class="search-results">
-                                    <div 
-                                        v-for="user in searchResults" 
-                                        :key="user.id"
-                                        class="search-result-item"
-                                        @mousedown="selectUser(user)"
+            <!-- Add Instructor Modal -->
+            <div v-if="showAddForm" class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add New Instructor</h3>
+                        <button class="modal-close" @click="closeAddForm">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="handleAddInstructor">
+                            <div class="form-group">
+                                <label class="form-label">Search User:</label>
+                                <div class="search-container">
+                                    <input 
+                                        type="text"
+                                        v-model="searchQuery"
+                                        @focus="handleSearchFocus"
+                                        @blur="handleSearchBlur"
+                                        placeholder="Search by name or email..."
+                                        class="form-input"
                                     >
-                                        <div class="user-name">{{ user.name }}</div>
-                                        <div class="user-email">{{ user.email }}</div>
+                                    <div v-if="isSearchFocused && searchResults.length > 0" class="search-results">
+                                        <div 
+                                            v-for="user in searchResults" 
+                                            :key="user.id"
+                                            class="search-result-item"
+                                            @mousedown="selectUser(user)"
+                                        >
+                                            <div class="user-name">{{ user.name }}</div>
+                                            <div class="user-email">{{ user.email }}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="useCredits" class="form-label">Bio:</label>
-                            <textarea 
-                                v-model="newInstructor.bio"
-                                class="form-input"
-                                rows="3"
-                            ></textarea>
-                        </div>
+                            <div class="form-group">
+                                <label class="form-label">Bio:</label>
+                                <textarea 
+                                    v-model="newInstructor.bio"
+                                    class="form-input"
+                                    rows="3"
+                                ></textarea>
+                            </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Specialties:</label>
-                            <input 
-                                type="text"
-                                v-model="newInstructor.specialties"
-                                class="form-input"
-                                placeholder="e.g., Piano, Jazz, Classical"
-                            >
-                        </div>
+                            <div class="form-group">
+                                <label class="form-label">Specialties:</label>
+                                <input 
+                                    type="text"
+                                    v-model="newInstructor.specialties"
+                                    class="form-input"
+                                    placeholder="e.g., Piano, Jazz, Classical"
+                                >
+                            </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Hourly Rate ($):</label>
-                            <input 
-                                type="number"
-                                v-model="newInstructor.hourly_rate"
-                                class="form-input"
-                                min="0"
-                                step="0.01"
-                            >
-                        </div>
+                            <div class="form-group">
+                                <label class="form-label">Hourly Rate ($):</label>
+                                <input 
+                                    type="number"
+                                    v-model="newInstructor.hourly_rate"
+                                    class="form-input"
+                                    min="0"
+                                    step="0.01"
+                                >
+                            </div>
 
-                        <button 
-                            type="submit"
-                            class="form-button"
-                            :disabled="!selectedUser"
-                        >
-                            Add Instructor
-                        </button>
-                    </form>
+                            <div class="modal-footer">
+                                <button 
+                                    type="button"
+                                    class="form-button form-button-cancel"
+                                    @click="closeAddForm"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    class="form-button"
+                                    :disabled="!selectedUser"
+                                >
+                                    Add Instructor
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -365,10 +378,11 @@ onMounted(async () => {
     </div>
 
     <!-- Edit Modal -->
-    <div v-if="showEditModal" class="modal">
+    <div v-if="showEditModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Edit Instructor</h3>
+                <button class="modal-close" @click="closeEditModal">&times;</button>
             </div>
             <div class="modal-body">
                 <form @submit.prevent="saveInstructorEdit">
@@ -530,58 +544,6 @@ onMounted(async () => {
     .instructor-actions {
         width: 100%;
         justify-content: space-between;
-    }
-}
-
-/* Modal Styles */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    padding: var(--spacing-md);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
-.modal-body {
-    padding: var(--spacing-md);
-}
-
-.modal-footer {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    justify-content: flex-end;
-}
-
-@media (max-width: 768px) {
-    .modal-content {
-        width: 95%;
-        margin: var(--spacing-sm);
     }
 }
 </style> 

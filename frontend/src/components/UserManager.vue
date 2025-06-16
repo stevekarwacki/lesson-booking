@@ -168,63 +168,84 @@ onMounted(async () => {
         <div class="header-actions">
             <button 
                 class="form-button"
-                :class="{ 'form-button-cancel': showAddForm }"
-                @click="showAddForm = !showAddForm"
+                @click="showAddForm = true"
             >
-                {{ showAddForm ? 'Cancel' : 'Add New User' }}
+                Add New User
             </button>
         </div>
 
         <div v-if="error" class="error-message">{{ error }}</div>
         <div v-if="success" class="success-message">{{ success }}</div>
 
-        <div v-if="showAddForm" class="add-form">
-            <h3>Add New User</h3>
-            <form @submit.prevent="addUser">
-                <div class="form-group">
-                    <label for="name">Name:</label>
-                    <input 
-                        id="name"
-                        v-model="newUser.name"
-                        type="text"
-                        required
-                    />
+        <!-- Add User Modal -->
+        <div v-if="showAddForm" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add New User</h3>
+                    <button class="modal-close" @click="showAddForm = false">&times;</button>
                 </div>
+                <div class="modal-body">
+                    <form @submit.prevent="addUser">
+                        <div class="form-group">
+                            <label class="form-label">Name:</label>
+                            <input 
+                                v-model="newUser.name"
+                                type="text"
+                                class="form-input"
+                                required
+                            />
+                        </div>
 
-                <div class="form-group">
-                    <label for="email">Email:</label>
-                    <input 
-                        id="email"
-                        v-model="newUser.email"
-                        type="email"
-                        required
-                    />
+                        <div class="form-group">
+                            <label class="form-label">Email:</label>
+                            <input 
+                                v-model="newUser.email"
+                                type="email"
+                                class="form-input"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Password:</label>
+                            <input 
+                                v-model="newUser.password"
+                                type="password"
+                                class="form-input"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Role:</label>
+                            <select 
+                                v-model="newUser.role"
+                                class="form-input"
+                            >
+                                <option value="student">Student</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button 
+                                type="button"
+                                class="form-button form-button-cancel"
+                                @click="showAddForm = false"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit"
+                                class="form-button"
+                            >
+                                Create User
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input 
-                        id="password"
-                        v-model="newUser.password"
-                        type="password"
-                        required
-                    />
-                </div>
-
-                <div class="form-group">
-                    <label for="role">Role:</label>
-                    <select 
-                        id="role"
-                        v-model="newUser.role"
-                    >
-                        <option value="student">Student</option>
-                        <option value="instructor">Instructor</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="btn btn-success">Create User</button>
-            </form>
+            </div>
         </div>
 
         <div v-if="loading" class="loading">Loading users...</div>
@@ -266,28 +287,29 @@ onMounted(async () => {
 
         <!-- Edit Modal -->
         <div v-if="showEditModal" class="modal-overlay">
-            <div class="modal">
+            <div class="modal-content">
                 <div class="modal-header">
                     <h3>Edit User</h3>
-                    <button class="close-button" @click="closeEditModal">&times;</button>
+                    <button class="modal-close" @click="closeEditModal">&times;</button>
                 </div>
                 
                 <div class="modal-body">
                     <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" :value="editingUser?.name" disabled />
+                        <label class="form-label">Name:</label>
+                        <input type="text" :value="editingUser?.name" disabled class="form-input" />
                     </div>
                     
                     <div class="form-group">
-                        <label>Email:</label>
-                        <input type="email" :value="editingUser?.email" disabled />
+                        <label class="form-label">Email:</label>
+                        <input type="email" :value="editingUser?.email" disabled class="form-input" />
                     </div>
                     
                     <div class="form-group">
-                        <label for="editRole">Role:</label>
+                        <label class="form-label" for="editRole">Role:</label>
                         <select 
                             id="editRole"
                             v-model="editingUser.role"
+                            class="form-input"
                         >
                             <option value="student">Student</option>
                             <option value="instructor">Instructor</option>
@@ -296,10 +318,11 @@ onMounted(async () => {
                     </div>
 
                     <div class="form-group">
-                        <label>
+                        <label class="form-label">
                             <input 
                                 type="checkbox"
                                 v-model="editingUser.is_approved"
+                                class="form-input"
                             >
                             Account Approved
                         </label>
@@ -420,86 +443,9 @@ select:disabled {
     gap: var(--spacing-sm);
 }
 
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10000;
-}
-
-.modal {
-    background: white;
-    border-radius: var(--border-radius);
-    width: 90%;
-    max-width: 500px;
-    box-shadow: var(--card-shadow);
-}
-
-.modal-header {
-    padding: var(--spacing-md);
-    border-bottom: 1px solid #ddd;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    margin: 0;
-    color: var(--secondary-color);
-}
-
-.close-button {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--secondary-color);
-}
-
-.modal-body {
-    padding: var(--spacing-md);
-}
-
-.modal-footer {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    justify-content: flex-end;
-}
-
-/* Add to main.css if you want to reuse across components */
-.btn-secondary {
-    background-color: #6c757d;
-    color: white;
-}
-
 .loading {
     text-align: center;
     padding: var(--spacing-lg);
     color: var(--text-muted);
-}
-
-.btn-danger {
-    background-color: var(--error-color);
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-}
-
-.btn-danger:hover {
-    opacity: 0.8;
-}
-
-.btn-danger:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 </style> 

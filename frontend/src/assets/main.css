@@ -225,8 +225,7 @@ th {
 
     /* Adjust modal for mobile */
     .modal {
-        width: 95%;
-        margin: var(--spacing-sm);
+        width: 100%;
     }
 }
 

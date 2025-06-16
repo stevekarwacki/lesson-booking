@@ -295,7 +295,7 @@ const updateBooking = async () => {
     margin: var(--spacing-md) 0;
     padding: var(--spacing-md);
     text-align: center;
-    color: var(--secondary-color);
+    color: var(--text-secondary);
     background: var(--background-light);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
