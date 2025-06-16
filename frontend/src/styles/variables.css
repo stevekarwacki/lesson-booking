@@ -1,15 +1,17 @@
 :root {
   /* Colors */
-  --primary-color: #646cff;
-  --primary-dark: #535bf2;
-  --secondary-color: #213547;
-  --border-color: #ddd;
-  --error-color: #dc3545;
-  --success-color: #28a745;
+  --primary-color: #28a745;  /* Green for affirmative actions */
+  --primary-dark: #218838;   /* Darker green for hover */
+  --text-primary: #213547;   /* Dark blue-grey for text */
+  --text-secondary: #495057; /* Medium grey for secondary text */
+  --text-dark: #343a40;      /* Dark grey for hover states */
+  --border-color: #dee2e6;   /* Light grey for borders */
+  --error-color: #dc3545;    /* Red for delete/danger */
+  --error-dark: #c82333;     /* Darker red for hover */
+  --success-color: #28a745;  /* Green for success messages */
   --background-light: #ffffff;
+  --background-hover: #f8f9fa; /* Light grey for edit buttons */
   --background-dark: #242424;
-  --text-light: rgba(255, 255, 255, 0.87);
-  --text-dark: #213547;
 
   /* Spacing */
   --spacing-xs: 0.25rem;

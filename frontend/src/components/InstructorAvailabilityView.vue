@@ -11,7 +11,7 @@
                 </button>
                 <button 
                     v-if="isEditing"
-                    class="btn btn-secondary"
+                    class="form-button form-button-cancel"
                     @click="cancelEditing"
                 >
                     Cancel

@@ -62,7 +62,7 @@
 
             <div class="modal-footer">
                 <button 
-                    class="form-button form-button-secondary" 
+                    class="form-button form-button-cancel"
                     @click="$emit('close')"
                     :disabled="loading"
                 >

@@ -167,7 +167,8 @@ onMounted(async () => {
     <div class="user-manager card">
         <div class="header-actions">
             <button 
-                class="btn btn-primary"
+                class="form-button"
+                :class="{ 'form-button-cancel': showAddForm }"
                 @click="showAddForm = !showAddForm"
             >
                 {{ showAddForm ? 'Cancel' : 'Add New User' }}
@@ -243,17 +244,16 @@ onMounted(async () => {
                         <td>{{ user.name }}</td>
                         <td v-if="$mq.lgPlus">{{ user.email }}</td>
                         <td v-if="$mq.lgPlus">{{ user.role }}</td>
-                        <td class="actions">
+                        <td class="user-actions">
                             <button 
+                                class="form-button form-button-edit"
                                 @click="openEditModal(user)"
-                                class="btn btn-primary"
-                                :disabled="user.id === currentUserId"
                             >
                                 Edit
                             </button>
                             <button 
+                                class="form-button form-button-danger"
                                 @click="deleteUser(user.id)"
-                                class="btn btn-danger"
                                 :disabled="user.id === currentUserId"
                             >
                                 Delete
@@ -309,7 +309,7 @@ onMounted(async () => {
                 <div class="modal-footer">
                     <button 
                         type="button"
-                        class="form-button form-button-secondary"
+                        class="form-button form-button-cancel"
                         @click="closeEditModal"
                     >
                         Cancel
@@ -378,8 +378,6 @@ select:disabled {
 
 .header-actions {
     margin-bottom: var(--spacing-lg);
-    display: flex;
-    justify-content: flex-end;
 }
 
 .add-button {

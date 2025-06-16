@@ -44,29 +44,88 @@
 
 /* Buttons */
 .form-button {
-  padding: var(--spacing-sm) var(--spacing-md);
+  height: 40px;
+  padding: 0 var(--spacing-md);
   background: var(--primary-color);
   color: white;
   border: none;
   border-radius: var(--border-radius);
   font-size: var(--font-size-base);
   font-weight: 500;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
   cursor: pointer;
-}
-
-.form-button-secondary {
-    background: var(--secondary-color);
-    color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
 }
 
 .form-button:hover {
   background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.form-button:active {
+  transform: translateY(0);
 }
 
 .form-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
+}
+
+/* Button Variants */
+.form-button-secondary {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
+.form-button-secondary:hover {
+  background: var(--border-color);
+}
+
+.form-button-danger {
+  background: var(--error-color);
+  color: white;
+}
+
+.form-button-danger:hover {
+  background: var(--error-dark);
+}
+
+.form-button-edit {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
+.form-button-edit:hover {
+  background: var(--border-color);
+}
+
+.form-button-cancel {
+  background: var(--text-secondary);
+  color: white;
+}
+
+.form-button-cancel:hover {
+  background: var(--text-dark);
+}
+
+/* Button Sizes */
+.form-button-full {
+  width: 100%;
+}
+
+/* Button Groups */
+.form-button-group {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.form-button-group .form-button {
+  flex: 1;
 }
 
 /* Messages */

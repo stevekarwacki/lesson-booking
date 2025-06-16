@@ -32,7 +32,7 @@
                             <td v-if="useMq().lgPlus">{{ booking.duration * 15 }} minutes</td>
                             <td class="actions">
                                 <button 
-                                    class="form-button form-button-secondary"
+                                    class="form-button form-button-edit"
                                     @click="openEditModal(booking)"
                                 >
                                     Edit

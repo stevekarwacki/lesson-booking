@@ -24,6 +24,7 @@
             <div ref="paymentElement" class="payment-element"></div>
             
             <button 
+                type="submit"
                 class="form-button"
                 @click="handleSubmit"
                 :disabled="processing || !stripe || !elements"

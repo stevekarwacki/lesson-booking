@@ -178,7 +178,8 @@ onMounted(fetchPackages)
         <!-- Add Package Button -->
         <div class="actions">
             <button 
-                class="btn btn-primary" 
+                class="form-button"
+                :class="{ 'form-button-cancel': showAddForm }"
                 @click="showAddForm = !showAddForm"
             >
                 {{ showAddForm ? 'Cancel' : 'Add New Package' }}
@@ -266,13 +267,13 @@ onMounted(fetchPackages)
                 </div>
                 <div class="package-actions">
                     <button 
-                        class="btn btn-secondary" 
+                        class="form-button form-button-edit"
                         @click="openEditModal(pkg)"
                     >
                         Edit
                     </button>
                     <button 
-                        class="btn btn-danger" 
+                        class="form-button form-button-danger"
                         @click="deletePackage(pkg.id)"
                     >
                         Delete
@@ -341,8 +342,7 @@ onMounted(fetchPackages)
 
                     <div class="modal-footer">
                         <button 
-                            type="button"
-                            class="form-button form-button-secondary"
+                            class="form-button form-button-cancel"
                             @click="closeEditModal"
                         >
                             Cancel

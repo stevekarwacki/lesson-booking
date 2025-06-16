@@ -242,6 +242,7 @@ onMounted(async () => {
 
             <button 
                 class="form-button"
+                :class="{ 'form-button-cancel': showAddForm }"
                 @click="showAddForm = !showAddForm"
             >
                 {{ showAddForm ? 'Cancel' : 'Add Instructor' }}
@@ -330,7 +331,7 @@ onMounted(async () => {
                             <h3>{{ instructor.User.name }}</h3>
                             <div class="instructor-actions">
                                 <button 
-                                    class="form-button form-button-secondary"
+                                    class="form-button form-button-edit"
                                     @click="openEditModal(instructor)"
                                 >
                                     Edit
@@ -403,7 +404,7 @@ onMounted(async () => {
                     <div class="modal-footer">
                         <button 
                             type="button"
-                            class="form-button form-button-secondary"
+                            class="form-button form-button-cancel"
                             @click="closeEditModal"
                         >
                             Cancel

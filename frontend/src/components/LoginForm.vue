@@ -86,7 +86,7 @@ const handleSubmit = async () => {
                 >
             </div>
 
-            <button type="submit" class="form-button">Login</button>
+            <button type="submit" class="form-button-full">Login</button>
         </form>
     </div>
 </template>

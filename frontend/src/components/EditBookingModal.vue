@@ -56,7 +56,8 @@
 
             <div class="modal-footer">
                 <button 
-                    class="form-button form-button-secondary" 
+                    type="button"
+                    class="form-button form-button-cancel" 
                     @click="$emit('close')"
                     :disabled="loading"
                 >
@@ -320,25 +321,6 @@ const updateBooking = async () => {
     gap: var(--spacing-md);
     margin-top: var(--spacing-lg);
     justify-content: flex-end;
-}
-
-.form-button {
-    padding: var(--spacing-md) var(--spacing-lg);
-    border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.form-button {
-    background: var(--primary-color);
-    color: white;
-}
-
-.form-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 .error-message {
