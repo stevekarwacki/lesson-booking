@@ -64,25 +64,9 @@ const handlePaymentSuccess = async () => {
         processing.value = true
         error.value = null
 
-        if (selectedPlan.value.type !== 'membership') {
-            // Handle one-time purchase
-            const response = await fetch('/api/payments/purchase', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userStore.token}`
-                },
-                body: JSON.stringify({
-                    planId: selectedPlan.value.id,
-                    paymentMethod: 'stripe'
-                })
-            })
-            
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || 'Failed to process payment')
-            }
-        }
+        // The StripePaymentForm already handles the purchase for lesson packages
+        // For memberships, the subscription is handled by the subscription endpoint
+        // So we don't need to call the purchase endpoint here
         
         // Wait a moment to show the success message before resetting
         setTimeout(() => {

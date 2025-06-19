@@ -94,6 +94,10 @@ onUnmounted(() => {
 })
 
 const handleSubmit = async () => {
+    if (processing.value) {
+        return;
+    }
+    
     try {
         processing.value = true
         error.value = null
@@ -105,46 +109,129 @@ const handleSubmit = async () => {
         }
 
         if (isSubscription.value) {
-            // Handle subscription payment
-            
-            // Create payment method for subscription
-            const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
-                elements: elements.value,
-                params: {
-                    billing_details: {
-                        email: userStore.user?.email
-                    }
+            // For plans with planId, we need to determine if it's a membership or lesson package
+            // Fetch plan details to determine the type
+            const planResponse = await fetch(`/api/payments/plans/${props.planId}`, {
+                headers: {
+                    'Authorization': `Bearer ${userStore.token}`
                 }
             });
-
-            if (paymentMethodError) {
-                throw new Error(paymentMethodError.message);
+            
+            if (!planResponse.ok) {
+                throw new Error('Failed to fetch plan details');
             }
             
-            const response = await fetch('/api/subscriptions/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userStore.token}`
-                },
-                body: JSON.stringify({
-                    planId: props.planId,
-                    paymentMethodId: paymentMethod.id
-                })
-            });
+            const plan = await planResponse.json();
+            
+            if (plan.type === 'membership') {
+                // Handle subscription payment for membership
+                const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
+                    elements: elements.value,
+                    params: {
+                        billing_details: {
+                            email: userStore.user?.email
+                        }
+                    }
+                });
 
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || 'Failed to create subscription')
-            }
+                if (paymentMethodError) {
+                    throw new Error(paymentMethodError.message);
+                }
+                
+                const response = await fetch('/api/subscriptions/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userStore.token}`
+                    },
+                    body: JSON.stringify({
+                        planId: props.planId,
+                        paymentMethodId: paymentMethod.id
+                    })
+                });
 
-            const { subscriptionId, status } = await response.json()
+                if (!response.ok) {
+                    const data = await response.json()
+                    throw new Error(data.error || 'Failed to create subscription')
+                }
 
-            if (status === 'active') {
-                paymentSuccess.value = true
-                emit('payment-success')
+                const { subscriptionId, status } = await response.json()
+
+                if (status === 'active') {
+                    paymentSuccess.value = true
+                    emit('payment-success')
+                } else {
+                    throw new Error('Subscription creation failed')
+                }
             } else {
-                throw new Error('Subscription creation failed')
+                // Handle one-time purchase for lesson packages
+                const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
+                    elements: elements.value,
+                    params: {
+                        billing_details: {
+                            email: userStore.user?.email
+                        }
+                    }
+                });
+
+                if (paymentMethodError) {
+                    throw new Error(paymentMethodError.message);
+                }
+
+                // Create payment intent for lesson package
+                const response = await fetch('/api/payments/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userStore.token}`
+                    },
+                    body: JSON.stringify({
+                        amount: props.amount,
+                        planId: props.planId
+                    })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json()
+                    throw new Error(data.error || 'Failed to create payment intent')
+                }
+
+                const { clientSecret } = await response.json()
+
+                // Confirm the payment intent without redirect
+                const { error: confirmError, paymentIntent } = await stripe.value.confirmCardPayment(clientSecret, {
+                    payment_method: paymentMethod.id
+                });
+
+                if (confirmError) {
+                    throw new Error(confirmError.message);
+                }
+
+                // Check if payment was successful
+                if (paymentIntent && paymentIntent.status === 'succeeded') {
+                    // Process the purchase
+                    const purchaseResponse = await fetch('/api/payments/purchase', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${userStore.token}`
+                        },
+                        body: JSON.stringify({
+                            planId: props.planId,
+                            paymentMethod: 'stripe'
+                        })
+                    });
+
+                    if (!purchaseResponse.ok) {
+                        const data = await purchaseResponse.json()
+                        throw new Error(data.error || 'Failed to process purchase')
+                    }
+
+                    paymentSuccess.value = true
+                    emit('payment-success')
+                } else {
+                    throw new Error('Payment was not successful')
+                }
             }
         } else {
             // Handle individual lesson payment

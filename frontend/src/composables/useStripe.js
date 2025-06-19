@@ -90,8 +90,9 @@ export function useStripe() {
                 }
             }
 
-            // Add amount for payment mode (not needed for subscription mode)
-            if (mode === 'payment') {
+            // Add amount for both payment and subscription modes
+            // Stripe requires amount for validation even in subscription mode
+            if (amount) {
                 options.amount = Math.round(amount * 100) // Convert to cents
             }
 

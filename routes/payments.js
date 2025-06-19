@@ -16,6 +16,20 @@ router.get('/plans', async (req, res) => {
     }
 });
 
+// Get a specific payment plan by ID
+router.get('/plans/:id', async (req, res) => {
+    try {
+        const plan = await PaymentPlan.getById(req.params.id);
+        if (!plan) {
+            return res.status(404).json({ error: 'Plan not found' });
+        }
+        res.json(plan);
+    } catch (error) {
+        console.error('Error fetching payment plan:', error);
+        res.status(500).json({ error: 'Failed to fetch payment plan' });
+    }
+});
+
 // Get user credits
 router.get('/credits', async (req, res) => {
     try {
