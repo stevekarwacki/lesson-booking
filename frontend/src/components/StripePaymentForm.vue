@@ -11,8 +11,8 @@
 
         <div v-else-if="paymentSuccess" class="form-message success-message">
             <div class="success-icon">✓</div>
-            <h3>Subscription Active!</h3>
-            <p>Your subscription has been successfully activated. You can now start using your credits.</p>
+            <h3>{{ isSubscription ? 'Subscription Active!' : 'Payment Successful!' }}</h3>
+            <p>{{ isSubscription ? 'Your subscription has been successfully activated. You can now start using your credits.' : 'Your payment has been processed successfully.' }}</p>
         </div>
 
         <div v-else class="payment-form">
@@ -36,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useStripe } from '../composables/useStripe'
 import { useUserStore } from '../stores/userStore'
 
@@ -47,7 +47,7 @@ const props = defineProps({
     },
     planId: {
         type: String,
-        required: true
+        required: false
     }
 })
 
@@ -68,13 +68,17 @@ const {
 
 const userStore = useUserStore()
 
+// Determine if this is a subscription payment
+const isSubscription = computed(() => !!props.planId)
+
 onMounted(async () => {
     try {
         // Initialize Stripe
         await initializeStripe()
         
-        // Mount card element
-        await mountPaymentElement(paymentElement.value, props.amount)
+        // Mount card element with appropriate mode
+        const mode = isSubscription.value ? 'subscription' : 'payment'
+        await mountPaymentElement(paymentElement.value, props.amount, mode)
     } catch (err) {
         emit('payment-error', err)
     }
@@ -100,47 +104,102 @@ const handleSubmit = async () => {
             throw new Error(submitError.message);
         }
 
-        // Create payment method from payment element
-        const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
-            elements: elements.value,
-            params: {
-                billing_details: {
-                    email: userStore.user?.email
+        if (isSubscription.value) {
+            // Handle subscription payment
+            
+            // Create payment method for subscription
+            const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
+                elements: elements.value,
+                params: {
+                    billing_details: {
+                        email: userStore.user?.email
+                    }
                 }
+            });
+
+            if (paymentMethodError) {
+                throw new Error(paymentMethodError.message);
             }
-        });
+            
+            const response = await fetch('/api/subscriptions/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userStore.token}`
+                },
+                body: JSON.stringify({
+                    planId: props.planId,
+                    paymentMethodId: paymentMethod.id
+                })
+            });
 
-        if (paymentMethodError) {
-            throw new Error(paymentMethodError.message);
-        }
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to create subscription')
+            }
 
-        // Create subscription with payment method
-        const response = await fetch('/api/subscriptions/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                planId: props.planId,
-                paymentMethodId: paymentMethod.id
-            })
-        });
+            const { subscriptionId, status } = await response.json()
 
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create subscription')
-        }
-
-        const { subscriptionId, status } = await response.json()
-
-        if (status === 'active') {
-            paymentSuccess.value = true
-            emit('payment-success')
+            if (status === 'active') {
+                paymentSuccess.value = true
+                emit('payment-success')
+            } else {
+                throw new Error('Subscription creation failed')
+            }
         } else {
-            throw new Error('Subscription creation failed')
+            // Handle individual lesson payment
+            const response = await fetch('/api/payments/create-payment-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userStore.token}`
+                },
+                body: JSON.stringify({
+                    amount: props.amount,
+                    planId: null // Individual lesson payment
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json()
+                throw new Error(data.error || 'Failed to create payment intent')
+            }
+
+            const { clientSecret } = await response.json()
+
+            // Create payment method manually to avoid redirects
+            const { error: paymentMethodError, paymentMethod } = await stripe.value.createPaymentMethod({
+                elements: elements.value,
+                params: {
+                    billing_details: {
+                        email: userStore.user?.email
+                    }
+                }
+            });
+
+            if (paymentMethodError) {
+                throw new Error(paymentMethodError.message);
+            }
+
+            // Confirm the payment intent without redirect
+            const { error: confirmError, paymentIntent } = await stripe.value.confirmCardPayment(clientSecret, {
+                payment_method: paymentMethod.id
+            });
+
+            if (confirmError) {
+                throw new Error(confirmError.message);
+            }
+
+            // Check if payment was successful
+            if (paymentIntent && paymentIntent.status === 'succeeded') {
+                paymentSuccess.value = true
+                emit('payment-success')
+            } else {
+                throw new Error('Payment was not successful')
+            }
         }
     } catch (err) {
+        console.error('Payment error:', err)
         error.value = err.message || 'Payment failed'
         emit('payment-error', err)
     } finally {

@@ -117,7 +117,7 @@ router.post('/addEvent', async (req, res) => {
         }
 
         // 4. Create the booking
-        const bookingId = await Calendar.addEvent(
+        const event = await Calendar.addEvent(
             instructorId,
             studentId,
             formattedDate,
@@ -127,9 +127,13 @@ router.post('/addEvent', async (req, res) => {
             paymentMethod
         );
 
+        // Get the newly created booking data
+        const newBooking = await Calendar.getEventById(event.id);
+
         res.status(201).json({
             message: 'Lesson booked successfully',
-            bookingId
+            bookingId: event.id,
+            booking: newBooking
         });
 
     } catch (error) {

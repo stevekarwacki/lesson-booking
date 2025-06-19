@@ -7,8 +7,8 @@
             
             <div class="modal-body">
                 <div class="booking-details">
-                    <p>Date: {{ slot.date.toISOString().split('T')[0] }}</p>
-                    <p>Time: {{ slotToTime(slot.startSlot) }} - {{ slotToTime(parseInt(slot.startSlot) + parseInt(slot.duration)) }}</p>
+                    <p>Date: {{ currentSlot.date.toISOString().split('T')[0] }}</p>
+                    <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ slotToTime(parseInt(currentSlot.startSlot) + parseInt(currentSlot.duration)) }}</p>
                 </div>
 
                 <div class="booking-options">
@@ -82,10 +82,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
+import { useRoute } from 'vue-router'
 
 const props = defineProps({
     slot: {
@@ -97,12 +98,14 @@ const props = defineProps({
 const emit = defineEmits(['close', 'booking-confirmed'])
 
 const userStore = useUserStore()
+const route = useRoute()
 
 const loading = ref(false)
 const error = ref(null)
 const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
 const userCredits = ref(0)
+const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 
 // Fetch user credits when modal opens
 onMounted(async () => {
@@ -136,13 +139,16 @@ onMounted(async () => {
 })
 
 const handleStripeSuccess = async () => {
+    // Ensure payment method is set to direct for Stripe payments
+    paymentMethod.value = 'direct'
+    
     try {
         loading.value = true
         error.value = null
         await confirmBooking()
     } catch (err) {
-        error.value = err.message || 'Failed to process payment'
         console.error('Payment success error:', err)
+        error.value = err.message || 'Failed to process payment'
     } finally {
         loading.value = false
     }
@@ -159,17 +165,24 @@ const confirmBooking = async () => {
         error.value = null;
 
         // Get the date in UTC
-        const date = new Date(props.slot.date);
+        const date = new Date(currentSlot.value.date);
         date.setUTCHours(0, 0, 0, 0);
         const utcDate = date.toISOString().split('T')[0];
         
         // Convert slot times to UTC
-        const startTime = slotToTime(props.slot.startSlot);
-        const endTime = slotToTime(parseInt(props.slot.startSlot) + parseInt(props.slot.duration));
+        const startTime = slotToTime(currentSlot.value.startSlot);
+        const endTime = slotToTime(parseInt(currentSlot.value.startSlot) + parseInt(currentSlot.value.duration));
         
         // Create UTC dates
         const startDate = new Date(`${utcDate}T${startTime}:00.000Z`);
         const endDate = new Date(`${utcDate}T${endTime}:00.000Z`);
+
+        const requestBody = {
+            instructorId: currentSlot.value.instructorId,
+            startTime: startDate.toISOString(),
+            endTime: endDate.toISOString(),
+            paymentMethod: paymentMethod.value
+        }
 
         const response = await fetch('/api/calendar/addEvent', {
             method: 'POST',
@@ -177,16 +190,12 @@ const confirmBooking = async () => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${userStore.token}`
             },
-            body: JSON.stringify({
-                instructorId: props.slot.instructorId,
-                startTime: startDate.toISOString(),
-                endTime: endDate.toISOString(),
-                paymentMethod: paymentMethod.value
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
             const data = await response.json()
+            
             if (data.error === 'INSUFFICIENT_CREDITS') {
                 showPaymentOptions.value = true
                 error.value = 'Insufficient credits. Please choose a payment method.'
@@ -195,13 +204,25 @@ const confirmBooking = async () => {
             throw new Error(data.error || 'Failed to book lesson')
         }
 
-        emit('booking-confirmed')
+        const result = await response.json()
+        emit('booking-confirmed', result.booking)
     } catch (err) {
+        console.error('confirmBooking error:', err)
         error.value = err.message
     } finally {
         loading.value = false
     }
 }
+
+// Watch for payment method changes
+watch(paymentMethod, (newValue, oldValue) => {
+    // Payment method changed
+})
+
+// Watch for slot changes
+watch(() => props.slot, (newSlot) => {
+    currentSlot.value = newSlot
+}, { immediate: true })
 </script>
 
 <style scoped>

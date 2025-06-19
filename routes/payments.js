@@ -107,8 +107,9 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
         switch (event.type) {
             case 'payment_intent.succeeded':
                 const paymentIntent = event.data.object;
+                
                 // Update transaction status
-                await Transactions.update(
+                const updateResult = await Transactions.update(
                     { status: 'completed' },
                     { 
                         where: { 
@@ -120,6 +121,7 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
                 
             case 'payment_intent.payment_failed':
                 const failedPayment = event.data.object;
+                
                 // Update transaction status
                 await Transactions.update(
                     { status: 'failed' },

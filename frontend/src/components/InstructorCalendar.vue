@@ -191,14 +191,16 @@ const handleSlotSelected = (slot) => {
     showBookingModal.value = true
 }
 
-const handleBookingConfirmed = () => {
+const handleBookingConfirmed = (newBooking) => {
     showBookingModal.value = false
     selectedSlot.value = null
-    // Refresh the schedule
+    
+    // Refresh the schedule data from the server instead of trying to update locally
+    fetchWeeklySchedule()
+    
+    // Also refresh daily schedule if we're viewing a specific day
     if (selectedDate.value) {
         fetchDailySchedule()
-    } else {
-        fetchWeeklySchedule()
     }
 }
 
@@ -316,7 +318,6 @@ const fetchWeeklySchedule = async () => {
         weeklyScheduleData.value = formattedSchedule
     } catch (err) {
         error.value = 'Error fetching schedule'
-        console.error('Fetch error:', err)
     }
 }
 
@@ -384,7 +385,6 @@ const fetchDailySchedule = async () => {
         dailyScheduleData.value = formattedSchedule
     } catch (err) {
         error.value = 'Error fetching daily schedule'
-        console.error('Fetch error:', err)
     }
 }
 

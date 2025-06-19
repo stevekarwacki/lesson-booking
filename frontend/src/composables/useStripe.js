@@ -12,10 +12,17 @@ export function useStripe() {
 
     const initializeStripe = async () => {
         try {
-            const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+            // Fetch publishable key from backend
+            const response = await fetch('/api/stripe-key')
+            if (!response.ok) {
+                throw new Error('Failed to fetch Stripe configuration')
+            }
+            
+            const { publishableKey } = await response.json()
             if (!publishableKey) {
                 throw new Error('Stripe publishable key is not configured')
             }
+            
             stripe.value = await loadStripe(publishableKey)
             return stripe.value
         } catch (err) {
@@ -50,15 +57,14 @@ export function useStripe() {
         }
     }
 
-    const mountPaymentElement = async (element, amount) => {
+    const mountPaymentElement = async (element, amount, mode = 'payment') => {
         try {
             if (!stripe.value) {
                 await initializeStripe()
             }
 
-            elements.value = stripe.value.elements({
-                mode: 'subscription',
-                amount: Math.round(amount * 100), // Convert to cents
+            const options = {
+                mode: mode,
                 currency: 'usd',
                 paymentMethodCreation: 'manual',
                 appearance: {
@@ -82,7 +88,14 @@ export function useStripe() {
                         }
                     }
                 }
-            })
+            }
+
+            // Add amount for payment mode (not needed for subscription mode)
+            if (mode === 'payment') {
+                options.amount = Math.round(amount * 100) // Convert to cents
+            }
+
+            elements.value = stripe.value.elements(options)
 
             const paymentElement = elements.value.create('payment', {
                 layout: {

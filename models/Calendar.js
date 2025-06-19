@@ -93,7 +93,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 
         return event;
     } catch (error) {
-        console.error('Error booking lesson:', error);
+        console.error('Error in addEvent:', error);
         throw error;
     }
 };
@@ -152,6 +152,25 @@ Calendar.getStudentEvents = async function(studentId) {
             }]
         }],
         order: [['date', 'ASC'], ['start_slot', 'ASC']]
+    });
+};
+
+Calendar.getEventById = async function(eventId) {
+    return this.findByPk(eventId, {
+        include: [
+            {
+                model: User,
+                as: 'student',
+                attributes: ['id', 'name', 'email']
+            },
+            {
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['name']
+                }]
+            }
+        ]
     });
 };
 

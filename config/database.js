@@ -2,9 +2,9 @@ const path = require('path');
 
 const config = {
     development: {
-        dialect: process.env.DB_DIALECT,
-        storage: process.env.DB_STORAGE,
-        ssl: process.env.DB_SSL,
+        dialect: process.env.DB_DIALECT || 'sqlite',
+        storage: process.env.DB_STORAGE || path.join(__dirname, '../db/development.sqlite'),
+        ssl: process.env.DB_SSL || false,
         logging: console.log,
     },
     test: {

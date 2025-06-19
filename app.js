@@ -9,6 +9,7 @@ const paymentsRoutes = require('./routes/payments');
 const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
+const { publishableKey } = require('./config/stripe');
 
 const app = express();
 
@@ -19,6 +20,11 @@ app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
 // Public routes
 app.use('/api/auth', authRoutes);
+
+// Public route for Stripe publishable key
+app.get('/api/stripe-key', (req, res) => {
+    res.json({ publishableKey });
+});
 
 // Protected routes
 app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
