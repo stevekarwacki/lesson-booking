@@ -8,8 +8,34 @@ const { Credits } = require('../models/Credits');
 const { User } = require('../models/User');
 const { authMiddleware } = require('../middleware/auth');
 
+// Get user's subscriptions
+router.get('/user/:userId', authMiddleware, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        
+        // Ensure user can only access their own subscriptions or user is admin
+        if (req.user.id !== userId && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        const subscriptions = await Subscription.findAll({
+            where: { user_id: userId },
+            include: [{
+                model: PaymentPlan,
+                attributes: ['id', 'name', 'type', 'price', 'duration_days']
+            }],
+            order: [['created_at', 'DESC']]
+        });
+        
+        res.json(subscriptions);
+    } catch (error) {
+        console.error('Error fetching user subscriptions:', error);
+        res.status(500).json({ error: 'Failed to fetch subscriptions' });
+    }
+});
+
 // Create a new subscription
-router.post('/create', async (req, res) => {
+router.post('/create', authMiddleware, async (req, res) => {
     try {
         const { planId, paymentMethodId } = req.body;
         
@@ -119,7 +145,7 @@ router.post('/create', async (req, res) => {
 });
 
 // Cancel a subscription
-router.post('/cancel', async (req, res) => {
+router.post('/cancel', authMiddleware, async (req, res) => {
     try {
         const { subscriptionId } = req.body;
         
@@ -273,7 +299,7 @@ router.post('/update-periods', authMiddleware, async (req, res) => {
 });
 
 // Check if subscription is eligible for recurring bookings
-router.get('/:subscriptionId/recurring-eligibility', async (req, res) => {
+router.get('/:subscriptionId/recurring-eligibility', authMiddleware, async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         

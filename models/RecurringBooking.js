@@ -90,6 +90,52 @@ const clearCache = async (recurringBookingId = null, subscriptionId = null, inst
 };
 
 // Static methods
+RecurringBooking.checkCalendarConflicts = async function(instructorId, dayOfWeek, startSlot, duration) {
+    const { Calendar } = require('./Calendar');
+    const { Op } = require('sequelize');
+    
+    const conflictingEvents = await Calendar.findAll({
+        where: {
+            instructor_id: instructorId,
+            // Check if any existing events on the same day of week conflict
+            [Op.and]: [
+                sequelize.literal(`CAST(strftime('%w', date) AS INTEGER) = ${dayOfWeek}`),
+                {
+                    // Check for time slot overlap
+                    [Op.or]: [
+                        // Case 1: Existing event starts within our recurring slot
+                        {
+                            start_slot: {
+                                [Op.gte]: startSlot,
+                                [Op.lt]: startSlot + duration
+                            }
+                        },
+                        // Case 2: Our recurring slot starts within existing event
+                        {
+                            [Op.and]: [
+                                { start_slot: { [Op.lte]: startSlot } },
+                                sequelize.literal(`start_slot + duration > ${startSlot}`)
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        include: [{
+            model: sequelize.models.User,
+            as: 'student',
+            attributes: ['name', 'email']
+        }]
+    });
+    
+    if (conflictingEvents.length > 0) {
+        const conflictDetails = conflictingEvents.map(event => 
+            `${event.date} at slot ${event.start_slot} (${event.student ? event.student.name : 'Blocked time'})`
+        ).join(', ');
+        throw new Error(`Time slot conflicts with existing bookings: ${conflictDetails}`);
+    }
+};
+
 RecurringBooking.findBySubscriptionId = async function(subscriptionId) {
     const cacheKey = CACHE_KEYS.recurringBookingsBySubscriptionId(subscriptionId);
     try {
@@ -176,6 +222,14 @@ RecurringBooking.createForSubscription = async function(subscriptionId, bookingD
         throw new Error('Selected time is outside instructor availability');
     }
     
+    // Check for conflicts with existing calendar events
+    await this.checkCalendarConflicts(
+        bookingData.instructor_id,
+        bookingData.day_of_week,
+        bookingData.start_slot,
+        bookingData.duration
+    );
+    
     // Create the recurring booking
     const recurringBooking = await this.create({
         subscription_id: subscriptionId,
@@ -218,6 +272,14 @@ RecurringBooking.updateRecurringBooking = async function(id, updates) {
         if (!isTimeAvailable) {
             throw new Error('Selected time is outside instructor availability');
         }
+        
+        // Check for conflicts with existing calendar events
+        await this.checkCalendarConflicts(
+            updates.instructor_id || recurringBooking.instructor_id,
+            dayOfWeek,
+            startSlot,
+            duration
+        );
     }
     
     await recurringBooking.update(updates);
