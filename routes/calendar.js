@@ -95,10 +95,10 @@ router.post('/addEvent', async (req, res) => {
             });
         }
 
-        // 3. Check for existing bookings
+        // 3. Check for existing one-time bookings
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
-        const hasConflict = existingBookings.some(booking => {
+        const hasOneTimeConflict = existingBookings.some(booking => {
             // First check if this booking is for the same day
             if (booking.date !== formattedDate) {
                 return false
@@ -112,11 +112,37 @@ router.post('/addEvent', async (req, res) => {
                    (startSlot + duration) > bookingStart
         });
 
-        if (hasConflict) {
+        if (hasOneTimeConflict) {
             return res.status(400).json({ error: 'Time slot is already booked' });
         }
 
-        // 4. Create the booking
+        // 4. Check for recurring booking conflicts
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBookings = await RecurringBooking.findByInstructorAndDay(instructorId, dayOfWeek);
+
+        const hasRecurringConflict = recurringBookings.some(recurringBooking => {
+            const recurringStart = recurringBooking.start_slot;
+            const recurringEnd = recurringBooking.start_slot + recurringBooking.duration;
+
+            return startSlot < recurringEnd && 
+                   (startSlot + duration) > recurringStart;
+        });
+
+        if (hasRecurringConflict) {
+            // Check if the current user owns this recurring booking
+            const userOwnedRecurring = recurringBookings.find(rb => {
+                const recurringStart = rb.start_slot;
+                const recurringEnd = rb.start_slot + rb.duration;
+                const hasTimeConflict = startSlot < recurringEnd && (startSlot + duration) > recurringStart;
+                return hasTimeConflict && rb.Subscription && rb.Subscription.user_id === studentId;
+            });
+
+            if (!userOwnedRecurring) {
+                return res.status(400).json({ error: 'Time slot is reserved for a recurring member' });
+            }
+        }
+
+        // 5. Create the booking
         const event = await Calendar.addEvent(
             instructorId,
             studentId,
@@ -148,10 +174,12 @@ router.post('/addEvent', async (req, res) => {
     }
 });
 
-// Get events for a date range
+// Get events for a date range (including recurring bookings)
 router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
     try {
         const { instructorId, startDate, endDate } = req.params
+        
+        // Get regular one-time bookings
         const events = await Calendar.getInstructorEvents(instructorId)
         
         // Filter events within date range
@@ -160,23 +188,90 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
             return eventDate >= startDate && eventDate <= endDate
         })
         
-        res.json(weekEvents)
+        // Get recurring bookings and create virtual events for the date range
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBookings = await RecurringBooking.findAll({
+            where: { instructor_id: instructorId },
+            include: [
+                {
+                    model: require('../models/Subscription').Subscription,
+                    where: { status: 'active' },
+                    include: [{ model: require('../models/User').User }]
+                }
+            ]
+        });
+        
+        // Create virtual events for each day in the range where recurring bookings apply
+        const virtualEvents = [];
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.getUTCDay();
+            const dateString = d.toISOString().split('T')[0];
+            
+            recurringBookings.forEach(rb => {
+                if (rb.day_of_week === dayOfWeek) {
+                    virtualEvents.push({
+                        id: `recurring_${rb.id}_${dateString}`,
+                        instructor_id: rb.instructor_id,
+                        student_id: rb.Subscription.user_id,
+                        date: dateString,
+                        start_slot: rb.start_slot,
+                        duration: rb.duration,
+                        status: 'recurring_reserved',
+                        student_name: rb.Subscription.User.name,
+                        student_email: rb.Subscription.User.email,
+                        recurring_booking_id: rb.id
+                    });
+                }
+            });
+        }
+        
+        // Combine regular events and virtual recurring events
+        const allEvents = [...weekEvents, ...virtualEvents];
+        
+        res.json(allEvents)
     } catch (error) {
         console.error('Error fetching events:', error)
         res.status(500).json({ error: 'Error fetching events' })
     }
 });
 
-// Get daily events
+// Get daily events (including recurring bookings)
 router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
     try {
         const { instructorId, date } = req.params
+        
+        // Get regular one-time bookings
         const events = await Calendar.getInstructorEvents(instructorId)
         
         // Filter events for specific date
         const dayEvents = events.filter(event => event.date === date)
         
-        res.json(dayEvents)
+        // Get recurring bookings for this day of week
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const dayOfWeek = new Date(date).getUTCDay();
+        const recurringBookings = await RecurringBooking.findByInstructorAndDay(instructorId, dayOfWeek);
+        
+        // Create virtual events for recurring bookings
+        const virtualEvents = recurringBookings.map(rb => ({
+            id: `recurring_${rb.id}_${date}`,
+            instructor_id: rb.instructor_id,
+            student_id: rb.Subscription.user_id,
+            date: date,
+            start_slot: rb.start_slot,
+            duration: rb.duration,
+            status: 'recurring_reserved',
+            student_name: rb.Subscription.User.name,
+            student_email: rb.Subscription.User.email,
+            recurring_booking_id: rb.id
+        }));
+        
+        // Combine regular events and virtual recurring events
+        const allEvents = [...dayEvents, ...virtualEvents];
+        
+        res.json(allEvents)
     } catch (error) {
         console.error('Error fetching daily events:', error)
         res.status(500).json({ error: 'Error fetching events' })
@@ -265,10 +360,10 @@ router.patch('/student/:bookingId', async (req, res) => {
             });
         }
 
-        // Check for existing bookings (excluding the current booking)
+        // Check for existing one-time bookings (excluding the current booking)
         const existingBookings = await Calendar.getInstructorEvents(booking.instructor_id);
 
-        const hasConflict = existingBookings.some(existingBooking => {
+        const hasOneTimeConflict = existingBookings.some(existingBooking => {
             // Skip the booking being updated
             if (existingBooking.id === bookingId) return false;
 
@@ -285,8 +380,34 @@ router.patch('/student/:bookingId', async (req, res) => {
                    (startSlot + duration) > bookingStart;
         });
 
-        if (hasConflict) {
+        if (hasOneTimeConflict) {
             return res.status(400).json({ error: 'Time slot is already booked' });
+        }
+
+        // Check for recurring booking conflicts
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBookings = await RecurringBooking.findByInstructorAndDay(booking.instructor_id, dayOfWeek);
+
+        const hasRecurringConflict = recurringBookings.some(recurringBooking => {
+            const recurringStart = recurringBooking.start_slot;
+            const recurringEnd = recurringBooking.start_slot + recurringBooking.duration;
+
+            return startSlot < recurringEnd && 
+                   (startSlot + duration) > recurringStart;
+        });
+
+        if (hasRecurringConflict) {
+            // Check if the current user owns this recurring booking
+            const userOwnedRecurring = recurringBookings.find(rb => {
+                const recurringStart = rb.start_slot;
+                const recurringEnd = rb.start_slot + rb.duration;
+                const hasTimeConflict = startSlot < recurringEnd && (startSlot + duration) > recurringStart;
+                return hasTimeConflict && rb.Subscription && rb.Subscription.user_id === studentId;
+            });
+
+            if (!userOwnedRecurring) {
+                return res.status(400).json({ error: 'Time slot is reserved for a recurring member' });
+            }
         }
 
         // Update the booking
@@ -307,6 +428,59 @@ router.patch('/student/:bookingId', async (req, res) => {
             error: 'Failed to update booking',
             details: error.message 
         });
+    }
+});
+
+// Get recurring bookings for an instructor in a date range  
+router.get('/recurring/:instructorId/:startDate/:endDate', async (req, res) => {
+    try {
+        const { instructorId, startDate, endDate } = req.params;
+        
+        // Get active recurring bookings for this instructor
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBookings = await RecurringBooking.findAll({
+            where: { instructor_id: instructorId },
+            include: [
+                {
+                    model: require('../models/Subscription').Subscription,
+                    where: { status: 'active' },
+                    include: [{ model: require('../models/User').User }]
+                }
+            ]
+        });
+        
+        // Create virtual events for each day in the range where recurring bookings apply
+        const virtualEvents = [];
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dayOfWeek = d.getUTCDay();
+            const dateString = d.toISOString().split('T')[0];
+            
+            recurringBookings.forEach(rb => {
+                if (rb.day_of_week === dayOfWeek) {
+                    virtualEvents.push({
+                        id: `recurring_${rb.id}_${dateString}`,
+                        instructor_id: rb.instructor_id,
+                        student_id: rb.Subscription.user_id,
+                        date: dateString,
+                        start_slot: rb.start_slot,
+                        duration: rb.duration,
+                        status: 'recurring_reserved',
+                        student_name: rb.Subscription.User.name,
+                        student_email: rb.Subscription.User.email,
+                        recurring_booking_id: rb.id,
+                        subscription_id: rb.subscription_id
+                    });
+                }
+            });
+        }
+        
+        res.json(virtualEvents);
+    } catch (error) {
+        console.error('Error fetching recurring bookings:', error);
+        res.status(500).json({ error: 'Error fetching recurring bookings' });
     }
 });
 

@@ -167,8 +167,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
         // Handle the event
         switch (event.type) {
-            case 'customer.subscription.updated':
-            case 'customer.subscription.deleted': {
+            case 'customer.subscription.updated': {
                 const subscription = event.data.object;
                 console.log('Webhook received subscription update:', {
                     id: subscription.id,
@@ -214,6 +213,42 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                             );
                         }
                     }
+                    
+                    // Clean up recurring bookings if subscription is no longer active
+                    if (subscription.status !== 'active' || subscription.cancel_at_period_end) {
+                        const { RecurringBooking } = require('../models/RecurringBooking');
+                        await RecurringBooking.deleteBySubscriptionId(dbSubscription.id);
+                        console.log('Cleaned up recurring booking for inactive subscription:', dbSubscription.id);
+                    }
+                }
+                break;
+            }
+            
+            case 'customer.subscription.deleted': {
+                const subscription = event.data.object;
+                console.log('Webhook received subscription deletion:', {
+                    id: subscription.id,
+                    status: subscription.status
+                });
+
+                const dbSubscription = await Subscription.findOne({
+                    where: { stripe_subscription_id: subscription.id }
+                });
+
+                if (dbSubscription) {
+                    console.log('Cleaning up recurring booking for deleted subscription:', dbSubscription.id);
+                    
+                    // Clean up recurring booking
+                    const { RecurringBooking } = require('../models/RecurringBooking');
+                    await RecurringBooking.deleteBySubscriptionId(dbSubscription.id);
+                    
+                    // Update subscription status
+                    await dbSubscription.update({
+                        status: 'canceled'
+                    });
+
+                    await SubscriptionEvent.recordEvent(dbSubscription.id, event.type, subscription);
+                    console.log('Subscription and recurring booking cleaned up successfully');
                 }
                 break;
             }
@@ -234,6 +269,43 @@ router.post('/update-periods', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Error updating subscription periods:', error);
         res.status(500).json({ error: 'Failed to update subscription periods' });
+    }
+});
+
+// Check if subscription is eligible for recurring bookings
+router.get('/:subscriptionId/recurring-eligibility', async (req, res) => {
+    try {
+        const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        
+        // Find the subscription
+        const subscription = await Subscription.findByPk(subscriptionId);
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+        
+        // Ensure user owns this subscription or is admin
+        if (subscription.user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        // Check eligibility
+        const eligibility = await Subscription.checkRecurringEligibility(subscriptionId);
+        const hasExistingBooking = await Subscription.hasActiveRecurringBooking(subscriptionId);
+        
+        res.json({
+            eligible: eligibility.eligible,
+            reason: eligibility.reason,
+            hasExistingRecurringBooking: hasExistingBooking,
+            subscription: {
+                id: subscription.id,
+                status: subscription.status,
+                cancel_at_period_end: subscription.cancel_at_period_end
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error checking recurring booking eligibility:', error);
+        res.status(500).json({ error: 'Failed to check eligibility' });
     }
 });
 

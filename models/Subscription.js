@@ -117,6 +117,46 @@ Subscription.deleteSubscription = async function(id) {
     await clearCache(id, subscription.user_id);
 };
 
+// Check if subscription has an active recurring booking
+Subscription.hasActiveRecurringBooking = async function(subscriptionId) {
+    const { RecurringBooking } = require('./RecurringBooking');
+    const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
+    return !!recurringBooking;
+};
+
+// Get the recurring booking for a subscription
+Subscription.getRecurringBooking = async function(subscriptionId) {
+    const { RecurringBooking } = require('./RecurringBooking');
+    return await RecurringBooking.findBySubscriptionId(subscriptionId);
+};
+
+// Check if subscription is eligible for recurring bookings
+Subscription.checkRecurringEligibility = async function(subscriptionId) {
+    const subscription = await this.findByPk(subscriptionId);
+    if (!subscription) {
+        return { eligible: false, reason: 'Subscription not found' };
+    }
+    
+    // Must be active
+    if (subscription.status !== 'active') {
+        return { eligible: false, reason: 'Subscription is not active' };
+    }
+    
+    // Must not be set to cancel at period end
+    if (subscription.cancel_at_period_end) {
+        return { eligible: false, reason: 'Subscription is set to cancel' };
+    }
+    
+    // Must be a membership plan
+    const { PaymentPlan } = require('./PaymentPlan');
+    const plan = await PaymentPlan.findByPk(subscription.payment_plan_id);
+    if (!plan || plan.type !== 'membership') {
+        return { eligible: false, reason: 'Only membership subscriptions can have recurring bookings' };
+    }
+    
+    return { eligible: true };
+};
+
 // Add a method to get plain object representation
 Subscription.getPlainObject = function(subscription) {
     if (!subscription) return null;

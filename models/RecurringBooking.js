@@ -147,26 +147,16 @@ RecurringBooking.findByInstructorAndDay = async function(instructorId, dayOfWeek
 };
 
 RecurringBooking.createForSubscription = async function(subscriptionId, bookingData) {
-    // Validate subscription exists and is active
-    const subscription = await sequelize.models.Subscription.findByPk(subscriptionId, {
-        include: [{ model: sequelize.models.PaymentPlan }]
-    });
-    
-    if (!subscription) {
-        throw new Error('Subscription not found');
-    }
-    
-    if (subscription.status !== 'active') {
-        throw new Error('Subscription is not active');
-    }
-    
-    if (subscription.PaymentPlan.type !== 'membership') {
-        throw new Error('Only membership subscriptions can have recurring bookings');
+    // Check if subscription is eligible for recurring bookings
+    const { Subscription } = require('./Subscription');
+    const eligibility = await Subscription.checkRecurringEligibility(subscriptionId);
+    if (!eligibility.eligible) {
+        throw new Error(eligibility.reason);
     }
     
     // Check if subscription already has a recurring booking
-    const existingBooking = await this.findBySubscriptionId(subscriptionId);
-    if (existingBooking) {
+    const hasExistingBooking = await Subscription.hasActiveRecurringBooking(subscriptionId);
+    if (hasExistingBooking) {
         throw new Error('Subscription already has a recurring booking');
     }
     
