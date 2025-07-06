@@ -5,6 +5,7 @@ const { Instructor } = require('./Instructor');
 const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
 const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
+const { RecurringBooking, setupAssociations: setupRecurringBookingAssociations } = require('./RecurringBooking');
 const runSeeds = require('../seeds');
 
 // Define associations
@@ -28,11 +29,13 @@ const models = {
     PaymentPlan,
     Instructor,
     InstructorAvailability,
-    Transactions
+    Transactions,
+    RecurringBooking
 };
 
 setupUserAssociations(models);
 setupSubscriptionAssociations(models);
+setupRecurringBookingAssociations(models);
 
 // Initialize all models
 const initModels = async () => {
@@ -57,5 +60,6 @@ module.exports = {
     InstructorAvailability,
     PaymentPlan,
     Transactions,
-    Subscription
+    Subscription,
+    RecurringBooking
 }; 

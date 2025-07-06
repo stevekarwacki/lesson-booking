@@ -8,6 +8,7 @@ const calendarRoutes = require('./routes/calendar');
 const paymentsRoutes = require('./routes/payments');
 const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
 const subscriptionsRoutes = require('./routes/subscriptions');
+const recurringBookingsRoutes = require('./routes/recurringBookings');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 const { publishableKey } = require('./config/stripe');
 
@@ -34,6 +35,7 @@ app.use('/api/calendar', authMiddleware, calendarRoutes);
 app.use('/api/payments', authMiddleware, paymentsRoutes);
 app.use('/api/availability', authMiddleware, instructorAvailabilityRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
+app.use('/api/recurring-bookings', authMiddleware, recurringBookingsRoutes);
 
 // Catch all route for Vue app
 app.get('*', (req, res) => {
