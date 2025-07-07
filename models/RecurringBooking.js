@@ -94,12 +94,27 @@ RecurringBooking.checkCalendarConflicts = async function(instructorId, dayOfWeek
     const { Calendar } = require('./Calendar');
     const { Op } = require('sequelize');
     
+    // Get database dialect-specific day of week extraction
+    const dialect = sequelize.getDialect();
+    let dayOfWeekExpression;
+    
+    if (dialect === 'sqlite') {
+        // SQLite uses strftime
+        dayOfWeekExpression = `CAST(strftime('%w', date) AS INTEGER)`;
+    } else if (dialect === 'postgres') {
+        // PostgreSQL uses EXTRACT
+        dayOfWeekExpression = `EXTRACT(DOW FROM date)`;
+    } else {
+        // Default to PostgreSQL syntax for other databases (MySQL also supports EXTRACT)
+        dayOfWeekExpression = `EXTRACT(DOW FROM date)`;
+    }
+    
     const conflictingEvents = await Calendar.findAll({
         where: {
             instructor_id: instructorId,
             // Check if any existing events on the same day of week conflict
             [Op.and]: [
-                sequelize.literal(`CAST(strftime('%w', date) AS INTEGER) = ${dayOfWeek}`),
+                sequelize.literal(`${dayOfWeekExpression} = ${dayOfWeek}`),
                 {
                     // Check for time slot overlap
                     [Op.or]: [
@@ -129,10 +144,15 @@ RecurringBooking.checkCalendarConflicts = async function(instructorId, dayOfWeek
     });
     
     if (conflictingEvents.length > 0) {
-        const conflictDetails = conflictingEvents.map(event => 
-            `${event.date} at slot ${event.start_slot} (${event.student ? event.student.name : 'Blocked time'})`
-        ).join(', ');
-        throw new Error(`Time slot conflicts with existing bookings: ${conflictDetails}`);
+        const conflictDetails = conflictingEvents.map(event => {
+            const hours24 = Math.floor(event.start_slot/4);
+            const minutes = (event.start_slot%4)*15;
+            const hours12 = hours24 % 12 || 12; // Convert to 12-hour format
+            const period = hours24 >= 12 ? 'PM' : 'AM';
+            const timeStr = `${hours12}:${String(minutes).padStart(2,'0')} ${period}`;
+            return `${event.date} at ${timeStr}`;
+        }).join(', ');
+        throw new Error(`Time slot conflicts with existing bookings on: ${conflictDetails}`);
     }
 };
 

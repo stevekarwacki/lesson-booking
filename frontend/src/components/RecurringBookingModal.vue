@@ -11,11 +11,13 @@
                     Loading...
                 </div>
 
-                <div v-else-if="error" class="form-message error-message">
-                    {{ error }}
-                </div>
-
                 <div v-else>
+                    <!-- Error Message (shown at top, doesn't hide content) -->
+                    <div v-if="error" class="form-message error-message">
+                        <button class="error-dismiss" @click="clearError" title="Dismiss">&times;</button>
+                        {{ error }}
+                    </div>
+
                     <!-- Current recurring booking info (if editing) -->
                     <div v-if="isEditing && existingBooking" class="current-booking-info">
                         <h3>Current Weekly Schedule</h3>
@@ -39,7 +41,7 @@
                                 :key="instructor.id" 
                                 :value="instructor.id"
                             >
-                                {{ instructor.name }}
+                                {{ instructor.User.name }}
                             </option>
                         </select>
                     </div>
@@ -193,11 +195,13 @@ const handleInstructorChange = () => {
     selectedDay.value = ''
     selectedSlot.value = null
     availableSlots.value = []
+    error.value = null
 }
 
 // Handle day change
 const handleDayChange = async () => {
     selectedSlot.value = null
+    error.value = null
     if (selectedInstructor.value && selectedDay.value !== '') {
         await fetchAvailability()
     }
@@ -255,6 +259,7 @@ const fetchAvailability = async () => {
 // Select a time slot
 const selectSlot = (slot) => {
     selectedSlot.value = slot
+    error.value = null
 }
 
 // Confirm the recurring booking
@@ -310,6 +315,10 @@ const confirmRecurringBooking = async () => {
     } finally {
         processing.value = false
     }
+}
+
+const clearError = () => {
+    error.value = null
 }
 
 onMounted(() => {
@@ -502,6 +511,19 @@ onMounted(() => {
     background: #fee;
     color: #c53030;
     border: 1px solid #feb2b2;
+}
+
+.error-dismiss {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    float: right;
+}
+
+.error-dismiss:hover {
+    color: var(--text-primary);
 }
 
 @media (max-width: 768px) {
