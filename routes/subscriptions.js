@@ -165,6 +165,28 @@ router.post('/cancel', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Subscription not found' });
         }
 
+        // Check if subscription is already canceled
+        if (subscription.status === 'canceled') {
+            return res.status(400).json({ error: 'Subscription is already canceled' });
+        }
+
+        // Calculate prorated credits before cancellation
+        const creditCalculation = await Subscription.calculateProratedCredits(subscriptionId);
+        
+        // Award prorated credits if eligible
+        let creditsAwarded = 0;
+        if (creditCalculation.eligible && creditCalculation.credits > 0) {
+            await Credits.addCredits(req.user.id, creditCalculation.credits);
+            creditsAwarded = creditCalculation.credits;
+        }
+
+        // Clean up recurring bookings before canceling subscription
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
+        if (recurringBooking) {
+            await recurringBooking.destroy();
+        }
+
         // Cancel subscription in Stripe
         const stripeSubscription = await cancelSubscription(subscription.stripe_subscription_id);
 
@@ -177,9 +199,152 @@ router.post('/cancel', authMiddleware, async (req, res) => {
         // Record subscription event
         await SubscriptionEvent.recordEvent(subscription.id, 'subscription.canceled', stripeSubscription);
 
-        res.json({ success: true });
+        res.json({ 
+            success: true, 
+            message: 'Subscription canceled successfully',
+            cancellation: {
+                subscriptionId: subscription.id,
+                canceledAt: new Date(),
+                stripeStatus: stripeSubscription.status
+            },
+            credits: {
+                awarded: creditsAwarded,
+                calculation: creditCalculation,
+                recurringBookingCleaned: !!recurringBooking
+            }
+        });
     } catch (error) {
         console.error('Error canceling subscription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Preview prorated credits for subscription cancellation (without actually canceling)
+router.get('/preview-cancellation/:subscriptionId', authMiddleware, async (req, res) => {
+    try {
+        const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        
+        // Get subscription from database with payment plan details
+        const subscription = await Subscription.findOne({
+            where: {
+                id: subscriptionId,
+                user_id: req.user.id
+            },
+            include: [{
+                model: PaymentPlan,
+                attributes: ['id', 'name', 'type', 'price', 'duration_days']
+            }]
+        });
+
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+
+        // Check if subscription is already canceled
+        if (subscription.status === 'canceled') {
+            return res.status(400).json({ error: 'Subscription is already canceled' });
+        }
+
+        // Get current user credits
+        const currentCredits = await Credits.getUserCredits(req.user.id);
+
+        // Check for existing recurring booking
+        const { RecurringBooking } = require('../models/RecurringBooking');
+        const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
+
+        // Calculate prorated credits
+        const creditCalculation = await Subscription.calculateProratedCredits(subscriptionId);
+
+        // Calculate what the user's credits will be after cancellation
+        const creditsAfterCancellation = currentCredits.total_credits + (creditCalculation.eligible ? creditCalculation.credits : 0);
+
+        res.json({
+            subscription: {
+                id: subscription.id,
+                status: subscription.status,
+                created_at: subscription.created_at,
+                current_period_start: subscription.current_period_start,
+                current_period_end: subscription.current_period_end,
+                plan: subscription.PaymentPlan
+            },
+            currentCredits: {
+                total: currentCredits.total_credits,
+                nextExpiry: currentCredits.next_expiry
+            },
+            cancellationPreview: {
+                creditsToBeAwarded: creditCalculation.eligible ? creditCalculation.credits : 0,
+                creditsAfterCancellation,
+                creditCalculation,
+                hasRecurringBooking: !!recurringBooking,
+                recurringBookingDetails: recurringBooking ? {
+                    dayOfWeek: recurringBooking.day_of_week,
+                    startSlot: recurringBooking.start_slot,
+                    duration: recurringBooking.duration
+                } : null
+            },
+            warnings: {
+                recurringBookingWillBeCanceled: !!recurringBooking,
+                immediateCancel: true,
+                noRefundsToPaymentMethod: true
+            }
+        });
+    } catch (error) {
+        console.error('Error calculating prorated credits:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get cancellation details for a canceled subscription
+router.get('/cancellation-details/:subscriptionId', authMiddleware, async (req, res) => {
+    try {
+        const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        
+        // Get subscription from database with payment plan details
+        const subscription = await Subscription.findOne({
+            where: {
+                id: subscriptionId,
+                user_id: req.user.id
+            },
+            include: [{
+                model: PaymentPlan,
+                attributes: ['id', 'name', 'type', 'price', 'duration_days']
+            }]
+        });
+
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+
+        if (subscription.status !== 'canceled') {
+            return res.status(400).json({ error: 'Subscription is not canceled' });
+        }
+
+        // Get the most recent cancellation event
+        const cancellationEvent = await SubscriptionEvent.findOne({
+            where: {
+                subscription_id: subscriptionId,
+                event_type: 'subscription.canceled'
+            },
+            order: [['created_at', 'DESC']]
+        });
+
+        res.json({
+            subscription: {
+                id: subscription.id,
+                status: subscription.status,
+                created_at: subscription.created_at,
+                canceled_at: subscription.canceled_at,
+                current_period_start: subscription.current_period_start,
+                current_period_end: subscription.current_period_end,
+                plan: subscription.PaymentPlan
+            },
+            cancellationEvent: cancellationEvent ? {
+                canceled_at: cancellationEvent.created_at,
+                event_details: cancellationEvent.event_data
+            } : null
+        });
+    } catch (error) {
+        console.error('Error fetching cancellation details:', error);
         res.status(500).json({ error: error.message });
     }
 });
