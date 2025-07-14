@@ -1,8 +1,8 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { Vue3Mq } from 'vue3-mq'
-import './style.css'
 import './assets/main.css'
+import './style.css'
 import App from './App.vue'
 import router from './router'
 

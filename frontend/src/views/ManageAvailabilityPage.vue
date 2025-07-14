@@ -40,6 +40,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
+import { fetchInstructors as fetchInstructorsHelper, fetchInstructorId as fetchInstructorIdHelper } from '../utils/fetchHelper'
 
 const userStore = useUserStore()
 const error = ref('')
@@ -70,21 +71,20 @@ const fetchInstructors = async () => {
         loading.value = true;
         error.value = null;
         
-        const response = await fetch('/api/instructors', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
+        const result = await fetchInstructorsHelper(userStore.token, {
+            onError: (errorMessage, err) => {
+                error.value = errorMessage;
             }
         });
         
-        if (!response.ok) {
-            throw new Error('Failed to fetch instructors');
-        }
+        instructors.value = result.instructors;
         
-        const data = await response.json();
-        instructors.value = data;
+        // Auto-select if only one instructor exists
+        if (result.selectedInstructor) {
+            selectedInstructorId.value = result.selectedInstructor.id;
+        }
     } catch (err) {
-        error.value = 'Error fetching instructors: ' + err.message;
-        console.error('Error fetching instructors:', err);
+        // Error already handled in the helper
     } finally {
         loading.value = false;
     }
@@ -95,21 +95,15 @@ const fetchInstructorId = async () => {
         loading.value = true;
         error.value = null;
         
-        const response = await fetch(`/api/instructors/user/${userStore.user.id}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
+        const result = await fetchInstructorIdHelper(userStore.user.id, userStore.token, {
+            onError: (errorMessage, err) => {
+                error.value = errorMessage;
             }
         });
         
-        if (!response.ok) {
-            throw new Error('Failed to fetch instructor information');
-        }
-        
-        const instructor = await response.json();
-        instructorId.value = instructor.id;
+        instructorId.value = result;
     } catch (err) {
-        error.value = 'Error fetching instructor information: ' + err.message;
-        console.error('Error fetching instructor information:', err);
+        // Error already handled in the helper
     } finally {
         loading.value = false;
     }

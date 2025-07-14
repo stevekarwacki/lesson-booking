@@ -67,7 +67,7 @@
                     </div>
 
                     <!-- Time Selection -->
-                    <div class="form-group" v-if="selectedInstructor && selectedDay !== ''">
+                    <div class="form-group mb-0" v-if="selectedInstructor && selectedDay !== ''">
                         <label class="form-label">Select Time:</label>
                         <div v-if="loadingAvailability" class="loading-state">
                             Loading available times...
@@ -118,6 +118,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
+import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
 const props = defineProps({
     subscription: {
@@ -168,23 +169,27 @@ const getDayName = (dayValue) => {
 const fetchInstructors = async () => {
     try {
         loading.value = true
-        const response = await fetch('/api/instructors', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        if (!response.ok) throw new Error('Failed to fetch instructors')
         
-        instructors.value = await response.json()
+        const result = await fetchInstructorsHelper(userStore.token, {
+            onError: (errorMessage, err) => {
+                error.value = errorMessage;
+            }
+        });
+        
+        instructors.value = result.instructors;
         
         // If editing, pre-select the current instructor
         if (isEditing.value && props.existingBooking) {
             selectedInstructor.value = props.existingBooking.instructor_id
             selectedDay.value = props.existingBooking.day_of_week
+            // Manually fetch availability after setting both values to avoid race condition
+            await fetchAvailability()
+        } else if (result.selectedInstructor) {
+            // Auto-select if only one instructor exists (when not editing)
+            selectedInstructor.value = result.selectedInstructor.id
         }
     } catch (err) {
-        error.value = 'Error fetching instructors: ' + err.message
-        console.error(err)
+        // Error already handled in the helper
     } finally {
         loading.value = false
     }
@@ -375,12 +380,7 @@ onMounted(() => {
     color: var(--text-primary);
 }
 
-.modal-body {
-    padding: var(--spacing-lg);
-}
-
 .modal-footer {
-    padding: var(--spacing-lg);
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
@@ -401,10 +401,6 @@ onMounted(() => {
 
 .current-booking-info p {
     margin: var(--spacing-xs) 0;
-}
-
-.form-group {
-    margin-bottom: var(--spacing-lg);
 }
 
 .form-label {
@@ -431,6 +427,7 @@ onMounted(() => {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: var(--spacing-sm);
+    padding-right: 10px;
     max-height: 300px;
     overflow-y: auto;
 }

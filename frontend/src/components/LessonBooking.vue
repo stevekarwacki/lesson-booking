@@ -31,6 +31,7 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import InstructorCalendar from './InstructorCalendar.vue'
+import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
 const userStore = useUserStore()
 const instructors = ref([])
@@ -40,21 +41,20 @@ const selectedInstructor = ref({})
 // Fetch instructors
 const fetchInstructors = async () => {
     try {
-        const response = await fetch('/api/instructors', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
+        const result = await fetchInstructorsHelper(userStore.token, {
+            onError: (errorMessage, err) => {
+                error.value = 'Error fetching instructors';
             }
-        })
-        if (!response.ok) throw new Error('Failed to fetch instructors')
+        });
         
-        instructors.value = await response.json()
+        instructors.value = result.instructors;
+        
         // Set the first instructor as default if there's only one
-        if (instructors.value.length === 1) {
-            selectedInstructor.value = instructors.value[0]
+        if (result.selectedInstructor) {
+            selectedInstructor.value = result.selectedInstructor;
         }
     } catch (err) {
-        error.value = 'Error fetching instructors'
-        console.error(err)
+        // Error already handled in the helper
     }
 }
 

@@ -212,7 +212,6 @@ const handleTimeSlotClick = (cellData) => {
 
 .time-slot.booked {
     background-color: var(--primary-color);
-    opacity: 0.5;
     cursor: pointer;
 }
 

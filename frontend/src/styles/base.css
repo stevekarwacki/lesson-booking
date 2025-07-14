@@ -51,11 +51,3 @@ a {
 a:hover {
   color: var(--primary-dark);
 }
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  body {
-    color: var(--text-light);
-    background-color: var(--background-dark);
-  }
-} 

@@ -319,7 +319,7 @@ const updateBooking = async () => {
 .modal-footer {
     display: flex;
     gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
+    margin-top: var(--spacing-sm);
     justify-content: flex-end;
 }
 
