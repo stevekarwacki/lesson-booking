@@ -56,11 +56,20 @@ async function createSubscription(customerId, priceId, metadata = {}) {
 // Helper function to cancel a subscription
 async function cancelSubscription(subscriptionId) {
     try {
-        // Always cancel immediately
+        // First, check the current subscription status
+        const currentSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        
+        // If already canceled, return it as-is
+        if (currentSubscription.status === 'canceled') {
+            console.log('Subscription already canceled in Stripe:', subscriptionId);
+            return currentSubscription;
+        }
+        
+        // Cancel if not already canceled
         const subscription = await stripe.subscriptions.cancel(subscriptionId);
         return subscription;
     } catch (error) {
-        console.error('Error canceling subscription:', error);
+        console.error('Error handling subscription cancellation:', error);
         throw error;
     }
 }

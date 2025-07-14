@@ -216,29 +216,39 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
         };
     }
 
-    // Calculate prorated amount
+    // Calculate remaining billing period details
     const periodStart = new Date(subscription.current_period_start);
-    const totalPeriodDays = Math.ceil((periodEnd - periodStart) / (24 * 60 * 60 * 1000));
-    const remainingDays = Math.ceil((periodEnd - now) / (24 * 60 * 60 * 1000));
-    const proratedPercentage = remainingDays / totalPeriodDays;
-    const proratedAmount = parseFloat(plan.price) * proratedPercentage;
+    const totalBillingDays = Math.ceil((periodEnd - periodStart) / (24 * 60 * 60 * 1000));
+    const remainingBillingDays = Math.ceil((periodEnd - now) / (24 * 60 * 60 * 1000));
+    const unusedPercentage = Math.round((remainingBillingDays / totalBillingDays) * 100) / 100;
+    const monetaryValueUnused = Math.round((parseFloat(plan.price) * unusedPercentage) * 100) / 100;
 
-    // Convert prorated amount to credits
-    // For memberships, we'll calculate credits based on a standard rate
-    // Assumption: $1 = 1 credit (adjust this ratio as needed for your business model)
-    const creditRate = 1.0; // $1 = 1 credit
-    const proratedCredits = Math.floor(proratedAmount / creditRate);
+    // Calculate lesson credit compensation
+    // Membership business model: 1 monthly membership = 4 weekly lessons
+    // Credit compensation: 1 credit per unused weekly lesson opportunity
+    const weeklyLessonsPerMonth = 4;
+    const unusedWeeklyLessons = Math.ceil(remainingBillingDays / 7);
+    const creditCompensation = Math.min(unusedWeeklyLessons, weeklyLessonsPerMonth);
 
     return {
         eligible: true,
         reason: 'Subscription eligible for prorated credit compensation',
-        credits: proratedCredits,
+        credits: creditCompensation,
         calculation: {
-            totalPeriodDays,
-            remainingDays,
-            proratedPercentage: Math.round(proratedPercentage * 100) / 100,
-            proratedAmount: Math.round(proratedAmount * 100) / 100,
-            creditRate
+            billingPeriod: {
+                totalDays: totalBillingDays,
+                remainingDays: remainingBillingDays,
+                unusedPercentage: unusedPercentage
+            },
+            monetaryValue: {
+                unusedAmount: monetaryValueUnused
+            },
+            lessonCredits: {
+                weeklyLessonsPerMonth,
+                unusedWeeklyLessons,
+                creditCompensation,
+                reasoning: 'One credit per unused weekly lesson opportunity'
+            }
         }
     };
 };

@@ -48,6 +48,13 @@
                         </button>
                     </div>
                 </div>
+                
+                <!-- Subscription Management Actions -->
+                <div class="subscription-actions">
+                    <button class="form-button form-button-danger" @click="openCancellationModal(subscription)">
+                        Cancel Subscription
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -87,6 +94,70 @@
             @close="closeRecurringModal"
             @booking-confirmed="handleRecurringBookingConfirmed"
         />
+
+        <!-- Subscription Cancellation Modal -->
+        <div v-if="showCancellationModal" class="modal-overlay" @click="closeCancellationModal">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>Cancel Subscription</h3>
+                    <button class="modal-close" @click="closeCancellationModal">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div v-if="!cancellationPreview" class="loading-state">
+                        <p>Loading cancellation details...</p>
+                    </div>
+                    
+                    <div v-else-if="!cancellationPreview.cancellationPreview.creditCalculation.eligible" class="cancellation-ineligible">
+                        <p class="error-message">{{ cancellationPreview.cancellationPreview.creditCalculation.reason }}</p>
+                    </div>
+                    
+                    <div v-else class="cancellation-details">
+                        <div class="subscription-summary">
+                            <h4>{{ cancellationPreview.subscription.plan.name }}</h4>
+                            <p>Monthly cost: ${{ cancellationPreview.subscription.plan.price }}</p>
+                            <p>Current period: {{ formatDate(cancellationPreview.subscription.current_period_start) }} - {{ formatDate(cancellationPreview.subscription.current_period_end) }}</p>
+                        </div>
+                        
+                        <div class="credit-compensation">
+                            <h4>Credit Compensation</h4>
+                            <p>Current credits: {{ cancellationPreview.currentCredits.total }}</p>
+                            <p>Credits to be awarded: <strong>{{ cancellationPreview.cancellationPreview.creditsToBeAwarded }}</strong></p>
+                            <p>Total credits after cancellation: <strong>{{ cancellationPreview.cancellationPreview.creditsAfterCancellation }}</strong></p>
+                        </div>
+                        
+                        <div v-if="cancellationPreview.cancellationPreview.hasRecurringBooking" class="warning-section">
+                            <h4>⚠️ Important Notice</h4>
+                            <p>Your weekly recurring lesson will be canceled:</p>
+                            <p><strong>{{ getDayName(cancellationPreview.cancellationPreview.recurringBookingDetails.dayOfWeek) }}</strong> at <strong>{{ formatTime(slotToTime(cancellationPreview.cancellationPreview.recurringBookingDetails.startSlot)) }}</strong></p>
+                        </div>
+                        
+                        <div class="cancellation-warnings">
+                            <ul>
+                                <li>Subscription will be canceled immediately</li>
+                                <li>No refunds will be issued to your payment method</li>
+                                <li>You will receive lesson credits as compensation</li>
+                                <li v-if="cancellationPreview.cancellationPreview.hasRecurringBooking">Your weekly lesson schedule will be removed</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button class="form-button form-button-secondary" @click="closeCancellationModal" :disabled="cancelling">
+                        Keep Subscription
+                    </button>
+                    <button 
+                        v-if="cancellationPreview?.cancellationPreview?.creditCalculation?.eligible"
+                        class="form-button form-button-danger" 
+                        @click="confirmCancellation"
+                        :disabled="cancelling"
+                    >
+                        {{ cancelling ? 'Cancelling...' : 'Confirm Cancellation' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -111,6 +182,11 @@ const error = ref(null)
 const showRecurringModal = ref(false)
 const selectedSubscription = ref(null)
 const selectedRecurringBooking = ref(null)
+
+// Cancellation modal state
+const showCancellationModal = ref(false)
+const cancellationPreview = ref(null)
+const cancelling = ref(false)
 
 const lessonPlans = computed(() => allPlans.value.filter(plan => plan.type === 'one-time'))
 const membershipPlans = computed(() => allPlans.value.filter(plan => plan.type === 'membership'))
@@ -300,6 +376,75 @@ const deleteRecurringBooking = async (recurringBookingId) => {
     }
 }
 
+// Cancellation modal management
+const openCancellationModal = async (subscription) => {
+    cancelling.value = false;
+    showCancellationModal.value = true;
+    try {
+        const response = await fetch(`/api/subscriptions/preview-cancellation/${subscription.id}`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to fetch cancellation preview');
+        }
+
+        cancellationPreview.value = await response.json();
+    } catch (err) {
+        error.value = 'Error fetching cancellation preview: ' + err.message;
+        console.error('Error fetching cancellation preview:', err);
+        cancellationPreview.value = null;
+    }
+};
+
+const closeCancellationModal = () => {
+    showCancellationModal.value = false;
+    cancellationPreview.value = null;
+};
+
+const confirmCancellation = async () => {
+    if (!cancellationPreview.value?.cancellationPreview?.creditCalculation?.eligible) {
+        alert('Cancellation is not eligible based on your current plan and credits.');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to cancel your subscription? This action cannot be undone.')) {
+        return;
+    }
+
+    cancelling.value = true;
+    try {
+        const response = await fetch('/api/subscriptions/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
+            },
+            body: JSON.stringify({
+                subscriptionId: cancellationPreview.value.subscription.id
+            })
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to cancel subscription');
+        }
+
+        const result = await response.json();
+        alert(`Your subscription has been cancelled successfully! You received ${result.credits.awarded} lesson credits as compensation.`);
+        closeCancellationModal();
+        await refreshData(); // Refresh all data
+    } catch (err) {
+        error.value = 'Error cancelling subscription: ' + err.message;
+        console.error('Error cancelling subscription:', err);
+    } finally {
+        cancelling.value = false;
+    }
+};
+
 const refreshData = async () => {
     await Promise.all([
         fetchCredits(),
@@ -482,6 +627,13 @@ h3 {
     margin: 0 0 var(--spacing-md) 0;
 }
 
+.subscription-actions {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    text-align: right;
+}
+
 .form-button {
     padding: var(--spacing-sm) var(--spacing-md);
     border: none;
@@ -525,6 +677,136 @@ h3 {
     background: #b91c1c;
 }
 
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-light);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--secondary-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.loading-state, .cancellation-ineligible, .cancellation-details, .credit-compensation, .warning-section, .cancellation-warnings {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-light);
+    margin-bottom: var(--spacing-md);
+}
+
+.error-message {
+    color: #dc2626;
+    font-weight: bold;
+    margin-bottom: var(--spacing-sm);
+}
+
+.cancellation-details h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+}
+
+.cancellation-details p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+}
+
+.credit-compensation h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+}
+
+.credit-compensation p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+}
+
+.warning-section h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: #f59e0b; /* Warning color */
+}
+
+.warning-section p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+}
+
+.cancellation-warnings ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.cancellation-warnings li {
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-secondary);
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+    background: var(--background-light);
+}
+
+.modal-footer .form-button {
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
 @media (max-width: 768px) {   
     .balance-info {
         flex-direction: column;
@@ -547,6 +829,25 @@ h3 {
     }
     
     .form-button {
+        width: 100%;
+    }
+
+    .subscription-actions {
+        text-align: center;
+        margin-top: var(--spacing-md);
+    }
+
+    .modal-content {
+        width: 95%;
+        margin: var(--spacing-sm);
+    }
+
+    .modal-footer {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .modal-footer .form-button {
         width: 100%;
     }
 }
