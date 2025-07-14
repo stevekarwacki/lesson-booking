@@ -7,11 +7,9 @@
             </div>
             
             <div class="card-body">
-                <p class="price">${{ plan.price }}</p>
-                <p class="credits">{{ plan.credits }} Lesson Credits</p>
-                <p v-if="plan.type === 'membership'" class="duration">
-                    {{ plan.duration_days }} days
-                </p>
+                <p class="price">${{ plan.price }}{{ plan.type === 'membership' ? ' / month' : '' }}</p>
+                <p v-if="plan.type === 'one-time'" class="credits">{{ plan.credits }} Lesson Credits</p>
+                <p v-if="plan.type === 'membership'" class="membership-benefit">Enables weekly recurring lessons</p>
                 <p v-if="plan.description" class="description">
                     {{ plan.description }}
                 </p>
@@ -141,6 +139,12 @@ const emit = defineEmits(['purchase-success'])
 }
 
 .credits {
+    font-size: var(--font-size-lg);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.membership-benefit {
     font-size: var(--font-size-lg);
     color: var(--text-primary);
     margin: 0;

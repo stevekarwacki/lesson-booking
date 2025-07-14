@@ -68,8 +68,10 @@ PaymentPlan.purchase = async function(userId, planId, paymentMethod) {
         // Record the transaction
         await Transactions.recordTransaction(userId, plan.price, paymentMethod, 'completed', null, null, planId);
 
-        // Add credits
-        await Credits.addCredits(userId, plan.credits, expiryDate);
+        // Only add credits for one-time plans (lesson packages), not memberships
+        if (plan.type === 'one-time') {
+            await Credits.addCredits(userId, plan.credits, expiryDate);
+        }
 
         await transaction.commit();
         return { success: true };
