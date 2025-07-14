@@ -145,7 +145,7 @@
                 
                 <div class="modal-footer">
                     <button class="form-button form-button-secondary" @click="closeCancellationModal" :disabled="cancelling">
-                        Keep Subscription
+                        {{ cancellationPreview?.cancellationPreview?.creditCalculation?.alreadyCancelled ? 'Close' : 'Keep Subscription' }}
                     </button>
                     <button 
                         v-if="cancellationPreview?.cancellationPreview?.creditCalculation?.eligible"
@@ -393,6 +393,15 @@ const openCancellationModal = async (subscription) => {
         }
 
         cancellationPreview.value = await response.json();
+        
+        // Handle automatic sync during preview
+        if (cancellationPreview.value?.cancellationPreview?.creditCalculation?.wasSynced) {
+            // Sync happened automatically during preview - close modal and refresh
+            alert('Your subscription status has been synchronized. It was already cancelled in Stripe.');
+            closeCancellationModal();
+            await refreshData(); // Refresh all data to show updated status
+            return;
+        }
     } catch (err) {
         error.value = 'Error fetching cancellation preview: ' + err.message;
         console.error('Error fetching cancellation preview:', err);
@@ -434,7 +443,16 @@ const confirmCancellation = async () => {
         }
 
         const result = await response.json();
-        alert(`Your subscription has been cancelled successfully! You received ${result.credits.awarded} lesson credits as compensation.`);
+        
+        // Handle different success scenarios
+        if (result.cancellation.wasSyncIssue) {
+            alert('Your subscription status has been synchronized. It was already cancelled in Stripe.');
+        } else if (result.credits.awarded > 0) {
+            alert(`Your subscription has been cancelled successfully! You received ${result.credits.awarded} lesson credits as compensation.`);
+        } else {
+            alert('Your subscription has been cancelled successfully!');
+        }
+        
         closeCancellationModal();
         await refreshData(); // Refresh all data
     } catch (err) {

@@ -204,11 +204,37 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
     }
     */
 
-    const now = new Date();
+    // Get current subscription state from Stripe for accurate information
+    const { stripe } = require('../config/stripe');
+    let stripeSubscription;
+    try {
+        stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+    } catch (error) {
+        console.error('Error retrieving subscription from Stripe:', error);
+        throw new Error('Failed to retrieve subscription details from Stripe');
+    }
 
-    // Calculate remaining time in current billing period
-    const periodEnd = new Date(subscription.current_period_end);
-    if (now >= periodEnd) {
+    // Check if subscription is already cancelled in Stripe
+    if (stripeSubscription.status === 'canceled') {
+        return {
+            eligible: false,
+            reason: 'Your subscription has already been cancelled',
+            credits: 0,
+            alreadyCancelled: true,
+            cancelledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : null
+        };
+    }
+
+    const now = new Date();
+    let periodEnd, periodStart, effectiveEndTime;
+
+    // For active subscriptions, use current period dates
+    periodStart = new Date(subscription.current_period_start);
+    periodEnd = new Date(subscription.current_period_end);
+    effectiveEndTime = now;
+    
+    // Check if current billing period has ended for active subscriptions
+    if (effectiveEndTime >= periodEnd) {
         return {
             eligible: false,
             reason: 'Current billing period has already ended',
@@ -217,17 +243,19 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
     }
 
     // Calculate remaining billing period details
-    const periodStart = new Date(subscription.current_period_start);
     const totalBillingDays = Math.ceil((periodEnd - periodStart) / (24 * 60 * 60 * 1000));
-    const remainingBillingDays = Math.ceil((periodEnd - now) / (24 * 60 * 60 * 1000));
-    const unusedPercentage = Math.round((remainingBillingDays / totalBillingDays) * 100) / 100;
+    const remainingBillingDays = Math.ceil((periodEnd - effectiveEndTime) / (24 * 60 * 60 * 1000));
+    
+    // Ensure we don't have negative remaining days
+    const actualRemainingDays = Math.max(0, remainingBillingDays);
+    const unusedPercentage = Math.round((actualRemainingDays / totalBillingDays) * 100) / 100;
     const monetaryValueUnused = Math.round((parseFloat(plan.price) * unusedPercentage) * 100) / 100;
 
     // Calculate lesson credit compensation
     // Membership business model: 1 monthly membership = 4 weekly lessons
     // Credit compensation: 1 credit per unused weekly lesson opportunity
     const weeklyLessonsPerMonth = 4;
-    const unusedWeeklyLessons = Math.ceil(remainingBillingDays / 7);
+    const unusedWeeklyLessons = Math.ceil(actualRemainingDays / 7);
     const creditCompensation = Math.min(unusedWeeklyLessons, weeklyLessonsPerMonth);
 
     return {
@@ -237,7 +265,7 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
         calculation: {
             billingPeriod: {
                 totalDays: totalBillingDays,
-                remainingDays: remainingBillingDays,
+                remainingDays: actualRemainingDays,
                 unusedPercentage: unusedPercentage
             },
             monetaryValue: {
