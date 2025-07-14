@@ -54,11 +54,10 @@ async function createSubscription(customerId, priceId, metadata = {}) {
 }
 
 // Helper function to cancel a subscription
-async function cancelSubscription(subscriptionId, cancelAtPeriodEnd = true) {
+async function cancelSubscription(subscriptionId) {
     try {
-        const subscription = await stripe.subscriptions.update(subscriptionId, {
-            cancel_at_period_end: cancelAtPeriodEnd
-        });
+        // Always cancel immediately
+        const subscription = await stripe.subscriptions.cancel(subscriptionId);
         return subscription;
     } catch (error) {
         console.error('Error canceling subscription:', error);

@@ -168,9 +168,9 @@ router.post('/cancel', authMiddleware, async (req, res) => {
         // Cancel subscription in Stripe
         const stripeSubscription = await cancelSubscription(subscription.stripe_subscription_id);
 
-        // Update subscription in database
+        // Update subscription in database - immediate cancellation
         await subscription.update({
-            cancel_at_period_end: true,
+            status: 'canceled',
             canceled_at: new Date()
         });
 
