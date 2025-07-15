@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const { User } = require('../models/User');
 const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
+const { Subscription } = require('../models/Subscription');
 
 // Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
@@ -234,6 +235,114 @@ router.delete('/packages/:id', isAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error deleting payment plan:', error);
         res.status(500).json({ error: 'Error deleting payment plan' });
+    }
+});
+
+// Get user's subscription information for admin
+router.get('/users/:userId/subscription', isAdmin, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+        
+        // First, check if user exists
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Get all subscriptions for this user (not just active ones)
+        const allSubscriptions = await Subscription.findAll({
+            where: { user_id: userId },
+            order: [['created_at', 'DESC']]
+        });
+        
+        if (allSubscriptions.length === 0) {
+            return res.status(404).json({ error: 'No subscriptions found for this user' });
+        }
+        
+        // Get the most recent subscription
+        const subscription = allSubscriptions[0];
+        
+        // Get the payment plan separately
+        const paymentPlan = await PaymentPlan.findByPk(subscription.payment_plan_id);
+        if (!paymentPlan) {
+            return res.status(404).json({ error: 'Payment plan not found for subscription' });
+        }
+        
+        // Format subscription data for admin interface
+        const subscriptionData = {
+            id: subscription.id,
+            plan_name: paymentPlan.name,
+            status: subscription.status,
+            current_period_start: subscription.current_period_start,
+            current_period_end: subscription.current_period_end,
+            amount: paymentPlan.price * 100, // Convert to cents for display
+            interval: paymentPlan.duration_days > 30 ? 'month' : 'week',
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            created_at: subscription.created_at,
+            updated_at: subscription.updated_at
+        };
+        
+        res.json(subscriptionData);
+    } catch (error) {
+        console.error('Error fetching user subscription:', error);
+        res.status(500).json({ error: 'Error fetching user subscription' });
+    }
+});
+
+// Admin endpoint to cancel user subscription
+router.post('/subscriptions/:subscriptionId/cancel', isAdmin, async (req, res) => {
+    try {
+        const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'Invalid subscription ID' });
+        }
+        
+        const subscription = await Subscription.findByPk(subscriptionId);
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+        
+        // For now, redirect to the existing subscription cancellation endpoint
+        // This would need to be implemented with proper admin permissions
+        return res.status(501).json({ 
+            error: 'Admin subscription cancellation not yet implemented',
+            message: 'Use the regular subscription cancellation flow for now' 
+        });
+        
+    } catch (error) {
+        console.error('Error cancelling subscription:', error);
+        res.status(500).json({ error: 'Error cancelling subscription' });
+    }
+});
+
+// Admin endpoint to reactivate user subscription
+router.post('/subscriptions/:subscriptionId/reactivate', isAdmin, async (req, res) => {
+    try {
+        const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        
+        if (!subscriptionId) {
+            return res.status(400).json({ error: 'Invalid subscription ID' });
+        }
+        
+        const subscription = await Subscription.findByPk(subscriptionId);
+        if (!subscription) {
+            return res.status(404).json({ error: 'Subscription not found' });
+        }
+        
+        // For now, return not implemented
+        return res.status(501).json({ 
+            error: 'Admin subscription reactivation not yet implemented',
+            message: 'This feature will be implemented in a future update' 
+        });
+        
+    } catch (error) {
+        console.error('Error reactivating subscription:', error);
+        res.status(500).json({ error: 'Error reactivating subscription' });
     }
 });
 

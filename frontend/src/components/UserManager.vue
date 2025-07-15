@@ -11,6 +11,8 @@ const success = ref('')
 const showAddForm = ref(false)
 const showEditModal = ref(false)
 const editingUser = ref(null)
+const userSubscription = ref(null)
+const subscriptionLoading = ref(false)
 const loading = ref(true)
 
 // Computed property to safely get current user ID
@@ -116,13 +118,37 @@ const deleteUser = async (userId) => {
     }
 };
 
+const fetchUserSubscription = async (userId) => {
+    try {
+        subscriptionLoading.value = true
+        const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            userSubscription.value = await response.json()
+        } else {
+            userSubscription.value = null
+        }
+    } catch (err) {
+        console.error('Error fetching user subscription:', err)
+        userSubscription.value = null
+    } finally {
+        subscriptionLoading.value = false
+    }
+}
+
 const openEditModal = (user) => {
     editingUser.value = { ...user }
     showEditModal.value = true
+    fetchUserSubscription(user.id)
 }
 
 const closeEditModal = () => {
     editingUser.value = null
+    userSubscription.value = null
     showEditModal.value = false
 }
 
@@ -158,6 +184,61 @@ const saveUserEdit = async () => {
     } catch (err) {
         error.value = 'Error updating user: ' + err.message;
     }
+}
+
+const cancelUserSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel this user\'s subscription?')) {
+        return
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            success.value = 'Subscription cancelled successfully'
+            await fetchUserSubscription(editingUser.value.id)
+        } else {
+            const errorData = await response.json()
+            error.value = errorData.message || 'Failed to cancel subscription'
+        }
+    } catch (err) {
+        error.value = 'Error cancelling subscription: ' + err.message
+    }
+}
+
+const reactivateUserSubscription = async () => {
+    if (!confirm('Are you sure you want to reactivate this user\'s subscription?')) {
+        return
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/reactivate`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            success.value = 'Subscription reactivated successfully'
+            await fetchUserSubscription(editingUser.value.id)
+        } else {
+            const errorData = await response.json()
+            error.value = errorData.message || 'Failed to reactivate subscription'
+        }
+    } catch (err) {
+        error.value = 'Error reactivating subscription: ' + err.message
+    }
+}
+
+const createUserSubscription = () => {
+    // For now, show a message - this would require a more complex flow
+    alert('Creating subscriptions will be implemented in a future update. For now, users should create their own subscriptions through the normal flow.')
 }
 
 onMounted(async () => {
@@ -353,6 +434,90 @@ onMounted(async () => {
                     </div>
                 </form>
             </TabbedModalTab>
+
+            <TabbedModalTab label="Memberships">
+                <div class="memberships-tab">
+                    <div v-if="subscriptionLoading" class="loading-message">
+                        Loading subscription information...
+                    </div>
+                    
+                    <div v-else-if="userSubscription" class="subscription-info">
+                        <h4>Active Subscription</h4>
+                        
+                        <div class="subscription-details">
+                            <div class="info-group">
+                                <label class="info-label">Plan:</label>
+                                <span class="info-value">{{ userSubscription.plan_name }}</span>
+                            </div>
+                            
+                            <div class="info-group">
+                                <label class="info-label">Status:</label>
+                                <span :class="['status-badge', `status-${userSubscription.status}`]">
+                                    {{ userSubscription.status }}
+                                </span>
+                            </div>
+                            
+                            <div class="info-group">
+                                <label class="info-label">Next Billing:</label>
+                                <span class="info-value">
+                                    {{ new Date(userSubscription.current_period_end).toLocaleDateString() }}
+                                </span>
+                            </div>
+                            
+                            <div class="info-group">
+                                <label class="info-label">Amount:</label>
+                                <span class="info-value">
+                                    ${{ (userSubscription.amount / 100).toFixed(2) }} / {{ userSubscription.interval }}
+                                </span>
+                            </div>
+                            
+                            <div v-if="userSubscription.cancel_at_period_end" class="info-group">
+                                <label class="info-label">Cancellation:</label>
+                                <span class="info-value warning">
+                                    Will cancel at end of current period
+                                </span>
+                            </div>
+                            
+
+                        </div>
+                        
+                        <div class="subscription-actions">
+                            <button 
+                                v-if="!userSubscription.cancel_at_period_end && userSubscription.status === 'active'"
+                                type="button"
+                                class="form-button form-button-cancel"
+                                @click="cancelUserSubscription"
+                            >
+                                Cancel Subscription
+                            </button>
+                            
+                            <button 
+                                v-if="userSubscription.cancel_at_period_end"
+                                type="button"
+                                class="form-button"
+                                @click="reactivateUserSubscription"
+                            >
+                                Reactivate Subscription
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div v-else class="no-subscription">
+                        <h4>No Active Subscription</h4>
+                        <p>This user does not have an active subscription.</p>
+                        
+                        <div class="subscription-actions">
+                            <button 
+                                type="button"
+                                class="form-button"
+                                @click="createUserSubscription"
+                            >
+                                Create Subscription
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </TabbedModalTab>
         </TabbedModal>
     </div>
 </template>
@@ -462,5 +627,96 @@ select:disabled {
     margin-top: var(--spacing-xs);
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
+}
+
+.memberships-tab {
+    min-height: 200px;
+}
+
+.loading-message {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--text-secondary);
+}
+
+.subscription-info h4,
+.no-subscription h4 {
+    margin-bottom: var(--spacing-md);
+    color: var(--primary-color);
+}
+
+.subscription-details {
+    background: var(--background-hover);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+}
+
+.info-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-group:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.info-value {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.info-value.warning {
+    color: var(--error-color);
+    font-weight: 500;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.status-active {
+    background: var(--success-color);
+    color: white;
+}
+
+.status-cancelled,
+.status-canceled {
+    background: var(--error-color);
+    color: white;
+}
+
+.status-past_due {
+    background: #ffc107;
+    color: #212529;
+}
+
+.subscription-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+    margin-top: var(--spacing-md);
+}
+
+.no-subscription {
+    text-align: center;
+    padding: var(--spacing-lg);
+}
+
+.no-subscription p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
 }
 </style> 
