@@ -1,0 +1,286 @@
+/* TabbedModal Styles */
+.tabbed-modal {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabbed-modal .modal-header {
+  flex-shrink: 0;
+}
+
+.tabbed-modal .modal-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--background-light);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-shrink: 0;
+}
+
+.tab-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-button {
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-normal);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-family);
+}
+
+.tab-button:hover {
+  color: var(--text-primary);
+  background: var(--background-hover);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+  background: var(--background-light);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary-color);
+}
+
+.tab-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+/* Tab Content */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+/* Mobile Accordion Styles */
+.mobile-accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.primary-content {
+  padding: var(--spacing-md);
+  background: var(--background-light);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.accordion-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.accordion-section {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background: var(--background-light);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.accordion-header {
+  width: 100%;
+  padding: 1rem;
+  background: var(--background-light);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  min-height: 44px; /* Touch target */
+  transition: background var(--transition-normal);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.accordion-header:hover {
+  background: var(--background-hover);
+}
+
+.accordion-header:active {
+  background: var(--background-hover);
+  transform: scale(0.98);
+  transition: all 0.1s ease;
+}
+
+.accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.accordion-icon {
+  font-size: 1.2rem;
+  width: 1.2rem;
+  text-align: center;
+}
+
+.accordion-badge {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 1rem;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.accordion-toggle {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  transition: transform var(--transition-normal);
+  width: 1.2rem;
+  text-align: center;
+}
+
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--background-light);
+}
+
+.accordion-content.open {
+  max-height: 1000px;
+}
+
+.accordion-content > .tabbed-modal-tab {
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Responsive adjustments using vue3-mq breakpoints */
+@media (max-width: 575px) { /* xs breakpoint */
+  .tabbed-modal {
+    width: 95%;
+    margin: var(--spacing-sm);
+  }
+  
+  .tab-button {
+    padding: 0.75rem 1rem;
+    font-size: var(--font-size-sm);
+  }
+  
+  .primary-content {
+    padding: var(--spacing-sm);
+  }
+  
+  .accordion-content > .tabbed-modal-tab {
+    padding: var(--spacing-sm);
+  }
+  
+  .mobile-accordion-container {
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (min-width: 576px) and (max-width: 767px) { /* sm breakpoint */
+  .tab-navigation {
+    flex-wrap: wrap;
+  }
+  
+  .tab-button {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991px) { /* md breakpoint */
+  .tabbed-modal {
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 992px) { /* lg breakpoint */
+  .tabbed-modal {
+    max-width: 1000px;
+  }
+  
+  .tab-button {
+    padding: 1rem 2rem;
+  }
+  
+  .tab-content {
+    padding: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1200px) { /* xl breakpoint */
+  .tabbed-modal {
+    max-width: 1200px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .accordion-content {
+    transition: none;
+  }
+  
+  .accordion-header:active {
+    transform: none;
+  }
+  
+  .tab-button {
+    transition: none;
+  }
+}
+
+/* Focus states for accessibility */
+.tab-button:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.accordion-header:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Light theme styling for accordions */ 

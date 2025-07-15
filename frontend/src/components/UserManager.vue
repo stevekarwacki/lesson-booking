@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import TabbedModal from './TabbedModal.vue'
+import TabbedModalTab from './TabbedModalTab.vue'
 
 const userStore = useUserStore()
 const users = ref([])
@@ -286,22 +288,20 @@ onMounted(async () => {
         </div>
 
         <!-- Edit Modal -->
-        <div v-if="showEditModal" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Edit User</h3>
-                    <button class="modal-close" @click="closeEditModal">&times;</button>
-                </div>
-                
-                <div class="modal-body">
+        <TabbedModal :show="showEditModal" title="Edit User" @close="closeEditModal">
+            
+            <TabbedModalTab label="Profile" default>
+                <form @submit.prevent="saveUserEdit">
                     <div class="form-group">
                         <label class="form-label">Name:</label>
                         <input type="text" :value="editingUser?.name" disabled class="form-input" />
+                        <small class="form-text">Name cannot be changed from this interface</small>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Email:</label>
                         <input type="email" :value="editingUser?.email" disabled class="form-input" />
+                        <small class="form-text">Email cannot be changed from this interface</small>
                     </div>
                     
                     <div class="form-group">
@@ -327,25 +327,33 @@ onMounted(async () => {
                             Account Approved
                         </label>
                     </div>
-                </div>
-                
-                <div class="modal-footer">
-                    <button 
-                        type="button"
-                        class="form-button form-button-cancel"
-                        @click="closeEditModal"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        type="submit"
-                        class="form-button"
-                    >
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
+
+                    <div v-if="error" class="form-message error-message">
+                        {{ error }}
+                    </div>
+
+                    <div v-if="success" class="form-message success-message">
+                        {{ success }}
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button 
+                            type="button"
+                            class="form-button form-button-cancel"
+                            @click="closeEditModal"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            class="form-button"
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </TabbedModalTab>
+        </TabbedModal>
     </div>
 </template>
 
@@ -447,5 +455,12 @@ select:disabled {
     text-align: center;
     padding: var(--spacing-lg);
     color: var(--text-muted);
+}
+
+.form-text {
+    display: block;
+    margin-top: var(--spacing-xs);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
 </style> 
