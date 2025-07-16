@@ -14,6 +14,11 @@ const editingUser = ref(null)
 const userSubscription = ref(null)
 const subscriptionLoading = ref(false)
 const loading = ref(true)
+const showCreateSubscriptionModal = ref(false)
+const availablePlans = ref([])
+const selectedPlan = ref('')
+const adminNote = ref('')
+const creatingSubscription = ref(false)
 
 // Computed property to safely get current user ID
 const currentUserId = computed(() => userStore.user?.id)
@@ -261,9 +266,86 @@ const reactivateUserSubscription = async () => {
     }
 }
 
-const createUserSubscription = () => {
-    // For now, show a message - this would require a more complex flow
-    alert('Creating subscriptions will be implemented in a future update. For now, users should create their own subscriptions through the normal flow.')
+const createUserSubscription = async () => {
+    // Fetch available membership plans
+    try {
+        const response = await fetch('/api/payments/plans', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            const plans = await response.json()
+            availablePlans.value = plans.filter(plan => plan.type === 'membership')
+            
+            if (availablePlans.value.length === 0) {
+                error.value = 'No membership plans available for subscription creation'
+                return
+            }
+            
+            // Reset form
+            selectedPlan.value = ''
+            adminNote.value = ''
+            showCreateSubscriptionModal.value = true
+        } else {
+            error.value = 'Failed to fetch available plans'
+        }
+    } catch (err) {
+        error.value = 'Error fetching plans: ' + err.message
+    }
+}
+
+const closeCreateSubscriptionModal = () => {
+    showCreateSubscriptionModal.value = false
+    selectedPlan.value = ''
+    adminNote.value = ''
+}
+
+const confirmCreateSubscription = async () => {
+    if (!selectedPlan.value) {
+        error.value = 'Please select a plan'
+        return
+    }
+    
+    if (!confirm('Are you sure you want to create this subscription for the user?')) {
+        return
+    }
+    
+    creatingSubscription.value = true
+    
+    try {
+        const response = await fetch(`/api/admin/users/${editingUser.value.id}/subscription`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
+            },
+            body: JSON.stringify({
+                planId: selectedPlan.value,
+                note: adminNote.value
+            })
+        })
+        
+        if (response.ok) {
+            const result = await response.json()
+            success.value = `Subscription created successfully for ${editingUser.value.name}`
+            closeCreateSubscriptionModal()
+            await fetchUserSubscription(editingUser.value.id)
+        } else {
+            const errorData = await response.json()
+            error.value = errorData.error || 'Failed to create subscription'
+            
+            // Show helpful suggestions for common issues
+            if (errorData.suggestion) {
+                error.value += ` Suggestion: ${errorData.suggestion}`
+            }
+        }
+    } catch (err) {
+        error.value = 'Error creating subscription: ' + err.message
+    } finally {
+        creatingSubscription.value = false
+    }
 }
 
 onMounted(async () => {
@@ -514,7 +596,7 @@ onMounted(async () => {
                         
                         <div class="subscription-actions">
                             <button 
-                                v-if="!userSubscription.cancel_at_period_end && userSubscription.status === 'active'"
+                                v-if="!userSubscription.cancel_at_period_end && (userSubscription.status === 'active' || userSubscription.status === 'trialing')"
                                 type="button"
                                 class="form-button form-button-cancel"
                                 @click="cancelUserSubscription"
@@ -529,6 +611,15 @@ onMounted(async () => {
                                 @click="reactivateUserSubscription"
                             >
                                 Reactivate Subscription
+                            </button>
+                            
+                            <button 
+                                v-if="userSubscription.status === 'cancelled' || userSubscription.status === 'canceled'"
+                                type="button"
+                                class="form-button"
+                                @click="createUserSubscription"
+                            >
+                                Create New Subscription
                             </button>
                         </div>
                     </div>
@@ -550,6 +641,73 @@ onMounted(async () => {
                 </div>
             </TabbedModalTab>
         </TabbedModal>
+    </div>
+    
+    <!-- Create Subscription Modal -->
+    <div v-if="showCreateSubscriptionModal" class="modal-overlay" @click="closeCreateSubscriptionModal">
+        <div class="modal-content" @click.stop>
+            <div class="modal-header">
+                <h3>Create Subscription for {{ editingUser?.name }}</h3>
+                <button class="modal-close" @click="closeCreateSubscriptionModal">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="plan-select" class="form-label">Select Membership Plan:</label>
+                    <select 
+                        id="plan-select" 
+                        v-model="selectedPlan" 
+                        class="form-input"
+                        :disabled="creatingSubscription"
+                    >
+                        <option value="">Choose a plan...</option>
+                        <option 
+                            v-for="plan in availablePlans" 
+                            :key="plan.id" 
+                            :value="plan.id"
+                        >
+                            {{ plan.name }} - ${{ plan.price }}/month ({{ plan.duration_days }} days)
+                        </option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="admin-note" class="form-label">Admin Note (optional):</label>
+                    <textarea 
+                        id="admin-note"
+                        v-model="adminNote"
+                        class="form-input"
+                        placeholder="Enter a note about this subscription (e.g., 'Promotional membership', 'Instructor benefit', etc.)"
+                        rows="3"
+                        :disabled="creatingSubscription"
+                    ></textarea>
+                </div>
+                
+                <div class="subscription-info">
+                    <p class="info-text">
+                        <strong>Note:</strong> This will create a complimentary subscription for the user without requiring payment. 
+                        The subscription will be active immediately and will be tracked in Stripe as a trial subscription.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button 
+                    class="form-button form-button-secondary" 
+                    @click="closeCreateSubscriptionModal"
+                    :disabled="creatingSubscription"
+                >
+                    Cancel
+                </button>
+                <button 
+                    class="form-button" 
+                    @click="confirmCreateSubscription"
+                    :disabled="creatingSubscription || !selectedPlan"
+                >
+                    {{ creatingSubscription ? 'Creating...' : 'Create Subscription' }}
+                </button>
+            </div>
+        </div>
     </div>
 </template>
 

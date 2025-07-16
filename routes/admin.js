@@ -456,4 +456,184 @@ router.post('/subscriptions/:subscriptionId/reactivate', isAdmin, async (req, re
     }
 });
 
+// Admin endpoint to create user subscription (comped subscription)
+router.post('/users/:userId/subscription', isAdmin, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        const { planId, note } = req.body;
+        
+        if (!userId || !planId) {
+            return res.status(400).json({ error: 'User ID and plan ID are required' });
+        }
+        
+        // Get the user
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Get the plan
+        const plan = await PaymentPlan.findByPk(planId);
+        if (!plan) {
+            return res.status(404).json({ error: 'Payment plan not found' });
+        }
+        
+        // Only allow membership plans for admin-created subscriptions
+        if (plan.type !== 'membership') {
+            return res.status(400).json({ error: 'Only membership plans can be created by admin' });
+        }
+        
+        // Check if user already has an active subscription
+        const existingSubscription = await Subscription.findOne({
+            where: {
+                user_id: userId,
+                status: ['active', 'trialing']
+            }
+        });
+        
+        if (existingSubscription) {
+            return res.status(400).json({ 
+                error: 'User already has an active subscription',
+                suggestion: 'Cancel the existing subscription first, or wait for it to expire'
+            });
+        }
+        
+        // Import required modules
+        const { stripe } = require('../config/stripe');
+        const { SubscriptionEvent } = require('../models/SubscriptionEvent');
+        
+        // Create or get Stripe customer
+        let customer;
+        if (user.stripe_customer_id) {
+            try {
+                customer = await stripe.customers.retrieve(user.stripe_customer_id);
+            } catch (error) {
+                console.log('Stripe customer not found, creating new one');
+                customer = null;
+            }
+        }
+        
+        if (!customer) {
+            customer = await stripe.customers.create({
+                email: user.email,
+                name: user.name,
+                metadata: {
+                    userId: user.id,
+                    createdByAdmin: req.user.id,
+                    adminNote: note || 'Admin-created subscription'
+                }
+            });
+            
+            // Update user with Stripe customer ID
+            await User.update(
+                { stripe_customer_id: customer.id },
+                { where: { id: user.id } }
+            );
+        }
+        
+        // Create or get Stripe price
+        let price;
+        if (plan.stripe_price_id) {
+            try {
+                price = await stripe.prices.retrieve(plan.stripe_price_id);
+            } catch (error) {
+                console.log('Stripe price not found, creating new one');
+                price = null;
+            }
+        }
+        
+        if (!price) {
+            price = await stripe.prices.create({
+                unit_amount: Math.round(plan.price * 100),
+                currency: 'usd',
+                recurring: {
+                    interval: 'month'
+                },
+                product_data: {
+                    name: plan.name,
+                    metadata: {
+                        planId: plan.id
+                    }
+                }
+            });
+            
+            // Update plan with Stripe price ID
+            await PaymentPlan.update(
+                { stripe_price_id: price.id },
+                { where: { id: plan.id } }
+            );
+        }
+        
+        // Create subscription in Stripe with trial (comped subscription)
+        const trialEnd = Math.floor((Date.now() + (plan.duration_days * 24 * 60 * 60 * 1000)) / 1000);
+        
+        const stripeSubscription = await stripe.subscriptions.create({
+            customer: customer.id,
+            items: [{ price: price.id }],
+            trial_end: trialEnd,
+            metadata: {
+                createdByAdmin: req.user.id,
+                adminNote: note || 'Admin-created subscription',
+                planId: plan.id,
+                userId: user.id
+            }
+        });
+        
+        // Calculate period dates
+        const now = new Date();
+        const periodStart = now;
+        const periodEnd = new Date(now.getTime() + (plan.duration_days * 24 * 60 * 60 * 1000));
+        
+        // Create subscription record in database
+        const dbSubscription = await Subscription.createSubscription(
+            user.id,
+            plan.id,
+            stripeSubscription.id,
+            periodStart,
+            periodEnd
+        );
+        
+        // Update subscription status to trialing
+        await dbSubscription.update({
+            status: 'trialing'
+        });
+        
+        // Record subscription event
+        await SubscriptionEvent.recordEvent(dbSubscription.id, 'admin.subscription.created', {
+            ...stripeSubscription,
+            admin_user_id: req.user.id,
+            admin_user_name: req.user.name,
+            admin_note: note || 'Admin-created subscription',
+            subscription_type: 'comped',
+            trial_period_days: plan.duration_days
+        });
+        
+        console.log(`Admin ${req.user.name} (ID: ${req.user.id}) created subscription for user ${user.name} (ID: ${user.id}) with plan ${plan.name}`);
+        
+        res.status(201).json({
+            success: true,
+            message: 'Subscription created successfully',
+            subscription: {
+                id: dbSubscription.id,
+                userId: user.id,
+                userName: user.name,
+                planId: plan.id,
+                planName: plan.name,
+                status: 'trialing',
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                createdByAdmin: req.user.name,
+                note: note || 'Admin-created subscription'
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in admin subscription creation:', error);
+        res.status(500).json({ 
+            error: 'Failed to create subscription',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router; 
