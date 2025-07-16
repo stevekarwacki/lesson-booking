@@ -37,6 +37,10 @@
   box-sizing: border-box;
 }
 
+.form-input[type="checkbox"] {
+  width: auto;
+}
+
 .form-input:focus {
   outline: none;
   border-color: var(--primary-color);

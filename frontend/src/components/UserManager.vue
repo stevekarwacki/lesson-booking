@@ -375,27 +375,33 @@ onMounted(async () => {
                 <form @submit.prevent="saveUserEdit">
                     <div class="form-group">
                         <label class="form-label">Name:</label>
-                        <input type="text" :value="editingUser?.name" disabled class="form-input" />
-                        <small class="form-text">Name cannot be changed from this interface</small>
+                        <div class="form-input">
+                            <input type="text" :value="editingUser?.name" disabled class="form-input" />
+                            <small class="form-text">Name cannot be changed from this interface</small>
+                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Email:</label>
-                        <input type="email" :value="editingUser?.email" disabled class="form-input" />
-                        <small class="form-text">Email cannot be changed from this interface</small>
+                        <div class="form-input">
+                            <input type="email" :value="editingUser?.email" disabled class="form-input" />
+                            <small class="form-text">Email cannot be changed from this interface</small>
+                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label" for="editRole">Role:</label>
-                        <select 
-                            id="editRole"
-                            v-model="editingUser.role"
-                            class="form-input"
-                        >
-                            <option value="student">Student</option>
-                            <option value="instructor">Instructor</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                        <div class="form-input">
+                            <select 
+                                id="editRole"
+                                v-model="editingUser.role"
+                                class="form-input"
+                            >
+                                <option value="student">Student</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-group">
