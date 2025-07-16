@@ -297,26 +297,20 @@ router.get('/users/:userId/subscription', isAdmin, async (req, res) => {
 router.post('/subscriptions/:subscriptionId/cancel', isAdmin, async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
+        const { cancelSubscriptionService } = require('../services/subscriptionCancellation');
         
-        if (!subscriptionId) {
-            return res.status(400).json({ error: 'Invalid subscription ID' });
-        }
-        
-        const subscription = await Subscription.findByPk(subscriptionId);
-        if (!subscription) {
-            return res.status(404).json({ error: 'Subscription not found' });
-        }
-        
-        // For now, redirect to the existing subscription cancellation endpoint
-        // This would need to be implemented with proper admin permissions
-        return res.status(501).json({ 
-            error: 'Admin subscription cancellation not yet implemented',
-            message: 'Use the regular subscription cancellation flow for now' 
+        const result = await cancelSubscriptionService({
+            subscriptionId,
+            requestingUser: req.user,
+            isAdminAction: true
         });
         
+        res.json(result);
     } catch (error) {
-        console.error('Error cancelling subscription:', error);
-        res.status(500).json({ error: 'Error cancelling subscription' });
+        console.error('Error in admin subscription cancellation:', error);
+        res.status(500).json({ 
+            error: error.message || 'Failed to cancel subscription'
+        });
     }
 });
 
@@ -329,20 +323,136 @@ router.post('/subscriptions/:subscriptionId/reactivate', isAdmin, async (req, re
             return res.status(400).json({ error: 'Invalid subscription ID' });
         }
         
-        const subscription = await Subscription.findByPk(subscriptionId);
+        // Get subscription from database (admin can reactivate any subscription)
+        const subscription = await Subscription.findByPk(subscriptionId, {
+            include: [{
+                model: User,
+                attributes: ['id', 'name', 'email']
+            }]
+        });
+        
         if (!subscription) {
             return res.status(404).json({ error: 'Subscription not found' });
         }
         
-        // For now, return not implemented
-        return res.status(501).json({ 
-            error: 'Admin subscription reactivation not yet implemented',
-            message: 'This feature will be implemented in a future update' 
+        // Import required modules
+        const { stripe } = require('../config/stripe');
+        const { SubscriptionEvent } = require('../models/SubscriptionEvent');
+        
+        // Get current subscription state from Stripe
+        let stripeSubscription;
+        try {
+            stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+        } catch (error) {
+            console.error('Error retrieving subscription from Stripe:', error);
+            return res.status(500).json({ error: 'Failed to retrieve subscription from Stripe' });
+        }
+        
+        // Case 1: Subscription is active but set to cancel at period end
+        if (stripeSubscription.status === 'active' && stripeSubscription.cancel_at_period_end) {
+            // Remove the cancellation by updating the subscription in Stripe
+            const updatedSubscription = await stripe.subscriptions.update(
+                subscription.stripe_subscription_id,
+                {
+                    cancel_at_period_end: false,
+                    proration_behavior: 'none'
+                }
+            );
+            
+            // Update local database
+            await subscription.update({
+                status: 'active',
+                cancel_at_period_end: false,
+                canceled_at: null
+            });
+            
+            // Record subscription event with admin info
+            await SubscriptionEvent.recordEvent(subscription.id, 'admin.subscription.reactivated', {
+                ...updatedSubscription,
+                admin_user_id: req.user.id,
+                admin_user_name: req.user.name,
+                reactivation_type: 'removed_cancel_at_period_end'
+            });
+            
+            console.log(`Admin ${req.user.name} (ID: ${req.user.id}) reactivated subscription ${subscriptionId} for user ${subscription.User?.name} (ID: ${subscription.user_id}) - removed cancel at period end`);
+            
+            return res.json({
+                success: true,
+                message: 'Subscription reactivated successfully - removed scheduled cancellation',
+                reactivation: {
+                    subscriptionId: subscription.id,
+                    userId: subscription.user_id,
+                    userName: subscription.User?.name,
+                    reactivatedAt: new Date(),
+                    stripeStatus: updatedSubscription.status,
+                    reactivationType: 'removed_cancel_at_period_end',
+                    reactivatedByAdmin: req.user.name
+                }
+            });
+        }
+        
+        // Case 2: Subscription is active and not set to cancel
+        if (stripeSubscription.status === 'active' && !stripeSubscription.cancel_at_period_end) {
+            // Subscription is already active, just sync the database
+            await subscription.update({
+                status: 'active',
+                cancel_at_period_end: false,
+                canceled_at: null
+            });
+            
+            return res.json({
+                success: true,
+                message: 'Subscription is already active',
+                reactivation: {
+                    subscriptionId: subscription.id,
+                    userId: subscription.user_id,
+                    userName: subscription.User?.name,
+                    stripeStatus: stripeSubscription.status,
+                    reactivationType: 'already_active',
+                    syncedByAdmin: req.user.name
+                }
+            });
+        }
+        
+        // Case 3: Subscription is cancelled
+        if (stripeSubscription.status === 'canceled') {
+            // Cannot reactivate a fully cancelled subscription in Stripe
+            // The user would need to create a new subscription
+            return res.status(400).json({ 
+                error: 'Cannot reactivate a fully cancelled subscription',
+                message: 'Once a subscription is cancelled in Stripe, it cannot be reactivated. The user will need to create a new subscription.',
+                suggestion: 'Consider directing the user to purchase a new subscription instead.'
+            });
+        }
+        
+        // Case 4: Subscription is in incomplete, past_due, or other statuses
+        if (stripeSubscription.status === 'incomplete' || stripeSubscription.status === 'past_due') {
+            // Update local database to match Stripe status
+            await subscription.update({
+                status: stripeSubscription.status,
+                cancel_at_period_end: stripeSubscription.cancel_at_period_end || false
+            });
+            
+            return res.status(400).json({
+                error: `Subscription is in ${stripeSubscription.status} status`,
+                message: `The subscription is currently ${stripeSubscription.status} in Stripe. This typically requires payment method updates or manual intervention in Stripe.`,
+                suggestion: 'Check the subscription in Stripe dashboard for payment issues or contact the user to update their payment method.'
+            });
+        }
+        
+        // Default case: Unknown status
+        return res.status(400).json({
+            error: 'Unknown subscription status',
+            message: `Subscription has status "${stripeSubscription.status}" which is not handled by this endpoint.`,
+            stripeStatus: stripeSubscription.status
         });
         
     } catch (error) {
-        console.error('Error reactivating subscription:', error);
-        res.status(500).json({ error: 'Error reactivating subscription' });
+        console.error('Error in admin subscription reactivation:', error);
+        res.status(500).json({ 
+            error: 'Failed to reactivate subscription',
+            details: error.message 
+        });
     }
 });
 

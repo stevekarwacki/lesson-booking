@@ -200,11 +200,21 @@ const cancelUserSubscription = async () => {
         })
         
         if (response.ok) {
-            success.value = 'Subscription cancelled successfully'
+            const result = await response.json()
+            
+            // Handle different success scenarios
+            if (result.cancellation.wasSyncIssue) {
+                success.value = 'Subscription status synchronized - was already cancelled in Stripe'
+            } else if (result.credits.awarded > 0) {
+                success.value = `Subscription cancelled successfully. User received ${result.credits.awarded} lesson credits as compensation.`
+            } else {
+                success.value = 'Subscription cancelled successfully'
+            }
+            
             await fetchUserSubscription(editingUser.value.id)
         } else {
             const errorData = await response.json()
-            error.value = errorData.message || 'Failed to cancel subscription'
+            error.value = errorData.error || errorData.message || 'Failed to cancel subscription'
         }
     } catch (err) {
         error.value = 'Error cancelling subscription: ' + err.message
@@ -225,11 +235,26 @@ const reactivateUserSubscription = async () => {
         })
         
         if (response.ok) {
-            success.value = 'Subscription reactivated successfully'
+            const result = await response.json()
+            
+            // Handle different success scenarios
+            if (result.reactivation.reactivationType === 'removed_cancel_at_period_end') {
+                success.value = 'Subscription reactivated successfully - removed scheduled cancellation'
+            } else if (result.reactivation.reactivationType === 'already_active') {
+                success.value = 'Subscription is already active'
+            } else {
+                success.value = 'Subscription reactivated successfully'
+            }
+            
             await fetchUserSubscription(editingUser.value.id)
         } else {
             const errorData = await response.json()
-            error.value = errorData.message || 'Failed to reactivate subscription'
+            error.value = errorData.error || errorData.message || 'Failed to reactivate subscription'
+            
+            // Show helpful suggestions for common issues
+            if (errorData.suggestion) {
+                error.value += ` Suggestion: ${errorData.suggestion}`
+            }
         }
     } catch (err) {
         error.value = 'Error reactivating subscription: ' + err.message

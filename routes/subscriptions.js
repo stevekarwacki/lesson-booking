@@ -148,121 +148,19 @@ router.post('/create', authMiddleware, async (req, res) => {
 router.post('/cancel', authMiddleware, async (req, res) => {
     try {
         const { subscriptionId } = req.body;
+        const { cancelSubscriptionService } = require('../services/subscriptionCancellation');
         
         if (!subscriptionId) {
             return res.status(400).json({ error: 'Subscription ID is required' });
         }
-
-        // Get subscription from database
-        const subscription = await Subscription.findOne({
-            where: {
-                id: subscriptionId,
-                user_id: req.user.id
-            }
-        });
-
-        if (!subscription) {
-            return res.status(404).json({ error: 'Subscription not found' });
-        }
-
-        // Check if subscription is already canceled in local database
-        if (subscription.status === 'canceled') {
-            return res.status(400).json({ error: 'Subscription is already canceled' });
-        }
-
-        // First, check Stripe status to see if it's already cancelled there
-        const { stripe } = require('../config/stripe');
-        let stripeSubscription;
-        try {
-            stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-        } catch (error) {
-            console.error('Error retrieving subscription from Stripe:', error);
-            return res.status(500).json({ error: 'Failed to retrieve subscription from Stripe' });
-        }
-
-        // If already cancelled in Stripe, sync our database
-        if (stripeSubscription.status === 'canceled') {
-            console.log('Subscription already cancelled in Stripe, syncing database:', subscription.stripe_subscription_id);
-            
-            // Clean up recurring bookings
-            const { RecurringBooking } = require('../models/RecurringBooking');
-            const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
-            if (recurringBooking) {
-                await recurringBooking.destroy();
-                console.log('Cleaned up recurring booking for sync');
-            }
-
-            // Update local database to match Stripe
-            await subscription.update({
-                status: 'canceled',
-                canceled_at: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : new Date()
-            });
-            console.log('Updated subscription status to canceled');
-
-            // Record subscription event
-            await SubscriptionEvent.recordEvent(subscription.id, 'subscription.canceled', stripeSubscription);
-
-            return res.json({ 
-                success: true, 
-                message: 'Subscription status synchronized - was already cancelled in Stripe',
-                cancellation: {
-                    subscriptionId: subscription.id,
-                    canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : new Date(),
-                    stripeStatus: stripeSubscription.status,
-                    wasSyncIssue: true
-                },
-                credits: {
-                    awarded: 0,
-                    recurringBookingCleaned: !!recurringBooking
-                }
-            });
-        }
-
-        // Calculate prorated credits before cancellation (for active subscriptions)
-        const creditCalculation = await Subscription.calculateProratedCredits(subscriptionId);
         
-        // This case is now handled above by checking Stripe status directly
+        const result = await cancelSubscriptionService({
+            subscriptionId,
+            requestingUser: req.user,
+            isAdminAction: false
+        });
         
-        // Award prorated credits if eligible (for normal cancellations)
-        let creditsAwarded = 0;
-        if (creditCalculation.eligible && creditCalculation.credits > 0) {
-            await Credits.addCredits(req.user.id, creditCalculation.credits);
-            creditsAwarded = creditCalculation.credits;
-        }
-
-        // Clean up recurring bookings before canceling subscription
-        const { RecurringBooking } = require('../models/RecurringBooking');
-        const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
-        if (recurringBooking) {
-            await recurringBooking.destroy();
-        }
-
-        // Cancel subscription in Stripe (reuse stripeSubscription variable from earlier)
-        stripeSubscription = await cancelSubscription(subscription.stripe_subscription_id);
-
-        // Update subscription in database - immediate cancellation
-        await subscription.update({
-            status: 'canceled',
-            canceled_at: new Date()
-        });
-
-        // Record subscription event
-        await SubscriptionEvent.recordEvent(subscription.id, 'subscription.canceled', stripeSubscription);
-
-        res.json({ 
-            success: true, 
-            message: 'Subscription canceled successfully',
-            cancellation: {
-                subscriptionId: subscription.id,
-                canceledAt: new Date(),
-                stripeStatus: stripeSubscription.status
-            },
-            credits: {
-                awarded: creditsAwarded,
-                calculation: creditCalculation,
-                recurringBookingCleaned: !!recurringBooking
-            }
-        });
+        res.json(result);
     } catch (error) {
         console.error('Error canceling subscription:', error);
         res.status(500).json({ error: error.message });
