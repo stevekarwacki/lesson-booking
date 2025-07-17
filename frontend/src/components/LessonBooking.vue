@@ -70,10 +70,6 @@ onMounted(async () => {
     padding: var(--spacing-lg);
 }
 
-.form-group {
-    margin-bottom: var(--spacing-lg);
-}
-
 @media (max-width: 768px) {
     .lesson-booking {
         padding: var(--spacing-md);

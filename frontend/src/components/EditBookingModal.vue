@@ -301,10 +301,6 @@ const updateBooking = async () => {
     border-radius: var(--border-radius);
 }
 
-.form-group {
-    margin-bottom: var(--spacing-md);
-}
-
 .form-label {
     margin-bottom: var(--spacing-sm);
     font-weight: 500;

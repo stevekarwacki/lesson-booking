@@ -67,11 +67,6 @@ input, select, textarea {
   background: #f8fff8;
 }
 
-/* Form Styles */
-.form-group {
-    margin-bottom: var(--spacing-md);
-}
-
 .form-group label {
     margin-bottom: 0;
     font-weight: 500;

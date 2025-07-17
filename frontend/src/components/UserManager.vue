@@ -123,6 +123,32 @@ const deleteUser = async (userId) => {
     }
 };
 
+const deleteUserFromModal = async () => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone and will permanently remove all associated data.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/admin/users/${editingUser.value.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete user');
+        }
+        
+        success.value = 'User deleted successfully';
+        closeEditModal();
+        await fetchUsers();
+    } catch (err) {
+        error.value = 'Error deleting user: ' + err.message;
+        console.error('Error deleting user:', err);
+    }
+};
+
 const fetchUserSubscription = async (userId) => {
     try {
         subscriptionLoading.value = true
@@ -460,14 +486,7 @@ onMounted(async () => {
                                 class="form-button form-button-edit"
                                 @click="openEditModal(user)"
                             >
-                                Edit
-                            </button>
-                            <button 
-                                class="form-button form-button-danger"
-                                @click="deleteUser(user.id)"
-                                :disabled="user.id === currentUserId"
-                            >
-                                Delete
+                                Manage
                             </button>
                         </td>
                     </tr>
@@ -554,9 +573,7 @@ onMounted(async () => {
                         Loading subscription information...
                     </div>
                     
-                    <div v-else-if="userSubscription" class="subscription-info">
-                        <h4>Active Subscription</h4>
-                        
+                    <div v-else-if="userSubscription" class="subscription-info">                       
                         <div class="subscription-details">
                             <div class="info-group">
                                 <label class="info-label">Plan:</label>
@@ -625,8 +642,7 @@ onMounted(async () => {
                     </div>
                     
                     <div v-else class="no-subscription">
-                        <h4>No Active Subscription</h4>
-                        <p>This user does not have an active subscription.</p>
+                        <p>This user does not have a membership.</p>
                         
                         <div class="subscription-actions">
                             <button 
@@ -636,6 +652,63 @@ onMounted(async () => {
                             >
                                 Create Subscription
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </TabbedModalTab>
+
+            <TabbedModalTab label="Actions">
+                <div class="actions-tab">
+                    <div class="actions-section">
+                        <h4>User Management</h4>
+                        <p>Perform administrative actions on this user account.</p>
+                        
+                        <div class="action-group">
+                            <h5>Account Information</h5>
+                            <div class="action-item">
+                                <div class="action-info">
+                                    <strong>User ID:</strong> {{ editingUser?.id }}
+                                </div>
+                                <div class="action-info">
+                                    <strong>Account Status:</strong> 
+                                    <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
+                                        {{ editingUser?.is_approved ? 'Approved' : 'Pending Approval' }}
+                                    </span>
+                                </div>
+                                <div class="action-info">
+                                    <strong>Role:</strong> {{ editingUser?.role }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="action-group danger-zone">
+                            <div class="action-item">
+                                <div class="action-info">
+                                    <strong>Delete User Account</strong>
+                                </div>
+                                <div class="action-description">
+                                    <p>Permanently remove this user from the system. This action cannot be undone.</p>
+                                    <p><strong>Warning:</strong> This will also delete all associated data including:</p>
+                                    <ul>
+                                        <li>User profile information</li>
+                                        <li>Lesson bookings and history</li>
+                                        <li>Subscription records</li>
+                                        <li>Payment history</li>
+                                        <li>Instructor information (if applicable)</li>
+                                    </ul>
+                                </div>
+                                <button 
+                                    type="button"
+                                    class="form-button form-button-danger"
+                                    @click="deleteUserFromModal"
+                                    :disabled="editingUser?.id === currentUserId"
+                                >
+                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User Account' }}
+                                </button>
+                                <p v-if="editingUser?.id === currentUserId" class="warning-text">
+                                    You cannot delete your own account from this interface.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -907,5 +980,94 @@ select:disabled {
 .no-subscription p {
     color: var(--text-secondary);
     margin-bottom: var(--spacing-lg);
+}
+
+/* Actions tab styles */
+.actions-tab {
+    min-height: 300px;
+    padding: var(--spacing-lg);
+}
+
+.actions-section {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.actions-section h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+}
+
+.actions-section > p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.action-group {
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.action-group h5 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+}
+
+.action-item {
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+}
+
+.action-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.action-info strong {
+    color: var(--text-primary);
+}
+
+.action-description {
+    margin-bottom: var(--spacing-md);
+}
+
+.action-description p {
+    margin: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.action-description ul {
+    margin: var(--spacing-sm) 0;
+    padding-left: var(--spacing-lg);
+    color: var(--text-secondary);
+}
+
+.action-description li {
+    margin-bottom: var(--spacing-xs);
+}
+
+.danger-zone {
+    border-color: var(--error-color);
+    background: rgba(255, 0, 0, 0.02);
+}
+
+.danger-zone h5 {
+    color: var(--error-color);
+}
+
+.warning-text {
+    margin-top: var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-style: italic;
 }
 </style> 

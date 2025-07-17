@@ -62,7 +62,15 @@ router.put('/:userId', async (req, res) => {
         }
 
         const userId = parseInt(req.params.userId, 10);
-        await Instructor.updateInstructor(userId, req.body);
+        
+        // Find instructor by user_id first
+        const instructor = await Instructor.findByUserId(userId);
+        if (!instructor) {
+            return res.status(404).json({ error: 'Instructor not found' });
+        }
+        
+        // Update using instructor's database ID
+        await Instructor.updateInstructor(instructor.id, req.body);
         res.json({ message: 'Instructor updated successfully' });
     } catch (error) {
         console.error('Error updating instructor:', error);
