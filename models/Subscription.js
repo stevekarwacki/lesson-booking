@@ -186,9 +186,6 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
         };
     }
 
-    // TEMPORARILY DISABLED FOR DEBUGGING - 30-day minimum validation
-    // TODO: Re-enable this validation before production deployment
-    /*
     // Check 30-day minimum requirement
     const subscriptionStartDate = new Date(subscription.created_at);
     const thirtyDaysLater = new Date(subscriptionStartDate.getTime() + (30 * 24 * 60 * 60 * 1000));
@@ -202,7 +199,6 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
             credits: 0
         };
     }
-    */
 
     // Get current subscription state from Stripe for accurate information
     const { stripe } = require('../config/stripe');
@@ -225,7 +221,6 @@ Subscription.calculateProratedCredits = async function(subscriptionId) {
         };
     }
 
-    const now = new Date();
     let periodEnd, periodStart, effectiveEndTime;
 
     // For active subscriptions, use current period dates
