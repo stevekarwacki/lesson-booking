@@ -2,6 +2,7 @@ const { sequelize } = require('../db/index');
 const { InstructorAvailability } = require('./InstructorAvailability');
 const { User, setupAssociations: setupUserAssociations } = require('./User');
 const { Instructor } = require('./Instructor');
+const { InstructorGoogleToken } = require('./InstructorGoogleToken');
 const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
 const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
@@ -14,6 +15,10 @@ Instructor.belongsTo(User, { foreignKey: 'user_id' });
 
 Instructor.hasMany(InstructorAvailability, { foreignKey: 'instructor_id' });
 InstructorAvailability.belongsTo(Instructor, { foreignKey: 'instructor_id' });
+
+// Google Calendar token associations
+Instructor.hasOne(InstructorGoogleToken, { foreignKey: 'instructor_id' });
+InstructorGoogleToken.belongsTo(Instructor, { foreignKey: 'instructor_id' });
 
 // Payment and transaction associations
 User.hasMany(Transactions, { foreignKey: 'user_id' });
@@ -29,6 +34,7 @@ const models = {
     PaymentPlan,
     Instructor,
     InstructorAvailability,
+    InstructorGoogleToken,
     Transactions,
     RecurringBooking
 };
@@ -58,6 +64,7 @@ module.exports = {
     User,
     Instructor,
     InstructorAvailability,
+    InstructorGoogleToken,
     PaymentPlan,
     Transactions,
     Subscription,
