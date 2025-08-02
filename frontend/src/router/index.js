@@ -7,6 +7,7 @@ import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
+import GoogleAuthCallback from '../views/GoogleAuthCallback.vue'
 import { useUserStore } from '../stores/userStore'
 // Import other views as needed
 
@@ -67,6 +68,12 @@ const routes = [
         name: 'admin-availability',
         component: ManageAvailabilityPage,
         meta: { requiresAdmin: true }
+    },
+    {
+        path: '/auth/google/callback',
+        name: 'google-auth-callback',
+        component: GoogleAuthCallback,
+        meta: { requiresAuth: true }
     }
 ]
 

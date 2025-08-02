@@ -33,7 +33,8 @@
                             /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
                             'current-day': isCurrentDay(slot.date),
                             'past': isPastTimeSlot(slot.date, timeSlotKey),
-                            'booked': (slot.type === 'booked')
+                            'booked': (slot.type === 'booked'),
+                            'google-calendar': (slot.is_google_calendar)
                         }"
                         @click="handleTimeSlotClick({
                             date: slot.date,
@@ -213,6 +214,18 @@ const handleTimeSlotClick = (cellData) => {
 .time-slot.booked {
     background-color: var(--primary-color);
     cursor: pointer;
+}
+
+.time-slot.google-calendar {
+    background-color: #4285f4;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(255,255,255,0.1) 4px,
+        rgba(255,255,255,0.1) 8px
+    );
+    border-left: 4px solid #1a73e8;
 }
 
 .time-slot.blocked {

@@ -3,6 +3,7 @@ const { InstructorAvailability } = require('./InstructorAvailability');
 const { User, setupAssociations: setupUserAssociations } = require('./User');
 const { Instructor } = require('./Instructor');
 const { InstructorGoogleToken } = require('./InstructorGoogleToken');
+const { InstructorCalendarConfig } = require('./InstructorCalendarConfig');
 const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
 const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
@@ -16,9 +17,13 @@ Instructor.belongsTo(User, { foreignKey: 'user_id' });
 Instructor.hasMany(InstructorAvailability, { foreignKey: 'instructor_id' });
 InstructorAvailability.belongsTo(Instructor, { foreignKey: 'instructor_id' });
 
-// Google Calendar token associations
+// Google Calendar associations (keeping both during migration)
 Instructor.hasOne(InstructorGoogleToken, { foreignKey: 'instructor_id' });
 InstructorGoogleToken.belongsTo(Instructor, { foreignKey: 'instructor_id' });
+
+// New calendar config associations
+Instructor.hasOne(InstructorCalendarConfig, { foreignKey: 'instructor_id' });
+InstructorCalendarConfig.belongsTo(Instructor, { foreignKey: 'instructor_id' });
 
 // Payment and transaction associations
 User.hasMany(Transactions, { foreignKey: 'user_id' });
@@ -35,6 +40,7 @@ const models = {
     Instructor,
     InstructorAvailability,
     InstructorGoogleToken,
+    InstructorCalendarConfig,
     Transactions,
     RecurringBooking
 };
@@ -65,6 +71,7 @@ module.exports = {
     Instructor,
     InstructorAvailability,
     InstructorGoogleToken,
+    InstructorCalendarConfig,
     PaymentPlan,
     Transactions,
     Subscription,

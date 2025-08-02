@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
+import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 
 const userStore = useUserStore()
 const instructors = ref([])
@@ -519,9 +520,16 @@ onMounted(async () => {
 
         <TabbedModalTab label="Availability">
             <div class="availability-tab">
-                <div class="info-message">
-                    <h4>Availability Management</h4>
-                    <p>Instructor availability management will be implemented here in a future update.</p>
+                <!-- Google Calendar Integration -->
+                <GoogleCalendarSettings 
+                    v-if="editingInstructor && editingInstructor.id"
+                    :instructor-id="editingInstructor.id"
+                />
+                
+                <!-- Availability Management Placeholder -->
+                <div class="availability-placeholder">
+                    <h4>Weekly Schedule Management</h4>
+                    <p>Manual availability scheduling will be implemented here in a future update.</p>
                     <p>This will allow you to:</p>
                     <ul>
                         <li>Set weekly availability schedules</li>
@@ -804,7 +812,8 @@ onMounted(async () => {
     background-color: #0f5132;
 }
 
-.info-message {
+.info-message,
+.availability-placeholder {
     text-align: center;
     padding: var(--spacing-lg);
     background: var(--background-hover);
@@ -812,26 +821,34 @@ onMounted(async () => {
     border: 1px solid var(--border-color);
 }
 
-.info-message h4 {
+.info-message h4,
+.availability-placeholder h4 {
     margin-top: 0;
     margin-bottom: var(--spacing-md);
     color: var(--primary-color);
 }
 
-.info-message p {
+.info-message p,
+.availability-placeholder p {
     color: var(--text-secondary);
     margin-bottom: var(--spacing-sm);
 }
 
-.info-message ul {
+.info-message ul,
+.availability-placeholder ul {
     text-align: left;
     max-width: 400px;
     margin: var(--spacing-md) auto 0;
     color: var(--text-secondary);
 }
 
-.info-message li {
+.info-message li,
+.availability-placeholder li {
     margin-bottom: var(--spacing-xs);
+}
+
+.availability-placeholder {
+    margin-top: var(--spacing-lg);
 }
 
 .form-text {

@@ -1,121 +1,56 @@
 const { google } = require('googleapis');
-const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
 
 class GoogleCalendarService {
     constructor(options = {}) {
-        this.clientId = options.clientId || process.env.GOOGLE_CLIENT_ID;
-        this.clientSecret = options.clientSecret || process.env.GOOGLE_CLIENT_SECRET;
-        this.redirectUri = options.redirectUri || process.env.GOOGLE_REDIRECT_URI;
+        // Service account configuration
+        this.serviceAccountEmail = options.serviceAccountEmail || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+        this.serviceAccountKey = options.serviceAccountKey || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+        this.serviceAccountKeyFile = options.serviceAccountKeyFile || process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
         
-        // Allow injection of mock calendar for testing
-        this.mockCalendar = options.mockCalendar;
-        this.isTestMode = options.isTestMode || false;
-        
-        this.oauth2Client = null;
+        this.auth = null;
         this.calendar = null;
         
         // Cache for performance
         this.cache = new Map();
         this.cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
         
-        this.initializeOAuth2Client();
+        this.initializeServiceAccount();
     }
     
-    initializeOAuth2Client() {
-        if (this.isTestMode) {
-            this.oauth2Client = { mockClient: true };
+    initializeServiceAccount() {
+         // Check if we have service account credentials
+        if (!this.serviceAccountEmail && !this.serviceAccountKeyFile && !this.serviceAccountKey) {
+            console.warn('Google Calendar: Missing service account credentials, service will be disabled');
             return;
         }
         
-        if (!this.clientId || !this.clientSecret || !this.redirectUri) {
-            console.warn('Google Calendar: Missing OAuth2 credentials, service will be disabled');
-            return;
-        }
-        
-        this.oauth2Client = new google.auth.OAuth2(
-            this.clientId,
-            this.clientSecret,
-            this.redirectUri
-        );
-    }
-    
-    /**
-     * Generate Google OAuth2 authorization URL
-     * @returns {string} Authorization URL
-     */
-    getAuthUrl() {
-        if (this.isTestMode) {
-            return 'https://test-auth-url.com/auth?test=true';
-        }
-        
-        if (!this.oauth2Client || this.oauth2Client.mockClient) {
-            throw new Error('OAuth2 client not initialized');
-        }
-        
-        return this.oauth2Client.generateAuthUrl({
-            access_type: 'offline',
-            scope: ['https://www.googleapis.com/auth/calendar.readonly'],
-            prompt: 'consent'
-        });
-    }
-    
-    /**
-     * Exchange authorization code for tokens
-     * @param {string} code - Authorization code from Google
-     * @returns {Object} Token data
-     */
-    async getTokenFromCode(code) {
-        if (this.isTestMode) {
-            return {
-                access_token: `test_access_token_${Date.now()}`,
-                refresh_token: `test_refresh_token_${Date.now()}`,
-                expiry_date: Date.now() + (60 * 60 * 1000),
-                scope: 'https://www.googleapis.com/auth/calendar.readonly'
+        try {
+            // Initialize Google Auth for service account
+            let authOptions = {
+                scopes: ['https://www.googleapis.com/auth/calendar.readonly']
             };
+            
+            // Use key file if provided, otherwise use inline credentials
+            if (this.serviceAccountKeyFile) {
+                authOptions.keyFile = this.serviceAccountKeyFile;
+            } else if (this.serviceAccountEmail && this.serviceAccountKey) {
+                authOptions.credentials = {
+                    client_email: this.serviceAccountEmail,
+                    private_key: this.serviceAccountKey.replace(/\\n/g, '\n')
+                };
+            } else {
+                throw new Error('Invalid service account configuration');
+            }
+            
+            this.auth = new google.auth.GoogleAuth(authOptions);
+            this.calendar = google.calendar({ version: 'v3', auth: this.auth });
+            
+        } catch (error) {
+            console.error('Failed to initialize Google service account:', error);
+            this.auth = null;
+            this.calendar = null;
         }
-        
-        if (!this.oauth2Client || this.oauth2Client.mockClient) {
-            throw new Error('OAuth2 client not initialized');
-        }
-        
-        const { tokens } = await this.oauth2Client.getToken(code);
-        return tokens;
-    }
-    
-    /**
-     * Initialize calendar API for specific instructor
-     * @param {number} instructorId - Instructor ID
-     * @returns {Object} Calendar API instance
-     */
-    async initializeForInstructor(instructorId) {
-        if (this.isTestMode) {
-            this.calendar = this.mockCalendar || this.createMockCalendar();
-            return this.calendar;
-        }
-        
-        const tokenRecord = await InstructorGoogleToken.findByInstructorId(instructorId);
-        
-        if (!tokenRecord) {
-            throw new Error(`No Google Calendar tokens found for instructor ${instructorId}`);
-        }
-        
-        if (!this.oauth2Client || this.oauth2Client.mockClient) {
-            throw new Error('OAuth2 client not initialized');
-        }
-        
-        this.oauth2Client.setCredentials({
-            access_token: tokenRecord.access_token,
-            refresh_token: tokenRecord.refresh_token,
-            expiry_date: tokenRecord.token_expiry ? tokenRecord.token_expiry.getTime() : null
-        });
-        
-        // Handle token refresh
-        this.oauth2Client.on('tokens', async (tokens) => {
-            await this.updateTokens(instructorId, tokens);
-        });
-        
-        this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
-        return this.calendar;
     }
     
     /**
@@ -135,29 +70,26 @@ class GoogleCalendarService {
         }
         
         try {
-            const calendar = await this.initializeForInstructor(instructorId);
-            
-            let googleEvents;
-            if (this.isTestMode) {
-                googleEvents = await calendar.events.list({
-                    calendarId: 'primary',
-                    timeMin: startDate.toISOString(),
-                    timeMax: endDate.toISOString(),
-                    singleEvents: true,
-                    orderBy: 'startTime',
-                    maxResults: 250
-                });
-            } else {
-                const response = await calendar.events.list({
-                    calendarId: 'primary',
-                    timeMin: startDate.toISOString(),
-                    timeMax: endDate.toISOString(),
-                    singleEvents: true,
-                    orderBy: 'startTime',
-                    maxResults: 250
-                });
-                googleEvents = response.data.items || [];
+            // Get calendar configuration for instructor
+            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (!config) {
+
+                return [];
             }
+            
+            if (!this.calendar) {
+                return [];
+            }
+            
+            const response = await this.calendar.events.list({
+                calendarId: config.calendar_id,
+                timeMin: startDate.toISOString(),
+                timeMax: endDate.toISOString(),
+                singleEvents: true,
+                orderBy: 'startTime',
+                maxResults: 250
+            });
+            const googleEvents = response.data.items || [];
             
             const convertedEvents = this.convertToSlots(googleEvents);
             
@@ -174,11 +106,83 @@ class GoogleCalendarService {
             
             // Return cached data if available, otherwise empty array
             if (cached) {
-                console.log(`Returning cached data for instructor ${instructorId}`);
                 return cached.data;
             }
             
             return []; // Fail gracefully
+        }
+    }
+    
+    /**
+     * Test calendar access for instructor
+     * @param {number} instructorId - Instructor ID
+     * @returns {Object} Test results
+     */
+    async testCalendarAccess(instructorId) {
+        try {
+            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (!config) {
+                return {
+                    success: false,
+                    message: 'No calendar configuration found for this instructor'
+                };
+            }
+            
+            if (!this.calendar) {
+                return {
+                    success: false,
+                    message: 'Google Calendar service not initialized. Please check server configuration.'
+                };
+            }
+            
+            // Try to fetch a small number of events from today
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            const response = await this.calendar.events.list({
+                calendarId: config.calendar_id,
+                timeMin: today.toISOString(),
+                timeMax: tomorrow.toISOString(),
+                maxResults: 5
+            });
+            
+            const events = response.data.items || [];
+            
+            // Update test status in config
+            await config.updateTestStatus('success');
+            
+            return {
+                success: true,
+                message: 'Calendar connection working properly',
+                eventsFound: events.length,
+                calendarId: config.calendar_id,
+                calendarName: config.calendar_name || config.calendar_id
+            };
+            
+        } catch (error) {
+            console.error(`Calendar test failed for instructor ${instructorId}:`, error);
+            
+            // Update test status in config
+            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (config) {
+                await config.updateTestStatus('failed');
+            }
+            
+            let errorMessage = 'Unknown error occurred';
+            if (error.code === 404) {
+                errorMessage = 'Calendar not found. Please check the calendar ID and ensure it\'s shared with the service account.';
+            } else if (error.code === 403) {
+                errorMessage = 'Access denied. Please ensure the calendar is shared with the service account email.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            return {
+                success: false,
+                message: errorMessage,
+                error: error.code || 'UNKNOWN_ERROR'
+            };
         }
     }
     
@@ -200,15 +204,32 @@ class GoogleCalendarService {
                 
                 return {
                     id: `google_${event.id}`,
-                    date: startTime.toISOString().split('T')[0],
+                    date: this.getLocalDateString(startTime),
                     start_slot: this.timeToSlot(startTime),
                     duration: this.calculateDuration(startTime, endTime),
-                    status: 'google_calendar_busy',
+                    type: 'booked', // Frontend expects 'type' field, not 'status'
+                    status: 'google_calendar_busy', // Keep for backend identification
                     summary: event.summary || 'Busy',
                     source: 'google_calendar',
-                    google_event_id: event.id
+                    google_event_id: event.id,
+                    // Add visual indicators for Google Calendar events
+                    student_name: '🗓️ ' + (event.summary || 'Busy'),
+                    student_email: 'Google Calendar',
+                    is_google_calendar: true
                 };
             });
+    }
+    
+    /**
+     * Get local date string without timezone shifting
+     * @param {Date} date - Date object
+     * @returns {string} Date string in YYYY-MM-DD format
+     */
+    getLocalDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
     
     /**
@@ -232,88 +253,25 @@ class GoogleCalendarService {
     }
     
     /**
-     * Update stored tokens for instructor
-     * @param {number} instructorId - Instructor ID
-     * @param {Object} tokens - New token data
-     */
-    async updateTokens(instructorId, tokens) {
-        if (this.isTestMode) {
-            console.log(`Test mode: Would update tokens for instructor ${instructorId}`);
-            return;
-        }
-        
-        await InstructorGoogleToken.createOrUpdate(instructorId, {
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            expiry_date: tokens.expiry_date
-        });
-    }
-    
-    /**
      * Check if Google Calendar is available for instructor
      * @param {number} instructorId - Instructor ID
      * @returns {boolean} True if available
      */
     async isAvailableForInstructor(instructorId) {
-        if (this.isTestMode) {
-            return true;
-        }
-        
         try {
-            const tokenRecord = await InstructorGoogleToken.findByInstructorId(instructorId); 
-            return !!tokenRecord && !tokenRecord.isExpired();
+            const config = await InstructorCalendarConfig.findByInstructorId(instructorId); 
+            return !!config && config.is_active;
         } catch (error) {
             return false;
         }
     }
     
     /**
-     * Create mock calendar for testing
-     * @returns {Object} Mock calendar API
+     * Get service account email for sharing instructions
+     * @returns {string} Service account email
      */
-    createMockCalendar() {
-        return {
-            events: {
-                list: async (params) => {
-                    // Generate mock events based on date range
-                    const start = new Date(params.timeMin);
-                    const end = new Date(params.timeMax);
-                    const mockEvents = [];
-                    
-                    // Add a few mock events for testing
-                    const testEvent1 = new Date(start);
-                    testEvent1.setHours(10, 0, 0, 0);
-                    const testEvent1End = new Date(testEvent1);
-                    testEvent1End.setHours(11, 0, 0, 0);
-                    
-                    if (testEvent1 >= start && testEvent1 <= end) {
-                        mockEvents.push({
-                            id: 'mock_event_1',
-                            summary: 'Mock Meeting',
-                            start: { dateTime: testEvent1.toISOString() },
-                            end: { dateTime: testEvent1End.toISOString() }
-                        });
-                    }
-                    
-                    const testEvent2 = new Date(start);
-                    testEvent2.setDate(testEvent2.getDate() + 1);
-                    testEvent2.setHours(14, 30, 0, 0);
-                    const testEvent2End = new Date(testEvent2);
-                    testEvent2End.setHours(15, 30, 0, 0);
-                    
-                    if (testEvent2 >= start && testEvent2 <= end) {
-                        mockEvents.push({
-                            id: 'mock_event_2',
-                            summary: 'Mock Appointment',
-                            start: { dateTime: testEvent2.toISOString() },
-                            end: { dateTime: testEvent2End.toISOString() }
-                        });
-                    }
-                    
-                    return mockEvents;
-                }
-            }
-        };
+    getServiceAccountSignal() {
+        return this.serviceAccountEmail || 'Service account email not configured';
     }
     
     /**

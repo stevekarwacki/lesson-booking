@@ -27,6 +27,12 @@
 
         <div v-if="error" class="error-message">{{ error }}</div>
         
+        <!-- Google Calendar Settings -->
+        <GoogleCalendarSettings 
+            v-if="showAvailabilityManager && effectiveInstructorId"
+            :instructor-id="effectiveInstructorId"
+        />
+        
         <!-- Only show availability manager when we have an instructor ID -->
         <InstructorAvailabilityManager 
             v-if="showAvailabilityManager && effectiveInstructorId"
@@ -40,6 +46,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
+import GoogleCalendarSettings from '../components/GoogleCalendarSettings.vue'
 import { fetchInstructors as fetchInstructorsHelper, fetchInstructorId as fetchInstructorIdHelper } from '../utils/fetchHelper'
 
 const userStore = useUserStore()

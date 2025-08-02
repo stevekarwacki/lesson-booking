@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Calendar } = require('../models/Calendar');
 const InstructorAvailability = require('../models/InstructorAvailability');
+const GoogleCalendarService = require('../services/GoogleCalendarService');
 
 // Get instructor's calendar events
 router.get('/instructor/:instructorId', async (req, res) => {
@@ -228,12 +229,58 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
             });
         }
         
-        // Combine regular events and virtual recurring events
-        const allEvents = [...weekEvents, ...virtualEvents];
+        // Get Google Calendar events with bulletproof error handling
+        let googleEvents = [];
+        
+        try {
+            // Try to create service instance - this might fail synchronously
+            let googleCalendarService;
+            try {
+                googleCalendarService = new GoogleCalendarService();
+
+            } catch (serviceError) {
+
+                googleEvents = [];
+                // Skip Google Calendar entirely if service creation fails
+            }
+            
+            if (googleCalendarService) {
+                try {
+
+                    const isAvailable = await googleCalendarService.isAvailableForInstructor(instructorId);
+
+                    
+                    if (isAvailable) {
+
+                        const startDateObj = new Date(startDate);
+                        const endDateObj = new Date(endDate);
+                        endDateObj.setDate(endDateObj.getDate() + 1);
+                        
+                        const events = await googleCalendarService.getEvents(instructorId, startDateObj, endDateObj);
+
+                        googleEvents = events;
+                    } else {
+
+                        googleEvents = [];
+                    }
+                } catch (fetchError) {
+                    console.error('Error during Google Calendar fetch:', fetchError.message);
+                    googleEvents = [];
+                }
+            }
+        } catch (outerError) {
+            console.error('Outer Google Calendar error:', outerError.message);
+            googleEvents = [];
+        }
+        
+        // Combine all events
+        const allEvents = [...weekEvents, ...virtualEvents, ...googleEvents];
         
         res.json(allEvents)
     } catch (error) {
+        console.error('\n=== CALENDAR EVENTS REQUEST ERROR ===')
         console.error('Error fetching events:', error)
+        console.error('Stack trace:', error.stack)
         res.status(500).json({ error: 'Error fetching events' })
     }
 });
@@ -268,12 +315,59 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
             recurring_booking_id: rb.id
         }));
         
-        // Combine regular events and virtual recurring events
-        const allEvents = [...dayEvents, ...virtualEvents];
+        // Get Google Calendar events with bulletproof error handling
+        let googleEvents = [];
+        
+        try {
+            // Try to create service instance - this might fail synchronously
+            let googleCalendarService;
+            try {
+                googleCalendarService = new GoogleCalendarService();
+
+            } catch (serviceError) {
+
+                googleEvents = [];
+                // Skip Google Calendar entirely if service creation fails
+            }
+            
+            if (googleCalendarService) {
+                try {
+
+                    const isAvailable = await googleCalendarService.isAvailableForInstructor(instructorId);
+
+                    
+                    if (isAvailable) {
+
+                        const startDateObj = new Date(date);
+                        const endDateObj = new Date(date);
+                        endDateObj.setDate(endDateObj.getDate() + 1);
+                        
+                        const allGoogleEvents = await googleCalendarService.getEvents(instructorId, startDateObj, endDateObj);
+                        const filteredEvents = allGoogleEvents.filter(event => event.date === date);
+        
+                        googleEvents = filteredEvents;
+                    } else {
+
+                        googleEvents = [];
+                    }
+                } catch (fetchError) {
+                    console.error('Error during Google Calendar fetch:', fetchError.message);
+                    googleEvents = [];
+                }
+            }
+        } catch (outerError) {
+            console.error('Outer Google Calendar error:', outerError.message);
+            googleEvents = [];
+        }
+        
+        // Combine all events
+        const allEvents = [...dayEvents, ...virtualEvents, ...googleEvents];
         
         res.json(allEvents)
     } catch (error) {
+        console.error('\n=== DAILY EVENTS REQUEST ERROR ===')
         console.error('Error fetching daily events:', error)
+        console.error('Stack trace:', error.stack)
         res.status(500).json({ error: 'Error fetching events' })
     }
 });

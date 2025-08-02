@@ -218,10 +218,13 @@ const formatSlot = (slot, date) => {
         start_slot: slot.start_slot,
         duration: slot.duration,
         date: date,
-        type: slot.status || 'available',
+        type: slot.type || slot.status || 'available', // Check 'type' first, then fall back to 'status'
         student: null,
         startTime: null,
-        endTime: null
+        endTime: null,
+        // Preserve Google Calendar properties for styling
+        is_google_calendar: slot.is_google_calendar,
+        source: slot.source
     }
 
     // Calculate start and end times
@@ -233,11 +236,19 @@ const formatSlot = (slot, date) => {
     formattedSlot.startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`
     formattedSlot.endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
 
+    // Handle student information for both regular bookings and Google Calendar events
     if (slot.student_id) {
         formattedSlot.student = {
             id: slot.student_id,
             name: slot.student_name,
             email: slot.student_email
+        }
+    } else if (slot.is_google_calendar || slot.source === 'google_calendar') {
+        // For Google Calendar events, use the formatted display info
+        formattedSlot.student = {
+            id: null,
+            name: slot.student_name || '🗓️ ' + (slot.summary || 'Busy'),
+            email: slot.student_email || 'Google Calendar'
         }
     }
 
@@ -307,12 +318,24 @@ const fetchWeeklySchedule = async () => {
 
         // Overwrite availability with booked events
         bookedEvents.forEach(event => {
-            const eventDate = new Date(event.date)
-            eventDate.setDate(eventDate.getDate() + 1)
-            const dayIndex = eventDate.getDay()
+            let eventDate = new Date(event.date)
+            let dayIndex
+            
+            // Google Calendar events already have correct dates, don't adjust them
+            if (event.source === 'google_calendar' || event.is_google_calendar) {
+                dayIndex = eventDate.getUTCDay()  // Use UTC day to match backend
+            } else {
+                // Regular calendar events need date adjustment
+                eventDate.setDate(eventDate.getDate() + 1)
+                dayIndex = eventDate.getUTCDay()  // Use UTC day to match backend
+            }
+            
             const slotStart = event.start_slot
             
-            formattedSchedule[slotStart][dayIndex] = formatSlot(event, eventDate)
+            // Make sure the slot exists in the schedule before accessing it
+            if (formattedSchedule[slotStart] && formattedSchedule[slotStart][dayIndex] !== undefined) {
+                formattedSchedule[slotStart][dayIndex] = formatSlot(event, eventDate)
+            }
         })
 
         weeklyScheduleData.value = formattedSchedule
