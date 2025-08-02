@@ -4,21 +4,24 @@
             {{ selectedDay.formattedDate }}
         </div>
         <div class="schedule-body">
-            <div 
-                v-for="[timeSlotKey, timeSlot] of Object.entries(props.dailySchedule)" 
+                        <div 
+                v-for="[timeSlotKey, timeSlot] of Object.entries(props.dailySchedule)"
                 :key="timeSlotKey"
                 class="time-row"
             >
+
                 <div class="time-label">{{ formatTime(slotToTime(timeSlotKey)) }}</div>
             
                 <button  
                     :key="timeSlotKey"
                     class="time-slot"
-                    :class="{
-                        'available': (timeSlot.type === 'available'),
-                        'past': isPastTimeSlot(selectedDay.date, timeSlot),
-                        'booked': (timeSlot.type === 'booked')
-                    }"
+                                    :class="{
+                    'available': (timeSlot.type === 'available'),
+                    'past': isPastTimeSlot(selectedDay.date, timeSlot),
+                    'booked': (timeSlot.type === 'booked'),
+                    'google-calendar': (timeSlot.is_google_calendar)
+                }"
+
                     @click="handleTimeSlotClick(timeSlot)"
                 >
                     <span v-if="timeSlot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlot.start_slot)) }}</span>
@@ -133,8 +136,20 @@ const handleTimeSlotClick = (timeSlot) => {
 
 .time-slot.booked {
     background-color: var(--primary-color);
-    opacity: 0.5;
     cursor: pointer;
+}
+
+.time-slot.google-calendar {
+    background-color: #4285f4;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(255,255,255,0.1) 4px,
+        rgba(255,255,255,0.1) 8px
+    );
+    border-left: 4px solid #1a73e8;
+    opacity: 1;
 }
 
 .time-slot.past {

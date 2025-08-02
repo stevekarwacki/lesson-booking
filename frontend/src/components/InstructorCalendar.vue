@@ -78,7 +78,7 @@
     </div>
 
     <!-- Daily Schedule View -->
-    <div v-if="(!$mq.lgPlus || selectedDate) && dailySchedule" class="schedule-view card">
+    <div v-if="(!$mq.lgPlus || selectedDate) && dailyScheduleLoaded" class="schedule-view card">
         <div class="card-body">
             <DailyScheduleView 
                 :dailySchedule="dailySchedule"
@@ -89,8 +89,12 @@
         </div>
     </div>
 
-    <div v-else-if="selectedDate && dailySchedule.length === 0" class="form-message">
+    <div v-else-if="selectedDate && dailyScheduleLoaded && Object.keys(dailySchedule).length === 0" class="form-message">
         <p>No available time slots for this date.</p>
+    </div>
+
+    <div v-else-if="selectedDate && !dailyScheduleLoaded" class="form-message">
+        <p>Loading schedule...</p>
     </div>
 
     <div v-if="error" class="form-message error-message">{{ error }}</div>
@@ -125,7 +129,8 @@ const SLOT_DURATION = 2
 
 const selectedDate = useMq().lgPlus ? ref('') : ref(new Date().toISOString().split('T')[0])
 const weeklyScheduleData = ref([])
-const dailyScheduleData = ref([])
+const dailyScheduleData = ref({})
+const dailyScheduleLoaded = ref(false)
 const error = ref('')
 const dailyBookings = ref([])
 
@@ -321,14 +326,8 @@ const fetchWeeklySchedule = async () => {
             let eventDate = new Date(event.date)
             let dayIndex
             
-            // Google Calendar events already have correct dates, don't adjust them
-            if (event.source === 'google_calendar' || event.is_google_calendar) {
-                dayIndex = eventDate.getUTCDay()  // Use UTC day to match backend
-            } else {
-                // Regular calendar events need date adjustment
-                eventDate.setDate(eventDate.getDate() + 1)
-                dayIndex = eventDate.getUTCDay()  // Use UTC day to match backend
-            }
+            // Use UTC day for all events to match backend
+            dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
             
@@ -364,10 +363,15 @@ const selectedDay = computed(() => {
 })
 
 const fetchDailySchedule = async () => {
-    if (!instructor.id || !selectedDate.value) return
+    if (!instructor.id || !selectedDate.value) {
+        return
+    }
+
+    dailyScheduleLoaded.value = false
 
     try {
         // Fetch both availability and booked events
+        
         const [availabilityResponse, eventsResponse] = await Promise.all([
             fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
                 headers: { 'Authorization': `Bearer ${userStore.token}` }
@@ -406,8 +410,10 @@ const fetchDailySchedule = async () => {
         })
 
         dailyScheduleData.value = formattedSchedule
+        dailyScheduleLoaded.value = true
     } catch (err) {
         error.value = 'Error fetching daily schedule'
+        dailyScheduleLoaded.value = false
     }
 }
 
@@ -453,6 +459,7 @@ watch(selectedWeek, () => {
 
 // Watch for changes to selected date
 watch(selectedDate, () => {
+    fetchDailySchedule()
     fetchDailyBookings()
 })
 
@@ -491,7 +498,7 @@ const fetchDailyBookings = async () => {
         }
 
         const events = await response.json()
-        dailyBookings.value = events.map(event => (formatSlot(event)))
+        dailyBookings.value = events.map(event => (formatSlot(event, new Date(selectedDate.value))))
     } catch (error) {
         console.error('Error fetching daily bookings:', error)
         dailyBookings.value = []
