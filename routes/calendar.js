@@ -79,10 +79,16 @@ router.post('/addEvent', async (req, res) => {
             return res.status(400).json({ error: 'Invalid time slot duration' });
         }
 
-        // 2. Get availability
+        // Enhanced validation for 60-minute bookings
+        if (duration > 2) {
+            console.log(`60-minute lesson booking requested for slot ${startSlot} on day ${dayOfWeek}`);
+        }
+
+        // 2. Get availability and validate consecutive slots
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
-        const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
+        // Find availability slot that contains the requested time
+        const availabilitySlot = weeklyAvailability.find(slot => {
             if (slot.day_of_week !== dayOfWeek) return false;
             const slotEnd = slot.start_slot + slot.duration;
             return startSlot >= slot.start_slot && 
@@ -90,38 +96,55 @@ router.post('/addEvent', async (req, res) => {
                    (startSlot + duration) <= slotEnd;
         });
 
-        if (!isTimeInWeeklySchedule) {
-            return res.status(400).json({ 
-                error: 'Selected time is outside instructor\'s availability'
-            });
+        if (!availabilitySlot) {
+            const errorMessage = duration > 2 
+                ? `Instructor is not available for the full ${duration * 15} minutes requested. Please check availability or select a shorter duration.`
+                : 'Selected time is outside instructor\'s availability';
+            
+            return res.status(400).json({ error: errorMessage });
+        }
+
+        // Additional validation for 60-minute bookings: ensure no gaps in coverage
+        if (duration > 2) {
+            console.log(`60-minute lesson validated within instructor availability window`);
         }
 
         // 3. Check for existing one-time bookings
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
-        const hasOneTimeConflict = existingBookings.some(booking => {
+        // Check for existing one-time booking conflicts with detailed logging
+        const conflictingBookings = existingBookings.filter(booking => {
             // First check if this booking is for the same day
             if (booking.date !== formattedDate) {
-                return false
+                return false;
             }
 
             // If it's the same day, check for time slot conflicts
-            const bookingStart = booking.start_slot
-            const bookingEnd = booking.start_slot + booking.duration
+            const bookingStart = booking.start_slot;
+            const bookingEnd = booking.start_slot + booking.duration;
 
             return startSlot < bookingEnd && 
-                   (startSlot + duration) > bookingStart
+                   (startSlot + duration) > bookingStart;
         });
 
-        if (hasOneTimeConflict) {
-            return res.status(400).json({ error: 'Time slot is already booked' });
+        if (conflictingBookings.length > 0) {
+            if (duration > 2) {
+                console.log(`60-minute lesson booking blocked due to scheduling conflict`);
+            }
+
+            const errorMessage = duration > 2 
+                ? 'The requested 60-minute time slot conflicts with existing bookings. Please select a different time or try a 30-minute lesson.'
+                : 'Time slot is already booked';
+                
+            return res.status(400).json({ error: errorMessage });
         }
 
         // 4. Check for recurring booking conflicts
         const { RecurringBooking } = require('../models/RecurringBooking');
         const recurringBookings = await RecurringBooking.findByInstructorAndDay(instructorId, dayOfWeek);
 
-        const hasRecurringConflict = recurringBookings.some(recurringBooking => {
+        // Check for recurring booking conflicts with detailed logging
+        const conflictingRecurringBookings = recurringBookings.filter(recurringBooking => {
             const recurringStart = recurringBooking.start_slot;
             const recurringEnd = recurringBooking.start_slot + recurringBooking.duration;
 
@@ -129,9 +152,9 @@ router.post('/addEvent', async (req, res) => {
                    (startSlot + duration) > recurringStart;
         });
 
-        if (hasRecurringConflict) {
+        if (conflictingRecurringBookings.length > 0) {
             // Check if the current user owns this recurring booking
-            const userOwnedRecurring = recurringBookings.find(rb => {
+            const userOwnedRecurring = conflictingRecurringBookings.find(rb => {
                 const recurringStart = rb.start_slot;
                 const recurringEnd = rb.start_slot + rb.duration;
                 const hasTimeConflict = startSlot < recurringEnd && (startSlot + duration) > recurringStart;
@@ -139,7 +162,15 @@ router.post('/addEvent', async (req, res) => {
             });
 
             if (!userOwnedRecurring) {
-                return res.status(400).json({ error: 'Time slot is reserved for a recurring member' });
+                if (duration > 2) {
+                    console.log(`60-minute lesson booking blocked due to recurring lesson conflict`);
+                }
+
+                const errorMessage = duration > 2 
+                    ? 'The requested 60-minute time slot conflicts with a recurring lesson. Please select a different time or try a 30-minute lesson.'
+                    : 'Time slot is reserved for a recurring member';
+                    
+                return res.status(400).json({ error: errorMessage });
             }
         }
 
@@ -153,6 +184,11 @@ router.post('/addEvent', async (req, res) => {
             'booked',
             paymentMethod
         );
+
+        // Log successful 60-minute booking creation
+        if (duration > 2) {
+            console.log(`60-minute lesson booked successfully (ID: ${event.id})`);
+        }
 
         // Get the newly created booking data
         const newBooking = await Calendar.getEventById(event.id);

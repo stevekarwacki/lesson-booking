@@ -330,10 +330,24 @@ const fetchWeeklySchedule = async () => {
             dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
+            const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
             
-            // Make sure the slot exists in the schedule before accessing it
-            if (formattedSchedule[slotStart] && formattedSchedule[slotStart][dayIndex] !== undefined) {
-                formattedSchedule[slotStart][dayIndex] = formatSlot(event, eventDate)
+            // For bookings longer than 30 minutes, fill all consecutive slots
+            for (let i = 0; i < eventDuration; i += 2) {
+                const currentSlot = slotStart + i
+                
+                // Make sure the slot exists in the schedule before accessing it
+                if (formattedSchedule[currentSlot] && formattedSchedule[currentSlot][dayIndex] !== undefined) {
+                    const slotData = formatSlot(event, eventDate)
+                    
+                    // Add metadata to identify multi-slot bookings
+                    slotData.isMultiSlot = eventDuration > 2
+                    slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
+                    slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
+                    slotData.bookingId = event.id // To group related slots
+                    
+                    formattedSchedule[currentSlot][dayIndex] = slotData
+                }
             }
         })
 
@@ -405,8 +419,24 @@ const fetchDailySchedule = async () => {
 
         // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
-            // Add booked event to schedule
-            formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
+            const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
+            
+            // For bookings longer than 30 minutes, fill all consecutive slots
+            for (let i = 0; i < eventDuration; i += 2) {
+                const currentSlot = event.start_slot + i
+                
+                if (formattedSchedule[currentSlot]) {
+                    const slotData = formatSlot(event, scheduleDate)
+                    
+                    // Add metadata to identify multi-slot bookings
+                    slotData.isMultiSlot = eventDuration > 2
+                    slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
+                    slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
+                    slotData.bookingId = event.id // To group related slots
+                    
+                    formattedSchedule[currentSlot] = slotData
+                }
+            }
         })
 
         dailyScheduleData.value = formattedSchedule

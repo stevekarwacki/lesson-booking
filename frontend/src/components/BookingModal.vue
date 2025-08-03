@@ -8,12 +8,44 @@
             <div class="modal-body">
                 <div class="booking-details">
                     <p>Date: {{ currentSlot.date.toISOString().split('T')[0] }}</p>
-                    <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ slotToTime(parseInt(currentSlot.startSlot) + parseInt(currentSlot.duration)) }}</p>
+                    <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ displayEndTime }}</p>
+                </div>
+
+                <div class="duration-selection">
+                    <h3>Lesson Duration</h3>
+                    <div class="form-group">
+                        <div class="form-input-group">
+                            <div class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="duration30" 
+                                    v-model="selectedDuration" 
+                                    value="30"
+                                    class="form-input"
+                                >
+                                <label for="duration30" class="form-radio-label">
+                                    30 minutes
+                                </label>
+                            </div>
+                            <div class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="duration60" 
+                                    v-model="selectedDuration" 
+                                    value="60"
+                                    class="form-input"
+                                >
+                                <label for="duration60" class="form-radio-label">
+                                    60 minutes
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="booking-options">
                     <h3>Single Lesson</h3>
-                    <p>30 minutes - $50</p>
+                    <p>{{ selectedDuration }} minutes - ${{ lessonPrice }}</p>
                 </div>
 
                 <div v-if="showPaymentOptions" class="payment-options">
@@ -40,7 +72,7 @@
                                     value="direct"
                                     class="form-input"
                                 >
-                                <label for="payNow" class="form-radio-label">Pay Now ($50)</label>
+                                <label for="payNow" class="form-radio-label">Pay Now (${{ lessonPrice }})</label>
                             </div>
                         </div>
                     </div>
@@ -48,7 +80,7 @@
                     <!-- Stripe Payment Form -->
                     <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
                         <StripePaymentForm
-                            :amount="50.00"
+                            :amount="lessonPrice"
                             @payment-success="handleStripeSuccess"
                             @payment-error="handleStripeError"
                         />
@@ -82,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
@@ -106,36 +138,77 @@ const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
 const userCredits = ref(0)
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
+const selectedDuration = ref('30') // Default to 30 minutes for backward compatibility
+const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
 
-// Fetch user credits when modal opens
-onMounted(async () => {
+// Computed property for the displayed end time based on selected duration
+const displayEndTime = computed(() => {
+    const durationInSlots = parseInt(selectedDuration.value) / 15;
+    return slotToTime(parseInt(currentSlot.value.startSlot) + durationInSlots);
+})
+
+// Computed property for pricing based on selected duration and instructor's hourly rate
+const lessonPrice = computed(() => {
+    const rate = instructorHourlyRate.value || 50; // Fallback to $50 if no rate set
+    return parseInt(selectedDuration.value) === 30 ? rate / 2 : rate;
+})
+
+// Fetch instructor's hourly rate
+const fetchInstructorRate = async () => {
     try {
-        const response = await fetch('/api/payments/credits', {
+        const response = await fetch(`/api/instructors/${currentSlot.value.instructorId}`, {
             headers: {
                 'Authorization': `Bearer ${userStore.token}`
             }
         })
         
-        if (!response.ok) {
-            throw new Error('Failed to fetch credits')
-        }
-        
-        const data = await response.json()
-        userCredits.value = data.total_credits || 0
-        
-        // If user has credits, default to using them
-        if (userCredits.value > 0) {
-            paymentMethod.value = 'credits'
-        } else {
-            paymentMethod.value = 'direct'
-            showPaymentOptions.value = true
+        if (response.ok) {
+            const instructor = await response.json()
+            if (instructor.hourly_rate) {
+                instructorHourlyRate.value = parseFloat(instructor.hourly_rate)
+            }
         }
     } catch (err) {
-        console.error('Error fetching credits:', err)
-        // Default to direct payment if we can't fetch credits
-        paymentMethod.value = 'direct'
-        showPaymentOptions.value = true
+        console.error('Error fetching instructor rate:', err)
+        // Keep default rate of $50
     }
+}
+
+// Fetch user credits and instructor rate when modal opens
+onMounted(async () => {
+    // Fetch both credits and instructor rate in parallel
+    await Promise.all([
+        (async () => {
+            try {
+                const response = await fetch('/api/payments/credits', {
+                    headers: {
+                        'Authorization': `Bearer ${userStore.token}`
+                    }
+                })
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch credits')
+                }
+                
+                const data = await response.json()
+                userCredits.value = data.total_credits || 0
+                
+                // If user has credits, default to using them
+                if (userCredits.value > 0) {
+                    paymentMethod.value = 'credits'
+                } else {
+                    paymentMethod.value = 'direct'
+                    showPaymentOptions.value = true
+                }
+            } catch (err) {
+                console.error('Error fetching credits:', err)
+                // Default to direct payment if we can't fetch credits
+                paymentMethod.value = 'direct'
+                showPaymentOptions.value = true
+            }
+        })(),
+        fetchInstructorRate()
+    ])
 })
 
 const handleStripeSuccess = async () => {
@@ -171,7 +244,12 @@ const confirmBooking = async () => {
         
         // Convert slot times to UTC
         const startTime = slotToTime(currentSlot.value.startSlot);
-        const endTime = slotToTime(parseInt(currentSlot.value.startSlot) + parseInt(currentSlot.value.duration));
+        // Calculate duration in slots (15-minute increments): 30min=2 slots, 60min=4 slots
+        const durationInSlots = parseInt(selectedDuration.value) / 15;
+        const endTime = slotToTime(parseInt(currentSlot.value.startSlot) + durationInSlots);
+        
+        // Log booking attempt for monitoring
+        console.log(`Booking ${selectedDuration.value}-minute lesson for $${lessonPrice.value}`);
         
         // Create UTC dates
         const startDate = new Date(`${utcDate}T${startTime}:00.000Z`);
@@ -228,6 +306,19 @@ watch(() => props.slot, (newSlot) => {
 <style scoped>
 .booking-details {
     margin: var(--spacing-md) 0;
+}
+
+.duration-selection {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-light);
+}
+
+.duration-selection h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
 }
 
 .booking-options {

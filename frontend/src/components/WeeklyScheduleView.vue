@@ -34,7 +34,12 @@
                             'current-day': isCurrentDay(slot.date),
                             'past': isPastTimeSlot(slot.date, timeSlotKey),
                             'booked': (slot.type === 'booked'),
-                            'google-calendar': (slot.is_google_calendar)
+                            'google-calendar': (slot.is_google_calendar),
+                            'multi-slot-booking': slot.isMultiSlot,
+                            'first-slot': slot.isMultiSlot && slot.slotPosition === 0,
+                            'middle-slot': slot.isMultiSlot && slot.slotPosition > 0 && slot.slotPosition < slot.totalSlots - 1,
+                            'last-slot': slot.isMultiSlot && slot.slotPosition === slot.totalSlots - 1,
+                            'sixty-minute': slot.isMultiSlot && slot.totalSlots === 2
                         }"
                         @click="handleTimeSlotClick({
                             date: slot.date,
@@ -51,9 +56,16 @@
                             <span v-if="isInstructorOrAdmin" class="student-name">
                                 {{ slot.student?.name }}
                             </span>
+                            
+                            <!-- Duration indicator for 60-minute lessons -->
+                            <div v-if="slot.isMultiSlot && slot.slotPosition === 0" class="duration-indicator">
+                                {{ slot.totalSlots * 30 }}min
+                            </div>
+                            
                             <div v-if="isInstructorOrAdmin" class="tooltip">
                                 <div class="tooltip-title">Booking Details</div>
                                 <div class="tooltip-content">
+                                    <p>Duration: {{ slot.totalSlots * 30 }} minutes</p>
                                     <p>Time: {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}</p>
                                     <p>Student: {{ slot.student?.name }}</p>
                                 </div>
@@ -357,6 +369,62 @@ const handleTimeSlotClick = (cellData) => {
     margin: var(--spacing-xs) 0;
 }
 
+/* Multi-slot booking styles for 60-minute lessons */
+.time-slot.multi-slot-booking {
+    position: relative;
+}
+
+.time-slot.sixty-minute.first-slot {
+    border-bottom: 2px solid var(--primary-color);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.time-slot.sixty-minute.last-slot {
+    border-top: 2px solid var(--primary-color);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: -1px; /* Overlap border */
+}
+
+.time-slot.sixty-minute.first-slot::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    background: var(--primary-color);
+    z-index: 1;
+}
+
+.duration-indicator {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--primary-color);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1;
+    z-index: 2;
+}
+
+/* Enhanced visual connection for 60-minute bookings */
+.time-slot.sixty-minute.booked {
+    background: linear-gradient(180deg, var(--primary-color) 0%, rgba(var(--primary-color-rgb, 0, 102, 255), 0.85) 100%);
+}
+
+.time-slot.sixty-minute.first-slot.booked {
+    background: linear-gradient(180deg, var(--primary-color) 0%, rgba(var(--primary-color-rgb, 0, 102, 255), 0.9) 100%);
+}
+
+.time-slot.sixty-minute.last-slot.booked {
+    background: linear-gradient(180deg, rgba(var(--primary-color-rgb, 0, 102, 255), 0.9) 0%, var(--primary-color) 100%);
+}
+
 @media (max-width: 768px) {
     .schedule-header {
         grid-template-columns: 60px repeat(7, 1fr);
@@ -368,6 +436,11 @@ const handleTimeSlotClick = (cellData) => {
 
     .day-date {
         font-size: var(--font-size-xs);
+    }
+    
+    .duration-indicator {
+        font-size: var(--font-size-xs);
+        padding: 1px 2px;
     }
 }
 </style> 

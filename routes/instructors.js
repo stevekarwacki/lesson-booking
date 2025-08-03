@@ -17,6 +17,28 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get instructor by ID
+router.get('/:instructorId', async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+        const instructor = await Instructor.findByPk(instructorId, {
+            include: [{
+                model: require('../models/User').User,
+                attributes: ['name', 'email']
+            }]
+        });
+        
+        if (!instructor) {
+            return res.status(404).json({ error: 'Instructor not found' });
+        }
+        
+        res.json(instructor);
+    } catch (error) {
+        console.error('Error fetching instructor:', error);
+        res.status(500).json({ error: 'Error fetching instructor' });
+    }
+});
+
 // Get instructor by user ID
 router.get('/user/:userId', async (req, res) => {
     try {

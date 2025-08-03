@@ -21,6 +21,7 @@
                     <!-- Current recurring booking info (if editing) -->
                     <div v-if="isEditing && existingBooking" class="current-booking-info">
                         <h3>Current Weekly Schedule</h3>
+                        <p><strong>Duration:</strong> {{ existingBooking.duration * 15 }} minutes</p>
                         <p><strong>Day:</strong> {{ getDayName(existingBooking.day_of_week) }}</p>
                         <p><strong>Time:</strong> {{ formatTime(slotToTime(existingBooking.start_slot)) }} - {{ formatTime(slotToTime(existingBooking.start_slot + existingBooking.duration)) }}</p>
                         <p><strong>Instructor:</strong> {{ existingBooking.Instructor.User.name }}</p>
@@ -46,8 +47,41 @@
                         </select>
                     </div>
 
-                    <!-- Day Selection -->
+                    <!-- Duration Selection -->
                     <div class="form-group" v-if="selectedInstructor">
+                        <label class="form-label">Lesson Duration:</label>
+                        <div class="form-input-group">
+                            <div class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="duration30-recurring" 
+                                    v-model="selectedDuration" 
+                                    value="30"
+                                    class="form-input"
+                                    @change="handleDurationChange"
+                                >
+                                <label for="duration30-recurring" class="form-radio-label">
+                                    30 minutes
+                                </label>
+                            </div>
+                            <div class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="duration60-recurring" 
+                                    v-model="selectedDuration" 
+                                    value="60"
+                                    class="form-input"
+                                    @change="handleDurationChange"
+                                >
+                                <label for="duration60-recurring" class="form-radio-label">
+                                    60 minutes
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Day Selection -->
+                    <div class="form-group" v-if="selectedInstructor && selectedDuration">
                         <label for="day-select" class="form-label">Select Day:</label>
                         <select 
                             id="day-select" 
@@ -142,6 +176,7 @@ const loadingAvailability = ref(false)
 // Form data
 const instructors = ref([])
 const selectedInstructor = ref('')
+const selectedDuration = ref('30') // Default to 30 minutes
 const selectedDay = ref('')
 const selectedSlot = ref(null)
 const availableSlots = ref([])
@@ -181,6 +216,7 @@ const fetchInstructors = async () => {
         // If editing, pre-select the current instructor
         if (isEditing.value && props.existingBooking) {
             selectedInstructor.value = props.existingBooking.instructor_id
+            selectedDuration.value = props.existingBooking.duration === 4 ? '60' : '30' // Convert slots to minutes
             selectedDay.value = props.existingBooking.day_of_week
             // Manually fetch availability after setting both values to avoid race condition
             await fetchAvailability()
@@ -212,6 +248,15 @@ const handleDayChange = async () => {
     }
 }
 
+// Handle duration change
+const handleDurationChange = async () => {
+    selectedSlot.value = null
+    error.value = null
+    if (selectedInstructor.value && selectedDay.value !== '') {
+        await fetchAvailability()
+    }
+}
+
 // Fetch availability for selected instructor and day
 const fetchAvailability = async () => {
     if (!selectedInstructor.value || selectedDay.value === '') return
@@ -233,15 +278,16 @@ const fetchAvailability = async () => {
             slot.day_of_week === selectedDay.value
         )
         
-        // Convert to 30-minute slots for UI
+        // Convert to slots based on selected duration
+        const slotDuration = parseInt(selectedDuration.value) === 30 ? 2 : 4 // 30min=2 slots, 60min=4 slots
         const slots = []
         dayAvailability.forEach(slot => {
-            // Break down longer slots into 30-minute (2 slot) increments
-            for (let i = 0; i < slot.duration; i += 2) {
-                if (i + 2 <= slot.duration) {
+            // Break down longer slots based on selected duration
+            for (let i = 0; i < slot.duration; i += slotDuration) {
+                if (i + slotDuration <= slot.duration) {
                     slots.push({
                         start_slot: slot.start_slot + i,
-                        duration: 2, // 30 minutes
+                        duration: slotDuration,
                         type: 'available'
                     })
                 }
