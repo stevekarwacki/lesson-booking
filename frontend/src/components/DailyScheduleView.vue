@@ -20,11 +20,11 @@
                     'past': isPastTimeSlot(selectedDay.date, timeSlot),
                     'booked': (timeSlot.type === 'booked'),
                     'google-calendar': (timeSlot.is_google_calendar),
-                    'multi-slot-booking': timeSlot.isMultiSlot,
-                    'first-slot': timeSlot.isMultiSlot && timeSlot.slotPosition === 0,
-                    'middle-slot': timeSlot.isMultiSlot && timeSlot.slotPosition > 0 && timeSlot.slotPosition < timeSlot.totalSlots - 1,
-                    'last-slot': timeSlot.isMultiSlot && timeSlot.slotPosition === timeSlot.totalSlots - 1,
-                    'sixty-minute': timeSlot.isMultiSlot && timeSlot.totalSlots === 2
+                    'multi-slot-booking': timeSlot.isMultiSlot && !timeSlot.is_google_calendar,
+                    'first-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === 0,
+                    'middle-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition > 0 && timeSlot.slotPosition < timeSlot.totalSlots - 1,
+                    'last-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === timeSlot.totalSlots - 1,
+                    'sixty-minute': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.totalSlots === 2
                 }"
 
                     @click="handleTimeSlotClick(timeSlot)"
@@ -40,14 +40,14 @@
                         </span>
                         
                         <!-- Duration indicator for 60-minute lessons -->
-                        <div v-if="timeSlot.isMultiSlot && timeSlot.slotPosition === 0" class="duration-indicator">
+                        <div v-if="timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === 0" class="duration-indicator">
                             {{ timeSlot.totalSlots * 30 }}min
                         </div>
                         
                         <div v-if="isInstructorOrAdmin" class="tooltip">
                             <div class="tooltip-title">Booking Details</div>
                             <div class="tooltip-content">
-                                <p>Duration: {{ timeSlot.totalSlots * 30 }} minutes</p>
+                                <p v-if="timeSlot.isMultiSlot && !timeSlot.is_google_calendar">Duration: {{ timeSlot.totalSlots * 30 }} minutes</p>
                                 <p>Time: {{ formatTime(slotToTime(timeSlot.start_slot)) }} - {{ formatTime(slotToTime(timeSlot.start_slot + timeSlot.duration)) }}</p>
                                 <p>Student: {{ timeSlot.student?.name }}</p>
                             </div>
