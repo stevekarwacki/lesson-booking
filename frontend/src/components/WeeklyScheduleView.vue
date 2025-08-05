@@ -186,10 +186,6 @@ const handleTimeSlotClick = (cellData) => {
     color: var(--text-secondary);
 }
 
-.schedule-body {
-    overflow-x: auto;
-}
-
 .time-slots {
     display: grid;
 }
@@ -257,7 +253,7 @@ const handleTimeSlotClick = (cellData) => {
 }
 
 .time-slot:hover {
-    filter: brightness(0.9);
+    filter: brightness(1.1);
 }
 
 .slot-time {

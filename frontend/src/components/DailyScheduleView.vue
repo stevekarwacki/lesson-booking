@@ -110,10 +110,6 @@ const handleTimeSlotClick = (timeSlot) => {
     color: var(--text-primary);
 }
 
-.schedule-body {
-    overflow: hidden;
-}
-
 .time-row {
     display: grid;
     grid-template-columns: max-content auto;
@@ -185,7 +181,7 @@ const handleTimeSlotClick = (timeSlot) => {
 }
 
 .time-slot:hover {
-    filter: brightness(0.9);
+    filter: brightness(1.1);
 }
 
 .time-slot.available:active {

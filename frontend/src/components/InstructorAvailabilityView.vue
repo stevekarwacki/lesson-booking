@@ -308,7 +308,6 @@ const getBlockedReason = (dayOfWeek, hour) => {
 }
 
 .schedule-body {
-    overflow-y: auto;
     max-height: 600px;
 }
 
