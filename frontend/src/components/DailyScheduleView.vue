@@ -19,6 +19,7 @@
                     'available': (timeSlot.type === 'available'),
                     'past': isPastTimeSlot(selectedDay.date, timeSlot),
                     'booked': (timeSlot.type === 'booked'),
+                    'own-booking': (timeSlot.type === 'booked' && timeSlot.isOwnBooking),
                     'google-calendar': (timeSlot.is_google_calendar),
                     'multi-slot-booking': timeSlot.isMultiSlot && !timeSlot.is_google_calendar,
                     'first-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === 0,
@@ -135,42 +136,56 @@ const handleTimeSlotClick = (timeSlot) => {
     padding: 0;
     position: relative;
     transition: all 0.2s ease;
-    background-color: var(--error-color);
-    opacity: 0.3;
+    background-color: var(--calendar-unavailable);
     cursor: not-allowed;
 }
 
 .time-slot.available {
-    background-color: var(--success-color);
-    opacity: 0.5;
+    background-color: var(--calendar-available);
     cursor: pointer;
 }
 
 .time-slot.booked {
-    background-color: var(--primary-color);
+    background-color: var( --calendar-booked);
     cursor: pointer;
 }
 
+.time-slot.booked.own-booking {
+    background-color: var(--calendar-booked-self);
+}
+
 .time-slot.google-calendar {
-    background-color: #4285f4;
+    background-color: var(--calendar-blocked);
     background-image: repeating-linear-gradient(
         45deg,
         transparent,
         transparent 4px,
-        rgba(255,255,255,0.1) 4px,
-        rgba(255,255,255,0.1) 8px
+        rgba(255, 255, 255, 0.3) 4px,
+        rgba(255, 255, 255, 0.3) 8px
     );
-    border-left: 4px solid #1a73e8;
-    opacity: 1;
+    border-left: 4px solid #dc3545;
+    color: white;
+}
+
+.time-slot.blocked {
+    background-color: var(--calendar-blocked);
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(255, 255, 255, 0.3) 4px,
+        rgba(255, 255, 255, 0.3) 8px
+    );
+    color: white;
 }
 
 .time-slot.past {
-    opacity: 0.1;
+    background-color: var(--calendar-past);
     cursor: not-allowed;
 }
 
 .time-slot:hover {
-    opacity: 0.7;
+    filter: brightness(0.9);
 }
 
 .time-slot.available:active {
@@ -215,9 +230,9 @@ const handleTimeSlotClick = (timeSlot) => {
 .tooltip {
     display: none;
     position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -8px;
+    right: -8px;
+    transform: translateY(-100%);
     background: var(--background-light);
     padding: var(--spacing-sm);
     border-radius: var(--border-radius);
@@ -225,7 +240,18 @@ const handleTimeSlotClick = (timeSlot) => {
     z-index: 1000;
     min-width: 200px;
     font-size: var(--font-size-sm);
-    margin-top: var(--spacing-xs);
+    border: 1px solid var(--border-color);
+    pointer-events: none;
+}
+
+.booked-slot-content {
+    z-index: 1;
+}
+
+/* Ensure tooltip stays visible when cursor moves to it */
+.tooltip:hover {
+    display: block;
+    pointer-events: auto;
 }
 
 .tooltip-title {
@@ -248,27 +274,11 @@ const handleTimeSlotClick = (timeSlot) => {
 }
 
 .time-slot.sixty-minute.first-slot {
-    border-bottom: 2px solid var(--primary-color);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    border-bottom: 0;
 }
 
 .time-slot.sixty-minute.last-slot {
-    border-top: 2px solid var(--primary-color);
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    margin-top: -1px; /* Overlap border */
-}
-
-.time-slot.sixty-minute.first-slot::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 4px;
-    right: 4px;
-    height: 2px;
-    background: var(--primary-color);
-    z-index: 1;
+    border-top: 0; /* Overlap border */
 }
 
 .duration-indicator {
@@ -287,15 +297,15 @@ const handleTimeSlotClick = (timeSlot) => {
 
 /* Enhanced visual connection for 60-minute bookings */
 .time-slot.sixty-minute.booked {
-    background: linear-gradient(180deg, var(--primary-color) 0%, rgba(var(--primary-color-rgb, 0, 102, 255), 0.85) 100%);
+    background-color: var( --calendar-booked);
 }
 
 .time-slot.sixty-minute.first-slot.booked {
-    background: linear-gradient(180deg, var(--primary-color) 0%, rgba(var(--primary-color-rgb, 0, 102, 255), 0.9) 100%);
+    background-color: var( --calendar-booked);
 }
 
 .time-slot.sixty-minute.last-slot.booked {
-    background: linear-gradient(180deg, rgba(var(--primary-color-rgb, 0, 102, 255), 0.9) 0%, var(--primary-color) 100%);
+    background-color: var( --calendar-booked);
 }
 
 @media (max-width: 768px) {

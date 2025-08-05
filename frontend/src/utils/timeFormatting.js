@@ -33,13 +33,24 @@ export const getStartOfDay = (date) => {
 }
 
 export const isCurrentDay = (date) => {
-    return isSameDay(new Date(), new Date(date))
+    const now = new Date()
+    now.setUTCHours(0, 0, 0, 0)
+    const checkDate = new Date(date)
+    checkDate.setUTCHours(0, 0, 0, 0)
+    return now.getTime() === checkDate.getTime()
 }
 
 export const isPastDay = (date) => {
-    const today = getStartOfDay(new Date())
-    const checkDate = getStartOfDay(new Date(date))
-    return checkDate < today
+    // Get current date at midnight UTC
+    const now = new Date()
+    now.setUTCHours(0, 0, 0, 0)
+    
+    // Convert input date to midnight UTC
+    const checkDate = new Date(date)
+    checkDate.setUTCHours(0, 0, 0, 0)
+    
+    // Compare the dates directly
+    return checkDate < now
 }
 
 export const isPastTimeSlot = (date, timeSlot) => {
@@ -47,9 +58,10 @@ export const isPastTimeSlot = (date, timeSlot) => {
     
     if (isCurrentDay(date)) {
         const now = new Date()
-        const currentSlot = timeToSlot(`${now.getHours()}:${now.getMinutes()}`)
+        const currentSlot = timeToSlot(`${now.getUTCHours()}:${now.getUTCMinutes()}`)
+        const timeSlotNum = parseInt(timeSlot)
 
-        return timeSlot < currentSlot
+        return currentSlot >= timeSlotNum
     }
     
     return false

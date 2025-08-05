@@ -248,6 +248,8 @@ const formatSlot = (slot, date) => {
             name: slot.student_name,
             email: slot.student_email
         }
+        // Check if this booking belongs to the current user
+        formattedSlot.isOwnBooking = slot.student_id === userStore.user.id
     } else if (slot.is_google_calendar || slot.source === 'google_calendar') {
         // For Google Calendar events, use the formatted display info
         formattedSlot.student = {
@@ -255,6 +257,7 @@ const formatSlot = (slot, date) => {
             name: slot.student_name || '🗓️ ' + (slot.summary || 'Busy'),
             email: slot.student_email || 'Google Calendar'
         }
+        formattedSlot.isOwnBooking = false
     }
 
     return formattedSlot
@@ -323,14 +326,27 @@ const fetchWeeklySchedule = async () => {
 
         // Overwrite availability with booked events
         bookedEvents.forEach(event => {
+            // Create date in UTC to match backend
             let eventDate = new Date(event.date)
-            let dayIndex
+            eventDate.setUTCHours(0, 0, 0, 0)
             
             // Use UTC day for all events to match backend
-            dayIndex = eventDate.getUTCDay()
+            const dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
             const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
+
+            // Log booking information
+            const now = new Date()
+            const currentTime = now.toLocaleTimeString()
+            now.setHours(0, 0, 0, 0)
+            
+            // Create date in both UTC and local
+            const bookingDateLocal = new Date(event.date)
+            bookingDateLocal.setHours(0, 0, 0, 0)
+            
+            const bookingDateUTC = new Date(event.date)
+            bookingDateUTC.setUTCHours(0, 0, 0, 0)
             
             // For bookings longer than 30 minutes, fill all consecutive slots
             for (let i = 0; i < eventDuration; i += 2) {
@@ -366,7 +382,8 @@ const dailySchedule = computed(() => {
 const selectedDay = computed(() => {
     if (!selectedDate.value) return ''
 
-    const date = new Date(`${selectedDate.value}T00:00:00`)
+    const date = new Date(selectedDate.value)
+    date.setHours(0, 0, 0, 0)
 
     return {
         date: date,

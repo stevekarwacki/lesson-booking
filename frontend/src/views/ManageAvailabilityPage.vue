@@ -27,17 +27,17 @@
 
         <div v-if="error" class="error-message">{{ error }}</div>
         
-        <!-- Google Calendar Settings -->
-        <GoogleCalendarSettings 
-            v-if="showAvailabilityManager && effectiveInstructorId"
-            :instructor-id="effectiveInstructorId"
-        />
-        
         <!-- Only show availability manager when we have an instructor ID -->
         <InstructorAvailabilityManager 
             v-if="showAvailabilityManager && effectiveInstructorId"
             :instructor-id="effectiveInstructorId"
             ref="availabilityManager"
+        />
+        
+        <!-- Google Calendar Settings -->
+        <GoogleCalendarSettings 
+            v-if="showAvailabilityManager && effectiveInstructorId"
+            :instructor-id="effectiveInstructorId"
         />
     </div>
 </template>

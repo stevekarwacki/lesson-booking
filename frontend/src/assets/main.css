@@ -1,15 +1,31 @@
 :root {
   --primary-color: #42b883;
-  --primary-dark: #3aa876;
+  --text-color: #2c3e50;
   --secondary-color: #2c3e50;
   --error-color: #dc3545;
   --success-color: #28a745;
   --blue-color: #0082fc;
   --highlight-color: #dceeff;
   --background-color: #f5f7fa;
+  --background-light: #ffffff;
+  --text-primary: #2c3e50;
+  --border-color: #e0e0e0;
+  
+  /* Calendar Color System - New cohesive color scheme */
+  --calendar-unavailable: #ffebee;      /* Soft light red for unavailable slots */
+  --calendar-available: #78b486;        /* Soft green for available slots */
+   --calendar-booked: #437c50;     /* Lighter green for other users' bookings */
+  --calendar-booked-self: #e3f2fd;      /* Soft blue for current user's bookings */
+  --calendar-blocked: #dc3545;          /* Dark red for blocked slots */
+  --calendar-past: #f8f9fa;             /* Very light gray for past slots */
+  --calendar-google: #4285f4;           /* Google Calendar blue */
+  --calendar-google-stripe: rgba(255,255,255,0.15); /* Google Calendar stripe color */
+  
+  /* Text colors for calendar slots */
+  --calendar-text-dark: #2c3e50;        /* Dark text for light backgrounds */
+  --calendar-text-light: #ffffff;       /* Light text for dark backgrounds */
   --card-shadow: 0 2px 4px rgba(0,0,0,0.1);
   --border-radius: 8px;
-  --border-color: #e0e0e0;
   --spacing-sm: 10px;
   --spacing-md: 20px;
   --spacing-lg: 40px;

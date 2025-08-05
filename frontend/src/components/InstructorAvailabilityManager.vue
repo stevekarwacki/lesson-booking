@@ -376,8 +376,9 @@ onMounted(async () => {
 }
 
 .btn-danger {
-    background-color: var(--error-color);
-    color: white;
+    background-color: var(--calendar-blocked);
+    color: var(--calendar-text-dark);
+    border: 1px solid #dc3545;
 }
 
 .no-blocks {
