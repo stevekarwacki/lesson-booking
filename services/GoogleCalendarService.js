@@ -1,5 +1,10 @@
 const { google } = require('googleapis');
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
+const { 
+    timeToSlotUTC,
+    formatDateUTC,
+    calculateDurationInSlots
+} = require('../utils/timeUtils');
 
 class GoogleCalendarService {
     constructor(options = {}) {
@@ -233,23 +238,24 @@ class GoogleCalendarService {
     }
     
     /**
-     * Convert time to slot number (15-minute increments)
+     * Convert time to slot number (15-minute increments) - UTC version
      * @param {Date} date - Date object
      * @returns {number} Slot number (0-95)
      */
     timeToSlot(date) {
-        return Math.floor(date.getHours() * 4 + date.getMinutes() / 15);
+        // Use UTC utility function for consistency
+        return timeToSlotUTC(date);
     }
     
     /**
-     * Calculate duration between two times in slots
+     * Calculate duration between two times in slots - UTC version
      * @param {Date} startTime - Start time
      * @param {Date} endTime - End time
      * @returns {number} Duration in slots
      */
     calculateDuration(startTime, endTime) {
-        const diffMs = endTime - startTime;
-        return Math.ceil(diffMs / (15 * 60 * 1000)); // 15-minute slots
+        // Use UTC utility function for consistency
+        return calculateDurationInSlots(startTime, endTime);
     }
     
     /**

@@ -2,12 +2,30 @@ const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
 const instructorAuth = require('../middleware/instructorAuth');
+const { 
+    getUserTimezone,
+    localTimeToUTCSlot,
+    utcSlotToLocalTime,
+    isValidSlot 
+} = require('../utils/timeUtils');
 
 // Get instructor's weekly availability
 router.get('/:instructorId/weekly', async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
+        const { timezone } = req.query; // Client can specify timezone
+        
         const schedule = await InstructorAvailability.getWeeklyAvailability(instructorId);
+        
+        // If timezone is provided and not UTC, convert UTC slots to local time for display
+        if (timezone && timezone !== 'UTC') {
+            // Note: Since weekly availability uses day_of_week + slots, 
+            // the conversion is already handled by the slot system.
+            // The slots represent times within each day of the week,
+            // so they remain consistent regardless of timezone.
+            // The client will handle the display conversion.
+        }
+        
         res.json(schedule);
     } catch (error) {
         console.error('Error fetching weekly availability:', error);

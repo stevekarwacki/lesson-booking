@@ -3,6 +3,12 @@ const { sequelize } = require('../db/index');
 const { User } = require('./User');
 const { Instructor } = require('./Instructor');
 const { Credits } = require('./Credits');
+const { 
+    formatDateUTC, 
+    isValidSlot, 
+    isValidDateString,
+    getCurrentDateUTC
+} = require('../utils/timeUtils');
 
 const Calendar = sequelize.define('Calendar', {
     id: {
@@ -62,6 +68,26 @@ Calendar.belongsTo(User, { foreignKey: 'student_id', as: 'student' });
 // Static methods
 Calendar.addEvent = async function(instructorId, studentId, date, startSlot, duration, status = 'booked', paymentMethod = 'credits') {
     try {
+        // Validate inputs using UTC utilities
+        if (!isValidDateString(date)) {
+            throw new Error('Invalid date format. Expected YYYY-MM-DD.');
+        }
+        
+        if (!isValidSlot(startSlot)) {
+            throw new Error('Invalid start slot. Must be between 0 and 95.');
+        }
+        
+        if (!Number.isInteger(duration) || duration < 1) {
+            throw new Error('Invalid duration. Must be a positive integer.');
+        }
+        
+        if (startSlot + duration > 96) {
+            throw new Error('Event duration exceeds daily slot limit.');
+        }
+
+        // Ensure we store the date in UTC format
+        const utcDate = formatDateUTC(date);
+
         // Check if user has sufficient credits if using credits
         if (paymentMethod === 'credits') {
             const hasCredits = await Credits.hasSufficientCredits(studentId);
@@ -74,7 +100,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
         const event = await this.create({
             instructor_id: instructorId,
             student_id: studentId,
-            date,
+            date: utcDate,
             start_slot: startSlot,
             duration,
             status
@@ -137,11 +163,14 @@ Calendar.deleteEvent = async function(eventId) {
 };
 
 Calendar.getStudentEvents = async function(studentId) {
+    // Use UTC date for comparison to ensure consistent filtering
+    const currentDateUTC = getCurrentDateUTC();
+    
     return this.findAll({
         where: {
             student_id: studentId,
             date: {
-                [sequelize.Op.gte]: new Date()
+                [sequelize.Op.gte]: currentDateUTC
             }
         },
         include: [{

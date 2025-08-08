@@ -78,7 +78,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
+import { slotToTimeUTC, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
 
 const props = defineProps({
@@ -199,18 +199,17 @@ const updateBooking = async () => {
         loading.value = true
         error.value = null
 
-        // Get the date in UTC
-        const date = new Date(selectedSlot.value.date)
-        date.setUTCHours(0, 0, 0, 0)
-        const utcDate = date.toISOString().split('T')[0]
+        // Get the date in UTC using utility functions
+        const utcDate = formatDateUTC(selectedSlot.value.date)
         
-        // Convert slot times to UTC
-        const startTime = slotToTime(selectedSlot.value.startSlot)
-        const endTime = slotToTime(parseInt(selectedSlot.value.startSlot) + parseInt(selectedSlot.value.duration))
+        // Convert slot times to UTC using utility functions
+        const startTime = slotToTimeUTC(selectedSlot.value.startSlot)
+        const endTime = slotToTimeUTC(parseInt(selectedSlot.value.startSlot) + parseInt(selectedSlot.value.duration))
         
-        // Create UTC dates
-        const startDate = new Date(`${utcDate}T${startTime}:00.000Z`)
-        const endDate = new Date(`${utcDate}T${endTime}:00.000Z`)
+        // Create UTC dates using utility functions
+        const startDate = createUTCDateFromSlot(utcDate, selectedSlot.value.startSlot)
+        const endSlot = parseInt(selectedSlot.value.startSlot) + parseInt(selectedSlot.value.duration)
+        const endDate = createUTCDateFromSlot(utcDate, endSlot)
 
         const response = await fetch(`/api/calendar/student/${props.booking.id}`, {
             method: 'PATCH',

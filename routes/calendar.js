@@ -3,6 +3,14 @@ const router = express.Router();
 const { Calendar } = require('../models/Calendar');
 const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
+const { 
+    timeToSlotUTC,
+    formatDateUTC,
+    getDayOfWeekUTC,
+    calculateDurationInSlots,
+    isValidSlot,
+    isValidDateString
+} = require('../utils/timeUtils');
 
 // Get instructor's calendar events
 router.get('/instructor/:instructorId', async (req, res) => {
@@ -56,7 +64,7 @@ router.post('/addEvent', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Validate and parse dates
+        // Validate and parse dates using UTC utilities
         const requestedDate = new Date(startTime);
         const endDate = new Date(endTime);
 
@@ -65,14 +73,19 @@ router.post('/addEvent', async (req, res) => {
             return res.status(400).json({ error: 'Invalid date format' });
         }
 
-        // Format date to YYYY-MM-DD
-        const formattedDate = requestedDate.toISOString().split('T')[0];
-        const dayOfWeek = requestedDate.getUTCDay();
+        // Format date to YYYY-MM-DD using UTC utilities
+        const formattedDate = formatDateUTC(requestedDate);
+        const dayOfWeek = getDayOfWeekUTC(requestedDate);
 
-        // Calculate time slots
-        const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
-        const endSlot = Math.floor(endDate.getUTCHours() * 4 + endDate.getUTCMinutes() / 15);
-        const duration = endSlot - startSlot;
+        // Calculate time slots using UTC utilities
+        const startSlot = timeToSlotUTC(requestedDate);
+        const endSlot = timeToSlotUTC(endDate);
+        const duration = calculateDurationInSlots(requestedDate, endDate);
+
+        // Validate slots
+        if (!isValidSlot(startSlot) || !isValidSlot(endSlot)) {
+            return res.status(400).json({ error: 'Invalid time slots' });
+        }
 
         // Validate slot duration
         if (duration <= 0) {

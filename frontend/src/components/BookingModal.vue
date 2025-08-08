@@ -116,7 +116,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { slotToTime } from '../utils/timeFormatting'
+import { slotToTimeUTC, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import { useRoute } from 'vue-router'
 
@@ -237,23 +237,22 @@ const confirmBooking = async () => {
         loading.value = true;
         error.value = null;
 
-        // Get the date in UTC
-        const date = new Date(currentSlot.value.date);
-        date.setUTCHours(0, 0, 0, 0);
-        const utcDate = date.toISOString().split('T')[0];
+        // Get the date in UTC using utility functions
+        const utcDate = formatDateUTC(currentSlot.value.date);
         
-        // Convert slot times to UTC
-        const startTime = slotToTime(currentSlot.value.startSlot);
+        // Convert slot times to UTC using utility functions
+        const startTime = slotToTimeUTC(currentSlot.value.startSlot);
         // Calculate duration in slots (15-minute increments): 30min=2 slots, 60min=4 slots
         const durationInSlots = parseInt(selectedDuration.value) / 15;
-        const endTime = slotToTime(parseInt(currentSlot.value.startSlot) + durationInSlots);
+        const endTime = slotToTimeUTC(parseInt(currentSlot.value.startSlot) + durationInSlots);
         
         // Log booking attempt for monitoring
         console.log(`Booking ${selectedDuration.value}-minute lesson for $${lessonPrice.value}`);
         
-        // Create UTC dates
-        const startDate = new Date(`${utcDate}T${startTime}:00.000Z`);
-        const endDate = new Date(`${utcDate}T${endTime}:00.000Z`);
+        // Create UTC dates using utility functions
+        const startDate = createUTCDateFromSlot(utcDate, currentSlot.value.startSlot);
+        const endSlot = parseInt(currentSlot.value.startSlot) + durationInSlots;
+        const endDate = createUTCDateFromSlot(utcDate, endSlot);
 
         const requestBody = {
             instructorId: currentSlot.value.instructorId,

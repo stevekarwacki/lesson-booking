@@ -16,6 +16,10 @@
         <!-- Blocked Times Section -->
         <div class="blocked-times-section card">
             <h3>Block Out Time</h3>
+            <p class="timezone-note">
+                Enter times in your local timezone ({{ timezoneStore.timezoneDisplayName }}). 
+                They will be stored correctly in UTC.
+            </p>
             <form @submit.prevent="addBlockedTime" class="blocked-time-form">
                 <div class="form-group">
                     <label for="block-start">Start</label>
@@ -78,9 +82,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useTimezoneStore } from '../stores/timezoneStore'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
 
 const userStore = useUserStore()
+const timezoneStore = useTimezoneStore()
 const error = ref(null)
 const success = ref('')
 const loading = ref(false)
@@ -115,7 +121,17 @@ const newBlockedTime = ref({
 const scheduleUpdateCounter = ref(0)
 
 const formatDateTime = (datetime) => {
-    return new Date(datetime).toLocaleString()
+    // Convert datetime to user's timezone for display
+    const date = new Date(datetime)
+    return date.toLocaleString('en-US', {
+        timeZone: timezoneStore.userTimezone,
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: timezoneStore.use12HourFormat
+    })
 }
 
 const loadSchedule = async () => {
@@ -235,6 +251,18 @@ const fetchBlockedTimes = async () => {
 
 const addBlockedTime = async () => {
     try {
+        // Convert local datetime-local input to UTC for storage
+        const startDateTime = newBlockedTime.value.startDateTime
+        const endDateTime = newBlockedTime.value.endDateTime
+        
+        // Create Date objects from the datetime-local input (which is in local timezone)
+        const startDate = new Date(startDateTime)
+        const endDate = new Date(endDateTime)
+        
+        // Convert to ISO strings (UTC) for sending to server
+        const utcStartDateTime = startDate.toISOString()
+        const utcEndDateTime = endDate.toISOString()
+        
         const response = await fetch(`/api/availability/${userStore.user.id}/blocked`, {
             method: 'POST',
             headers: {
@@ -242,8 +270,8 @@ const addBlockedTime = async () => {
                 'Authorization': `Bearer ${userStore.token}`
             },
             body: JSON.stringify({
-                startDateTime: newBlockedTime.value.startDateTime,
-                endDateTime: newBlockedTime.value.endDateTime,
+                startDateTime: utcStartDateTime,
+                endDateTime: utcEndDateTime,
                 reason: newBlockedTime.value.reason
             })
         });
@@ -385,5 +413,15 @@ onMounted(async () => {
     color: var(--text-muted);
     text-align: center;
     padding: var(--spacing-md);
+}
+
+.timezone-note {
+    background: #f8f9fa;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary-color);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-muted);
 }
 </style> 

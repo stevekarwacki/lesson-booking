@@ -17,6 +17,12 @@
                     Cancel
                 </button>
             </div>
+            <div class="timezone-info">
+                <span class="timezone-label">
+                    Times shown in: {{ timezoneStore.timezoneDisplayName }}
+                    <span class="timezone-abbr">({{ timezoneStore.timezoneAbbreviation }})</span>
+                </span>
+            </div>
         </div>
         
         <div class="schedule-header">
@@ -67,7 +73,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { timeToSlot } from '../utils/timeFormatting'
+import { timeToSlot, timeToSlotUTC, getUserTimezone, formatTime } from '../utils/timeFormatting'
+import { useTimezoneStore } from '../stores/timezoneStore'
 
 const props = defineProps({
     weeklySchedule: {
@@ -81,6 +88,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:weeklySchedule', 'save'])
+
+const timezoneStore = useTimezoneStore()
 
 const isEditing = ref(false)
 const editingSchedule = ref(props.weeklySchedule)
@@ -214,16 +223,28 @@ const daysOfWeek = [
 
 const timeSlots = computed(() => {
     const slots = []
+    const userTimezone = timezoneStore.userTimezone
+    const showTimezoneInLabel = userTimezone !== 'UTC'
+    
     for (let hour = 7; hour < 19; hour++) {
         // Add hour slot
+        const hourLabel = timezoneStore.use12HourFormat 
+            ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
+            : `${hour.toString().padStart(2, '0')}:00`
+            
         slots.push({
             value: hour,
-            label: `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
+            label: hourLabel
         })
+        
         // Add half hour slot
+        const halfHourLabel = timezoneStore.use12HourFormat 
+            ? `${hour % 12 || 12}:30${hour < 12 ? 'am' : 'pm'}`
+            : `${hour.toString().padStart(2, '0')}:30`
+            
         slots.push({
             value: hour + 0.5,
-            label: `${hour % 12 || 12}:30${hour < 12 ? 'am' : 'pm'}`
+            label: halfHourLabel
         })
     }
     return slots
@@ -257,12 +278,33 @@ const getBlockedReason = (dayOfWeek, hour) => {
 .schedule-header-container {
     padding: var(--spacing-md);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
 }
 
 .schedule-controls {
     display: flex;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
+}
+
+.timezone-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.timezone-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.timezone-abbr {
+    color: var(--primary-color);
+    font-weight: 600;
 }
 
 .btn {
@@ -305,10 +347,6 @@ const getBlockedReason = (dayOfWeek, hour) => {
     text-align: center;
     font-weight: bold;
     border-left: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.schedule-body {
-    max-height: 600px;
 }
 
 .time-slots {
