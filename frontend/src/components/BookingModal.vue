@@ -116,7 +116,8 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { slotToTimeUTC, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
+import { useTimezoneStore } from '../stores/timezoneStore'
+import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import { useRoute } from 'vue-router'
 
@@ -130,6 +131,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'booking-confirmed'])
 
 const userStore = useUserStore()
+const timezoneStore = useTimezoneStore()
 const route = useRoute()
 
 const loading = ref(false)
@@ -258,7 +260,8 @@ const confirmBooking = async () => {
             instructorId: currentSlot.value.instructorId,
             startTime: startDate.toISOString(),
             endTime: endDate.toISOString(),
-            paymentMethod: paymentMethod.value
+            paymentMethod: paymentMethod.value,
+            studentTimezone: timezoneStore.userTimezone
         }
 
         const response = await fetch('/api/calendar/addEvent', {

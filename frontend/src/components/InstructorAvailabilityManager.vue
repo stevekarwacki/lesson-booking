@@ -171,37 +171,48 @@ const saveWeeklySchedule = async () => {
         
         const slots = [];
         
-        // Convert weeklySchedule format to array of slots
+        // Convert weeklySchedule format to new timezone-aware format
         Object.entries(weeklySchedule.value).forEach(([dayOfWeek, daySlots]) => {
             if (!daySlots.length) return;
             
             // Sort slots by start time
             daySlots.sort((a, b) => a.startSlot - b.startSlot);
             
-            let currentSlot = {
-                dayOfWeek: parseInt(dayOfWeek),
-                startSlot: daySlots[0].startSlot,
-                duration: daySlots[0].duration
-            };
+            // Convert slots to time ranges
+            let currentStartSlot = daySlots[0].startSlot;
+            let currentEndSlot = daySlots[0].startSlot + daySlots[0].duration;
             
             // Combine consecutive slots
             for (let i = 1; i < daySlots.length; i++) {
                 const slot = daySlots[i];
-                if (currentSlot.startSlot + currentSlot.duration === slot.startSlot) {
-                    // Slots are consecutive, extend duration
-                    currentSlot.duration += slot.duration;
+                if (currentEndSlot === slot.startSlot) {
+                    // Slots are consecutive, extend end time
+                    currentEndSlot = slot.startSlot + slot.duration;
                 } else {
-                    // Gap between slots, save current and start new
-                    slots.push(currentSlot);
-                    currentSlot = {
+                    // Gap between slots, save current range and start new
+                    const startTime = slotToLocalTime(currentStartSlot);
+                    const endTime = slotToLocalTime(currentEndSlot);
+                    
+                    slots.push({
                         dayOfWeek: parseInt(dayOfWeek),
-                        startSlot: slot.startSlot,
-                        duration: slot.duration
-                    };
+                        startTime: startTime,
+                        endTime: endTime
+                    });
+                    
+                    currentStartSlot = slot.startSlot;
+                    currentEndSlot = slot.startSlot + slot.duration;
                 }
             }
-            // Push the last slot
-            slots.push(currentSlot);
+            
+            // Push the last range
+            const startTime = slotToLocalTime(currentStartSlot);
+            const endTime = slotToLocalTime(currentEndSlot);
+            
+            slots.push({
+                dayOfWeek: parseInt(dayOfWeek),
+                startTime: startTime,
+                endTime: endTime
+            });
         });
 
         const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
@@ -210,7 +221,10 @@ const saveWeeklySchedule = async () => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${userStore.token}`
             },
-            body: JSON.stringify({ slots })
+            body: JSON.stringify({ 
+                slots,
+                instructorTimezone: timezoneStore.userTimezone
+            })
         });
 
         if (!response.ok) {
@@ -225,6 +239,13 @@ const saveWeeklySchedule = async () => {
     } finally {
         loading.value = false;
     }
+};
+
+// Helper function to convert slot to local time
+const slotToLocalTime = (slot) => {
+    const hours = Math.floor(slot / 4);
+    const minutes = (slot % 4) * 15;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
 const fetchBlockedTimes = async () => {

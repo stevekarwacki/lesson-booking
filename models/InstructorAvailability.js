@@ -26,6 +26,19 @@ const InstructorAvailability = sequelize.define('InstructorAvailability', {
     duration: {
         type: DataTypes.INTEGER,
         allowNull: false
+    },
+    instructor_timezone: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        defaultValue: 'UTC'
+    },
+    local_start_time: {
+        type: DataTypes.STRING(5),
+        allowNull: true // Will be populated for new records
+    },
+    local_end_time: {
+        type: DataTypes.STRING(5), 
+        allowNull: true // Will be populated for new records
     }
 }, {
     tableName: 'instructor_weekly_availability',
@@ -55,16 +68,34 @@ const setWeeklyAvailability = (instructorId, slots) => {
                     }
                 }, { transaction: t });
 
-                // Insert new slots
-                const stmt = await InstructorAvailability.bulkCreate(
-                    slots.map(slot => ({
-                        instructor_id: instructorId,
-                        day_of_week: slot.dayOfWeek,
-                        start_slot: slot.startSlot,
-                        duration: slot.duration
-                    })),
-                    { transaction: t }
-                );
+                // Insert new slots (support both old and new format)
+                const records = slots.map(slot => {
+                    if (slot.dayOfWeek !== undefined) {
+                        // Old format compatibility
+                        return {
+                            instructor_id: instructorId,
+                            day_of_week: slot.dayOfWeek,
+                            start_slot: slot.startSlot,
+                            duration: slot.duration,
+                            instructor_timezone: slot.instructor_timezone || 'UTC',
+                            local_start_time: slot.local_start_time,
+                            local_end_time: slot.local_end_time
+                        };
+                    } else {
+                        // New format (already processed by createLocalAvailabilityRecord)
+                        return {
+                            instructor_id: instructorId,
+                            day_of_week: slot.day_of_week,
+                            start_slot: slot.start_slot,
+                            duration: slot.duration,
+                            instructor_timezone: slot.instructor_timezone,
+                            local_start_time: slot.local_start_time,
+                            local_end_time: slot.local_end_time
+                        };
+                    }
+                });
+                
+                const stmt = await InstructorAvailability.bulkCreate(records, { transaction: t });
 
                 resolve(stmt);
             } catch (error) {

@@ -1,145 +1,30 @@
 /**
- * UTC-Based Time Utilities for Frontend
+ * FRONTEND TIME UTILITIES
  * 
- * All time functions now work consistently in UTC to avoid timezone issues.
- * For user display, times will be shown in UTC but can be converted to local time zones in the future.
+ * This file provides all time formatting and timezone utilities for the frontend.
+ * Consolidates all time-related functionality in a single, maintainable file.
  */
 
-/**
- * Formats time slot for display in user's timezone
- * @param {string} time - Time in HH:MM format (UTC)
- * @param {string} [timezone] - User's timezone (auto-detected if not provided)
- * @returns {string} - Formatted time (e.g., "9:30 AM EST")
- */
-export const formatTime = (time, timezone = null) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
-    }
-    
-    const [hours, minutes] = time.split(':').map(Number)
-    
-    // If timezone is UTC, format as before
-    if (timezone === 'UTC') {
-        let displayHour = hours % 12
-        if (displayHour === 0) displayHour = 12
-        const period = hours >= 12 ? 'PM' : 'AM'
-        return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period} UTC`
-    }
-    
-    // For non-UTC timezones, we need to convert the time
-    try {
-        // Create a date for today with this time in UTC
-        const today = getCurrentDateUTC()
-        const utcDateTime = new Date(`${today}T${time}:00.000Z`)
-        
-        // Format in the user's timezone
-        const localTime = utcDateTime.toLocaleTimeString('en-US', {
-            timeZone: timezone,
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        })
-        
-        // Get timezone abbreviation
-        const timezoneName = utcDateTime.toLocaleDateString('en-US', {
-            timeZone: timezone,
-            timeZoneName: 'short'
-        }).split(', ')[1] || timezone
-        
-        return `${localTime} ${timezoneName}`
-    } catch (error) {
-        console.error('Error formatting time with timezone:', error)
-        // Fallback to UTC display
-        let displayHour = hours % 12
-        if (displayHour === 0) displayHour = 12
-        const period = hours >= 12 ? 'PM' : 'AM'
-        return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period} UTC`
-    }
-}
+// ============================================================================
+// CORE UTC TIME AND SLOT FUNCTIONS
+// ============================================================================
 
 /**
- * Checks if two dates are the same UTC calendar day
- * @param {Date|string} date1 - First date to compare
- * @param {Date|string} date2 - Second date to compare
- * @returns {boolean} - Whether dates are the same UTC calendar day
- */
-export const isSameDayUTC = (date1, date2) => {
-    const d1 = typeof date1 === 'string' ? new Date(date1) : date1
-    const d2 = typeof date2 === 'string' ? new Date(date2) : date2
-    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0]
-}
-
-/**
- * Gets start of day (midnight) for a given date in UTC
- * @param {Date|string} date - Date to get start of day for
- * @returns {Date} - New date set to start of day in UTC
- */
-export const getStartOfDayUTC = (date) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : new Date(date)
-    const year = dateObj.getUTCFullYear()
-    const month = dateObj.getUTCMonth()
-    const day = dateObj.getUTCDate()
-    return new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
-}
-
-/**
- * Check if a date is today in UTC
- * @param {Date|string} date - Date to check
- * @returns {boolean} - True if date is today in UTC
- */
-export const isCurrentDayUTC = (date) => {
-    return isSameDayUTC(date, new Date())
-}
-
-/**
- * Check if a date is in the past in UTC
- * @param {Date|string} date - Date to check
- * @returns {boolean} - True if date is in the past
- */
-export const isPastDayUTC = (date) => {
-    const checkDate = getStartOfDayUTC(date)
-    const today = getStartOfDayUTC(new Date())
-    return checkDate < today
-}
-
-/**
- * Check if a specific time slot on a date is in the past (UTC)
- * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {number|string} timeSlot - Time slot number or string
- * @returns {boolean} - True if slot time is in the past
- */
-export const isPastTimeSlotUTC = (dateString, timeSlot) => {
-    const slotNum = typeof timeSlot === 'string' ? parseInt(timeSlot) : timeSlot
-    
-    // If the entire day is past, then the slot is past
-    if (isPastDayUTC(dateString)) return true
-    
-    // If it's today, check the specific time slot
-    if (isCurrentDayUTC(dateString)) {
-        const now = new Date()
-        const currentSlot = timeToSlotUTC(now)
-        return currentSlot >= slotNum
-    }
-    
-    return false
-}
-
-/**
- * Convert UTC time to slot number (15-minute increments)
+ * Convert UTC time to slot number
  * @param {Date|string} dateTime - Date object or ISO string
  * @returns {number} Slot number (0-95, where 0 = 00:00 UTC, 95 = 23:45 UTC)
  */
-export const timeToSlotUTC = (dateTime) => {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime
+function timeToSlotUTC(dateTime) {
+    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
     
     if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to timeToSlotUTC')
+        throw new Error('Invalid date provided to timeToSlotUTC');
     }
     
-    const hours = date.getUTCHours()
-    const minutes = date.getUTCMinutes()
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
     
-    return Math.floor(hours * 4 + minutes / 15)
+    return Math.floor(hours * 4 + minutes / 15);
 }
 
 /**
@@ -147,15 +32,15 @@ export const timeToSlotUTC = (dateTime) => {
  * @param {number} slot - Slot number (0-95)
  * @returns {string} Time in HH:MM format (UTC)
  */
-export const slotToTimeUTC = (slot) => {
+function slotToTimeUTC(slot) {
     if (slot < 0 || slot > 95) {
-        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`)
+        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`);
     }
     
-    const hours = Math.floor(slot / 4)
-    const minutes = (slot % 4) * 15
+    const hours = Math.floor(slot / 4);
+    const minutes = (slot % 4) * 15;
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 /**
@@ -164,179 +49,90 @@ export const slotToTimeUTC = (slot) => {
  * @param {number} slot - Time slot (0-95)
  * @returns {Date} UTC Date object
  */
-export const createUTCDateFromSlot = (dateString, slot) => {
-    const timeString = slotToTimeUTC(slot)
-    const [hours, minutes] = timeString.split(':').map(Number)
+function createUTCDateFromSlot(dateString, slot) {
+    const timeString = slotToTimeUTC(slot);
+    const [hours, minutes] = timeString.split(':').map(Number);
     
     // Parse the date string and create UTC date
-    const [year, month, day] = dateString.split('-').map(Number)
-    const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0))
+    const [year, month, day] = dateString.split('-').map(Number);
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
     
-    return utcDate
+    return utcDate;
 }
 
 /**
- * Get current UTC slot number
- * @returns {number} Current slot number based on UTC time
- */
-export const getCurrentSlotUTC = () => {
-    return timeToSlotUTC(new Date())
-}
-
-/**
- * Get current UTC date string in YYYY-MM-DD format
- * @returns {string} Current date in UTC
- */
-export const getCurrentDateUTC = () => {
-    const now = new Date()
-    return now.toISOString().split('T')[0]
-}
-
-/**
- * Get day of week for a date in UTC (0 = Sunday, 6 = Saturday)
- * @param {Date|string} dateTime - Date object or ISO string
- * @returns {number} Day of week (0-6)
- */
-export const getDayOfWeekUTC = (dateTime) => {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to getDayOfWeekUTC')
-    }
-    
-    return date.getUTCDay()
-}
-
-/**
- * Calculate duration between two times in slots
- * @param {Date|string} startTime - Start time
- * @param {Date|string} endTime - End time
- * @returns {number} Duration in 15-minute slots
- */
-export const calculateDurationInSlotsUTC = (startTime, endTime) => {
-    const start = typeof startTime === 'string' ? new Date(startTime) : startTime
-    const end = typeof endTime === 'string' ? new Date(endTime) : endTime
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new Error('Invalid dates provided to calculateDurationInSlotsUTC')
-    }
-    
-    const diffMs = end.getTime() - start.getTime()
-    return Math.ceil(diffMs / (15 * 60 * 1000)) // 15-minute slots
-}
-
-/**
- * Format date to YYYY-MM-DD in UTC
- * @param {Date|string} dateTime - Date to format
+ * Format date in UTC as YYYY-MM-DD
+ * @param {Date} date - Date object
  * @returns {string} Formatted date string
  */
-export const formatDateUTC = (dateTime) => {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to formatDateUTC')
+function formatDateUTC(date) {
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// ============================================================================
+// TIMEZONE FUNCTIONS
+// ============================================================================
+
+/**
+ * Convert local time to UTC slot for user input
+ * @param {string} timeString - Time in HH:MM format (local)
+ * @param {string} dateString - Date in YYYY-MM-DD format  
+ * @param {string} timezone - Timezone identifier
+ * @returns {number} UTC slot number
+ */
+function localTimeToUTCSlot(timeString, dateString, timezone) {
+    if (!timezone || timezone === 'UTC') {
+        const utcDateTime = new Date(`${dateString}T${timeString}:00.000Z`);
+        return timeToSlotUTC(utcDateTime);
     }
     
-    return date.toISOString().split('T')[0]
-}
-
-/**
- * Add/subtract days from a date in UTC
- * @param {Date|string} dateTime - Starting date
- * @param {number} days - Number of days to add (negative to subtract)
- * @returns {Date} New UTC date
- */
-export const addDaysUTC = (dateTime, days) => {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : new Date(dateTime)
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to addDaysUTC')
-    }
-    
-    const result = new Date(date)
-    result.setUTCDate(result.getUTCDate() + days)
-    return result
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const timeToSlot = (timeStr) => {
-    console.warn('timeToSlot is deprecated, use timeToSlotUTC with full date instead')
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    return (hours * 4) + Math.floor(minutes / 15)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const slotToTime = (slot) => {
-    console.warn('slotToTime is deprecated, use slotToTimeUTC instead')
-    return slotToTimeUTC(slot)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const isPastTimeSlot = (date, timeSlot) => {
-    console.warn('isPastTimeSlot is deprecated, use isPastTimeSlotUTC instead')
-    return isPastTimeSlotUTC(formatDateUTC(date), timeSlot)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const isCurrentDay = (date) => {
-    console.warn('isCurrentDay is deprecated, use isCurrentDayUTC instead')
-    return isCurrentDayUTC(date)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const isPastDay = (date) => {
-    console.warn('isPastDay is deprecated, use isPastDayUTC instead')
-    return isPastDayUTC(date)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const isSameDay = (date1, date2) => {
-    console.warn('isSameDay is deprecated, use isSameDayUTC instead')
-    return isSameDayUTC(date1, date2)
-}
-
-// Legacy function compatibility (deprecated - use UTC versions)
-export const getStartOfDay = (date) => {
-    console.warn('getStartOfDay is deprecated, use getStartOfDayUTC instead')
-    return getStartOfDayUTC(date)
-}
-
-/**
- * TIMEZONE CONVERSION FUNCTIONS
- */
-
-/**
- * Get the user's current timezone
- * @returns {string} IANA timezone identifier
- */
-export const getUserTimezone = () => {
     try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone
+        const [year, month, day] = dateString.split('-').map(Number);
+        const [hours, minutes] = timeString.split(':').map(Number);
+        
+        // Create the local date as if it were in the system timezone
+        const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        
+        // Format this date to see what it looks like in the target timezone
+        const targetTimeString = localDate.toLocaleString('sv-SE', { timeZone: timezone });
+        const systemTimeString = localDate.toLocaleString('sv-SE');
+        
+        // Parse both strings to calculate the offset
+        const targetTime = new Date(targetTimeString).getTime();
+        const systemTime = new Date(systemTimeString).getTime();
+        const offset = systemTime - targetTime;
+        
+        // Create the actual UTC time by adjusting the local time
+        const utcTime = new Date(localDate.getTime() + offset);
+        
+        return timeToSlotUTC(utcTime);
+        
     } catch (error) {
-        console.warn('Could not detect user timezone, defaulting to UTC')
-        return 'UTC'
+        console.error('Error in timezone conversion:', error);
+        // Fallback to UTC
+        const utcDateTime = new Date(`${dateString}T${timeString}:00.000Z`);
+        return timeToSlotUTC(utcDateTime);
     }
 }
 
 /**
- * Convert UTC slot to local time in user's timezone
- * @param {number} slot - UTC slot number (0-95)  
+ * Convert UTC slot to local time display format
+ * @param {number} slot - UTC slot number
  * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {string} [timezone] - User's timezone (auto-detected if not provided)
+ * @param {string} timezone - Timezone identifier
  * @returns {string} Time in HH:MM format (local timezone)
  */
-export const utcSlotToLocalTime = (slot, dateString, timezone = null) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
-    }
-    
-    if (timezone === 'UTC') {
-        return slotToTimeUTC(slot)
+function utcSlotToLocalTime(slot, dateString, timezone) {
+    if (!timezone || timezone === 'UTC') {
+        return slotToTimeUTC(slot);
     }
     
     try {
         // Create UTC date from slot
-        const utcDate = createUTCDateFromSlot(dateString, slot)
+        const utcDate = createUTCDateFromSlot(dateString, slot);
         
         // Use toLocaleTimeString to convert to target timezone
         const localTimeString = utcDate.toLocaleTimeString('en-GB', {
@@ -344,165 +140,309 @@ export const utcSlotToLocalTime = (slot, dateString, timezone = null) => {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false
-        })
+        });
         
-        return localTimeString
+        return localTimeString;
         
     } catch (error) {
-        console.error('Error converting UTC slot to local time:', error)
-        return slotToTimeUTC(slot)
+        console.error('Error converting UTC slot to local time:', error);
+        return slotToTimeUTC(slot);
     }
 }
 
 /**
- * Convert local time to UTC slot  
- * @param {string} timeString - Time in HH:MM format (local timezone)
- * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {string} [timezone] - User's timezone (auto-detected if not provided)
- * @returns {number} UTC slot number
+ * Get user's detected timezone
+ * @returns {string} Timezone identifier
  */
-export const localTimeToUTCSlot = (timeString, dateString, timezone = null) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
-    }
-    
-    if (timezone === 'UTC') {
-        const utcDateTime = new Date(`${dateString}T${timeString}:00.000Z`)
-        return timeToSlotUTC(utcDateTime)
-    }
-    
+function getUserTimezone() {
     try {
-        // Create a date object representing the time in the target timezone
-        const [year, month, day] = dateString.split('-').map(Number)
-        const [hours, minutes] = timeString.split(':').map(Number)
-        
-        // Create the local date as if it were in the system timezone
-        const localDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
-        
-        // Format this date to see what it looks like in the target timezone
-        const targetTimeString = localDate.toLocaleString('sv-SE', { timeZone: timezone })
-        const systemTimeString = localDate.toLocaleString('sv-SE')
-        
-        // Parse both strings to calculate the offset
-        const targetTime = new Date(targetTimeString).getTime()
-        const systemTime = new Date(systemTimeString).getTime()
-        const offset = systemTime - targetTime
-        
-        // Create the actual UTC time by adjusting the local time
-        const utcTime = new Date(localDate.getTime() + offset)
-        
-        return timeToSlotUTC(utcTime)
-        
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
     } catch (error) {
-        console.error('Error in timezone conversion:', error)
-        // Fallback to UTC
-        const utcDateTime = new Date(`${dateString}T${timeString}:00.000Z`)
-        return timeToSlotUTC(utcDateTime)
+        console.error('Error detecting timezone:', error);
+        return 'UTC';
     }
-}
-
-/**
- * Format slot for display in user's timezone
- * @param {number} slot - UTC slot number
- * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {string} [timezone] - User's timezone (auto-detected if not provided)
- * @param {boolean} [use12Hour=true] - Whether to use 12-hour format
- * @returns {string} Formatted time string
- */
-export const formatSlotForDisplay = (slot, dateString, timezone = null, use12Hour = true) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
-    }
-    
-    const localTime = utcSlotToLocalTime(slot, dateString, timezone)
-    
-    if (!use12Hour) {
-        return localTime
-    }
-    
-    // Convert to 12-hour format
-    const [hours, minutes] = localTime.split(':').map(Number)
-    let displayHour = hours % 12
-    if (displayHour === 0) displayHour = 12
-    const period = hours >= 12 ? 'PM' : 'AM'
-    
-    // Add timezone indicator for non-UTC zones
-    const timezoneDisplay = timezone === 'UTC' ? ' UTC' : ''
-    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}${timezoneDisplay}`
 }
 
 /**
  * Get timezone display name
- * @param {string} [timezone] - IANA timezone identifier (auto-detected if not provided)
- * @returns {string} Human-readable timezone name
+ * @param {string} timezone - Timezone identifier
+ * @returns {string} Display name like "Pacific Standard Time"
  */
-export const getTimezoneDisplayName = (timezone = null) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
+function getTimezoneDisplayName(timezone) {
+    if (!timezone || timezone === 'UTC') {
+        return 'UTC';
     }
     
     try {
-        const formatter = new Intl.DateTimeFormat('en', {
+        const formatter = new Intl.DateTimeFormat('en-US', {
             timeZone: timezone,
             timeZoneName: 'long'
-        })
+        });
         
-        const parts = formatter.formatToParts(new Date())
-        const timeZonePart = parts.find(part => part.type === 'timeZoneName')
-        return timeZonePart ? timeZonePart.value : timezone
+        const parts = formatter.formatToParts(new Date());
+        const timeZonePart = parts.find(part => part.type === 'timeZoneName');
+        return timeZonePart ? timeZonePart.value : timezone;
     } catch (error) {
-        return timezone
+        console.error('Error getting timezone display name:', error);
+        return timezone;
     }
 }
 
 /**
- * Get timezone abbreviation (EST, PST, etc.)
- * @param {string} [timezone] - IANA timezone identifier (auto-detected if not provided)
- * @returns {string} Timezone abbreviation
+ * Get timezone abbreviation
+ * @param {string} timezone - Timezone identifier
+ * @returns {string} Abbreviation like "PST" or "EST"
  */
-export const getTimezoneAbbreviation = (timezone = null) => {
-    if (!timezone) {
-        timezone = getUserTimezone()
+function getTimezoneAbbreviation(timezone) {
+    if (!timezone || timezone === 'UTC') {
+        return 'UTC';
     }
     
     try {
-        const formatter = new Intl.DateTimeFormat('en', {
+        const formatter = new Intl.DateTimeFormat('en-US', {
             timeZone: timezone,
             timeZoneName: 'short'
-        })
+        });
         
-        const parts = formatter.formatToParts(new Date())
-        const timeZonePart = parts.find(part => part.type === 'timeZoneName')
-        return timeZonePart ? timeZonePart.value : timezone
+        const parts = formatter.formatToParts(new Date());
+        const timeZonePart = parts.find(part => part.type === 'timeZoneName');
+        return timeZonePart ? timeZonePart.value : timezone;
     } catch (error) {
-        return timezone
+        console.error('Error getting timezone abbreviation:', error);
+        return timezone;
     }
 }
 
 /**
- * Formats a date string into the specified format
- * @param {string|Date} date - The date to format (can be a Date object or ISO string)
- * @param {string} [format='MM-DD-YYYY'] - The desired output format ('MM-DD-YYYY' or 'Day Mon XX')
- * @returns {string} - Formatted date string
+ * Format slot for display with timezone and format preferences
+ * @param {number} slot - Time slot number
+ * @param {string} dateString - Date string
+ * @param {string} timezone - Timezone identifier
+ * @param {boolean} use12Hour - Whether to use 12-hour format
+ * @returns {string} Formatted time display
  */
-export const formatDate = (date, format = 'nm') => {
-    const dateObj = new Date(date);
-    
-    if (format === 'nm') { //numeric
-        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-        const day = dateObj.getDate().toString().padStart(2, '0');
-        const year = dateObj.getFullYear();
-        return `${month}-${day}-${year}`;
-    } else if (format === 'anm-abbr') { //alphanumeric-short
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function formatSlotForDisplay(slot, dateString, timezone, use12Hour = false) {
+    try {
+        const localTime = utcSlotToLocalTime(slot, dateString, timezone);
         
-        const dayName = days[dateObj.getDay()];
-        const monthName = months[dateObj.getMonth()];
-        const day = dateObj.getDate();
+        if (!use12Hour) {
+            return localTime; // Already in 24-hour format
+        }
         
-        return `${dayName} ${monthName} ${day}`;
+        // Convert to 12-hour format
+        const [hours, minutes] = localTime.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    } catch (error) {
+        console.error('Error formatting slot for display:', error);
+        return slotToTime(slot);
+    }
+}
+
+// ============================================================================
+// LOCAL SLOT FUNCTIONS (for UI)
+// ============================================================================
+
+/**
+ * Convert local time to slot within same day
+ * @param {string} timeString - Time in HH:MM format
+ * @returns {number} Slot number (0-95)
+ */
+function timeToSlot(timeString) {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return Math.floor(hours * 4 + minutes / 15);
+}
+
+/**
+ * Convert slot to local time
+ * @param {number} slot - Slot number (0-95)
+ * @returns {string} Time in HH:MM format
+ */
+function slotToTime(slot) {
+    if (slot < 0 || slot > 95) {
+        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`);
     }
     
-    throw new Error('Unsupported date format');
+    const hours = Math.floor(slot / 4);
+    const minutes = (slot % 4) * 15;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
+
+// ============================================================================
+// DISPLAY FORMATTING FUNCTIONS
+// ============================================================================
+
+/**
+ * Format time for display with timezone support
+ * @param {Date|string} time - Time to format (Date object, ISO string, or HH:MM format)
+ * @param {string} timezone - Optional timezone
+ * @returns {string} Formatted time
+ */
+function formatTime(time, timezone) {
+    // Handle different input types
+    let date;
+    
+    if (typeof time === 'string') {
+        // If it's a time-only string like "09:30", create a date for today
+        if (/^\d{2}:\d{2}$/.test(time)) {
+            return time; // Just return the time string as-is for local time display
+        } else {
+            // It's an ISO string or other date string
+            date = new Date(time);
+        }
+    } else {
+        date = time;
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        console.error('Invalid date passed to formatTime:', time);
+        return typeof time === 'string' && /^\d{2}:\d{2}$/.test(time) ? time : '00:00';
+    }
+    
+    if (!timezone || timezone === 'UTC') {
+        return date.toISOString().substring(11, 16);
+    }
+    
+    try {
+        return date.toLocaleTimeString('en-GB', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        console.error('Error formatting time:', error);
+        return date.toISOString().substring(11, 16);
+    }
+}
+
+/**
+ * Format date for display
+ * @param {Date|string} date - Date to format
+ * @returns {string} Formatted date
+ */
+function formatDate(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+/**
+ * Check if date is current day
+ * @param {Date|string} date - Date to check
+ * @returns {boolean} Whether date is today
+ */
+function isCurrentDay(date) {
+    if (!date) {
+        return false;
+    }
+    
+    const d = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if the date is valid
+    if (isNaN(d.getTime())) {
+        return false;
+    }
+    
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+}
+
+/**
+ * Check if date is in the past
+ * @param {Date|string} date - Date to check
+ * @returns {boolean} Whether date is past
+ */
+function isPastDay(date) {
+    if (!date) {
+        return false;
+    }
+    
+    const d = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if the date is valid
+    if (isNaN(d.getTime())) {
+        return false;
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+}
+
+/**
+ * Check if time slot is in the past
+ * @param {number} slot - Time slot
+ * @param {string} dateString - Date string
+ * @returns {boolean} Whether slot is past
+ */
+function isPastTimeSlot(slot, dateString) {
+    const date = new Date(dateString);
+    const slotTime = slotToTimeUTC(slot);
+    const [hours, minutes] = slotTime.split(':').map(Number);
+    date.setUTCHours(hours, minutes, 0, 0);
+    
+    return date < new Date();
+}
+
+/**
+ * Get start of day
+ * @param {Date|string} date - Date
+ * @returns {Date} Start of day
+ */
+function getStartOfDay(date) {
+    const d = typeof date === 'string' ? new Date(date) : new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+/**
+ * Check if two dates are the same day
+ * @param {Date} date1 - First date
+ * @param {Date} date2 - Second date
+ * @returns {boolean} Whether dates are same day
+ */
+function isSameDay(date1, date2) {
+    return date1.toDateString() === date2.toDateString();
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+export {
+    // Core UTC functions
+    timeToSlotUTC,
+    slotToTimeUTC,
+    createUTCDateFromSlot,
+    formatDateUTC,
+    
+    // Timezone functions
+    localTimeToUTCSlot,
+    utcSlotToLocalTime,
+    getUserTimezone,
+    getTimezoneDisplayName,
+    getTimezoneAbbreviation,
+    formatSlotForDisplay,
+    
+    // Local slot functions (for UI)
+    timeToSlot,
+    slotToTime,
+    
+    // Display formatting
+    formatTime,
+    formatDate,
+    isCurrentDay,
+    isPastDay,
+    isPastTimeSlot,
+    getStartOfDay,
+    isSameDay
+};

@@ -4,8 +4,8 @@ const { User } = require('./User');
 const { Instructor } = require('./Instructor');
 const { Credits } = require('./Credits');
 const { 
-    formatDateUTC, 
-    isValidSlot, 
+    formatDateUTC,
+    isValidSlot,
     isValidDateString,
     getCurrentDateUTC
 } = require('../utils/timeUtils');
@@ -85,8 +85,8 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
             throw new Error('Event duration exceeds daily slot limit.');
         }
 
-        // Ensure we store the date in UTC format
-        const utcDate = formatDateUTC(date);
+        // Date is already in UTC format (YYYY-MM-DD string)
+        const utcDate = date;
 
         // Check if user has sufficient credits if using credits
         if (paymentMethod === 'credits') {

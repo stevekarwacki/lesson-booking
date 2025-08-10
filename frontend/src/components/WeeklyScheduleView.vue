@@ -23,7 +23,7 @@
                     :key="timeSlotKey"
                     class="time-row"
                 >
-                    <div class="time-label">{{ formatTime(slotToTime(timeSlotKey)) }}</div>
+                    <div class="time-label">{{ formatTime(slotToTime(parseInt(timeSlotKey))) }}</div>
                     <div 
                         v-for="[dayIndex, slot] of Object.entries(days)" 
                         :key="dayIndex"
@@ -32,7 +32,7 @@
                             'available': (slot.type === 'available'),
                             /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
                             'current-day': isCurrentDay(slot.date),
-                            'past': isPastTimeSlot(slot.date, timeSlotKey),
+                            'past': slot.date ? isPastTimeSlot(parseInt(timeSlotKey), slot.date.toISOString()) : false,
                             'booked': (slot.type === 'booked'),
                             'own-booking': (slot.type === 'booked' && slot.isOwnBooking),
                             'google-calendar': (slot.is_google_calendar),
@@ -48,7 +48,7 @@
                             type: slot.type
                         })"
                     >
-                        <span v-if="slot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlotKey)) }}</span>
+                        <span v-if="slot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(parseInt(timeSlotKey))) }}</span>
 
                         <div v-if="slot.type === 'booked'" 
                             class="booked-slot-content"
@@ -138,7 +138,7 @@ const handleTimeSlotClick = (cellData) => {
     const { date, time, type } = cellData
     
     // Prevent clicks on past time slots
-    if (isPastTimeSlot(date, time)) {
+    if (date && isPastTimeSlot(parseInt(time), date.toISOString())) {
         return
     }
     

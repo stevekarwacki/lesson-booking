@@ -1,16 +1,17 @@
 /**
- * Centralized UTC Time Utilities for Lesson Booking Application
+ * CONSOLIDATED TIME UTILITIES
  * 
- * This module provides consistent UTC-based time handling for:
- * - Time slot calculations (15-minute increments, 0-95 range)
- * - Date formatting and parsing
- * - Timezone-aware operations
- * 
- * All functions work in UTC to ensure consistency across timezones.
+ * This file contains all time, slot, and timezone utilities used throughout the application.
+ * It consolidates functions from timeUtils.js, availabilityTimezone.js, and timeFormatting.js
+ * while removing unused functions and providing a clean, single-source API.
  */
 
+// ============================================================================
+// CORE UTC TIME AND SLOT FUNCTIONS
+// ============================================================================
+
 /**
- * Convert UTC time to slot number (15-minute increments)
+ * Convert UTC time to slot number
  * @param {Date|string} dateTime - Date object or ISO string
  * @returns {number} Slot number (0-95, where 0 = 00:00 UTC, 95 = 23:45 UTC)
  */
@@ -61,190 +62,72 @@ function createUTCDateFromSlot(dateString, slot) {
 }
 
 /**
- * Get current UTC slot number
- * @returns {number} Current slot number based on UTC time
+ * Format date in UTC as YYYY-MM-DD
+ * @param {Date} date - Date object
+ * @returns {string} Formatted date string
  */
-function getCurrentSlotUTC() {
-    return timeToSlotUTC(new Date());
+function formatDateUTC(date) {
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 /**
- * Get current UTC date string in YYYY-MM-DD format
- * @returns {string} Current date in UTC
+ * Get current date in UTC as YYYY-MM-DD
+ * @returns {string} Current UTC date
  */
 function getCurrentDateUTC() {
-    const now = new Date();
-    return now.toISOString().split('T')[0];
+    return formatDateUTC(new Date());
 }
 
 /**
  * Get day of week for a date in UTC (0 = Sunday, 6 = Saturday)
- * @param {Date|string} dateTime - Date object or ISO string
+ * @param {Date|string} dateTime - Date object or date string
  * @returns {number} Day of week (0-6)
  */
 function getDayOfWeekUTC(dateTime) {
     const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to getDayOfWeekUTC');
-    }
-    
     return date.getUTCDay();
 }
 
 /**
- * Calculate duration between two times in slots
- * @param {Date|string} startTime - Start time
- * @param {Date|string} endTime - End time
- * @returns {number} Duration in 15-minute slots
+ * Calculate duration between two dates in 15-minute slots
+ * @param {Date} startDate - Start date
+ * @param {Date} endDate - End date
+ * @returns {number} Duration in slots
  */
-function calculateDurationInSlots(startTime, endTime) {
-    const start = typeof startTime === 'string' ? new Date(startTime) : startTime;
-    const end = typeof endTime === 'string' ? new Date(endTime) : endTime;
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new Error('Invalid dates provided to calculateDurationInSlots');
-    }
-    
-    const diffMs = end.getTime() - start.getTime();
-    return Math.ceil(diffMs / (15 * 60 * 1000)); // 15-minute slots
+function calculateDurationInSlots(startDate, endDate) {
+    const durationMs = endDate.getTime() - startDate.getTime();
+    return Math.floor(durationMs / (15 * 60 * 1000));
 }
 
 /**
- * Check if a date/time is in the past (UTC)
- * @param {Date|string} dateTime - Date to check
- * @returns {boolean} True if date is in the past
- */
-function isPastUTC(dateTime) {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
-    const now = new Date();
-    
-    return date.getTime() < now.getTime();
-}
-
-/**
- * Check if a specific time slot on a date is in the past (UTC)
- * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {number} slot - Time slot (0-95)
- * @returns {boolean} True if slot time is in the past
- */
-function isSlotPastUTC(dateString, slot) {
-    const slotDateTime = createUTCDateFromSlot(dateString, slot);
-    return isPastUTC(slotDateTime);
-}
-
-/**
- * Check if two dates are the same UTC day
- * @param {Date|string} date1 - First date
- * @param {Date|string} date2 - Second date
- * @returns {boolean} True if same UTC day
- */
-function isSameDayUTC(date1, date2) {
-    const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
-    const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
-    
-    return d1.toISOString().split('T')[0] === d2.toISOString().split('T')[0];
-}
-
-/**
- * Check if a date is today in UTC
- * @param {Date|string} dateTime - Date to check
- * @returns {boolean} True if date is today in UTC
- */
-function isTodayUTC(dateTime) {
-    return isSameDayUTC(dateTime, new Date());
-}
-
-/**
- * Format date to YYYY-MM-DD in UTC
- * @param {Date|string} dateTime - Date to format
- * @returns {string} Formatted date string
- */
-function formatDateUTC(dateTime) {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to formatDateUTC');
-    }
-    
-    return date.toISOString().split('T')[0];
-}
-
-/**
- * Validate time slot range
- * @param {number} slot - Slot to validate
- * @returns {boolean} True if valid slot
+ * Check if slot number is valid
+ * @param {number} slot - Slot number to validate
+ * @returns {boolean} Whether slot is valid
  */
 function isValidSlot(slot) {
-    return Number.isInteger(slot) && slot >= 0 && slot <= 95;
+    return typeof slot === 'number' && slot >= 0 && slot <= 95;
 }
 
 /**
- * Validate date string format (YYYY-MM-DD)
+ * Check if date string is valid YYYY-MM-DD format
  * @param {string} dateString - Date string to validate
- * @returns {boolean} True if valid format
+ * @returns {boolean} Whether date string is valid
  */
 function isValidDateString(dateString) {
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(dateString)) return false;
-    
-    const date = new Date(dateString);
-    return !isNaN(date.getTime());
+    if (typeof dateString !== 'string') return false;
+    const date = new Date(dateString + 'T00:00:00.000Z');
+    return !isNaN(date.getTime()) && dateString === formatDateUTC(date);
 }
 
-/**
- * Add/subtract days from a date in UTC
- * @param {Date|string} dateTime - Starting date
- * @param {number} days - Number of days to add (negative to subtract)
- * @returns {Date} New UTC date
- */
-function addDaysUTC(dateTime, days) {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : new Date(dateTime);
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to addDaysUTC');
-    }
-    
-    const result = new Date(date);
-    result.setUTCDate(result.getUTCDate() + days);
-    return result;
-}
-
-/**
- * Get start of week (Sunday) for a given date in UTC
- * @param {Date|string} dateTime - Date to get week start for
- * @returns {Date} Start of week in UTC
- */
-function getWeekStartUTC(dateTime) {
-    const date = typeof dateTime === 'string' ? new Date(dateTime) : new Date(dateTime);
-    
-    if (isNaN(date.getTime())) {
-        throw new Error('Invalid date provided to getWeekStartUTC');
-    }
-    
-    const dayOfWeek = date.getUTCDay();
-    const diff = date.getUTCDate() - dayOfWeek;
-    
-    const weekStart = new Date(date);
-    weekStart.setUTCDate(diff);
-    weekStart.setUTCHours(0, 0, 0, 0);
-    
-    return weekStart;
-}
-
-/**
- * Get end of week (Saturday) for a given date in UTC
- * @param {Date|string} dateTime - Date to get week end for
- * @returns {Date} End of week in UTC
- */
-function getWeekEndUTC(dateTime) {
-    const weekStart = getWeekStartUTC(dateTime);
-    return addDaysUTC(weekStart, 6);
-}
+// ============================================================================
+// TIMEZONE CONVERSION FUNCTIONS
+// ============================================================================
 
 /**
  * Convert local time to UTC slot for user input
- * Simplified and reliable implementation
  * @param {string} timeString - Time in HH:MM format (local)
  * @param {string} dateString - Date in YYYY-MM-DD format  
  * @param {string} timezone - Timezone identifier (e.g., 'America/New_York', 'Europe/London')
@@ -257,7 +140,6 @@ function localTimeToUTCSlot(timeString, dateString, timezone) {
     }
     
     try {
-        // Create a date object representing the time in the target timezone
         const [year, month, day] = dateString.split('-').map(Number);
         const [hours, minutes] = timeString.split(':').map(Number);
         
@@ -288,10 +170,9 @@ function localTimeToUTCSlot(timeString, dateString, timezone) {
 
 /**
  * Convert UTC slot to local time display format
- * Simplified and reliable implementation
  * @param {number} slot - UTC slot number
  * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {string} timezone - Timezone identifier (e.g., 'America/New_York', 'Europe/London')
+ * @param {string} timezone - Timezone identifier
  * @returns {string} Time in HH:MM format (local timezone)
  */
 function utcSlotToLocalTime(slot, dateString, timezone) {
@@ -319,8 +200,6 @@ function utcSlotToLocalTime(slot, dateString, timezone) {
     }
 }
 
-
-
 /**
  * Get user's detected timezone
  * @returns {string} Timezone identifier
@@ -329,64 +208,259 @@ function getUserTimezone() {
     try {
         return Intl.DateTimeFormat().resolvedOptions().timeZone;
     } catch (error) {
-        console.error('Error detecting user timezone:', error);
+        console.error('Error detecting timezone:', error);
         return 'UTC';
     }
 }
 
+// ============================================================================
+// INSTRUCTOR AVAILABILITY FUNCTIONS
+// ============================================================================
+
 /**
- * Format time for display in user's timezone
- * @param {number} slot - UTC slot number
- * @param {string} dateString - Date in YYYY-MM-DD format
- * @param {string} timezone - User's timezone
- * @param {boolean} use12Hour - Whether to format in 12-hour format
- * @returns {string} Formatted time string
+ * Convert local time to slot within same day (no timezone conversion)
+ * @param {string} timeString - Time in HH:MM format
+ * @returns {number} Slot number (0-95)
  */
-function formatSlotForDisplay(slot, dateString, timezone, use12Hour = true) {
-    const localTime = utcSlotToLocalTime(slot, dateString, timezone);
-    
-    if (!use12Hour) {
-        return localTime;
-    }
-    
-    // Convert to 12-hour format
-    const [hours, minutes] = localTime.split(':').map(Number);
-    let displayHour = hours % 12;
-    if (displayHour === 0) displayHour = 12;
-    const period = hours >= 12 ? 'PM' : 'AM';
-    
-    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
+function timeToLocalSlot(timeString) {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return Math.floor(hours * 4 + minutes / 15);
 }
 
+/**
+ * Convert slot to local time
+ * @param {number} slot - Slot number (0-95)
+ * @returns {string} Time in HH:MM format
+ */
+function localSlotToTime(slot) {
+    if (slot < 0 || slot > 95) {
+        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`);
+    }
+    
+    const hours = Math.floor(slot / 4);
+    const minutes = (slot % 4) * 15;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Create availability record in instructor's local timezone
+ * @param {string} startTime - Start time in HH:MM (instructor local)
+ * @param {string} endTime - End time in HH:MM (instructor local) 
+ * @param {number} dayOfWeek - Day of week (0=Sunday)
+ * @param {string} instructorTimezone - Instructor's timezone
+ * @returns {Object} Availability record for database storage
+ */
+function createLocalAvailabilityRecord(startTime, endTime, dayOfWeek, instructorTimezone) {
+    // Calculate slots in LOCAL timezone (no cross-day issues!)
+    const startSlot = timeToLocalSlot(startTime);
+    const endSlot = timeToLocalSlot(endTime);
+    const duration = endSlot - startSlot;
+    
+    if (duration <= 0) {
+        throw new Error(`Invalid time range: ${startTime} to ${endTime}`);
+    }
+    
+    return {
+        day_of_week: dayOfWeek,
+        start_slot: startSlot,
+        duration: duration,
+        instructor_timezone: instructorTimezone || 'UTC',
+        local_start_time: startTime,
+        local_end_time: endTime
+    };
+}
+
+/**
+ * Check if a booking is within instructor availability
+ * @param {string} bookingTime - Booking time (student timezone)
+ * @param {string} bookingDate - Booking date YYYY-MM-DD
+ * @param {string} studentTimezone - Student's timezone
+ * @param {Object} availabilityRecord - Instructor availability record
+ * @returns {boolean} Whether booking is available
+ */
+function isBookingAvailable(bookingTime, bookingDate, studentTimezone, availabilityRecord) {
+    try {
+        // Convert booking to UTC
+        const bookingUtcSlot = localTimeToUTCSlot(bookingTime, bookingDate, studentTimezone);
+        
+        // Convert instructor availability to UTC for the same date
+        const instructorStartUtcSlot = localTimeToUTCSlot(
+            availabilityRecord.local_start_time,
+            bookingDate, 
+            availabilityRecord.instructor_timezone
+        );
+        const instructorEndUtcSlot = localTimeToUTCSlot(
+            availabilityRecord.local_end_time,
+            bookingDate,
+            availabilityRecord.instructor_timezone
+        );
+        
+        // Handle cross-day scenario in UTC
+        if (instructorEndUtcSlot < instructorStartUtcSlot) {
+            // Availability crosses midnight UTC
+            return bookingUtcSlot >= instructorStartUtcSlot || bookingUtcSlot < instructorEndUtcSlot;
+        } else {
+            // Normal case: availability within same UTC day
+            return bookingUtcSlot >= instructorStartUtcSlot && bookingUtcSlot < instructorEndUtcSlot;
+        }
+        
+    } catch (error) {
+        console.error('Error checking booking availability:', error);
+        return false;
+    }
+}
+
+// ============================================================================
+// FRONTEND COMPATIBILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Legacy compatibility: Convert time to slot (assumes local time)
+ * @param {string} timeString - Time in HH:MM format
+ * @returns {number} Slot number
+ * @deprecated Use timeToLocalSlot or localTimeToUTCSlot instead
+ */
+function timeToSlot(timeString) {
+    console.warn('timeToSlot is deprecated. Use timeToLocalSlot or localTimeToUTCSlot instead.');
+    return timeToLocalSlot(timeString);
+}
+
+/**
+ * Legacy compatibility: Convert slot to time
+ * @param {number} slot - Slot number
+ * @returns {string} Time in HH:MM format
+ * @deprecated Use localSlotToTime or utcSlotToLocalTime instead
+ */
+function slotToTime(slot) {
+    console.warn('slotToTime is deprecated. Use localSlotToTime or utcSlotToLocalTime instead.');
+    return localSlotToTime(slot);
+}
+
+/**
+ * Format time for display with timezone support
+ * @param {Date|string} time - Time to format
+ * @param {string} timezone - Optional timezone
+ * @returns {string} Formatted time
+ */
+function formatTime(time, timezone) {
+    const date = typeof time === 'string' ? new Date(time) : time;
+    
+    if (!timezone || timezone === 'UTC') {
+        return date.toISOString().substring(11, 16);
+    }
+    
+    try {
+        return date.toLocaleTimeString('en-GB', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        console.error('Error formatting time:', error);
+        return date.toISOString().substring(11, 16);
+    }
+}
+
+/**
+ * Format date for display
+ * @param {Date|string} date - Date to format
+ * @returns {string} Formatted date
+ */
+function formatDate(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+/**
+ * Check if date is current day
+ * @param {Date|string} date - Date to check
+ * @returns {boolean} Whether date is today
+ */
+function isCurrentDay(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+}
+
+/**
+ * Check if date is in the past
+ * @param {Date|string} date - Date to check
+ * @returns {boolean} Whether date is past
+ */
+function isPastDay(date) {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+}
+
+/**
+ * Check if time slot is in the past
+ * @param {number} slot - Time slot
+ * @param {string} dateString - Date string
+ * @returns {boolean} Whether slot is past
+ */
+function isPastTimeSlot(slot, dateString) {
+    const date = new Date(dateString);
+    const slotTime = slotToTimeUTC(slot);
+    const [hours, minutes] = slotTime.split(':').map(Number);
+    date.setUTCHours(hours, minutes, 0, 0);
+    
+    return date < new Date();
+}
+
+/**
+ * Get start of day
+ * @param {Date|string} date - Date
+ * @returns {Date} Start of day
+ */
+function getStartOfDay(date) {
+    const d = typeof date === 'string' ? new Date(date) : new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
 module.exports = {
-    // Core slot conversion functions
+    // Core UTC functions
     timeToSlotUTC,
     slotToTimeUTC,
     createUTCDateFromSlot,
-    
-    // Current time functions
-    getCurrentSlotUTC,
+    formatDateUTC,
     getCurrentDateUTC,
-    
-    // Date utility functions
     getDayOfWeekUTC,
     calculateDurationInSlots,
-    formatDateUTC,
-    addDaysUTC,
-    getWeekStartUTC,
-    getWeekEndUTC,
-    
-    // Validation functions
-    isPastUTC,
-    isSlotPastUTC,
-    isSameDayUTC,
-    isTodayUTC,
     isValidSlot,
     isValidDateString,
     
-    // Timezone conversion functions
+    // Timezone conversion
     localTimeToUTCSlot,
     utcSlotToLocalTime,
     getUserTimezone,
-    formatSlotForDisplay
+    
+    // Instructor availability
+    timeToLocalSlot,
+    localSlotToTime,
+    createLocalAvailabilityRecord,
+    isBookingAvailable,
+    
+    // Frontend compatibility (with deprecation warnings)
+    timeToSlot,
+    slotToTime,
+    formatTime,
+    formatDate,
+    isCurrentDay,
+    isPastDay,
+    isPastTimeSlot,
+    getStartOfDay
 };

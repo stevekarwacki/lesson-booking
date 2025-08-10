@@ -9,7 +9,8 @@ const {
     getDayOfWeekUTC,
     calculateDurationInSlots,
     isValidSlot,
-    isValidDateString
+    isValidDateString,
+    isBookingAvailable
 } = require('../utils/timeUtils');
 
 // Get instructor's calendar events
@@ -97,19 +98,43 @@ router.post('/addEvent', async (req, res) => {
             console.log(`60-minute lesson booking requested for slot ${startSlot} on day ${dayOfWeek}`);
         }
 
-        // 2. Get availability and validate consecutive slots
+        // 2. Get availability and validate using timezone-aware checking
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
-        // Find availability slot that contains the requested time
-        const availabilitySlot = weeklyAvailability.find(slot => {
-            if (slot.day_of_week !== dayOfWeek) return false;
-            const slotEnd = slot.start_slot + slot.duration;
-            return startSlot >= slot.start_slot && 
-                   startSlot < slotEnd && 
-                   (startSlot + duration) <= slotEnd;
-        });
+        // Check if instructor has any availability for this day
+        const dayAvailability = weeklyAvailability.filter(slot => slot.day_of_week === dayOfWeek);
+        
+        if (dayAvailability.length === 0) {
+            return res.status(400).json({ 
+                error: 'Instructor has no availability on this day' 
+            });
+        }
 
-        if (!availabilitySlot) {
+        // Use timezone-aware availability checking
+        // For now, assume student timezone from request or default to UTC
+        const studentTimezone = req.body.studentTimezone || 'UTC';
+        const bookingTime = requestedDate.toISOString().substring(11, 16); // Extract HH:MM
+        const bookingDate = formattedDate;
+
+        // Check each availability slot for this day
+        let isAvailable = false;
+        let availabilityDetails = null;
+
+        for (const availSlot of dayAvailability) {
+            if (isBookingAvailable(bookingTime, bookingDate, studentTimezone, availSlot)) {
+                // Additional check: ensure the full duration fits
+                const endTime = new Date(requestedDate.getTime() + (duration * 15 * 60 * 1000));
+                const endTimeStr = endTime.toISOString().substring(11, 16);
+                
+                if (isBookingAvailable(endTimeStr, bookingDate, studentTimezone, availSlot)) {
+                    isAvailable = true;
+                    availabilityDetails = availSlot;
+                    break;
+                }
+            }
+        }
+
+        if (!isAvailable) {
             const errorMessage = duration > 2 
                 ? `Instructor is not available for the full ${duration * 15} minutes requested. Please check availability or select a shorter duration.`
                 : 'Selected time is outside instructor\'s availability';

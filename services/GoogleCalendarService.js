@@ -1,9 +1,9 @@
 const { google } = require('googleapis');
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
 const { 
-    timeToSlotUTC,
-    formatDateUTC,
-    calculateDurationInSlots
+    timeToSlotUTC, 
+    formatDateUTC, 
+    calculateDurationInSlots 
 } = require('../utils/timeUtils');
 
 class GoogleCalendarService {

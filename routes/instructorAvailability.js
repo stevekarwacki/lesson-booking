@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
 const instructorAuth = require('../middleware/instructorAuth');
-const { 
-    getUserTimezone,
-    localTimeToUTCSlot,
-    utcSlotToLocalTime,
-    isValidSlot 
+const {
+    createLocalAvailabilityRecord,
+    isBookingAvailable,
+    getUserTimezone
 } = require('../utils/timeUtils');
 
 // Get instructor's weekly availability
@@ -37,7 +36,7 @@ router.get('/:instructorId/weekly', async (req, res) => {
 router.post('/:instructorId/weekly', instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-        const { slots } = req.body;
+        const { slots, instructorTimezone } = req.body;
 
         // Validate input
         if (!Array.isArray(slots)) {
@@ -46,31 +45,59 @@ router.post('/:instructorId/weekly', instructorAuth, async (req, res) => {
             });
         }
 
-        // Validate each slot
-        const isValidSlot = (slot) => {
+        if (!instructorTimezone) {
+            return res.status(400).json({
+                error: 'Instructor timezone is required'
+            });
+        }
+
+        // Updated validation for timezone-aware slots
+        const isValidSlotData = (slot) => {
             return typeof slot.dayOfWeek === 'number' 
                 && slot.dayOfWeek >= 0 
                 && slot.dayOfWeek <= 6
-                && typeof slot.startSlot === 'number'
-                && slot.startSlot >= 0
-                && slot.startSlot <= 95
-                && typeof slot.duration === 'number'
-                && slot.duration > 0;
+                && typeof slot.startTime === 'string'
+                && typeof slot.endTime === 'string'
+                && slot.startTime.match(/^\d{2}:\d{2}$/)
+                && slot.endTime.match(/^\d{2}:\d{2}$/);
         };
 
-        if (!slots.every(isValidSlot)) {
+        if (!slots.every(isValidSlotData)) {
             return res.status(400).json({
                 error: 'Invalid slot format',
                 format: {
                     dayOfWeek: 'number (0-6)',
-                    startSlot: 'number (0-95)',
-                    duration: 'number (> 0)'
+                    startTime: 'string (HH:MM)',
+                    endTime: 'string (HH:MM)'
                 }
             });
         }
 
-        await InstructorAvailability.setWeeklyAvailability(instructorId, slots);
-        res.json({ success: true });
+        // Convert timezone-aware slots to database records
+        const availabilityRecords = [];
+        for (const slot of slots) {
+            try {
+                const record = createLocalAvailabilityRecord(
+                    slot.startTime,
+                    slot.endTime,
+                    slot.dayOfWeek,
+                    instructorTimezone
+                );
+                record.instructor_id = instructorId;
+                availabilityRecords.push(record);
+            } catch (error) {
+                return res.status(400).json({
+                    error: `Invalid time range: ${slot.startTime} to ${slot.endTime} on day ${slot.dayOfWeek}`,
+                    details: error.message
+                });
+            }
+        }
+
+        await InstructorAvailability.setWeeklyAvailability(instructorId, availabilityRecords);
+        res.json({ 
+            success: true,
+            message: `Updated availability for ${availabilityRecords.length} time slots`
+        });
     } catch (error) {
         console.error('Error updating weekly availability:', error);
         res.status(500).json({ error: 'Failed to update availability' });
