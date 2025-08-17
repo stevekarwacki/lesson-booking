@@ -299,10 +299,10 @@ function isBookingAvailable(bookingTime, bookingDate, studentTimezone, availabil
         // Handle cross-day scenario in UTC
         if (instructorEndUtcSlot < instructorStartUtcSlot) {
             // Availability crosses midnight UTC
-            return bookingUtcSlot >= instructorStartUtcSlot || bookingUtcSlot < instructorEndUtcSlot;
+            return bookingUtcSlot >= instructorStartUtcSlot || bookingUtcSlot <= instructorEndUtcSlot;
         } else {
             // Normal case: availability within same UTC day
-            return bookingUtcSlot >= instructorStartUtcSlot && bookingUtcSlot < instructorEndUtcSlot;
+            return bookingUtcSlot >= instructorStartUtcSlot && bookingUtcSlot <= instructorEndUtcSlot;
         }
         
     } catch (error) {

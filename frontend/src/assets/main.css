@@ -14,8 +14,8 @@
   /* Calendar Color System - New cohesive color scheme */
   --calendar-unavailable: #ffebee;      /* Soft light red for unavailable slots */
   --calendar-available: #78b486;        /* Soft green for available slots */
-   --calendar-booked: #437c50;     /* Lighter green for other users' bookings */
-  --calendar-booked-self: #e3f2fd;      /* Soft blue for current user's bookings */
+   --calendar-booked: #e3f2fd;          /* Lighter blue for other users' bookings */
+  --calendar-booked-self: #5f99f7;      /* Vibrant blue for current user's bookings */
   --calendar-blocked: #dc3545;          /* Dark red for blocked slots */
   --calendar-past: #f8f9fa;             /* Very light gray for past slots */
   --calendar-google: #4285f4;           /* Google Calendar blue */

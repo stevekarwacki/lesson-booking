@@ -1,87 +1,38 @@
 <template>
     <div class="weekly-schedule">
-        <div class="schedule-header">
-            <div class="empty-corner"></div>
-            <div 
-                v-for="(day, index) in daysOfWeek" 
-                :key="day.value"
-                class="day-header"
-                :class="{ 
-                    'current-day': isCurrentDay(day.date),
-                    'past-day': isPastDay(day.date)
-                }"
-            >
-                <div class="day-name">{{ day.label }}</div>
-                <div class="day-date">{{ formatDayDate(index) }}</div>
-            </div>
-        </div>
-
-        <div class="schedule-body">
-            <div class="time-slots">
+        <!-- Column-based layout (new approach) -->
+        <div v-if="useColumnLayout" class="weekly-schedule-columns">
+            <div class="time-labels-column">
+                <div class="empty-corner"></div>
                 <div 
-                    v-for="[timeSlotKey, days] of Object.entries(props.weeklySchedule)" 
-                    :key="timeSlotKey"
-                    class="time-row"
+                    v-for="timeSlot in timeLabels" 
+                    :key="timeSlot"
+                    class="time-label"
                 >
-                    <div class="time-label">{{ formatTime(slotToTime(parseInt(timeSlotKey))) }}</div>
-                    <div 
-                        v-for="[dayIndex, slot] of Object.entries(days)" 
-                        :key="dayIndex"
-                        class="time-slot"
-                        :class="{
-                            'available': (slot.type === 'available'),
-                            /* 'blocked': isTimeBlocked(day.value, timeSlot.value), */
-                            'current-day': isCurrentDay(slot.date),
-                            'past': slot.date ? isPastTimeSlot(parseInt(timeSlotKey), slot.date.toISOString()) : false,
-                            'booked': (slot.type === 'booked'),
-                            'own-booking': (slot.type === 'booked' && slot.isOwnBooking),
-                            'google-calendar': (slot.is_google_calendar),
-                            'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
-                            'first-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0,
-                            'middle-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition > 0 && slot.slotPosition < slot.totalSlots - 1,
-                            'last-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === slot.totalSlots - 1,
-                            'sixty-minute': slot.isMultiSlot && !slot.is_google_calendar && slot.totalSlots === 2
-                        }"
-                        @click="handleTimeSlotClick({
-                            date: slot.date,
-                            time: timeSlotKey,
-                            type: slot.type
-                        })"
-                    >
-                        <span v-if="slot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(parseInt(timeSlotKey))) }}</span>
-
-                        <div v-if="slot.type === 'booked'" 
-                            class="booked-slot-content"
-                            :class="{ 'show-details': isInstructorOrAdmin }"
-                        >
-                            <span v-if="isInstructorOrAdmin" class="student-name">
-                                {{ slot.student?.name }}
-                            </span>
-                            
-                            <!-- Duration indicator for 60-minute lessons -->
-                            <div v-if="slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0" class="duration-indicator">
-                                {{ slot.totalSlots * 30 }}min
-                            </div>
-                            
-                            <div v-if="isInstructorOrAdmin" class="tooltip">
-                                <div class="tooltip-title">Booking Details</div>
-                                <div class="tooltip-content">
-                                    <p v-if="slot.isMultiSlot && !slot.is_google_calendar">Duration: {{ slot.totalSlots * 30 }} minutes</p>
-                                    <p>Time: {{ formatTime(slot.startTime) }} - {{ formatTime(slot.endTime) }}</p>
-                                    <p>Student: {{ slot.student?.name }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {{ formatTime(slotToTime(timeSlot)) }}
                 </div>
             </div>
+            
+            <DailyScheduleColumn
+                v-for="(dayColumn, index) in weeklyColumns"
+                :key="index"
+                :slots="dayColumn.slots"
+                :date="dayColumn.date"
+                :day-name="dayColumn.dayName"
+                :show-header="true"
+                :show-time-labels="false"
+                :is-instructor="isInstructorOrAdmin"
+                @slot-selected="handleSlotSelected"
+            />
         </div>
     </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { formatTime, slotToTime, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
+import { formatTime, slotToTime } from '../utils/timeFormatting'
+import { transformWeeklySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
+import DailyScheduleColumn from './DailyScheduleColumn.vue'
 
 const props = defineProps({
     weeklySchedule: {
@@ -99,56 +50,34 @@ const props = defineProps({
     weekStartDate: {
         type: Date,
         required: true
+    },
+    useColumnLayout: {
+        type: Boolean,
+        default: true  // Default to new layout, can be overridden for testing
     }
 })
 
 const emit = defineEmits(['slot-selected'])
 
-const daysOfWeek = computed(() => {
-    const days = [
-        { value: 0, label: 'Sun' },
-        { value: 1, label: 'Mon' },
-        { value: 2, label: 'Tue' },
-        { value: 3, label: 'Wed' },
-        { value: 4, label: 'Thu' },
-        { value: 5, label: 'Fri' },
-        { value: 6, label: 'Sat' }
-    ]
-
-    const startDate = new Date(props.weekStartDate)
-    days.forEach((day, index) => {
-        const date = new Date(startDate)
-        date.setDate(startDate.getDate() + index)
-        day.date = date
-    })
-
-    return days
+// Column-based layout computed properties
+const weeklyColumns = computed(() => {
+    if (!props.useColumnLayout) return []
+    return transformWeeklySchedule(props.weeklySchedule, props.weekStartDate)
 })
 
-const formatDayDate = (dayIndex) => {
-    const date = new Date(props.weekStartDate)
-    date.setDate(date.getDate() + dayIndex)
-    return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric'
-    })
-}
+const timeLabels = computed(() => {
+    if (!props.useColumnLayout) return []
+    
+    const timeRange = getScheduleTimeRange(props.weeklySchedule)
+    if (!timeRange) return []
+    
+    return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2) // 30-minute intervals
+})
 
-const handleTimeSlotClick = (cellData) => {
-    const { date, time, type } = cellData
-    
-    // Prevent clicks on past time slots
-    if (date && isPastTimeSlot(parseInt(time), date.toISOString())) {
-        return
-    }
-    
-    if (type === 'available') {
-        emit('slot-selected', {
-            date,
-            startSlot: time,
-            duration: 2 // 30 minutes
-        })
-    }
+// Event handlers
+const handleSlotSelected = (slotData) => {
+    // Handler for new column-based layout
+    emit('slot-selected', slotData)
 }
 </script>
 
@@ -158,6 +87,52 @@ const handleTimeSlotClick = (cellData) => {
     border-radius: var(--border-radius);
     background: var(--background-light);
 }
+
+/* New column-based layout styles */
+.weekly-schedule-columns {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    height: 100%;
+}
+
+.time-labels-column {
+    display: flex;
+    flex-direction: column;
+    background: var(--background-light);
+    border-right: 1px solid var(--border-color);
+}
+
+.time-labels-column .empty-corner {
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    height: 50px;
+}
+
+.time-labels-column .time-label {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-align: right;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    box-sizing: border-box;
+}
+
+.weekly-schedule-columns :deep(.daily-schedule-column) {
+    border-left: 1px solid var(--border-color);
+}
+
+.weekly-schedule-columns :deep(.daily-schedule-column:first-of-type) {
+    border-left: none;
+}
+
+/* Original row-based layout styles (kept for fallback) */
 
 .schedule-header {
     display: grid;
@@ -374,46 +349,6 @@ const handleTimeSlotClick = (cellData) => {
     margin: var(--spacing-xs) 0;
 }
 
-/* Multi-slot booking styles for 60-minute lessons */
-.time-slot.multi-slot-booking {
-    position: relative;
-}
-
-.time-slot.sixty-minute.first-slot {
-    border-bottom: 0;
-}
-
-.time-slot.sixty-minute.last-slot {
-    border-top: 0;
-}
-
-.duration-indicator {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--primary-color);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    padding: 1px 4px;
-    border-radius: 3px;
-    line-height: 1;
-    z-index: 2;
-}
-
-/* Enhanced visual connection for 60-minute bookings */
-.time-slot.sixty-minute.booked {
-    background-color: var( --calendar-booked);
-}
-
-.time-slot.sixty-minute.first-slot.booked {
-    background-color: var( --calendar-booked);
-}
-
-.time-slot.sixty-minute.last-slot.booked {
-    background-color: var( --calendar-booked);
-}
-
 @media (max-width: 768px) {
     .schedule-header {
         grid-template-columns: 60px repeat(7, 1fr);
@@ -425,11 +360,6 @@ const handleTimeSlotClick = (cellData) => {
 
     .day-date {
         font-size: var(--font-size-xs);
-    }
-    
-    .duration-indicator {
-        font-size: var(--font-size-xs);
-        padding: 1px 2px;
     }
 }
 </style> 

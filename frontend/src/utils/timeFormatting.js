@@ -286,9 +286,12 @@ function formatTime(time, timezone) {
     let date;
     
     if (typeof time === 'string') {
-        // If it's a time-only string like "09:30", create a date for today
+        // If it's a time-only string like "09:30", convert to 12-hour format
         if (/^\d{2}:\d{2}$/.test(time)) {
-            return time; // Just return the time string as-is for local time display
+            const [hours, minutes] = time.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
         } else {
             // It's an ISO string or other date string
             date = new Date(time);
@@ -304,15 +307,20 @@ function formatTime(time, timezone) {
     }
     
     if (!timezone || timezone === 'UTC') {
-        return date.toISOString().substring(11, 16);
+        // For UTC/no timezone, convert to 12-hour format
+        const hours = date.getUTCHours();
+        const minutes = date.getUTCMinutes();
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
     }
     
     try {
-        return date.toLocaleTimeString('en-GB', {
+        return date.toLocaleTimeString('en-US', {
             timeZone: timezone,
-            hour: '2-digit',
+            hour: 'numeric',
             minute: '2-digit',
-            hour12: false
+            hour12: true
         });
     } catch (error) {
         console.error('Error formatting time:', error);

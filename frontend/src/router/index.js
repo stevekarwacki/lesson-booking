@@ -74,6 +74,11 @@ const routes = [
         name: 'google-auth-callback',
         component: GoogleAuthCallback,
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/demo/schedule-column',
+        name: 'schedule-column-demo',
+        component: () => import('../components/DailyScheduleColumnDemo.vue')
     }
 ]
 

@@ -24,6 +24,12 @@
 
                 <div class="schedule-section">
                     <h3>Select New Time</h3>
+                    
+                    <div v-if="selectedSlot" class="selected-slot-info">
+                        <h4>Selected New Time:</h4>
+                        <p>{{ formatDate(selectedSlot.date, 'anm-abbr') }} at {{ formatTime(slotToTime(selectedSlot.startSlot)) }} - {{ formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) }}</p>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="date-select" class="form-label">Select a date:</label>
                         <input 
@@ -66,7 +72,7 @@
                 <button 
                     class="form-button" 
                     @click="updateBooking"
-                    :disabled="loading"
+                    :disabled="loading || !selectedSlot"
                 >
                     {{ loading ? 'Processing...' : 'Update Booking' }}
                 </button>
@@ -112,10 +118,11 @@ onMounted(() => {
 
 const selectedDay = computed(() => {
     if (!selectedDate.value) return null
-    // Create a new date object from the selected date string
-    const date = new Date(selectedDate.value + 'T00:00:00')
+    // Parse the date string correctly to avoid timezone issues
+    const [year, month, day] = selectedDate.value.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
     return {
-        date: selectedDate.value,
+        date: date,
         formattedDate: formatDate(date, 'anm-abbr')
     }
 })
@@ -181,7 +188,8 @@ const formatSlot = (slot, date) => {
     return {
         ...slot,
         date: date,
-        type: slot.student_id ? 'booked' : 'available'
+        type: slot.student_id ? 'booked' : 'available',
+        isOwnBooking: slot.student_id === userStore.user.id
     }
 }
 
@@ -300,6 +308,25 @@ const updateBooking = async () => {
     border-radius: var(--border-radius);
 }
 
+.selected-slot-info {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    background: var(--calendar-booked-self);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+}
+
+.selected-slot-info h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-primary);
+}
+
+.selected-slot-info p {
+    margin: 0;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
 .form-label {
     margin-bottom: var(--spacing-sm);
     font-weight: 500;
@@ -325,4 +352,6 @@ const updateBooking = async () => {
     background: rgba(255, 0, 0, 0.1);
     border-radius: var(--border-radius);
 }
+
+
 </style> 

@@ -248,9 +248,6 @@ const confirmBooking = async () => {
         const durationInSlots = parseInt(selectedDuration.value) / 15;
         const endTime = slotToTimeUTC(parseInt(currentSlot.value.startSlot) + durationInSlots);
         
-        // Log booking attempt for monitoring
-        console.log(`Booking ${selectedDuration.value}-minute lesson for $${lessonPrice.value}`);
-        
         // Create UTC dates using utility functions
         const startDate = createUTCDateFromSlot(utcDate, currentSlot.value.startSlot);
         const endSlot = parseInt(currentSlot.value.startSlot) + durationInSlots;

@@ -72,6 +72,7 @@
                 :weeklySchedule="weeklySchedule"
                 :weekStartDate="weekStart"
                 :isInstructorOrAdmin="isInstructorOrAdmin"
+                :useColumnLayout="true"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -382,8 +383,8 @@ const dailySchedule = computed(() => {
 const selectedDay = computed(() => {
     if (!selectedDate.value) return ''
 
-    const date = new Date(selectedDate.value)
-    date.setHours(0, 0, 0, 0)
+    const [year, month, day] = selectedDate.value.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
 
     return {
         date: date,

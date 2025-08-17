@@ -3,65 +3,37 @@
         <div class="schedule-header">
             {{ selectedDay.formattedDate }}
         </div>
-        <div class="schedule-body">
-                        <div 
-                v-for="[timeSlotKey, timeSlot] of Object.entries(props.dailySchedule)"
-                :key="timeSlotKey"
-                class="time-row"
-            >
-
-                <div class="time-label">{{ formatTime(slotToTime(timeSlotKey)) }}</div>
-            
-                <button  
-                    :key="timeSlotKey"
-                    class="time-slot"
-                                    :class="{
-                    'available': (timeSlot.type === 'available'),
-                    'past': isPastTimeSlot(selectedDay.date, timeSlot),
-                    'booked': (timeSlot.type === 'booked'),
-                    'own-booking': (timeSlot.type === 'booked' && timeSlot.isOwnBooking),
-                    'google-calendar': (timeSlot.is_google_calendar),
-                    'multi-slot-booking': timeSlot.isMultiSlot && !timeSlot.is_google_calendar,
-                    'first-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === 0,
-                    'middle-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition > 0 && timeSlot.slotPosition < timeSlot.totalSlots - 1,
-                    'last-slot': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === timeSlot.totalSlots - 1,
-                    'sixty-minute': timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.totalSlots === 2
-                }"
-
-                    @click="handleTimeSlotClick(timeSlot)"
+        
+        <div class="daily-schedule-grid">
+            <div class="time-labels-column">
+                <div 
+                    v-for="timeSlot in timeLabels" 
+                    :key="timeSlot"
+                    class="time-label"
                 >
-                    <span v-if="timeSlot.type !== 'booked' || !isInstructorOrAdmin" class="slot-time">{{ formatTime(slotToTime(timeSlot.start_slot)) }}</span>
-                    
-                    <div v-if="timeSlot.type === 'booked'" 
-                        class="booked-slot-content"
-                        :class="{ 'show-details': isInstructorOrAdmin }"
-                    >
-                        <span v-if="isInstructorOrAdmin" class="student-name">
-                            {{ timeSlot.student?.name }}
-                        </span>
-                        
-                        <!-- Duration indicator for 60-minute lessons -->
-                        <div v-if="timeSlot.isMultiSlot && !timeSlot.is_google_calendar && timeSlot.slotPosition === 0" class="duration-indicator">
-                            {{ timeSlot.totalSlots * 30 }}min
-                        </div>
-                        
-                        <div v-if="isInstructorOrAdmin" class="tooltip">
-                            <div class="tooltip-title">Booking Details</div>
-                            <div class="tooltip-content">
-                                <p v-if="timeSlot.isMultiSlot && !timeSlot.is_google_calendar">Duration: {{ timeSlot.totalSlots * 30 }} minutes</p>
-                                <p>Time: {{ formatTime(slotToTime(timeSlot.start_slot)) }} - {{ formatTime(slotToTime(timeSlot.start_slot + timeSlot.duration)) }}</p>
-                                <p>Student: {{ timeSlot.student?.name }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </button>
+                    {{ formatTime(slotToTime(timeSlot)) }}
+                </div>
             </div>
+            
+            <DailyScheduleColumn
+                :slots="dailySlots"
+                :date="selectedDay.date"
+                :day-name="selectedDay.formattedDate"
+                :show-header="false"
+                :show-time-labels="false"
+                :is-instructor="isInstructorOrAdmin"
+                :layout="'daily'"
+                @slot-selected="handleSlotSelected"
+            />
         </div>
     </div>
 </template>
 
 <script setup>
-import { formatTime, slotToTime, isPastTimeSlot } from '../utils/timeFormatting'
+import { computed } from 'vue'
+import { formatTime, slotToTime } from '../utils/timeFormatting'
+import { transformDailySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
+import DailyScheduleColumn from './DailyScheduleColumn.vue'
 
 const props = defineProps({
     dailySchedule: {
@@ -80,14 +52,22 @@ const props = defineProps({
 
 const emit = defineEmits(['slot-selected'])
 
-const handleTimeSlotClick = (timeSlot) => {
-    if (timeSlot.type === 'available') {
-        emit('slot-selected', {
-            date: props.selectedDay.date,
-            startSlot: timeSlot.start_slot,
-            duration: 2
-        })
-    }
+// Transform daily schedule data for DailyScheduleColumn component
+const dailySlots = computed(() => {
+    return transformDailySchedule(props.dailySchedule, props.selectedDay.date)
+})
+
+// Generate time labels for the daily view
+const timeLabels = computed(() => {
+    const timeRange = getScheduleTimeRange(props.dailySchedule)
+    if (!timeRange) return []
+    
+    return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2) // 30-minute intervals
+})
+
+// Event handler for slot selection
+const handleSlotSelected = (slotData) => {
+    emit('slot-selected', slotData)
 }
 </script>
 
@@ -96,226 +76,55 @@ const handleTimeSlotClick = (timeSlot) => {
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     background: var(--background-light);
+}
+
+.daily-schedule-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    height: 100%;
+}
+
+.time-labels-column {
     display: flex;
     flex-direction: column;
+    background: var(--background-light);
+    border-right: 1px solid var(--border-color);
 }
 
 .schedule-header {
-    padding: var(--spacing-sm);
-    text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--background-light);
+    padding: var(--spacing-md);
     font-weight: 500;
     font-size: var(--font-size-lg);
     color: var(--text-primary);
-}
-
-.time-row {
-    display: grid;
-    grid-template-columns: max-content auto;
+    margin-bottom: var(--spacing-sm);
 }
 
 .time-label {
-    height: calc(600px / 13);
-    min-width: 85px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-align: right;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    min-height: 40px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding-right: var(--spacing-sm);
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
+    box-sizing: border-box;
 }
 
-.time-slot {
-    border: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 0;
-    position: relative;
-    transition: all 0.2s ease;
-    background-color: var(--calendar-unavailable);
-    cursor: not-allowed;
-}
-
-.time-slot.available {
-    background-color: var(--calendar-available);
-    cursor: pointer;
-}
-
-.time-slot.booked {
-    background-color: var( --calendar-booked);
-    cursor: pointer;
-}
-
-.time-slot.booked.own-booking {
-    background-color: var(--calendar-booked-self);
-}
-
-.time-slot.google-calendar {
-    background-color: var(--calendar-blocked);
-    background-image: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 4px,
-        rgba(255, 255, 255, 0.3) 4px,
-        rgba(255, 255, 255, 0.3) 8px
-    );
-    border-left: 4px solid #dc3545;
-    color: white;
-}
-
-.time-slot.blocked {
-    background-color: var(--calendar-blocked);
-    background-image: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 4px,
-        rgba(255, 255, 255, 0.3) 4px,
-        rgba(255, 255, 255, 0.3) 8px
-    );
-    color: white;
-}
-
-.time-slot.past {
-    background-color: var(--calendar-past);
-    cursor: not-allowed;
-}
-
-.time-slot:hover {
-    filter: brightness(1.1);
-}
-
-.time-slot.available:active {
-    opacity: 0.8;
-    transform: scale(0.99);
-}
-
-.slot-time {
-    display: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-}
-
-.time-slot:hover .slot-time {
-    display: block;
-}
-
-.booked-slot-content {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 var(--spacing-xs);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.booked-slot-content.show-details {
-    position: relative;
-}
-
-.booked-slot-content.show-details:hover .tooltip {
-    display: block;
-}
-
-.tooltip {
-    display: none;
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    transform: translateY(-100%);
-    background: var(--background-light);
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    z-index: 1000;
-    min-width: 200px;
-    font-size: var(--font-size-sm);
-    border: 1px solid var(--border-color);
-    pointer-events: none;
-}
-
-.booked-slot-content {
-    z-index: 1;
-}
-
-/* Ensure tooltip stays visible when cursor moves to it */
-.tooltip:hover {
-    display: block;
-    pointer-events: auto;
-}
-
-.tooltip-title {
-    font-weight: 500;
-    margin-bottom: var(--spacing-xs);
-    color: var(--text-primary);
-}
-
-.tooltip-content {
-    color: var(--text-secondary);
-}
-
-.tooltip-content p {
-    margin: var(--spacing-xs) 0;
-}
-
-/* Multi-slot booking styles for 60-minute lessons */
-.time-slot.multi-slot-booking {
-    position: relative;
-}
-
-.time-slot.sixty-minute.first-slot {
-    border-bottom: 0;
-}
-
-.time-slot.sixty-minute.last-slot {
-    border-top: 0; /* Overlap border */
-}
-
-.duration-indicator {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--primary-color);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    padding: 1px 4px;
-    border-radius: 3px;
-    line-height: 1;
-    z-index: 2;
-}
-
-/* Enhanced visual connection for 60-minute bookings */
-.time-slot.sixty-minute.booked {
-    background-color: var( --calendar-booked);
-}
-
-.time-slot.sixty-minute.first-slot.booked {
-    background-color: var( --calendar-booked);
-}
-
-.time-slot.sixty-minute.last-slot.booked {
-    background-color: var( --calendar-booked);
-}
-
+/* Mobile responsiveness */
 @media (max-width: 768px) {
+    .daily-schedule-grid {
+        grid-template-columns: 100px 1fr;
+    }
+    
     .schedule-header {
         font-size: var(--font-size-base);
     }
 
     .time-label {
         font-size: var(--font-size-xs);
-    }
-    
-    .duration-indicator {
-        font-size: var(--font-size-xs);
-        padding: 1px 2px;
+        padding: var(--spacing-xs) var(--spacing-xs);
     }
 }
 </style> 
