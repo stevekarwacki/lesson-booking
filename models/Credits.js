@@ -156,4 +156,4 @@ const Credits = {
     }
 };
 
-module.exports = { Credits };
+module.exports = { Credits, CreditUsage };

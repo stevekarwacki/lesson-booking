@@ -598,6 +598,59 @@ router.patch('/student/:bookingId', async (req, res) => {
     }
 });
 
+// Delete student booking
+router.delete('/student/:bookingId', async (req, res) => {
+    try {
+        const bookingId = parseInt(req.params.bookingId, 10);
+        const studentId = req.user.id;
+
+        // Get the booking to cancel
+        const booking = await Calendar.findByPk(bookingId);
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        // Verify the booking belongs to the student
+        if (booking.student_id !== studentId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Check if booking is in the future (can't cancel past bookings)
+        const currentDate = new Date().toISOString().split('T')[0];
+        if (booking.date < currentDate) {
+            return res.status(400).json({ error: 'Cannot cancel past bookings' });
+        }
+
+        // Check for credit usage to refund
+        const { CreditUsage } = require('../models/Credits');
+        const creditUsage = await CreditUsage.findOne({
+            where: { calendar_event_id: bookingId }
+        });
+
+        // If there was a credit used, refund it
+        if (creditUsage) {
+            const { Credits } = require('../models/Credits');
+            await Credits.addCredits(studentId, 1);
+            // Keep the credit usage record for audit purposes, but mark the booking as cancelled
+        }
+
+        // Update the booking status to cancelled instead of deleting
+        await Calendar.updateEvent(bookingId, { status: 'cancelled' });
+
+        res.json({
+            message: 'Booking cancelled successfully',
+            creditRefunded: !!creditUsage
+        });
+
+    } catch (error) {
+        console.error('Error cancelling booking:', error);
+        res.status(500).json({ 
+            error: 'Failed to cancel booking',
+            details: error.message 
+        });
+    }
+});
+
 // Get recurring bookings for an instructor in a date range  
 router.get('/recurring/:instructorId/:startDate/:endDate', async (req, res) => {
     try {

@@ -49,6 +49,7 @@
             :booking="selectedBooking"
             @close="closeEditModal"
             @booking-updated="handleBookingUpdated"
+            @booking-cancelled="handleBookingCancelled"
         />
     </div>
 </template>
@@ -105,6 +106,18 @@ const closeEditModal = () => {
 const handleBookingUpdated = async () => {
     closeEditModal()
     await fetchBookings()
+}
+
+const handleBookingCancelled = async (result) => {
+    closeEditModal()
+    await fetchBookings()
+    
+    // Show a success message
+    if (result.creditRefunded) {
+        alert('Booking cancelled successfully and credit refunded!')
+    } else {
+        alert('Booking cancelled successfully!')
+    }
 }
 
 onMounted(async () => {

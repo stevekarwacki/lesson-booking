@@ -67,15 +67,25 @@
                     @click="$emit('close')"
                     :disabled="loading"
                 >
-                    Cancel
+                    Close
                 </button>
-                <button 
-                    class="form-button" 
-                    @click="updateBooking"
-                    :disabled="loading || !selectedSlot"
-                >
-                    {{ loading ? 'Processing...' : 'Update Booking' }}
-                </button>
+                <div class="button-group">
+                    <button 
+                        type="button"
+                        class="form-button form-button-danger" 
+                        @click="cancelBooking"
+                        :disabled="loading"
+                    >
+                        {{ loading ? 'Processing...' : 'Cancel Booking' }}
+                    </button>
+                    <button 
+                        class="form-button" 
+                        @click="updateBooking"
+                        :disabled="loading || !selectedSlot"
+                    >
+                        {{ loading ? 'Processing...' : 'Update Booking' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -94,7 +104,7 @@ const props = defineProps({
     }
 })
 
-const emit = defineEmits(['close', 'booking-updated'])
+const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -243,6 +253,37 @@ const updateBooking = async () => {
         loading.value = false
     }
 }
+
+const cancelBooking = async () => {
+    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+        return
+    }
+
+    try {
+        loading.value = true
+        error.value = null
+
+        const response = await fetch(`/api/calendar/student/${props.booking.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+
+        if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to cancel booking')
+        }
+
+        const result = await response.json()
+        
+        emit('booking-cancelled', result)
+    } catch (err) {
+        error.value = err.message
+    } finally {
+        loading.value = false
+    }
+}
 </script>
 
 <style scoped>
@@ -353,5 +394,8 @@ const updateBooking = async () => {
     border-radius: var(--border-radius);
 }
 
-
+.button-group {
+    display: flex;
+    gap: var(--spacing-md);
+}
 </style> 

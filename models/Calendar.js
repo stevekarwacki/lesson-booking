@@ -51,7 +51,7 @@ const Calendar = sequelize.define('Calendar', {
         }
     },
     status: {
-        type: DataTypes.ENUM('booked', 'blocked'),
+        type: DataTypes.ENUM('booked', 'blocked', 'cancelled'),
         allowNull: false,
         defaultValue: 'booked'
     }
@@ -125,7 +125,10 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 
 Calendar.getInstructorEvents = async function(instructorId) {
     return this.findAll({
-        where: { instructor_id: instructorId },
+        where: { 
+            instructor_id: instructorId,
+            status: { [sequelize.Op.ne]: 'cancelled' }
+        },
         include: [
             {
                 model: User,
@@ -170,7 +173,8 @@ Calendar.getStudentEvents = async function(studentId) {
             student_id: studentId,
             date: {
                 [sequelize.Op.gte]: currentDateUTC
-            }
+            },
+            status: { [sequelize.Op.ne]: 'cancelled' }
         },
         include: [{
             model: Instructor,
