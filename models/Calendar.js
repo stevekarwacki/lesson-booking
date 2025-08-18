@@ -4,7 +4,6 @@ const { User } = require('./User');
 const { Instructor } = require('./Instructor');
 const { Credits } = require('./Credits');
 const { 
-    formatDateUTC,
     isValidSlot,
     isValidDateString,
     getCurrentDateUTC

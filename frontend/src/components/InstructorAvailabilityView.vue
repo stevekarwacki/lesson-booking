@@ -73,7 +73,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { timeToSlot, timeToSlotUTC, getUserTimezone, formatTime } from '../utils/timeFormatting'
+import { timeToSlot } from '../utils/timeFormatting'
 import { useTimezoneStore } from '../stores/timezoneStore'
 
 const props = defineProps({
@@ -223,8 +223,6 @@ const daysOfWeek = [
 
 const timeSlots = computed(() => {
     const slots = []
-    const userTimezone = timezoneStore.userTimezone
-    const showTimezoneInLabel = userTimezone !== 'UTC'
     
     for (let hour = 7; hour < 19; hour++) {
         // Add hour slot

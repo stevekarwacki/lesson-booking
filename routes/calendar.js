@@ -9,7 +9,6 @@ const {
     getDayOfWeekUTC,
     calculateDurationInSlots,
     isValidSlot,
-    isValidDateString,
     isBookingAvailable
 } = require('../utils/timeUtils');
 

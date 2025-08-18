@@ -2,7 +2,6 @@ let Redis;
 try {
     Redis = require('ioredis');
 } catch (error) {
-    console.warn('ioredis not installed. Redis caching will not be available.');
     Redis = null;
 }
 

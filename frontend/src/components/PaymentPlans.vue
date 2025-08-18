@@ -39,9 +39,7 @@
 <script setup>
 import { ref } from 'vue'
 import StripePaymentForm from './StripePaymentForm.vue'
-import { useUserStore } from '../stores/userStore'
 
-const userStore = useUserStore()
 const processing = ref(false)
 const error = ref(null)
 const selectedPlan = ref(null)

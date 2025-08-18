@@ -24,7 +24,6 @@ process.on('SIGINT', async () => {
     try {
         const { sequelize } = require('./models');
         await sequelize.close();
-        console.log('Database connection closed');
         process.exit(0);
     } catch (error) {
         console.error('Error during shutdown:', error);

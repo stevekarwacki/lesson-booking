@@ -1,16 +1,4 @@
 /**
- * CONSOLIDATED TIME UTILITIES
- * 
- * This file contains all time, slot, and timezone utilities used throughout the application.
- * It consolidates functions from timeUtils.js, availabilityTimezone.js, and timeFormatting.js
- * while removing unused functions and providing a clean, single-source API.
- */
-
-// ============================================================================
-// CORE UTC TIME AND SLOT FUNCTIONS
-// ============================================================================
-
-/**
  * Convert UTC time to slot number
  * @param {Date|string} dateTime - Date object or ISO string
  * @returns {number} Slot number (0-95, where 0 = 00:00 UTC, 95 = 23:45 UTC)

@@ -119,7 +119,6 @@ import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
-import { useRoute } from 'vue-router'
 
 const props = defineProps({
     slot: {
@@ -132,7 +131,6 @@ const emit = defineEmits(['close', 'booking-confirmed'])
 
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
-const route = useRoute()
 
 const loading = ref(false)
 const error = ref(null)
@@ -172,7 +170,6 @@ const fetchInstructorRate = async () => {
         }
     } catch (err) {
         console.error('Error fetching instructor rate:', err)
-        // Keep default rate of $50
     }
 }
 
@@ -290,11 +287,6 @@ const confirmBooking = async () => {
         loading.value = false
     }
 }
-
-// Watch for payment method changes
-watch(paymentMethod, (newValue, oldValue) => {
-    // Payment method changed
-})
 
 // Watch for slot changes
 watch(() => props.slot, (newSlot) => {

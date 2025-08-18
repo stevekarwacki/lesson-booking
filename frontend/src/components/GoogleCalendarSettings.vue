@@ -195,8 +195,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useUserStore } from '../stores/userStore'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -205,8 +204,6 @@ const props = defineProps({
         required: true
     }
 })
-
-const userStore = useUserStore()
 
 // Reactive state
 const error = ref('')

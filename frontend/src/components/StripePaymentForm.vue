@@ -62,7 +62,6 @@ const {
     loading, 
     error, 
     initializeStripe, 
-    createPaymentIntent, 
     mountPaymentElement 
 } = useStripe()
 

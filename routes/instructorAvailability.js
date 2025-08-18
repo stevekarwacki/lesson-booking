@@ -2,11 +2,7 @@ const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
 const instructorAuth = require('../middleware/instructorAuth');
-const {
-    createLocalAvailabilityRecord,
-    isBookingAvailable,
-    getUserTimezone
-} = require('../utils/timeUtils');
+const {createLocalAvailabilityRecord} = require('../utils/timeUtils');
 
 // Get instructor's weekly availability
 router.get('/:instructorId/weekly', async (req, res) => {

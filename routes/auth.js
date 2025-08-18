@@ -3,7 +3,6 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/User');
-const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authMiddleware } = require('../middleware/auth');
 const instructorAuth = require('../middleware/instructorAuth');

@@ -181,7 +181,6 @@ const saveInstructorEdit = async () => {
             specialties: editingInstructor.value.specialties,
             bio: editingInstructor.value.bio
         };
-        console.log('Sending update data:', updateData);
         
         const response = await fetch(`/api/instructors/${editingInstructor.value.user_id}`, {
             method: 'PUT',
@@ -208,29 +207,6 @@ const saveInstructorEdit = async () => {
         error.value = 'Error updating instructor: ' + err.message;
     }
 }
-
-const toggleInstructorActive = async (instructor) => {
-    try {
-        const response = await fetch(`/api/instructors/${instructor.id}/toggle-active`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to update instructor status');
-        }
-
-        // Refresh the instructor list
-        await fetchInstructors();
-        
-        success.value = `Instructor ${instructor.is_active ? 'deactivated' : 'activated'} successfully`;
-    } catch (err) {
-        error.value = err.message;
-    }
-};
 
 const toggleInstructorActiveInModal = async () => {
     if (!confirm(`Are you sure you want to ${editingInstructor.value.is_active ? 'deactivate' : 'activate'} this instructor?`)) {
