@@ -10,7 +10,7 @@
                     <h3>Current Booking Information</h3>
                     <div>
                         <span>Date:</span>
-                        <span>{{ formatDate(booking.date, 'anm-abbr') }}</span>
+                        <span>{{ formatDate(new Date(booking.date + 'T00:00:00')) }}</span>
                     </div>
                     <div>
                         <span>Time:</span>
@@ -27,7 +27,7 @@
                     
                     <div v-if="selectedSlot" class="selected-slot-info">
                         <h4>Selected New Time:</h4>
-                        <p>{{ formatDate(selectedSlot.date, 'anm-abbr') }} at {{ formatTime(slotToTime(selectedSlot.startSlot)) }} - {{ formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) }}</p>
+                        <p>{{ formatDate(selectedSlot.date) }} at {{ formatTime(slotToTime(selectedSlot.startSlot)) }} - {{ formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) }}</p>
                     </div>
                     
                     <div class="form-group">
@@ -94,6 +94,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useScheduleStore } from '../stores/scheduleStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
 
@@ -107,6 +108,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 
 const userStore = useUserStore()
+const scheduleStore = useScheduleStore()
 const loading = ref(false)
 const error = ref(null)
 const selectedDate = ref('')
@@ -133,7 +135,7 @@ const selectedDay = computed(() => {
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
     return {
         date: date,
-        formattedDate: formatDate(date, 'anm-abbr')
+        formattedDate: formatDate(date)
     }
 })
 
@@ -246,6 +248,9 @@ const updateBooking = async () => {
             throw new Error(data.error || 'Failed to update booking')
         }
 
+        // Trigger schedule refresh for this instructor
+        scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
+
         emit('booking-updated')
     } catch (err) {
         error.value = err.message
@@ -276,6 +281,9 @@ const cancelBooking = async () => {
         }
 
         const result = await response.json()
+        
+        // Trigger schedule refresh for this instructor
+        scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
         
         emit('booking-cancelled', result)
     } catch (err) {

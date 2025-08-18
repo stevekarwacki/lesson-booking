@@ -112,12 +112,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useMq } from 'vue3-mq'
 import { useUserStore } from '../stores/userStore'
+import { useScheduleStore } from '../stores/scheduleStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 
 const userStore = useUserStore()
+const scheduleStore = useScheduleStore()
 
 const { instructor } = defineProps({
     instructor: {
@@ -201,13 +203,8 @@ const handleBookingConfirmed = (newBooking) => {
     showBookingModal.value = false
     selectedSlot.value = null
     
-    // Refresh the schedule data from the server instead of trying to update locally
-    fetchWeeklySchedule()
-    
-    // Also refresh daily schedule if we're viewing a specific day
-    if (selectedDate.value) {
-        fetchDailySchedule()
-    }
+    // Trigger schedule refresh using the schedule store (consistent with other booking updates)
+    scheduleStore.triggerInstructorRefresh(instructor.id)
 }
 
 const clearSelectedDate = () => {
@@ -527,6 +524,16 @@ watch(() => instructor, async (newInstructor) => {
         await fetchWeeklySchedule()
     }
 }, { immediate: true })
+
+// Watch for schedule refresh triggers
+watch(() => scheduleStore.refreshTrigger, async () => {
+    if (instructor?.id && scheduleStore.needsRefresh(instructor.id)) {
+        await fetchWeeklySchedule()
+        await fetchDailySchedule()
+        await fetchDailyBookings()
+        scheduleStore.markInstructorRefreshed(instructor.id)
+    }
+})
 
 const isInstructorOrAdmin = computed(() => {
     return userStore.isInstructor || userStore.isAdmin
