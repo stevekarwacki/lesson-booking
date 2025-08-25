@@ -456,7 +456,13 @@ router.get('/student/:studentId', async (req, res) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const events = await Calendar.getStudentEvents(studentId);
+        // Check if we should include all bookings (past, cancelled)
+        const includeAll = req.query.includeAll === 'true';
+        
+        const events = includeAll 
+            ? await Calendar.getAllStudentEvents(studentId)
+            : await Calendar.getStudentEvents(studentId);
+            
         res.json(events);
     } catch (error) {
         console.error('Error fetching student bookings:', error);

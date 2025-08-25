@@ -1,21 +1,19 @@
 <template v-if="instructor">
 
     <!-- Booked Lessons List -->
-    <div v-if="isInstructorOrAdmin && dailyBookings.length > 0" class="card">
+    <div v-if="formattedBookingsForList.length > 0" class="card">
         <div class="card-header">
-            <h3>Today's Booked Lessons</h3>
+            <h3>{{ selectedDate ? 'Booked Lessons for ' + selectedDay?.formattedDate : "Today's Booked Lessons" }}</h3>
         </div>
         <div class="card-body">
-            <div class="bookings-list">
-                <div v-for="booking in dailyBookings" :key="booking.id" class="booking-item">
-                    <div class="booking-time">
-                        {{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}
-                    </div>
-                    <div class="booking-student">
-                        {{ booking.student?.name }}
-                    </div>
-                </div>
-            </div>
+            <BookingList
+                :bookings="formattedBookingsForList"
+                :userId="userStore.user.id"
+                :userRole="userStore.isAdmin ? 'admin' : userStore.isInstructor ? 'instructor' : 'student'"
+                @edit-booking="handleEditBookingFromList"
+                @cancel-booking="handleCancelBookingFromList"
+                @view-booking="handleViewBookingFromList"
+            />
         </div>
     </div>
 
@@ -115,6 +113,7 @@ import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
+import BookingList from './BookingList.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 
@@ -539,6 +538,22 @@ const isInstructorOrAdmin = computed(() => {
     return userStore.isInstructor || userStore.isAdmin
 })
 
+// Transform dailyBookings for BookingList component
+const formattedBookingsForList = computed(() => {
+    return dailyBookings.value.map(booking => ({
+        id: booking.id || `temp-${booking.start_slot}`,
+        date: booking.date,
+        startTime: formatTime(slotToTime(booking.start_slot)),
+        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+        instructorName: instructor.name,
+        studentName: booking.student?.name || 'Unknown Student',
+        status: booking.type === 'booked' ? 'booked' : booking.status || 'booked',
+        isRecurring: false, // Add logic for recurring if needed
+        // Original booking data for actions
+        originalBooking: booking
+    }))
+})
+
 const fetchDailyBookings = async () => {
     if (!instructor.id || !selectedDate.value) {
         dailyBookings.value = []
@@ -564,6 +579,37 @@ const fetchDailyBookings = async () => {
     }
 }
 
+// BookingList event handlers
+const handleEditBookingFromList = (booking) => {
+    console.log('Edit booking from list:', booking)
+    // For now, just log - later we can integrate with EditBookingModal
+    // This could open the booking modal in edit mode
+    selectedSlot.value = {
+        ...booking.originalBooking,
+        instructorId: instructor.id,
+        isEditing: true
+    }
+    showBookingModal.value = true
+}
+
+const handleCancelBookingFromList = (booking) => {
+    console.log('Cancel booking from list:', booking)
+    // TODO: Implement booking cancellation
+    // This would call an API to cancel the booking
+    alert(`Cancel booking functionality would be implemented here for booking ID: ${booking.id}`)
+}
+
+const handleViewBookingFromList = (booking) => {
+    console.log('View booking from list:', booking)
+    // For cancelled bookings, show in view-only mode
+    selectedSlot.value = {
+        ...booking.originalBooking,
+        instructorId: instructor.id,
+        isViewOnly: true
+    }
+    showBookingModal.value = true
+}
+
 </script>
 
 <style scoped>
@@ -583,23 +629,7 @@ const fetchDailyBookings = async () => {
     color: var(--text-primary);
 }
 
-.booking-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-sm);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-}
 
-.booking-time {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.booking-student {
-    color: var(--text-secondary);
-}
 
 .schedule-view {
     margin-top: var(--spacing-lg);

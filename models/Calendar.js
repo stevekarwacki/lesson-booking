@@ -187,6 +187,22 @@ Calendar.getStudentEvents = async function(studentId) {
     });
 };
 
+Calendar.getAllStudentEvents = async function(studentId) {
+    return this.findAll({
+        where: {
+            student_id: studentId
+        },
+        include: [{
+            model: Instructor,
+            include: [{
+                model: User,
+                attributes: ['name']
+            }]
+        }],
+        order: [['date', 'DESC'], ['start_slot', 'ASC']]
+    });
+};
+
 Calendar.getEventById = async function(eventId) {
     return this.findByPk(eventId, {
         include: [

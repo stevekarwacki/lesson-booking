@@ -1,47 +1,19 @@
 <template>
     <div class="user-bookings card">
         <div class="card-header">
-            <h2>Your Upcoming Bookings</h2>
+            <h2>Your Bookings</h2>
         </div>
         
         <div class="card-body">
-            <div v-if="loading" class="loading-state">
-                Loading bookings...
-            </div>
-            
-            <div v-else-if="bookings.length === 0" class="form-message">
-                <p>You don't have any upcoming lessons booked.</p>
-            </div>
-            
-            <div v-else class="bookings-list">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Instructor</th>
-                            <th v-if="useMq().lgPlus">Duration</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="booking in bookings" :key="booking.id">
-                            <td>{{ formatDate(new Date(booking.date + 'T00:00:00'), 'anm-abbr') }}</td>
-                            <td>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</td>
-                            <td>{{ booking.Instructor.User.name }}</td>
-                            <td v-if="useMq().lgPlus">{{ booking.duration * 15 }} minutes</td>
-                            <td class="actions">
-                                <button 
-                                    class="form-button form-button-edit"
-                                    @click="openEditModal(booking)"
-                                >
-                                    Edit
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <BookingList
+                :bookings="formattedBookings"
+                :loading="loading"
+                :userId="userStore.user.id"
+                :userRole="'student'"
+                @edit-booking="handleEditBookingFromList"
+                @cancel-booking="handleCancelBookingFromList"
+                @view-booking="handleViewBookingFromList"
+            />
         </div>
 
         <EditBookingModal
@@ -55,9 +27,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
+import BookingList from './BookingList.vue'
 import EditBookingModal from './EditBookingModal.vue'
 import { useMq } from 'vue3-mq'
 
@@ -68,12 +41,27 @@ const error = ref(null)
 const showEditModal = ref(false)
 const selectedBooking = ref(null)
 
+// Transform bookings for BookingList component
+const formattedBookings = computed(() => {
+    return bookings.value.map(booking => ({
+        id: booking.id,
+        date: booking.date,
+        startTime: formatTime(slotToTime(booking.start_slot)),
+        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+        instructorName: booking.Instructor.User.name,
+        status: booking.status || 'booked',
+        isRecurring: false,
+        // Original booking data for EditBookingModal
+        originalBooking: booking
+    }))
+})
+
 const fetchBookings = async () => {
     try {
         loading.value = true
         error.value = null
         
-        const response = await fetch(`/api/calendar/student/${userStore.user.id}`, {
+        const response = await fetch(`/api/calendar/student/${userStore.user.id}?includeAll=true`, {
             headers: {
                 'Authorization': `Bearer ${userStore.token}`
             }
@@ -120,6 +108,22 @@ const handleBookingCancelled = async (result) => {
     }
 }
 
+// BookingList event handlers
+const handleEditBookingFromList = (booking) => {
+    selectedBooking.value = booking.originalBooking
+    showEditModal.value = true
+}
+
+const handleCancelBookingFromList = (booking) => {
+    selectedBooking.value = booking.originalBooking
+    showEditModal.value = true
+}
+
+const handleViewBookingFromList = (booking) => {
+    selectedBooking.value = booking.originalBooking
+    showEditModal.value = true
+}
+
 onMounted(async () => {
     await fetchBookings()
 })
@@ -128,48 +132,5 @@ onMounted(async () => {
 <style scoped>
 .user-bookings {
     margin-bottom: var(--spacing-lg);
-}
-
-.loading-state {
-    text-align: center;
-    padding: var(--spacing-lg);
-    color: var(--text-secondary);
-}
-
-.bookings-list {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: var(--spacing-md);
-}
-
-th, td {
-    padding: var(--spacing-sm);
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-th {
-    background-color: var(--background-light);
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-@media (max-width: 768px) {
-    table {
-        font-size: var(--font-size-sm);
-    }
-
-    th, td {
-        padding: var(--spacing-xs);
-    }
 }
 </style> 
