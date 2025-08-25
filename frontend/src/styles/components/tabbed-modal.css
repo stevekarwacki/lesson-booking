@@ -162,6 +162,12 @@
   font-size: 1.2rem;
   width: 1.2rem;
   text-align: center;
+  color: var(--text-secondary);
+  transition: transform var(--transition-normal);
+}
+
+.accordion-icon.expanded {
+  transform: rotate(180deg);
 }
 
 .accordion-badge {
@@ -191,7 +197,7 @@
 }
 
 .accordion-content.open {
-  max-height: 1000px;
+  max-height: unset;
 }
 
 .accordion-content > .tabbed-modal-tab {

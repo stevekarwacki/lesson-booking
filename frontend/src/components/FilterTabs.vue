@@ -158,7 +158,6 @@ export default {
   align-items: center;
   gap: 0.25rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 6px;
   background: var(--surface-color, white);
   color: var(--text-secondary, #6b7280);
@@ -177,13 +176,13 @@ export default {
 }
 
 .filter-tab:not(:disabled):hover {
+  border-color: transparent;
   background-color: #f9fafb;
 }
 /* Default active state */
 .filter-tab.active {
   background-color: #f3f4f6;
   color: #374151;
-  border-color: #9ca3af;
 }
 
 /* Sizes */
@@ -228,7 +227,7 @@ export default {
 }
 
 .filter-tab.active .filter-count {
-  background-color: #374151;
+  background-color: #9b9b9b;
   color: white;
 }
 

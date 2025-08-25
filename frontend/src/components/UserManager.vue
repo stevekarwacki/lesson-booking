@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
+import BookingList from './BookingList.vue'
 
 const userStore = useUserStore()
 const users = ref([])
@@ -19,6 +20,10 @@ const availablePlans = ref([])
 const selectedPlan = ref('')
 const adminNote = ref('')
 const creatingSubscription = ref(false)
+
+// User bookings data
+const userBookings = ref([])
+const loadingUserBookings = ref(false)
 
 // Computed property to safely get current user ID
 const currentUserId = computed(() => userStore.user?.id)
@@ -175,11 +180,13 @@ const openEditModal = (user) => {
     editingUser.value = { ...user }
     showEditModal.value = true
     fetchUserSubscription(user.id)
+    fetchUserBookings(user.id)
 }
 
 const closeEditModal = () => {
     editingUser.value = null
     userSubscription.value = null
+    userBookings.value = []
     showEditModal.value = false
 }
 
@@ -372,6 +379,76 @@ const confirmCreateSubscription = async () => {
     } finally {
         creatingSubscription.value = false
     }
+}
+
+// User booking management functions
+const fetchUserBookings = async (userId) => {
+    try {
+        loadingUserBookings.value = true
+        const response = await fetch(`/api/calendar/student/${userId}?includeAll=true`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch user bookings')
+        }
+        
+        const bookings = await response.json()
+        
+        // Transform bookings for BookingList component
+        userBookings.value = bookings.map(booking => ({
+            id: booking.id,
+            date: booking.date,
+            startTime: formatTime(slotToTime(booking.start_slot)),
+            endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+            instructorName: booking.Instructor.User.name,
+            status: booking.status || 'booked',
+            isRecurring: false,
+            originalBooking: booking
+        }))
+    } catch (err) {
+        console.error('Error fetching user bookings:', err)
+        userBookings.value = []
+    } finally {
+        loadingUserBookings.value = false
+    }
+}
+
+const handleEditUserBooking = (booking) => {
+    console.log('Edit user booking:', booking)
+    // TODO: Implement booking editing for admin/instructor
+    alert('Admin booking editing will be implemented here')
+}
+
+const handleCancelUserBooking = (booking) => {
+    console.log('Cancel user booking:', booking)
+    // TODO: Implement booking cancellation for admin/instructor
+    alert('Admin booking cancellation will be implemented here')
+}
+
+const handleViewUserBooking = (booking) => {
+    console.log('View user booking:', booking)
+    // TODO: Implement booking viewing for admin/instructor
+    alert('Admin booking viewing will be implemented here')
+}
+
+// Utility functions for time formatting (matching UserBookings component)
+const slotToTime = (slot) => {
+    const hours = Math.floor(slot / 4)
+    const minutes = (slot % 4) * 15
+    return { hours, minutes }
+}
+
+const formatTime = (timeObj) => {
+    const date = new Date()
+    date.setHours(timeObj.hours, timeObj.minutes)
+    return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    })
 }
 
 onMounted(async () => {
@@ -710,6 +787,25 @@ onMounted(async () => {
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </TabbedModalTab>
+
+            <TabbedModalTab label="Bookings">
+                <div class="bookings-tab">
+                    <div v-if="userBookings.length > 0 || loadingUserBookings">
+                        <BookingList
+                            :bookings="userBookings"
+                            :loading="loadingUserBookings"
+                            :userId="editingUser?.id"
+                            :userRole="userStore.isAdmin ? 'admin' : 'instructor'"
+                            @edit-booking="handleEditUserBooking"
+                            @cancel-booking="handleCancelUserBooking"
+                            @view-booking="handleViewUserBooking"
+                        />
+                    </div>
+                    <div v-else class="no-bookings-message">
+                        <p>This user has no bookings to display.</p>
                     </div>
                 </div>
             </TabbedModalTab>
@@ -1069,5 +1165,16 @@ select:disabled {
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
     font-style: italic;
+}
+
+/* Bookings tab styles */
+.bookings-tab {
+    padding: var(--spacing-md);
+}
+
+.no-bookings-message {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
 }
 </style> 

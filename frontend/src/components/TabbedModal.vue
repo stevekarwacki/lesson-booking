@@ -81,7 +81,7 @@
                   <div 
                     v-show="accordionState[tab.id]"
                     :id="`accordion-${tab.id}`"
-                    class="accordion-content"
+                    :class="['accordion-content', { open: accordionState[tab.id] }]"
                   >
                     <component 
                       :is="getTabComponent(tab.id)" 
@@ -337,7 +337,6 @@ export default {
 /* Extended modal specific overrides and additions */
 .tabbed-modal-extended {
   position: relative;
-  overflow: hidden;
   transition: max-height 0.3s ease-in-out;
 }
 
