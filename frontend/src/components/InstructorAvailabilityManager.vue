@@ -123,7 +123,7 @@ const scheduleUpdateCounter = ref(0)
 const formatDateTime = (datetime) => {
     // Convert datetime to user's timezone for display
     const date = new Date(datetime)
-    return date.toLocaleString('en-US', {
+          return date.toLocaleString(undefined, {
         timeZone: timezoneStore.userTimezone,
         year: 'numeric',
         month: 'short',

@@ -135,7 +135,7 @@ function utcSlotToLocalTime(slot, dateString, timezone) {
         const utcDate = createUTCDateFromSlot(dateString, slot);
         
         // Use toLocaleTimeString to convert to target timezone
-        const localTimeString = utcDate.toLocaleTimeString('en-GB', {
+        const localTimeString = utcDate.toLocaleTimeString(undefined, {
             timeZone: timezone,
             hour: '2-digit',
             minute: '2-digit',
@@ -174,7 +174,7 @@ function getTimezoneDisplayName(timezone) {
     }
     
     try {
-        const formatter = new Intl.DateTimeFormat('en-US', {
+        const formatter = new Intl.DateTimeFormat(undefined, {
             timeZone: timezone,
             timeZoneName: 'long'
         });
@@ -199,7 +199,7 @@ function getTimezoneAbbreviation(timezone) {
     }
     
     try {
-        const formatter = new Intl.DateTimeFormat('en-US', {
+        const formatter = new Intl.DateTimeFormat(undefined, {
             timeZone: timezone,
             timeZoneName: 'short'
         });
@@ -316,7 +316,7 @@ function formatTime(time, timezone) {
     }
     
     try {
-        return date.toLocaleTimeString('en-US', {
+        return date.toLocaleTimeString(undefined, {
             timeZone: timezone,
             hour: 'numeric',
             minute: '2-digit',
@@ -335,7 +335,7 @@ function formatTime(time, timezone) {
  */
 function formatDate(date) {
     const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'

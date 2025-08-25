@@ -444,7 +444,7 @@ const slotToTime = (slot) => {
 const formatTime = (timeObj) => {
     const date = new Date()
     date.setHours(timeObj.hours, timeObj.minutes)
-    return date.toLocaleTimeString('en-US', {
+            return date.toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true

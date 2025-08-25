@@ -384,7 +384,7 @@ const selectedDay = computed(() => {
 
     return {
         date: date,
-        formattedDate: date.toLocaleDateString('en-US', { 
+        formattedDate: date.toLocaleDateString(undefined, { 
             weekday: 'long',
             month: 'long',
             day: 'numeric' 

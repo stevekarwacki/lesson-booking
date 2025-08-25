@@ -292,7 +292,15 @@ export default {
 
     // Helper functions
     const formatDate = (date) => {
-      return new Date(date).toLocaleDateString('en-US', {
+      // Parse date correctly to avoid timezone issues
+      const dateParts = date.split('-')
+      const parsedDate = new Date(
+        parseInt(dateParts[0]), // year
+        parseInt(dateParts[1]) - 1, // month (0-indexed)
+        parseInt(dateParts[2]) // day
+      )
+      
+      return parsedDate.toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -306,7 +314,7 @@ export default {
       const date = new Date()
       date.setHours(parseInt(hours), parseInt(minutes))
       
-      return date.toLocaleTimeString('en-US', {
+      return date.toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
@@ -314,13 +322,30 @@ export default {
     }
 
     const isPastBooking = (booking) => {
-      return new Date(booking.date) < new Date()
+      // Parse date correctly to avoid timezone issues
+      const dateParts = booking.date.split('-')
+      const bookingDate = new Date(
+        parseInt(dateParts[0]), // year
+        parseInt(dateParts[1]) - 1, // month (0-indexed)
+        parseInt(dateParts[2]) // day
+      )
+      
+      const now = new Date()
+      now.setHours(0, 0, 0, 0) // Start of today for fair comparison
+      
+      return bookingDate < now
     }
 
     // Student permission helpers
     const canStudentReschedule = (booking) => {
       // Students can reschedule up to 24 hours before the lesson
-      const lessonTime = new Date(booking.date)
+      // Parse date correctly to avoid timezone issues
+      const dateParts = booking.date.split('-')
+      const lessonTime = new Date(
+        parseInt(dateParts[0]), // year
+        parseInt(dateParts[1]) - 1, // month (0-indexed)
+        parseInt(dateParts[2]) // day
+      )
       const now = new Date()
       const hoursUntilLesson = (lessonTime - now) / (1000 * 60 * 60)
       return hoursUntilLesson >= 24
@@ -328,7 +353,13 @@ export default {
 
     const canStudentCancel = (booking) => {
       // Students can cancel up to 24 hours before the lesson
-      const lessonTime = new Date(booking.date)
+      // Parse date correctly to avoid timezone issues
+      const dateParts = booking.date.split('-')
+      const lessonTime = new Date(
+        parseInt(dateParts[0]), // year
+        parseInt(dateParts[1]) - 1, // month (0-indexed)
+        parseInt(dateParts[2]) // day
+      )
       const now = new Date()
       const hoursUntilLesson = (lessonTime - now) / (1000 * 60 * 60)
       return hoursUntilLesson >= 24

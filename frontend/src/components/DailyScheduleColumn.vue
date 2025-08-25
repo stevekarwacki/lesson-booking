@@ -90,7 +90,7 @@ const emit = defineEmits(['slot-selected'])
 
 // Computed properties
 const formattedDate = computed(() => {
-  return props.date.toLocaleDateString('en-US', { 
+  return props.date.toLocaleDateString(undefined, { 
     month: 'short', 
     day: 'numeric'
   })
