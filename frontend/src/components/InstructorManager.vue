@@ -182,7 +182,7 @@ const saveInstructorEdit = async () => {
             bio: editingInstructor.value.bio
         };
         
-        const response = await fetch(`/api/instructors/${editingInstructor.value.user_id}`, {
+        const response = await fetch(`/api/instructors/${editingInstructor.value.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

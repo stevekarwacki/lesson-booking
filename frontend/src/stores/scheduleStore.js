@@ -19,7 +19,6 @@ export const useScheduleStore = defineStore('schedule', {
         triggerInstructorRefresh(instructorId) {
             this.instructorsToRefresh.add(instructorId);
             this.refreshTrigger += 1;
-            console.log(`Schedule store: Triggering refresh for instructor ${instructorId}`);
         },
 
         // Mark an instructor's schedule as refreshed

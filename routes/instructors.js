@@ -17,25 +17,19 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get instructor by ID
-router.get('/:instructorId', async (req, res) => {
+// Get current user's instructor profile
+router.get('/me', async (req, res) => {
     try {
-        const instructorId = parseInt(req.params.instructorId, 10);
-        const instructor = await Instructor.findByPk(instructorId, {
-            include: [{
-                model: require('../models/User').User,
-                attributes: ['name', 'email']
-            }]
-        });
+        const instructor = await Instructor.findByUserId(req.user.id);
         
         if (!instructor) {
-            return res.status(404).json({ error: 'Instructor not found' });
+            return res.status(404).json({ error: 'Instructor profile not found' });
         }
         
         res.json(instructor);
     } catch (error) {
-        console.error('Error fetching instructor:', error);
-        res.status(500).json({ error: 'Error fetching instructor' });
+        console.error('Error fetching instructor profile:', error);
+        res.status(500).json({ error: 'Error fetching instructor profile' });
     }
 });
 
@@ -51,6 +45,28 @@ router.get('/user/:userId', async (req, res) => {
         
         res.json(instructor);
     } catch (error) {
+        res.status(500).json({ error: 'Error fetching instructor' });
+    }
+});
+
+// Get instructor by ID (public route for booking)
+router.get('/:id', async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.id, 10);
+        const instructor = await Instructor.findByPk(instructorId, {
+            include: [{
+                model: require('../models/User').User,
+                attributes: ['name', 'email']
+            }]
+        });
+        
+        if (!instructor) {
+            return res.status(404).json({ error: 'Instructor not found' });
+        }
+        
+        res.json(instructor);
+    } catch (error) {
+        console.error('Error fetching instructor:', error);
         res.status(500).json({ error: 'Error fetching instructor' });
     }
 });
@@ -77,22 +93,16 @@ router.post('/', async (req, res) => {
 });
 
 // Update instructor (admin only)
-router.put('/:userId', async (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         if (req.user.role !== 'admin') {
             return res.status(403).json({ error: 'Access denied. Admin only.' });
         }
 
-        const userId = parseInt(req.params.userId, 10);
+        const instructorId = parseInt(req.params.id, 10);
         
-        // Find instructor by user_id first
-        const instructor = await Instructor.findByUserId(userId);
-        if (!instructor) {
-            return res.status(404).json({ error: 'Instructor not found' });
-        }
-        
-        // Update using instructor's database ID
-        await Instructor.updateInstructor(instructor.id, req.body);
+        // Update using instructor's database ID directly
+        await Instructor.updateInstructor(instructorId, req.body);
         res.json({ message: 'Instructor updated successfully' });
     } catch (error) {
         console.error('Error updating instructor:', error);
@@ -108,6 +118,8 @@ router.delete('/:id', async (req, res) => {
         }
 
         const instructorId = parseInt(req.params.id, 10);
+        
+        // Delete using instructor's database ID directly
         await Instructor.deleteInstructor(instructorId);
         res.json({ message: 'Instructor removed successfully' });
     } catch (error) {
@@ -124,6 +136,8 @@ router.patch('/:id/toggle-active', async (req, res) => {
         }
 
         const instructorId = parseInt(req.params.id, 10);
+        
+        // Toggle using instructor's database ID directly
         await Instructor.toggleActive(instructorId);
         res.json({ message: 'Instructor active status updated successfully' });
     } catch (error) {
