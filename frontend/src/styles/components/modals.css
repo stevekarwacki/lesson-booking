@@ -19,6 +19,7 @@
   border-radius: var(--border-radius);
   box-shadow: var(--modal-shadow);
   width: 90%;
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
