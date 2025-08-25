@@ -69,6 +69,11 @@
   background: var(--primary-color);
 }
 
+.tab-button:focus,
+.accordion-header:focus {
+  outline: 0;
+}
+
 .tab-badge {
   background: var(--primary-color);
   color: white;
@@ -271,16 +276,3 @@
     transition: none;
   }
 }
-
-/* Focus states for accessibility */
-.tab-button:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-.accordion-header:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-/* Light theme styling for accordions */ 
