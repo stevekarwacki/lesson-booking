@@ -47,62 +47,15 @@
             <!-- Admin/Instructor actions -->
             <template v-if="userRole === 'admin' || userRole === 'instructor'">
               <button 
-                v-if="booking.status !== 'cancelled' && !isPastBooking(booking)"
-                @click="handleEditBooking(booking)"
-                class="action-button action-button-primary"
-              >
-                Edit ›
-              </button>
-              <button 
-                v-if="booking.status !== 'cancelled'"
-                @click="handleCancelBooking(booking)"
-                class="action-button action-button-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                v-if="booking.status === 'cancelled'"
                 @click="handleViewBooking(booking)"
                 class="action-button action-button-secondary"
               >
-                View ›
+                View/Edit ›
               </button>
             </template>
             
             <!-- Student actions -->
             <template v-else-if="userRole === 'student'">
-              <button 
-                v-if="booking.status !== 'cancelled' && !isPastBooking(booking) && canStudentReschedule(booking)"
-                @click="handleEditBooking(booking)"
-                class="action-button action-button-primary"
-              >
-                Reschedule ›
-              </button>
-              <button 
-                v-else-if="booking.status !== 'cancelled' && !isPastBooking(booking)"
-                class="action-button action-button-disabled"
-                disabled
-                title="Cannot reschedule within 24 hours of lesson"
-              >
-                Reschedule ›
-              </button>
-              
-              <button 
-                v-if="booking.status !== 'cancelled' && canStudentCancel(booking)"
-                @click="handleCancelBooking(booking)"
-                class="action-button action-button-secondary"
-              >
-                Cancel
-              </button>
-              <button 
-                v-else-if="booking.status !== 'cancelled' && !isPastBooking(booking)"
-                class="action-button action-button-disabled"
-                disabled
-                title="Cannot cancel within 24 hours of lesson"
-              >
-                Cancel
-              </button>
-              
               <button 
                 @click="handleViewBooking(booking)"
                 class="action-button action-button-secondary"
