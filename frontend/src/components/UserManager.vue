@@ -4,6 +4,8 @@ import { useUserStore } from '../stores/userStore'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
+import SlideTransition from './SlideTransition.vue'
+import EditBooking from './EditBooking.vue'
 
 const userStore = useUserStore()
 const users = ref([])
@@ -24,6 +26,7 @@ const creatingSubscription = ref(false)
 // User bookings data
 const userBookings = ref([])
 const loadingUserBookings = ref(false)
+const selectedBooking = ref(null)
 
 // Computed property to safely get current user ID
 const currentUserId = computed(() => userStore.user?.id)
@@ -187,6 +190,7 @@ const closeEditModal = () => {
     editingUser.value = null
     userSubscription.value = null
     userBookings.value = []
+    selectedBooking.value = null
     showEditModal.value = false
 }
 
@@ -417,21 +421,38 @@ const fetchUserBookings = async (userId) => {
 }
 
 const handleEditUserBooking = (booking) => {
-    console.log('Edit user booking:', booking)
-    // TODO: Implement booking editing for admin/instructor
-    alert('Admin booking editing will be implemented here')
+    // Set selected booking and navigate to detail slide
+    selectedBooking.value = booking.originalBooking
 }
 
 const handleCancelUserBooking = (booking) => {
-    console.log('Cancel user booking:', booking)
     // TODO: Implement booking cancellation for admin/instructor
     alert('Admin booking cancellation will be implemented here')
 }
 
 const handleViewUserBooking = (booking) => {
-    console.log('View user booking:', booking)
-    // TODO: Implement booking viewing for admin/instructor
-    alert('Admin booking viewing will be implemented here')
+    // Set selected booking and navigate to detail slide  
+    selectedBooking.value = booking.originalBooking
+}
+
+// EditBooking event handlers
+const handleBookingUpdated = () => {
+    // Refresh bookings list and go back to main slide
+    selectedBooking.value = null
+    fetchUserBookings(editingUser.value.id)
+    success.value = 'Booking updated successfully'
+}
+
+const handleBookingCancelled = () => {
+    // Refresh bookings list and go back to main slide
+    selectedBooking.value = null
+    fetchUserBookings(editingUser.value.id)
+    success.value = 'Booking cancelled successfully'
+}
+
+const handleCloseEditBooking = () => {
+    // Go back to main slide
+    selectedBooking.value = null
 }
 
 // Utility functions for time formatting (matching UserBookings component)
@@ -644,6 +665,42 @@ onMounted(async () => {
                 </form>
             </TabbedModalTab>
 
+            <TabbedModalTab label="Bookings">
+                <div class="bookings-tab">
+                    <SlideTransition :slide-count="2">
+                        <!-- Main slide: Bookings list -->
+                        <template #main="{ navigate }">
+                            <div v-if="userBookings.length > 0 || loadingUserBookings">
+                                <BookingList
+                                    :bookings="userBookings"
+                                    :loading="loadingUserBookings"
+                                    :userId="editingUser?.id"
+                                    :userRole="userStore.isAdmin ? 'admin' : 'instructor'"
+                                    @edit-booking="(booking) => { handleEditUserBooking(booking); navigate(); }"
+                                    @cancel-booking="handleCancelUserBooking"
+                                    @view-booking="(booking) => { handleViewUserBooking(booking); navigate(); }"
+                                />
+                            </div>
+                            <div v-else class="no-bookings-message">
+                                <p>This user has no bookings to display.</p>
+                            </div>
+                        </template>
+
+                        <!-- Detail slide: Edit booking -->
+                        <template #detail="{ goBack }">
+                            <div v-if="selectedBooking" class="edit-booking-container">
+                                <EditBooking
+                                    :booking="selectedBooking"
+                                    @close="handleCloseEditBooking"
+                                    @booking-updated="handleBookingUpdated"
+                                    @booking-cancelled="handleBookingCancelled"
+                                />
+                            </div>
+                        </template>
+                    </SlideTransition>
+                </div>
+            </TabbedModalTab>
+
             <TabbedModalTab label="Memberships">
                 <div class="memberships-tab">
                     <div v-if="subscriptionLoading" class="loading-message">
@@ -734,9 +791,9 @@ onMounted(async () => {
                 </div>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Actions">
-                <div class="actions-tab">
-                    <div class="actions-section">
+            <TabbedModalTab label="Account">
+                <div class="account-tab">
+                    <div class="account-section">
                         <h4>User Management</h4>
                         <p>Perform administrative actions on this user account.</p>
                         
@@ -787,25 +844,6 @@ onMounted(async () => {
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </TabbedModalTab>
-
-            <TabbedModalTab label="Bookings">
-                <div class="bookings-tab">
-                    <div v-if="userBookings.length > 0 || loadingUserBookings">
-                        <BookingList
-                            :bookings="userBookings"
-                            :loading="loadingUserBookings"
-                            :userId="editingUser?.id"
-                            :userRole="userStore.isAdmin ? 'admin' : 'instructor'"
-                            @edit-booking="handleEditUserBooking"
-                            @cancel-booking="handleCancelUserBooking"
-                            @view-booking="handleViewUserBooking"
-                        />
-                    </div>
-                    <div v-else class="no-bookings-message">
-                        <p>This user has no bookings to display.</p>
                     </div>
                 </div>
             </TabbedModalTab>
@@ -1169,12 +1207,17 @@ select:disabled {
 
 /* Bookings tab styles */
 .bookings-tab {
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm);
 }
 
 .no-bookings-message {
     text-align: center;
     padding: var(--spacing-xl);
     color: var(--text-secondary);
+}
+
+.edit-booking-container {
+    width: 100%;
+    height: 100%;
 }
 </style> 

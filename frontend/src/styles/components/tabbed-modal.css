@@ -89,7 +89,7 @@
 .tab-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
 }
 
 /* Mobile Accordion Styles */
@@ -201,7 +201,7 @@
 }
 
 .accordion-content > .tabbed-modal-tab {
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   border-top: 1px solid var(--border-color);
 }
 
@@ -255,10 +255,6 @@
   
   .tab-button {
     padding: 1rem 2rem;
-  }
-  
-  .tab-content {
-    padding: var(--spacing-lg);
   }
 }
 

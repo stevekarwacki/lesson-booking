@@ -12,7 +12,6 @@ export const useScheduleStore = defineStore('schedule', {
         // Trigger a global refresh of all schedules
         triggerGlobalRefresh() {
             this.refreshTrigger += 1;
-            console.log('Schedule store: Triggering global schedule refresh');
         },
 
         // Trigger refresh for a specific instructor's schedule

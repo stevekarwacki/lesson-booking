@@ -92,11 +92,6 @@ router.post('/addEvent', async (req, res) => {
             return res.status(400).json({ error: 'Invalid time slot duration' });
         }
 
-        // Enhanced validation for 60-minute bookings
-        if (duration > 2) {
-            console.log(`60-minute lesson booking requested for slot ${startSlot} on day ${dayOfWeek}`);
-        }
-
         // 2. Get availability and validate using timezone-aware checking
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(instructorId);
 
@@ -141,11 +136,6 @@ router.post('/addEvent', async (req, res) => {
             return res.status(400).json({ error: errorMessage });
         }
 
-        // Additional validation for 60-minute bookings: ensure no gaps in coverage
-        if (duration > 2) {
-            console.log(`60-minute lesson validated within instructor availability window`);
-        }
-
         // 3. Check for existing one-time bookings
         const existingBookings = await Calendar.getInstructorEvents(instructorId);
 
@@ -165,10 +155,6 @@ router.post('/addEvent', async (req, res) => {
         });
 
         if (conflictingBookings.length > 0) {
-            if (duration > 2) {
-                console.log(`60-minute lesson booking blocked due to scheduling conflict`);
-            }
-
             const errorMessage = duration > 2 
                 ? 'The requested 60-minute time slot conflicts with existing bookings. Please select a different time or try a 30-minute lesson.'
                 : 'Time slot is already booked';
@@ -199,10 +185,6 @@ router.post('/addEvent', async (req, res) => {
             });
 
             if (!userOwnedRecurring) {
-                if (duration > 2) {
-                    console.log(`60-minute lesson booking blocked due to recurring lesson conflict`);
-                }
-
                 const errorMessage = duration > 2 
                     ? 'The requested 60-minute time slot conflicts with a recurring lesson. Please select a different time or try a 30-minute lesson.'
                     : 'Time slot is reserved for a recurring member';
@@ -221,11 +203,6 @@ router.post('/addEvent', async (req, res) => {
             'booked',
             paymentMethod
         );
-
-        // Log successful 60-minute booking creation
-        if (duration > 2) {
-            console.log(`60-minute lesson booked successfully (ID: ${event.id})`);
-        }
 
         // Get the newly created booking data
         const newBooking = await Calendar.getEventById(event.id);

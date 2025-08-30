@@ -36,6 +36,5 @@ export default {
 <style scoped>
 .tabbed-modal-tab {
   height: 100%;
-  padding: 1rem
 }
 </style> 
