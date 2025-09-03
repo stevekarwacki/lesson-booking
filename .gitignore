@@ -48,6 +48,14 @@ Thumbs.db
 
 # Testing
 /coverage
+/tests
+test-*.js
+*.test.js
+*.spec.js
+frontend/src/tests
+
+# Documentation (development notes)
+/docs
 
 # Optional npm cache directory
 .npm
