@@ -9,6 +9,7 @@ import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
 import GoogleAuthCallback from '../views/GoogleAuthCallback.vue'
 import { useUserStore } from '../stores/userStore'
+import { defineAbilitiesFor } from '../utils/abilities'
 // Import other views as needed
 
 const routes = [
@@ -31,43 +32,64 @@ const routes = [
         path: '/admin/instructors',
         name: 'manage-instructors',
         component: ManageInstructorsPage,
-        meta: { requiresAdmin: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'Instructor' }
+        }
     },
     {
         path: '/admin/users',
         name: 'manage-users',
         component: ManageUsersPage,
-        meta: { requiresAdmin: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'User' }
+        }
     },
     {
         path: '/admin/packages',
         name: 'manage-packages',
         component: ManagePackagesPage,
-        meta: { requiresAdmin: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'Package' }
+        }
     },
     {
         path: '/instructor/calendar',
         name: 'instructor-calendar',
         component: InstructorCalendarPage,
-        meta: { requiresInstructor: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'Calendar' }
+        }
     },
     {
         path: '/book-lesson',
         name: 'book-lesson',
         component: BookLessonPage,
-        meta: { requiresAuth: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'create', subject: 'Booking' }
+        }
     },
     {
         path: '/availability',
         name: 'manage-availability',
         component: ManageAvailabilityPage,
-        meta: { requiresInstructor: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'Availability' }
+        }
     },
     {
         path: '/admin/availability',
         name: 'admin-availability',
         component: ManageAvailabilityPage,
-        meta: { requiresAdmin: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'Availability' }
+        }
     },
     {
         path: '/auth/google/callback',
@@ -82,7 +104,7 @@ const router = createRouter({
     routes
 })
 
-// Updated navigation guard
+// CASL-based navigation guard
 router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore()
     
@@ -98,15 +120,33 @@ router.beforeEach(async (to, from, next) => {
         }
     }
     
+    // Check authentication requirement
     if (to.meta.requiresAuth && !userStore.user) {
+        console.log('Route requires auth but user not logged in')
         next('/')
-    } else if (to.meta.requiresAdmin && (!userStore.user || userStore.user.role !== 'admin')) {
-        next('/')
-    } else if (to.meta.requiresInstructor && (!userStore.user || userStore.user.role !== 'instructor')) {
-        next('/')
-    } else {
-        next()
+        return
     }
+    
+    // Check CASL permissions
+    if (to.meta.permission && userStore.user) {
+        const ability = defineAbilitiesFor(userStore.user)
+        const { action, subject, resource } = to.meta.permission
+        
+        if (!ability.can(action, subject, resource)) {
+            console.log(`Permission denied: Cannot ${action} ${subject}`)
+            // Redirect to appropriate page based on role
+            if (userStore.user.role === 'admin') {
+                next('/admin/users')
+            } else if (userStore.user.role === 'instructor') {
+                next('/instructor/calendar')
+            } else {
+                next('/book-lesson')
+            }
+            return
+        }
+    }
+    
+    next()
 })
 
 export default router 
