@@ -19,7 +19,7 @@
 
     <!-- Date selection -->
     <div class="view-controls card">
-        <div class="card-body">
+        <div class="card-body time-selection-container">
             <!-- Week navigation - only show when no specific date is selected -->
             <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
                 <button 
@@ -49,7 +49,7 @@
             </button>
 
             <!-- Date selection -->
-            <div class="form-group">
+            <div class="form-group date-select-group">
                 <label for="date-select" class="form-label">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</label>
                 <input 
                     type="date" 
@@ -629,7 +629,15 @@ const handleViewBookingFromList = (booking) => {
     color: var(--text-primary);
 }
 
+.time-selection-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
 
+.date-select-group {
+    display: flex;
+}
 
 .schedule-view {
     margin-top: var(--spacing-lg);
