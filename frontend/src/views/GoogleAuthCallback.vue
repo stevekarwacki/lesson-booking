@@ -79,12 +79,12 @@ const processAuthCallback = async () => {
         
         // If no instructor ID in state, try to get it from the current user
         if (!instructorId && userStore.user) {
-            if (userStore.user.role === 'instructor') {
+            if (userStore.canManageCalendar && !userStore.canManageUsers) {
                 // For instructors, we need to get their instructor ID
                 // This would require an API call to get instructor details
                 const instructorResponse = await axios.get('/api/instructors/me')
                 instructorId = instructorResponse.data.id
-            } else if (userStore.user.role === 'admin') {
+            } else if (userStore.canManageUsers) {
                 // For admins, we'd need them to specify which instructor
                 // For now, we'll show an error
                 throw new Error('Admin users must specify which instructor to connect')

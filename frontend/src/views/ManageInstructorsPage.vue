@@ -8,7 +8,7 @@ const userStore = useUserStore()
 const router = useRouter()
 
 onMounted(() => {
-    if (!userStore.isAdmin) {
+    if (!userStore.canManageInstructors) {
         router.push('/')
     }
 })

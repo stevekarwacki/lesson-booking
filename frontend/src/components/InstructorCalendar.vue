@@ -9,7 +9,7 @@
             <BookingList
                 :bookings="formattedBookingsForList"
                 :userId="userStore.user.id"
-                :userRole="userStore.isAdmin ? 'admin' : userStore.isInstructor ? 'instructor' : 'student'"
+                :userRole="userStore.canManageUsers ? 'admin' : userStore.canManageCalendar ? 'instructor' : 'student'"
                 @edit-booking="handleEditBookingFromList"
                 @cancel-booking="handleCancelBookingFromList"
                 @view-booking="handleViewBookingFromList"
@@ -535,7 +535,7 @@ watch(() => scheduleStore.refreshTrigger, async () => {
 })
 
 const isInstructorOrAdmin = computed(() => {
-    return userStore.isInstructor || userStore.isAdmin
+    return userStore.canManageCalendar
 })
 
 // Transform dailyBookings for BookingList component

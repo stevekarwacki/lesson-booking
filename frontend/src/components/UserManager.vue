@@ -675,7 +675,7 @@ onMounted(async () => {
                                     :bookings="userBookings"
                                     :loading="loadingUserBookings"
                                     :userId="editingUser?.id"
-                                    :userRole="userStore.isAdmin ? 'admin' : 'instructor'"
+                                    :userRole="userStore.canManageUsers ? 'admin' : 'instructor'"
                                     @edit-booking="(booking) => { handleEditUserBooking(booking); navigate(); }"
                                     @cancel-booking="handleCancelUserBooking"
                                     @view-booking="(booking) => { handleViewUserBooking(booking); navigate(); }"

@@ -45,7 +45,7 @@ const fetchInstructor = async () => {
 }
 
 onMounted(() => {
-    if (!userStore.isInstructor) {
+    if (!userStore.canManageCalendar) {
         router.push('/')
     } else {
         fetchInstructor()

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 
@@ -7,9 +7,27 @@ const router = useRouter()
 const userStore = useUserStore()
 const isMenuOpen = ref(false)
 
-const isAdmin = () => userStore.user?.role === 'admin'
-const isInstructor = () => userStore.user?.role === 'instructor'
-const isStudent = () => userStore.user?.role === 'student' && !!userStore.user?.is_approved
+// CASL-based permission checks
+const canManageUsers = computed(() => userStore.canManageUsers)
+const canManageInstructors = computed(() => userStore.canManageInstructors)
+const canManagePackages = computed(() => userStore.canManagePackages)
+const canManageCalendar = computed(() => userStore.canManageCalendar)
+const canManageAvailability = computed(() => userStore.canManageAvailability)
+const canCreateBooking = computed(() => userStore.canCreateBooking)
+
+// Granular availability permissions
+const canManageAllInstructorAvailability = computed(() => userStore.canManageAllInstructorAvailability)
+const canManageOwnInstructorAvailability = computed(() => userStore.canManageOwnInstructorAvailability)
+
+// Payment permissions
+const canAccessPayments = computed(() => userStore.canAccessPayments)
+const canAccessStudentPayments = computed(() => userStore.canAccessStudentPayments)
+
+// Role-specific permissions (exclude admins)
+const canCreateStudentBooking = computed(() => userStore.canCreateStudentBooking)
+const canManageOwnInstructorCalendar = computed(() => userStore.canManageOwnInstructorCalendar)
+
+// Legacy role checks (for specific business logic like approval)
 const isStudentUnapproved = () => userStore.user?.role === 'student' && !userStore.user?.is_approved
 
 const toggleMenu = () => {
@@ -46,68 +64,74 @@ const handleLogout = () => {
                     </router-link>
                 </template>
                 
-                <!-- Admin Links -->
-                <template v-if="isAdmin()">
-                    <router-link 
-                        to="/admin/users" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        Users
-                    </router-link>
-                    <router-link 
-                        to="/admin/instructors" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        Instructors
-                    </router-link>
-                    <router-link 
-                        to="/admin/packages" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        Packages
-                    </router-link>
-                    <router-link 
-                        v-if="$mq.lgPlus"
-                        to="/admin/availability" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        Instructor Availability
-                    </router-link>
-                </template>
+                <!-- Admin Management Links -->
+                <router-link 
+                    v-if="canManageUsers"
+                    to="/admin/users" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Users
+                </router-link>
+                <router-link 
+                    v-if="canManageInstructors"
+                    to="/admin/instructors" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Instructors
+                </router-link>
+                <router-link 
+                    v-if="canManagePackages"
+                    to="/admin/packages" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Packages
+                </router-link>
+                <router-link 
+                    v-if="canManageAllInstructorAvailability && $mq.lgPlus"
+                    to="/admin/availability" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Instructor Availability
+                </router-link>
 
-                <!-- Instructor Links -->
-                <template v-if="isInstructor()">
-                    <router-link 
-                        to="/instructor/calendar" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        My Calendar
-                    </router-link>
-                    <router-link 
-                        v-if="$mq.lgPlus"
-                        to="/availability" 
-                        class="nav-link"
-                        @click="closeMenu"
-                    >
-                        My Availability
-                    </router-link>
-                </template>
+                <!-- Calendar Management (Instructors only, not admins) -->
+                <router-link 
+                    v-if="canManageOwnInstructorCalendar"
+                    to="/instructor/calendar" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    My Calendar
+                </router-link>
+                <router-link 
+                    v-if="canManageOwnInstructorAvailability && $mq.lgPlus"
+                    to="/availability" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    My Availability
+                </router-link>
 
-                <!-- Student Links -->
-                <template v-if="isStudent()">
-                    <router-link to="/book-lesson" class="nav-link">
-                        Book Lesson
-                    </router-link>
+                <!-- Student/Booking Links -->
+                <router-link 
+                    v-if="canCreateStudentBooking && userStore.user?.is_approved"
+                    to="/book-lesson" 
+                    class="nav-link"
+                >
+                    Book Lesson
+                </router-link>
 
-                    <router-link to="/payments" class="nav-link">
-                        Payments
-                    </router-link>
-                </template>
+                <router-link 
+                    v-if="canAccessStudentPayments && userStore.user?.is_approved"
+                    to="/payments" 
+                    class="nav-link"
+                >
+                    Payments
+                </router-link>
 
                 <!-- Common Links for logged-in users -->
                 <router-link to="/account" class="nav-link">

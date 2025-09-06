@@ -31,12 +31,12 @@ const handleSubmit = async () => {
             
             // Ensure user data is available before redirecting
             if (userStore.user) {
-                // Redirect based on role
-                if (userStore.user.role === 'admin') {
+                // Redirect based on permissions
+                if (userStore.canManageUsers) {
                     await router.push('/admin/users')
-                } else if (userStore.user.role === 'instructor') {
+                } else if (userStore.canManageCalendar) {
                     await router.push('/instructor/calendar')
-                } else if (userStore.user.role === 'student' && !!userStore.user.is_approved) {
+                } else if (userStore.canCreateBooking && userStore.user.is_approved) {
                     await router.push('/book-lesson')
                 }
             }

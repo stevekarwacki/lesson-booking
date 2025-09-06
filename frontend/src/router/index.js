@@ -26,7 +26,10 @@ const routes = [
     {
         path: '/payments',
         component: PaymentsPage,
-        meta: { requiresAuth: true }
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'access', subject: 'StudentPayments' }
+        }
     },
     {
         path: '/admin/instructors',
@@ -70,7 +73,7 @@ const routes = [
         component: BookLessonPage,
         meta: { 
             requiresAuth: true,
-            permission: { action: 'create', subject: 'Booking' }
+            permission: { action: 'create', subject: 'StudentBooking' }
         }
     },
     {
@@ -134,10 +137,10 @@ router.beforeEach(async (to, from, next) => {
         
         if (!ability.can(action, subject, resource)) {
             console.log(`Permission denied: Cannot ${action} ${subject}`)
-            // Redirect to appropriate page based on role
-            if (userStore.user.role === 'admin') {
+            // Redirect to appropriate page based on permissions
+            if (userStore.canManageUsers) {
                 next('/admin/users')
-            } else if (userStore.user.role === 'instructor') {
+            } else if (userStore.canManageCalendar) {
                 next('/instructor/calendar')
             } else {
                 next('/book-lesson')

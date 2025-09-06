@@ -2,11 +2,11 @@
     <div class="manage-availability-page">
         <div class="page-header">
             <h1>
-                {{ isAdmin ? 'Manage Instructor Availability' : 'Manage Your Availability' }}
+                {{ canManageAllInstructorAvailability ? 'Manage Instructor Availability' : 'Manage Your Availability' }}
             </h1>
             
             <!-- Instructor selector for admin -->
-            <div v-if="isAdmin" class="instructor-select">
+            <div v-if="canManageAllInstructorAvailability" class="instructor-select">
                 <label for="instructor">Select Instructor:</label>
                 <select 
                     id="instructor"
@@ -57,17 +57,17 @@ const availabilityManager = ref(null)
 const instructorId = ref('')
 const loading = ref(false)
 
-const isAdmin = computed(() => userStore.isAdmin)
+const canManageAllInstructorAvailability = computed(() => userStore.canManageAllInstructorAvailability)
 
 const effectiveInstructorId = computed(() => {
-    if (isAdmin.value) {
+    if (canManageAllInstructorAvailability.value) {
         return selectedInstructorId.value || '';
     }
     return instructorId.value || '';
 })
 
 const showAvailabilityManager = computed(() => {
-    if (isAdmin.value) {
+    if (canManageAllInstructorAvailability.value) {
         return !!selectedInstructorId.value;
     }
     return true;
@@ -123,7 +123,7 @@ const handleInstructorChange = () => {
 }
 
 onMounted(async () => {
-    if (isAdmin.value) {
+    if (canManageAllInstructorAvailability.value) {
         await fetchInstructors()
     } else {
         await fetchInstructorId()

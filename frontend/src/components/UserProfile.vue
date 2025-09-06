@@ -82,7 +82,7 @@ const isInstructor = computed(() => {
 })
 
 const canEditRole = computed(() => {
-    return userStore.user?.role === 'admin'
+    return userStore.canManageUsers
 })
 
 // Remove 'instructor' from direct role assignments

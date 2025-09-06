@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { defineAbilitiesFor } from '@/utils/abilities';
 
 export const useUserStore = defineStore('user', {
     state: () => ({
@@ -9,9 +10,33 @@ export const useUserStore = defineStore('user', {
     }),
 
     getters: {
+        // Legacy role-based getters (deprecated - use CASL permissions instead)
         isInstructor: (state) => state.user?.role === 'instructor',
         isAdmin: (state) => state.user?.role === 'admin',
-        isStudent: (state) => state.user?.role === 'student'
+        isStudent: (state) => state.user?.role === 'student',
+        
+        // CASL ability instance
+        ability: (state) => state.user ? defineAbilitiesFor(state.user) : null,
+        
+        // CASL-based permission getters
+        canManageUsers: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'User') : false,
+        canManageInstructors: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Instructor') : false,
+        canManagePackages: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Package') : false,
+        canManageCalendar: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Calendar') : false,
+        canManageAvailability: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Availability') : false,
+        canCreateBooking: (state) => state.user ? defineAbilitiesFor(state.user).can('create', 'Booking') : false,
+        
+        // Granular availability permissions
+        canManageAllInstructorAvailability: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'AllInstructorAvailability') : false,
+        canManageOwnInstructorAvailability: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'OwnInstructorAvailability') : false,
+        
+        // Payment permissions
+        canAccessPayments: (state) => state.user ? defineAbilitiesFor(state.user).can('read', 'Credits') : false,
+        canAccessStudentPayments: (state) => state.user ? defineAbilitiesFor(state.user).can('access', 'StudentPayments') : false,
+        
+        // Role-specific permissions (exclude admins)
+        canCreateStudentBooking: (state) => state.user ? defineAbilitiesFor(state.user).can('create', 'StudentBooking') : false,
+        canManageOwnInstructorCalendar: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'OwnInstructorCalendar') : false
     },
 
     actions: {

@@ -20,12 +20,19 @@ export const defineAbilitiesFor = (user) => {
     if (user.role === 'student') {
       // Booking permissions
       can('create', 'Booking');
+      can('create', 'StudentBooking');
       can('read', 'Booking', { student_id: user.id });
       can('update', 'Booking', { student_id: user.id, status: 'booked' });
       can('cancel', 'Booking', { student_id: user.id });
       
       // Students can read active instructors
       can('read', 'Instructor', { is_active: true });
+      
+      // Payment system permissions for students
+      can('read', 'Credits');
+      can('create', 'Purchase');
+      can('read', 'Transaction');
+      can('access', 'StudentPayments');
       
       // Package and subscription permissions
       can('purchase', 'Package');
@@ -55,21 +62,32 @@ export const defineAbilitiesFor = (user) => {
       can('read', 'Instructor', { user_id: user.id });
       can('update', 'Instructor', { user_id: user.id });
       
-      // Availability management
+      // Availability management (own only)
       can('manage', 'Availability', { instructor_id: user.instructor_id });
+      can('manage', 'OwnInstructorAvailability');
       
       // Read students who have bookings with them
       can('read', 'Student'); // Will be filtered by booking relationship in routes
       
       // Calendar and schedule management
       can('manage', 'Calendar', { instructor_id: user.instructor_id });
+      can('manage', 'OwnInstructorCalendar');
       can('read', 'Calendar', { instructor_id: user.instructor_id });
     }
 
     // Admin permissions
     if (user.role === 'admin') {
-      // Admins can do everything
+      // Admins can do everything except role-specific actions
       can('manage', 'all');
+      
+      // Explicit permissions for clarity
+      can('manage', 'AllInstructorAvailability');
+      
+      // Explicitly deny role-specific permissions that admins shouldn't have
+      cannot('create', 'StudentBooking');
+      cannot('access', 'StudentPayments');
+      cannot('manage', 'OwnInstructorCalendar');
+      cannot('manage', 'OwnInstructorAvailability');
     }
 
     // Global restrictions that apply regardless of role
