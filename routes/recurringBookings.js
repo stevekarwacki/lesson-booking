@@ -3,12 +3,13 @@ const router = express.Router();
 const { RecurringBooking } = require('../models/RecurringBooking');
 const { Subscription } = require('../models/Subscription');
 const { authMiddleware } = require('../middleware/auth');
+const { authorize, authorizeUserAccess, authorizeResource } = require('../middleware/permissions');
 
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
 // Create a new recurring booking
-router.post('/', async (req, res) => {
+router.post('/', authorize('create', 'RecurringBooking'), async (req, res) => {
     try {
         const { subscriptionId, instructorId, dayOfWeek, startSlot, duration } = req.body;
         
@@ -25,7 +26,10 @@ router.post('/', async (req, res) => {
             return res.status(404).json({ error: 'Subscription not found' });
         }
         
-        if (subscription.user_id !== req.user.id) {
+        // Check if user can access this subscription using CASL
+        const { can } = require('../utils/abilities');
+        const { subject } = require('@casl/ability');
+        if (!can(req.user, 'read', 'Subscription', subscription)) {
             return res.status(403).json({ error: 'Access denied - not your subscription' });
         }
         
@@ -63,14 +67,11 @@ router.post('/', async (req, res) => {
 });
 
 // Get recurring bookings for a specific user
-router.get('/user/:userId', async (req, res) => {
+router.get('/user/:userId', authorizeUserAccess(async (req) => parseInt(req.params.userId)), async (req, res) => {
     try {
         const userId = parseInt(req.params.userId, 10);
         
-        // Ensure user can only access their own bookings or user is admin
-        if (req.user.id !== userId && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // User access already authorized by middleware
         
         // Find all recurring bookings for the user's active subscriptions
         const subscriptions = await Subscription.findAll({
@@ -102,31 +103,15 @@ router.get('/user/:userId', async (req, res) => {
 });
 
 // Get recurring booking by subscription ID
-router.get('/subscription/:subscriptionId', async (req, res) => {
+router.get('/subscription/:subscriptionId', authorizeResource('read', 'Subscription', async (req) => {
+    const subscription = await Subscription.findByPk(req.params.subscriptionId);
+    return subscription;
+}), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         
-        // Validate that the subscription belongs to the authenticated user
-        const subscription = await Subscription.findByPk(subscriptionId);
-        if (!subscription) {
-            return res.status(404).json({ error: 'Subscription not found' });
-        }
-        
-        // Debug logging
-        console.log('Debug - Subscription user_id:', subscription.user_id);
-        console.log('Debug - Authenticated user id:', req.user.id);
-        console.log('Debug - User role:', req.user.role);
-        
-        if (subscription.user_id !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ 
-                error: 'Access denied',
-                debug: {
-                    subscriptionUserId: subscription.user_id,
-                    authenticatedUserId: req.user.id,
-                    userRole: req.user.role
-                }
-            });
-        }
+        // Subscription access already authorized by middleware
+        const subscription = req.resource; // Set by authorizeResource middleware
         
         const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
         
@@ -143,7 +128,7 @@ router.get('/subscription/:subscriptionId', async (req, res) => {
 });
 
 // Get recurring bookings for an instructor on a specific day
-router.get('/instructor/:instructorId/day/:dayOfWeek', async (req, res) => {
+router.get('/instructor/:instructorId/day/:dayOfWeek', authorize('read', 'RecurringBooking'), async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
         const dayOfWeek = parseInt(req.params.dayOfWeek, 10);
@@ -164,7 +149,16 @@ router.get('/instructor/:instructorId/day/:dayOfWeek', async (req, res) => {
 });
 
 // Update a recurring booking
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorizeResource('update', 'RecurringBooking', async (req) => {
+    const booking = await RecurringBooking.findByPk(req.params.id, {
+        include: [{ model: Subscription }]
+    });
+    // Transform to match our permissions model (check subscription ownership)
+    if (booking && booking.Subscription) {
+        return { user_id: booking.Subscription.user_id, instructor_id: booking.instructor_id };
+    }
+    return booking;
+}), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         const { instructorId, dayOfWeek, startSlot, duration } = req.body;
@@ -178,10 +172,7 @@ router.put('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Recurring booking not found' });
         }
         
-        // Validate that the user owns this booking
-        if (existingBooking.Subscription.user_id !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Recurring booking ownership already verified by authorizeResource middleware
         
         // Prepare updates object
         const updates = {};
@@ -219,7 +210,16 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a recurring booking
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorizeResource('delete', 'RecurringBooking', async (req) => {
+    const booking = await RecurringBooking.findByPk(req.params.id, {
+        include: [{ model: Subscription }]
+    });
+    // Transform to match our permissions model (check subscription ownership)
+    if (booking && booking.Subscription) {
+        return { user_id: booking.Subscription.user_id, instructor_id: booking.instructor_id };
+    }
+    return booking;
+}), async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         
@@ -232,10 +232,7 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Recurring booking not found' });
         }
         
-        // Validate that the user owns this booking
-        if (existingBooking.Subscription.user_id !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Recurring booking ownership already verified by authorizeResource middleware
         
         // Delete the booking
         await existingBooking.destroy();

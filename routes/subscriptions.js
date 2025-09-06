@@ -7,16 +7,14 @@ const { PaymentPlan } = require('../models/PaymentPlan');
 const { Credits } = require('../models/Credits');
 const { User } = require('../models/User');
 const { authMiddleware } = require('../middleware/auth');
+const { authorize, authorizeUserAccess, authorizeResource } = require('../middleware/permissions');
 
 // Get user's subscriptions
-router.get('/user/:userId', authMiddleware, async (req, res) => {
+router.get('/user/:userId', authMiddleware, authorizeUserAccess(async (req) => parseInt(req.params.userId)), async (req, res) => {
     try {
         const userId = parseInt(req.params.userId, 10);
         
-        // Ensure user can only access their own subscriptions or user is admin
-        if (req.user.id !== userId && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // User access already authorized by middleware
         
         const subscriptions = await Subscription.findAll({
             where: { user_id: userId },
@@ -35,7 +33,7 @@ router.get('/user/:userId', authMiddleware, async (req, res) => {
 });
 
 // Create a new subscription
-router.post('/create', authMiddleware, async (req, res) => {
+router.post('/create', authMiddleware, authorize('purchase', 'Subscription'), async (req, res) => {
     try {
         const { planId, paymentMethodId } = req.body;
         
@@ -145,7 +143,10 @@ router.post('/create', authMiddleware, async (req, res) => {
 });
 
 // Cancel a subscription
-router.post('/cancel', authMiddleware, async (req, res) => {
+router.post('/cancel', authMiddleware, authorizeResource('cancel', 'Subscription', async (req) => {
+    const subscription = await Subscription.findByPk(req.body.subscriptionId);
+    return subscription;
+}), async (req, res) => {
     try {
         const { subscriptionId } = req.body;
         const { cancelSubscriptionService } = require('../services/subscriptionCancellation');
@@ -168,15 +169,17 @@ router.post('/cancel', authMiddleware, async (req, res) => {
 });
 
 // Preview prorated credits for subscription cancellation (without actually canceling)
-router.get('/preview-cancellation/:subscriptionId', authMiddleware, async (req, res) => {
+router.get('/preview-cancellation/:subscriptionId', authMiddleware, authorizeResource('read', 'Subscription', async (req) => {
+    const subscription = await Subscription.findByPk(req.params.subscriptionId);
+    return subscription;
+}), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         
         // Get subscription from database with payment plan details
         const subscription = await Subscription.findOne({
             where: {
-                id: subscriptionId,
-                user_id: req.user.id
+                id: subscriptionId
             },
             include: [{
                 model: PaymentPlan,
@@ -302,15 +305,17 @@ router.get('/preview-cancellation/:subscriptionId', authMiddleware, async (req, 
 });
 
 // Get cancellation details for a canceled subscription
-router.get('/cancellation-details/:subscriptionId', authMiddleware, async (req, res) => {
+router.get('/cancellation-details/:subscriptionId', authMiddleware, authorizeResource('read', 'Subscription', async (req) => {
+    const subscription = await Subscription.findByPk(req.params.subscriptionId);
+    return subscription;
+}), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         
         // Get subscription from database with payment plan details
         const subscription = await Subscription.findOne({
             where: {
-                id: subscriptionId,
-                user_id: req.user.id
+                id: subscriptionId
             },
             include: [{
                 model: PaymentPlan,
@@ -471,7 +476,10 @@ router.post('/update-periods', authMiddleware, async (req, res) => {
 });
 
 // Check if subscription is eligible for recurring bookings
-router.get('/:subscriptionId/recurring-eligibility', authMiddleware, async (req, res) => {
+router.get('/:subscriptionId/recurring-eligibility', authMiddleware, authorizeResource('read', 'Subscription', async (req) => {
+    const subscription = await Subscription.findByPk(req.params.subscriptionId);
+    return subscription;
+}), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         
@@ -481,10 +489,7 @@ router.get('/:subscriptionId/recurring-eligibility', authMiddleware, async (req,
             return res.status(404).json({ error: 'Subscription not found' });
         }
         
-        // Ensure user owns this subscription or is admin
-        if (subscription.user_id !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Subscription ownership already verified by authorizeResource middleware
         
         // Check eligibility
         const eligibility = await Subscription.checkRecurringEligibility(subscriptionId);

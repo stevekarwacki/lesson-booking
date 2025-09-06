@@ -3,6 +3,7 @@ const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
 const instructorAuth = require('../middleware/instructorAuth');
 const {createLocalAvailabilityRecord} = require('../utils/timeUtils');
+const { authorize, authorizeResource } = require('../middleware/permissions');
 
 // Get instructor's weekly availability
 router.get('/:instructorId/weekly', async (req, res) => {
@@ -28,8 +29,8 @@ router.get('/:instructorId/weekly', async (req, res) => {
     }
 });
 
-// Update instructor's weekly availability
-router.post('/:instructorId/weekly', instructorAuth, async (req, res) => {
+// Update instructor's weekly availability - instructor or admin
+router.post('/:instructorId/weekly', authorize('update', 'InstructorAvailability'), async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
         const { slots, instructorTimezone } = req.body;
@@ -123,8 +124,8 @@ router.get('/:instructorId/blocked', async (req, res) => {
     }
 });
 
-// Add a blocked time period
-router.post('/:instructorId/blocked', instructorAuth, async (req, res) => {
+// Add a blocked time period - instructor or admin
+router.post('/:instructorId/blocked', authorize('update', 'InstructorAvailability'), async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
         const { startDateTime, endDateTime, reason } = req.body;
@@ -148,8 +149,11 @@ router.post('/:instructorId/blocked', instructorAuth, async (req, res) => {
     }
 });
 
-// Remove a blocked time period
-router.delete('/blocked/:blockedTimeId', instructorAuth, async (req, res) => {
+// Remove a blocked time period - instructor or admin
+router.delete('/blocked/:blockedTimeId', authorizeResource('delete', 'InstructorAvailability', async (req) => {
+    const blockedTime = await InstructorAvailability.getBlockedTime(parseInt(req.params.blockedTimeId));
+    return { instructor_id: blockedTime?.instructor_id };
+}), async (req, res) => {
     try {
         const blockedTimeId = parseInt(req.params.blockedTimeId, 10);
         const blockedTime = await InstructorAvailability.getBlockedTime(blockedTimeId);
@@ -157,10 +161,7 @@ router.delete('/blocked/:blockedTimeId', instructorAuth, async (req, res) => {
             return res.status(404).json({ error: 'Blocked time not found' });
         }
 
-        // Verify the blocked time belongs to the instructor
-        if (blockedTime.instructor_id !== req.user.id) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // CASL middleware already verified permissions
 
         await InstructorAvailability.removeBlockedTime(blockedTimeId);
         res.json({ message: 'Blocked time removed successfully' });

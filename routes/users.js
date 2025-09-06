@@ -2,16 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models/User');
 const bcrypt = require('bcrypt');
+const { authorize, authorizeUserAccess } = require('../middleware/permissions');
 
-// Update user profile
-router.patch('/:id', async (req, res) => {
+// Update user profile - user can update their own, admin can update any
+router.patch('/:id', authorizeUserAccess(async (req) => parseInt(req.params.id)), async (req, res) => {
     try {
         const userId = parseInt(req.params.id, 10);
-        
-        // Ensure user can only update their own profile
-        if (userId !== req.user.id) {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
+        // CASL middleware already verified permissions
 
         const { name, email, password } = req.body;
         
@@ -35,11 +32,9 @@ router.patch('/:id', async (req, res) => {
 });
 
 // Update user approval status (admin only)
-router.post('/:userId/approval', async (req, res) => {
+router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Only admins can approve users' });
-        }
+        // CASL middleware already verified permissions
 
         const { isApproved } = req.body;
         const userId = parseInt(req.params.userId, 10);

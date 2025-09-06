@@ -1,12 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { Instructor } = require('../models/Instructor');
+const { authorize, authorizeResource } = require('../middleware/permissions');
 
-// Get all instructors
+// Get all instructors - public route for active instructors, admin for all
 router.get('/', async (req, res) => {
     try {
-        // Admins can see all instructors, others only see active ones
-        const instructors = req.user.role === 'admin' 
+        // Use CASL to determine if user can see all instructors
+        const userAbility = req.userAbility;
+        const canManageInstructors = userAbility && userAbility.can('manage', 'Instructor');
+        
+        const instructors = canManageInstructors 
             ? await Instructor.getAll()
             : await Instructor.getAllActive();
             
@@ -33,8 +37,10 @@ router.get('/me', async (req, res) => {
     }
 });
 
-// Get instructor by user ID
-router.get('/user/:userId', async (req, res) => {
+// Get instructor by user ID - admin or instructor themselves
+router.get('/user/:userId', authorizeResource('read', 'Instructor', async (req) => {
+    return await Instructor.findByUserId(parseInt(req.params.userId));
+}), async (req, res) => {
     try {
         const userId = parseInt(req.params.userId, 10);
         const instructor = await Instructor.findByUserId(userId);
@@ -72,11 +78,9 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add instructor (admin only)
-router.post('/', async (req, res) => {
+router.post('/', authorize('create', 'Instructor'), async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied. Admin only.' });
-        }
+        // CASL middleware already verified permissions
 
         await Instructor.createInstructor(req.body);
         res.json({ message: 'Instructor added successfully' });
@@ -93,11 +97,11 @@ router.post('/', async (req, res) => {
 });
 
 // Update instructor (admin only)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorizeResource('update', 'Instructor', async (req) => {
+    return await Instructor.findByPk(parseInt(req.params.id));
+}), async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied. Admin only.' });
-        }
+        // CASL middleware already verified permissions
 
         const instructorId = parseInt(req.params.id, 10);
         
@@ -111,11 +115,11 @@ router.put('/:id', async (req, res) => {
 });
 
 // Remove instructor (admin only)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorizeResource('delete', 'Instructor', async (req) => {
+    return await Instructor.findByPk(parseInt(req.params.id));
+}), async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied. Admin only.' });
-        }
+        // CASL middleware already verified permissions
 
         const instructorId = parseInt(req.params.id, 10);
         
@@ -129,11 +133,11 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Toggle active status (admin only)
-router.patch('/:id/toggle-active', async (req, res) => {
+router.patch('/:id/toggle-active', authorizeResource('update', 'Instructor', async (req) => {
+    return await Instructor.findByPk(parseInt(req.params.id));
+}), async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied. Admin only.' });
-        }
+        // CASL middleware already verified permissions
 
         const instructorId = parseInt(req.params.id, 10);
         
@@ -145,5 +149,56 @@ router.patch('/:id/toggle-active', async (req, res) => {
         res.status(500).json({ error: 'Error updating instructor active status' });
     }
 });
+
+// =============================================================================
+// FUTURE FUNCTIONALITY PLACEHOLDERS - Instructor Student Management
+// =============================================================================
+// WARNING: These routes are placeholders for future instructor student management
+// functionality. Do not remove unless certain they will not be implemented.
+
+/**
+ * Get all students assigned to the current instructor
+ * @route GET /api/instructors/students
+ * @access Instructor only
+ * @future This will return a list of students who have bookings with this instructor
+ */
+// router.get('/students', async (req, res) => {
+//     // Future implementation for instructors to view their assigned students
+// });
+
+/**
+ * Get all bookings for a specific student (instructor access)
+ * @route GET /api/instructors/students/:userId/bookings
+ * @param {number} userId - Student's user database ID
+ * @access Instructor only (restricted to their own students)
+ * @future This will support filtering (upcoming/past/cancelled) and pagination
+ */
+// router.get('/students/:userId/bookings', async (req, res) => {
+//     // Future implementation for instructors to view their student's bookings
+// });
+
+/**
+ * Update/reschedule a booking for their student
+ * @route PATCH /api/instructors/students/:userId/bookings/:bookingId
+ * @param {number} userId - Student's user database ID
+ * @param {number} bookingId - Booking's database ID
+ * @access Instructor only (restricted to their own students and bookings)
+ * @future This will handle booking rescheduling initiated by instructor
+ */
+// router.patch('/students/:userId/bookings/:bookingId', async (req, res) => {
+//     // Future implementation for instructors to reschedule student bookings
+// });
+
+/**
+ * Cancel a booking for their student
+ * @route DELETE /api/instructors/students/:userId/bookings/:bookingId
+ * @param {number} userId - Student's user database ID
+ * @param {number} bookingId - Booking's database ID
+ * @access Instructor only (restricted to their own students and bookings)
+ * @future This will handle booking cancellation with proper authorization checks
+ */
+// router.delete('/students/:userId/bookings/:bookingId', async (req, res) => {
+//     // Future implementation for instructors to cancel student bookings
+// });
 
 module.exports = router; 

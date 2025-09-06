@@ -5,18 +5,10 @@ const { User } = require('../models/User');
 const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Subscription } = require('../models/Subscription');
+const { authorize, authorizeUserAccess } = require('../middleware/permissions');
 
-// Middleware to check if user is admin
-const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        res.status(403).json({ error: 'Access denied' });
-    }
-};
-
-// Get all users - now protected by isAdmin middleware
-router.get('/users', isAdmin, async (req, res) => {
+// Get all users - protected by CASL permissions
+router.get('/users', authorize('manage', 'User'), async (req, res) => {
     try {
         const users = await User.getAllUsers();
         res.json(users);
@@ -27,7 +19,7 @@ router.get('/users', isAdmin, async (req, res) => {
 });
 
 // Update user
-router.put('/users/:id', isAdmin, async (req, res) => {
+router.put('/users/:id', authorize('manage', 'User'), async (req, res) => {
     const userId = parseInt(req.params.id, 10);
     const { name, email, role } = req.body;
     
@@ -40,7 +32,7 @@ router.put('/users/:id', isAdmin, async (req, res) => {
 });
 
 // Delete user
-router.delete('/users/:id', isAdmin, async (req, res) => {
+router.delete('/users/:id', authorize('manage', 'User'), async (req, res) => {
     try {
         const userId = parseInt(req.params.id, 10);
         await User.deleteUser(userId);
@@ -52,7 +44,7 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
 });
 
 // Update user role
-router.patch('/users/:id', isAdmin, async (req, res) => {
+router.patch('/users/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const userId = parseInt(req.params.id, 10);
         const { role } = req.body;
@@ -74,7 +66,7 @@ router.patch('/users/:id', isAdmin, async (req, res) => {
 });
 
 // Add this new route for user search
-router.get('/users/search', isAdmin, async (req, res) => {
+router.get('/users/search', authorize('manage', 'all'), async (req, res) => {
     try {
         const searchQuery = req.query.q.toLowerCase()
         const users = await User.getAllUsers()
@@ -92,7 +84,7 @@ router.get('/users/search', isAdmin, async (req, res) => {
 })
 
 // Add new user
-router.post('/users', isAdmin, async (req, res) => {
+router.post('/users', authorize('manage', 'all'), async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
         
@@ -118,7 +110,7 @@ router.post('/users', isAdmin, async (req, res) => {
 });
 
 // Update instructor
-router.patch('/instructors/:id', isAdmin, async (req, res) => {
+router.patch('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const instructorId = parseInt(req.params.id, 10);
         const { hourly_rate, specialties, bio } = req.body;
@@ -136,7 +128,7 @@ router.patch('/instructors/:id', isAdmin, async (req, res) => {
 });
 
 // Delete instructor
-router.delete('/instructors/:id', isAdmin, async (req, res) => {
+router.delete('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const instructorId = parseInt(req.params.id, 10);
         await Instructor.deleteInstructor(instructorId);
@@ -148,7 +140,7 @@ router.delete('/instructors/:id', isAdmin, async (req, res) => {
 });
 
 // Get all payment plans
-router.get('/packages', isAdmin, async (req, res) => {
+router.get('/packages', authorize('manage', 'all'), async (req, res) => {
     try {
         const plans = await PaymentPlan.getAll();
         res.json(plans);
@@ -159,7 +151,7 @@ router.get('/packages', isAdmin, async (req, res) => {
 });
 
 // Create new payment plan
-router.post('/packages', isAdmin, async (req, res) => {
+router.post('/packages', authorize('manage', 'all'), async (req, res) => {
     try {
         const { name, price, credits, type, duration_days } = req.body;
         
@@ -187,7 +179,7 @@ router.post('/packages', isAdmin, async (req, res) => {
 });
 
 // Update payment plan
-router.put('/packages/:id', isAdmin, async (req, res) => {
+router.put('/packages/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const planId = parseInt(req.params.id, 10);
         const { name, price, credits, type, duration_days } = req.body;
@@ -221,7 +213,7 @@ router.put('/packages/:id', isAdmin, async (req, res) => {
 });
 
 // Delete payment plan
-router.delete('/packages/:id', isAdmin, async (req, res) => {
+router.delete('/packages/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const planId = parseInt(req.params.id, 10);
         const plan = await PaymentPlan.findByPk(planId);
@@ -239,7 +231,7 @@ router.delete('/packages/:id', isAdmin, async (req, res) => {
 });
 
 // Get user's subscription information for admin
-router.get('/users/:userId/subscription', isAdmin, async (req, res) => {
+router.get('/users/:userId/subscription', authorize('manage', 'all'), async (req, res) => {
     try {
         const userId = parseInt(req.params.userId, 10);
         
@@ -294,7 +286,7 @@ router.get('/users/:userId/subscription', isAdmin, async (req, res) => {
 });
 
 // Admin endpoint to cancel user subscription
-router.post('/subscriptions/:subscriptionId/cancel', isAdmin, async (req, res) => {
+router.post('/subscriptions/:subscriptionId/cancel', authorize('manage', 'all'), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         const { cancelSubscriptionService } = require('../services/subscriptionCancellation');
@@ -315,7 +307,7 @@ router.post('/subscriptions/:subscriptionId/cancel', isAdmin, async (req, res) =
 });
 
 // Admin endpoint to reactivate user subscription
-router.post('/subscriptions/:subscriptionId/reactivate', isAdmin, async (req, res) => {
+router.post('/subscriptions/:subscriptionId/reactivate', authorize('manage', 'all'), async (req, res) => {
     try {
         const subscriptionId = parseInt(req.params.subscriptionId, 10);
         
@@ -457,7 +449,7 @@ router.post('/subscriptions/:subscriptionId/reactivate', isAdmin, async (req, re
 });
 
 // Admin endpoint to create user subscription (comped subscription)
-router.post('/users/:userId/subscription', isAdmin, async (req, res) => {
+router.post('/users/:userId/subscription', authorize('manage', 'all'), async (req, res) => {
     try {
         const userId = parseInt(req.params.userId, 10);
         const { planId, note } = req.body;
@@ -635,5 +627,46 @@ router.post('/users/:userId/subscription', isAdmin, async (req, res) => {
         });
     }
 });
+
+// =============================================================================
+// FUTURE FUNCTIONALITY PLACEHOLDERS - Student Booking Management
+// =============================================================================
+// WARNING: These routes are placeholders for future student booking management
+// functionality. Do not remove unless certain they will not be implemented.
+
+/**
+ * Get all bookings for a specific user
+ * @route GET /api/admin/users/:userId/bookings
+ * @param {number} userId - User's database ID
+ * @access Admin only
+ * @future This will support filtering (upcoming/past/cancelled) and pagination
+ */
+// router.get('/users/:userId/bookings', authorize('manage', 'all'), async (req, res) => {
+//     // Future implementation for admin to view user's bookings with filters
+// });
+
+/**
+ * Update/reschedule a specific booking for a user
+ * @route PATCH /api/admin/users/:userId/bookings/:bookingId
+ * @param {number} userId - User's database ID
+ * @param {number} bookingId - Booking's database ID
+ * @access Admin only
+ * @future This will handle booking rescheduling and status updates
+ */
+// router.patch('/users/:userId/bookings/:bookingId', authorize('manage', 'all'), async (req, res) => {
+//     // Future implementation for admin to reschedule/update user bookings
+// });
+
+/**
+ * Cancel a specific booking for a user
+ * @route DELETE /api/admin/users/:userId/bookings/:bookingId
+ * @param {number} userId - User's database ID
+ * @param {number} bookingId - Booking's database ID
+ * @access Admin only
+ * @future This will handle booking cancellation with proper refund logic
+ */
+// router.delete('/users/:userId/bookings/:bookingId', authorize('manage', 'all'), async (req, res) => {
+//     // Future implementation for admin to cancel user bookings
+// });
 
 module.exports = router; 

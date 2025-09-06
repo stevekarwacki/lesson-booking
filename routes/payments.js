@@ -4,6 +4,7 @@ const { PaymentPlan } = require('../models/PaymentPlan');
 const { Credits } = require('../models/Credits');
 const { Transactions } = require('../models/Transactions');
 const { createPaymentIntent, verifyWebhookSignature } = require('../config/stripe');
+const { authorize } = require('../middleware/permissions');
 
 // Public route - Get all payment plans
 router.get('/plans', async (req, res) => {
@@ -30,8 +31,8 @@ router.get('/plans/:id', async (req, res) => {
     }
 });
 
-// Get user credits
-router.get('/credits', async (req, res) => {
+// Get user credits - authenticated users only
+router.get('/credits', authorize('read', 'Credits'), async (req, res) => {
     try {
         const credits = await Credits.getUserCredits(req.user.id);
         res.json(credits);
@@ -41,8 +42,8 @@ router.get('/credits', async (req, res) => {
     }
 });
 
-// Purchase a plan
-router.post('/purchase', async (req, res) => {
+// Purchase a plan - authenticated users only
+router.post('/purchase', authorize('create', 'Purchase'), async (req, res) => {
     const { planId, paymentMethod = 'credits' } = req.body;
     
     if (!planId) {
@@ -62,8 +63,8 @@ router.post('/purchase', async (req, res) => {
     }
 });
 
-// Get user transactions
-router.get('/transactions', async (req, res) => {
+// Get user transactions - authenticated users only
+router.get('/transactions', authorize('read', 'Transaction'), async (req, res) => {
     try {
         const transactions = await Transactions.getTransactions(req.user.id);
         res.json(transactions);
@@ -73,8 +74,8 @@ router.get('/transactions', async (req, res) => {
     }
 });
 
-// Create a payment intent for Stripe
-router.post('/create-payment-intent', async (req, res) => {
+// Create a payment intent for Stripe - authenticated users only
+router.post('/create-payment-intent', authorize('create', 'Purchase'), async (req, res) => {
     try {
         const { amount, planId } = req.body
         

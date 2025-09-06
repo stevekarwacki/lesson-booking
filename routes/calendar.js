@@ -3,6 +3,7 @@ const router = express.Router();
 const { Calendar } = require('../models/Calendar');
 const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
+const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
 const { 
     timeToSlotUTC,
     formatDateUTC,
@@ -12,8 +13,8 @@ const {
     isBookingAvailable
 } = require('../utils/timeUtils');
 
-// Get instructor's calendar events
-router.get('/instructor/:instructorId', async (req, res) => {
+// Get instructor's calendar events - requires read permission for instructor data
+router.get('/instructor/:instructorId', authorize('read', 'Instructor'), async (req, res) => {
     try {
         const events = await Calendar.getInstructorEvents(req.params.instructorId);
         res.json(events);
@@ -24,11 +25,11 @@ router.get('/instructor/:instructorId', async (req, res) => {
 });
 
 // Update calendar event (instructor only)
-router.patch('/:eventId', async (req, res) => {
+router.patch('/:eventId', authorizeBooking('update', async (req) => {
+    return await Calendar.getEventById(req.params.eventId);
+}), async (req, res) => {
     try {
-        if (req.user.role !== 'instructor') {
-            return res.status(403).json({ error: 'Access denied. Instructor only.' });
-        }
+        // CASL middleware already verified permissions
 
         await Calendar.updateEvent(req.params.eventId, req.body);
         res.json({ message: 'Event updated successfully' });
@@ -39,11 +40,11 @@ router.patch('/:eventId', async (req, res) => {
 });
 
 // Delete calendar event (instructor only)
-router.delete('/:eventId', async (req, res) => {
+router.delete('/:eventId', authorizeBooking('cancel', async (req) => {
+    return await Calendar.getEventById(req.params.eventId);
+}), async (req, res) => {
     try {
-        if (req.user.role !== 'instructor') {
-            return res.status(403).json({ error: 'Access denied. Instructor only.' });
-        }
+        // CASL middleware already verified permissions
 
         await Calendar.deleteEvent(req.params.eventId);
         res.json({ message: 'Event deleted successfully' });
@@ -54,7 +55,7 @@ router.delete('/:eventId', async (req, res) => {
 });
 
 // Book a lesson
-router.post('/addEvent', async (req, res) => {
+router.post('/addEvent', authorize('create', 'Booking'), async (req, res) => {
     try {
         const { instructorId, startTime, endTime, paymentMethod = 'credits' } = req.body;
         const studentId = req.user.id;
@@ -423,15 +424,12 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
 });
 
 // Get student bookings
-router.get('/student/:studentId', async (req, res) => {
+router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(req.params.studentId)), async (req, res) => {
     try {
         // Convert studentId to number for comparison
         const studentId = parseInt(req.params.studentId, 10);
         
-        // Ensure user can only access their own bookings
-        if (req.user.id !== studentId && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // User access already authorized by middleware
 
         // Check if we should include all bookings (past, cancelled)
         const includeAll = req.query.includeAll === 'true';
@@ -448,7 +446,9 @@ router.get('/student/:studentId', async (req, res) => {
 });
 
 // Update student booking
-router.patch('/student/:bookingId', async (req, res) => {
+router.patch('/student/:bookingId', authorizeBooking('update', async (req) => {
+    return await Calendar.getEventById(req.params.bookingId);
+}), async (req, res) => {
     try {
         const bookingId = parseInt(req.params.bookingId, 10);
         const { startTime, endTime } = req.body;
@@ -488,10 +488,7 @@ router.patch('/student/:bookingId', async (req, res) => {
             return res.status(404).json({ error: 'Booking not found' });
         }
 
-        // Verify the booking belongs to the student
-        if (booking.student_id !== studentId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Booking ownership already verified by authorizeBooking middleware
 
         // Get instructor availability
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(booking.instructor_id);
@@ -582,7 +579,9 @@ router.patch('/student/:bookingId', async (req, res) => {
 });
 
 // Delete student booking
-router.delete('/student/:bookingId', async (req, res) => {
+router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
+    return await Calendar.getEventById(req.params.bookingId);
+}), async (req, res) => {
     try {
         const bookingId = parseInt(req.params.bookingId, 10);
         const studentId = req.user.id;
@@ -593,10 +592,7 @@ router.delete('/student/:bookingId', async (req, res) => {
             return res.status(404).json({ error: 'Booking not found' });
         }
 
-        // Verify the booking belongs to the student
-        if (booking.student_id !== studentId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Booking ownership already verified by authorizeBooking middleware
 
         // Check if booking is in the future (can't cancel past bookings)
         const currentDate = new Date().toISOString().split('T')[0];
