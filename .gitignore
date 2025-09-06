@@ -46,14 +46,6 @@ pnpm-debug.log*
 ehthumbs.db
 Thumbs.db
 
-# Testing
-/coverage
-/tests
-test-*.js
-*.test.js
-*.spec.js
-frontend/src/tests
-
 # Documentation (development notes)
 /docs
 
