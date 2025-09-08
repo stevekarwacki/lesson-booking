@@ -69,7 +69,6 @@
             <WeeklyScheduleView 
                 :weeklySchedule="weeklySchedule"
                 :weekStartDate="weekStart"
-                :isInstructorOrAdmin="isInstructorOrAdmin"
                 :useColumnLayout="true"
                 @slot-selected="handleSlotSelected"
             />
@@ -82,7 +81,6 @@
             <DailyScheduleView 
                 :dailySchedule="dailySchedule"
                 :selected-day="selectedDay"
-                :isInstructorOrAdmin="isInstructorOrAdmin"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -534,9 +532,6 @@ watch(() => scheduleStore.refreshTrigger, async () => {
     }
 })
 
-const isInstructorOrAdmin = computed(() => {
-    return userStore.canManageCalendar
-})
 
 // Transform dailyBookings for BookingList component
 const formattedBookingsForList = computed(() => {

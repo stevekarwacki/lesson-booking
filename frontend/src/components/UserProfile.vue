@@ -27,19 +27,19 @@
                     >
                 </div>
 
-                <div class="form-group">
+                <div v-if="userStore.canEditUserRole" class="form-group">
                     <label for="role" class="form-label">Role:</label>
                     <div class="form-input-group">
                         <select 
                             id="role" 
                             v-model="form.role" 
-                            :disabled="isInstructor || !canEditRole"
+                            :disabled="!userStore.canEditSpecificUserRole(user)"
                             class="form-input"
                         >
                             <option value="student">Student</option>
                             <option value="admin">Admin</option>
                         </select>
-                        <small v-if="isInstructor" class="form-text">
+                        <small v-if="user?.role === 'instructor'" class="form-text">
                             Instructor role is managed automatically
                         </small>
                     </div>
@@ -75,14 +75,6 @@ const form = ref({
     name: '',
     email: '',
     role: 'student'
-})
-
-const isInstructor = computed(() => {
-    return props.user?.role === 'instructor'
-})
-
-const canEditRole = computed(() => {
-    return userStore.canManageUsers
 })
 
 // Remove 'instructor' from direct role assignments

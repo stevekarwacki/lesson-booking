@@ -28,6 +28,10 @@ export const defineAbilitiesFor = (user) => {
       // Students can read active instructors
       can('read', 'Instructor', { is_active: true });
       
+      // User profile editing - students can edit their own profile but not change their role
+      can('edit', 'UserProfile', { id: user.id });
+      cannot('edit', 'UserRole', { id: user.id }); // Cannot change their own role
+      
       // Payment system permissions for students
       can('read', 'Credits');
       can('create', 'Purchase');
@@ -62,6 +66,10 @@ export const defineAbilitiesFor = (user) => {
       can('read', 'Instructor', { user_id: user.id });
       can('update', 'Instructor', { user_id: user.id });
       
+      // User profile editing - instructors can edit their own profile but not change their role
+      can('edit', 'UserProfile', { id: user.id });
+      cannot('edit', 'UserRole', { id: user.id }); // Cannot change their own role
+      
       // Availability management (own only)
       can('manage', 'Availability', { instructor_id: user.instructor_id });
       can('manage', 'OwnInstructorAvailability');
@@ -82,6 +90,11 @@ export const defineAbilitiesFor = (user) => {
       
       // Explicit permissions for clarity
       can('manage', 'AllInstructorAvailability');
+      
+      // User role management permissions
+      can('edit', 'UserRole'); // Can edit user roles in general
+      // But cannot edit instructor roles (they are managed automatically)
+      cannot('edit', 'UserRole', { role: 'instructor' });
       
       // Explicitly deny role-specific permissions that admins shouldn't have
       cannot('create', 'StudentBooking');

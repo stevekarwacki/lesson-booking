@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
+import { subject } from '@casl/ability';
 import { defineAbilitiesFor } from '@/utils/abilities';
 
 export const useUserStore = defineStore('user', {
@@ -36,7 +37,17 @@ export const useUserStore = defineStore('user', {
         
         // Role-specific permissions (exclude admins)
         canCreateStudentBooking: (state) => state.user ? defineAbilitiesFor(state.user).can('create', 'StudentBooking') : false,
-        canManageOwnInstructorCalendar: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'OwnInstructorCalendar') : false
+        canManageOwnInstructorCalendar: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'OwnInstructorCalendar') : false,
+        
+        // User role editing permissions
+        canEditUserRole: (state) => state.user ? defineAbilitiesFor(state.user).can('edit', 'UserRole') : false,
+        
+        // Helper method to check if we can edit a specific user's role
+        canEditSpecificUserRole: (state) => (targetUser) => {
+            if (!state.user || !targetUser) return false;
+            const ability = defineAbilitiesFor(state.user);
+            return ability.can('edit', 'UserRole') && ability.can('edit', subject('UserRole', targetUser));
+        }
     },
 
     actions: {

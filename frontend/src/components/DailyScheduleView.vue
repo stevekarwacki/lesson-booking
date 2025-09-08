@@ -21,7 +21,7 @@
                 :day-name="selectedDay.formattedDate"
                 :show-header="false"
                 :show-time-labels="false"
-                :is-instructor="isInstructorOrAdmin"
+                :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
                 :layout="'daily'"
                 @slot-selected="handleSlotSelected"
             />
@@ -33,7 +33,10 @@
 import { computed } from 'vue'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { transformDailySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
+import { useUserStore } from '../stores/userStore'
 import DailyScheduleColumn from './DailyScheduleColumn.vue'
+
+const userStore = useUserStore()
 
 const props = defineProps({
     dailySchedule: {
@@ -43,10 +46,6 @@ const props = defineProps({
     selectedDay: {
         type: Object,
         required: true
-    },
-    isInstructorOrAdmin: {
-        type: Boolean,
-        default: false
     }
 })
 

@@ -21,7 +21,7 @@
                 :day-name="dayColumn.dayName"
                 :show-header="true"
                 :show-time-labels="false"
-                :is-instructor="isInstructorOrAdmin"
+                :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -32,7 +32,10 @@
 import { computed } from 'vue'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { transformWeeklySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
+import { useUserStore } from '../stores/userStore'
 import DailyScheduleColumn from './DailyScheduleColumn.vue'
+
+const userStore = useUserStore()
 
 const props = defineProps({
     weeklySchedule: {
@@ -42,10 +45,6 @@ const props = defineProps({
     blockedTimes: {
         type: Array,
         default: () => []
-    },
-    isInstructorOrAdmin: {
-        type: Boolean,
-        default: false
     },
     weekStartDate: {
         type: Date,
