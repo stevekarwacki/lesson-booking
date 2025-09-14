@@ -144,19 +144,25 @@ describe('CASL Permissions Infrastructure Tests', () => {
 
   describe('Time-based Restrictions', () => {
     test('24-hour booking modification policy', () => {
-      // Create bookings at different time intervals
+      // Create bookings at different time intervals  
       const now = new Date();
+      
+      // Create a booking definitely more than 24 hours away (48 hours)
+      const farFuture = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      
+      // Create a booking less than 24 hours away (12 hours)
+      const nearFuture = new Date(now.getTime() + 12 * 60 * 60 * 1000);
       
       const booking25Hours = {
         ...studentBooking,
         student_id: 3,
-        date: new Date(now.getTime() + 25 * 60 * 60 * 1000).toISOString().split('T')[0]
+        date: farFuture.toISOString().split('T')[0]
       };
       
       const booking23Hours = {
         ...studentBooking,
         student_id: 3,
-        date: new Date(now.getTime() + 23 * 60 * 60 * 1000).toISOString().split('T')[0]
+        date: nearFuture.toISOString().split('T')[0]
       };
 
       assert.strictEqual(canBookingAction(studentUser, booking25Hours, 'update'), true);

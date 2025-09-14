@@ -84,7 +84,7 @@ describe('Route Permission Tests - CASL Integration', () => {
         });
 
         test('should allow instructors to manage student bookings', () => {
-            const instructorUser = { id: 2, role: 'instructor' };
+            const instructorUser = { id: 2, role: 'instructor', instructor_id: 2 };
             const ability = defineAbilitiesFor(instructorUser);
             
             // Mock booking with instructor (future date)
@@ -122,7 +122,7 @@ describe('Route Permission Tests - CASL Integration', () => {
 
         test('should allow admin/instructor to bypass 24-hour policy', () => {
             const adminUser = { id: 1, role: 'admin' };
-            const instructorUser = { id: 2, role: 'instructor' };
+            const instructorUser = { id: 2, role: 'instructor', instructor_id: 2 };
             
             const adminAbility = defineAbilitiesFor(adminUser);
             const instructorAbility = defineAbilitiesFor(instructorUser);
@@ -253,7 +253,7 @@ describe('Route Permission Tests - CASL Integration', () => {
         });
 
         test('should allow instructor to delete their own blocked times', () => {
-            const instructorUser = { id: 2, role: 'instructor' };
+            const instructorUser = { id: 2, role: 'instructor', instructor_id: 2 };
             const ability = defineAbilitiesFor(instructorUser);
             
             // Mock blocked time belonging to instructor
@@ -288,9 +288,10 @@ describe('Route Permission Tests - CASL Integration', () => {
             assert.ok(studentAbility.can('create', 'Purchase'));
             assert.ok(studentAbility.can('read', 'Transaction'));
             
-            assert.ok(instructorAbility.can('read', 'Credits'));
-            assert.ok(instructorAbility.can('create', 'Purchase'));
-            assert.ok(instructorAbility.can('read', 'Transaction'));
+            // Instructors should NOT have payment permissions
+            assert.ok(!instructorAbility.can('read', 'Credits'));
+            assert.ok(!instructorAbility.can('create', 'Purchase'));
+            assert.ok(!instructorAbility.can('read', 'Transaction'));
             
             assert.ok(adminAbility.can('read', 'Credits'));
             assert.ok(adminAbility.can('create', 'Purchase'));
@@ -379,7 +380,7 @@ describe('Route Permission Tests - CASL Integration', () => {
         });
 
         test('should allow instructors to manage their own recurring bookings', () => {
-            const instructorUser = { id: 2, role: 'instructor' };
+            const instructorUser = { id: 2, role: 'instructor', instructor_id: 2 };
             const ability = defineAbilitiesFor(instructorUser);
             
             // Instructors can create recurring bookings
@@ -419,7 +420,7 @@ describe('Route Permission Tests - CASL Integration', () => {
 
         test('should validate recurring booking access through subscription ownership', () => {
             const studentUser = { id: 1, role: 'student' };
-            const instructorUser = { id: 2, role: 'instructor' };
+            const instructorUser = { id: 2, role: 'instructor', instructor_id: 2 };
             
             const studentAbility = defineAbilitiesFor(studentUser);
             const instructorAbility = defineAbilitiesFor(instructorUser);
@@ -452,7 +453,7 @@ describe('Route Permission Tests - CASL Integration', () => {
                 { action: 'create', subject: 'Booking', expectedRoles: ['admin', 'instructor', 'student'] },
                 { action: 'update', subject: 'InstructorAvailability', expectedRoles: ['admin', 'instructor'] },
                 { action: 'create', subject: 'Instructor', expectedRoles: ['admin'] },
-                { action: 'read', subject: 'Credits', expectedRoles: ['admin', 'instructor', 'student'] },
+                { action: 'read', subject: 'Credits', expectedRoles: ['admin', 'student'] },
                 { action: 'purchase', subject: 'Subscription', expectedRoles: ['admin', 'instructor', 'student'] },
                 { action: 'create', subject: 'RecurringBooking', expectedRoles: ['admin', 'instructor', 'student'] }
             ];
