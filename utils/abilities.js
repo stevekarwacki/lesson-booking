@@ -200,6 +200,12 @@ const canBookingAction = (user, booking, action) => {
   // Apply time-based restrictions for students
   if (user.role === 'student' && (action === 'update' || action === 'cancel')) {
     const bookingDate = new Date(booking.date);
+    
+    // Handle malformed dates gracefully
+    if (isNaN(bookingDate.getTime())) {
+      return false; // Invalid date, deny access
+    }
+    
     const now = new Date();
     const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
     
