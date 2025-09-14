@@ -83,10 +83,10 @@ const defineAbilitiesFor = (user) => {
       can('read', 'Booking', { student_id: user.id });
       
       // Instructor-specific booking permissions
-      can('read', 'Booking', { instructor_id: user.id });
-      can('update', 'Booking', { instructor_id: user.id });
-      can('cancel', 'Booking', { instructor_id: user.id });
-      can('manage', 'Booking', { instructor_id: user.id }); // Including past bookings
+      can('read', 'Booking', { instructor_id: user.instructor_id });
+      can('update', 'Booking', { instructor_id: user.instructor_id });
+      can('cancel', 'Booking', { instructor_id: user.instructor_id });
+      can('manage', 'Booking', { instructor_id: user.instructor_id }); // Including past bookings
       
       // Instructor profile management
       can('read', 'Instructor', { user_id: user.id });
@@ -97,10 +97,10 @@ const defineAbilitiesFor = (user) => {
       cannot('edit', 'UserRole', { id: user.id }); // Cannot change their own role
       
       // Availability management (own only)
-      can('manage', 'Availability', { instructor_id: user.id });
+      can('manage', 'Availability', { instructor_id: user.instructor_id });
       can('manage', 'OwnInstructorAvailability');
       can('update', 'InstructorAvailability');
-      can('delete', 'InstructorAvailability', { instructor_id: user.id });
+      can('delete', 'InstructorAvailability', { instructor_id: user.instructor_id });
       
       // Subscription permissions (instructors can view their own subscriptions)
       can('purchase', 'Subscription');
@@ -109,9 +109,9 @@ const defineAbilitiesFor = (user) => {
       
       // Recurring booking permissions
       can('create', 'RecurringBooking');
-      can('read', 'RecurringBooking', { instructor_id: user.id });
-      can('update', 'RecurringBooking', { instructor_id: user.id });
-      can('delete', 'RecurringBooking', { instructor_id: user.id });
+      can('read', 'RecurringBooking', { instructor_id: user.instructor_id });
+      can('update', 'RecurringBooking', { instructor_id: user.instructor_id });
+      can('delete', 'RecurringBooking', { instructor_id: user.instructor_id });
       
       // Read students who have bookings with them
       can('read', 'Student'); // Will be filtered by booking relationship in routes
