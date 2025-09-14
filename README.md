@@ -5,10 +5,12 @@ A web application for managing lesson bookings.
 ## Features
 
 - User authentication and authorization
+- **CASL-based permission system** with role-based access control
 - Lesson scheduling and management
 - Payment processing
 - Instructor profiles and availability
 - Student booking management
+- Time-based booking restrictions (24-hour modification policy)
 
 ## Installation
 
@@ -56,9 +58,34 @@ To run the application in development mode:
 npm run dev
 ```
 
+## Permissions System
+
+This application uses **CASL (Conditional Access Control List)** for comprehensive permission management:
+
+- **Role-based permissions**: Students, Instructors, and Admins have different capabilities
+- **Resource ownership**: Users can only access/modify their own data
+- **Time-based restrictions**: 24-hour booking modification policy for students
+- **Frontend/Backend sync**: Identical permission definitions across the stack
+
+For detailed documentation, see [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md)
+
+### Permission Overview
+
+| Role | Can Book | Can Manage Bookings | Can Manage Users | Can Access Payments |
+|------|----------|-------------------|------------------|-------------------|
+| **Student** | ✅ Own | ✅ Own (24hr limit) | ❌ | ✅ Own |
+| **Instructor** | ❌ | ✅ Students' | ❌ | ❌ |
+| **Admin** | ❌ | ✅ All | ✅ All | ❌ |
+
 ## Testing
 
 To run tests:
 ```bash
 npm test
-``` 
+```
+
+The test suite includes:
+- **68 total tests** covering permissions, routes, and integration
+- Backend permission validation
+- Frontend router guard testing  
+- Time-based restriction verification 

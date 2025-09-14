@@ -46,8 +46,8 @@ pnpm-debug.log*
 ehthumbs.db
 Thumbs.db
 
-# Documentation (development notes)
-/docs
+# Documentation and notes for development plans
+/plans
 
 # Optional npm cache directory
 .npm
