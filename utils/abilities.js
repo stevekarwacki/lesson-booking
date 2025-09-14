@@ -178,7 +178,21 @@ const can = (user, action, subjectType, resource = null) => {
 const canBookingAction = (user, booking, action) => {
   if (!booking || !user) return false;
   
-  // Get base permission using the updated can function
+  // Handle instructor permissions by checking if they own the booking
+  // Only for existing booking operations (not creation)
+  if (user.role === 'instructor' && (action === 'update' || action === 'cancel' || action === 'manage')) {
+    // Only check instructor ownership if we have instructor data in the booking
+    if (booking.Instructor && booking.Instructor.User) {
+      // Check if this instructor owns the booking by comparing user IDs
+      if (booking.Instructor.User.id === user.id) {
+        return true; // Instructor can manage their own students' bookings
+      }
+      return false; // Not their booking - instructor cannot manage other instructors' bookings
+    }
+    // If no instructor data, fall through to standard CASL check
+  }
+  
+  // For all other cases, use the standard CASL permission check
   const hasBasePermission = can(user, action, 'Booking', booking);
   
   if (!hasBasePermission) return false;

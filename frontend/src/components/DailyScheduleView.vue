@@ -22,6 +22,7 @@
                 :show-header="false"
                 :show-time-labels="false"
                 :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
+                :is-rescheduling="isRescheduling"
                 :layout="'daily'"
                 @slot-selected="handleSlotSelected"
             />
@@ -46,6 +47,10 @@ const props = defineProps({
     selectedDay: {
         type: Object,
         required: true
+    },
+    isRescheduling: {
+        type: Boolean,
+        default: false
     }
 })
 

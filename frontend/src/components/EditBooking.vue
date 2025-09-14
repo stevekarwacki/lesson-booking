@@ -41,6 +41,7 @@
                     :dailySchedule="dailySchedule"
                     :selected-day="selectedDay"
                     :isInstructorOrAdmin="false"
+                    :isRescheduling="true"
                     @slot-selected="handleSlotSelected"
                 />
             </div>

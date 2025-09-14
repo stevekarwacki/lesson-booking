@@ -102,6 +102,14 @@
         @close="showBookingModal = false"
         @booking-confirmed="handleBookingConfirmed"
     />
+    
+    <EditBookingModal
+        v-if="showEditBookingModal && selectedSlot"
+        :booking="selectedSlot"
+        @close="closeEditBookingModal"
+        @booking-updated="handleBookingUpdated"
+        @booking-cancelled="handleBookingCancelled"
+    />
 </template>
 
 <script setup>
@@ -114,6 +122,7 @@ import DailyScheduleView from './DailyScheduleView.vue'
 import BookingList from './BookingList.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
+import EditBookingModal from './EditBookingModal.vue'
 
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
@@ -186,14 +195,70 @@ const handleDateChange = () => {
 }
 
 const showBookingModal = ref(false)
+const showEditBookingModal = ref(false)
 const selectedSlot = ref(null)
 
 const handleSlotSelected = (slot) => {
-    selectedSlot.value = {
-        ...slot,
-        instructorId: instructor.id
+    // Instructors should not be able to book new lessons on available slots
+    if (slot.type === 'available') {
+        // Only prevent booking for instructors, allow students to book
+        if (userStore.canManageCalendar || userStore.canManageUsers) {
+            return // Do nothing for available slots when user is instructor/admin
+        }
+        
+        // For students, open booking modal
+        selectedSlot.value = {
+            ...slot,
+            instructorId: instructor.id
+        }
+        showBookingModal.value = true
+        return
     }
-    showBookingModal.value = true
+    
+    // For booked slots, allow instructors and admins to edit/cancel student bookings
+    if (slot.type === 'booked') {
+        // Check if current user can manage bookings (instructors and admins)
+        if ((userStore.canManageCalendar || userStore.canManageUsers) && slot.student && slot.student.id) {
+            // Create a booking object that matches the EditBookingModal expected format
+            const bookingObject = {
+                id: slot.id || slot.bookingId,
+                date: slot.date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string
+                start_slot: slot.start_slot,
+                duration: slot.duration,
+                instructor_id: instructor.id,
+                student_id: slot.student.id,
+                status: 'booked',
+                Instructor: {
+                    User: {
+                        name: instructor.name
+                    }
+                }
+            }
+            
+            selectedSlot.value = bookingObject
+            showEditBookingModal.value = true
+        }
+        // For students viewing their own bookings, allow them to edit as well
+        else if (userStore.isStudent && slot.student && slot.student.id === userStore.user.id) {
+            const bookingObject = {
+                id: slot.id || slot.bookingId,
+                date: slot.date.toISOString().split('T')[0],
+                start_slot: slot.start_slot,
+                duration: slot.duration,
+                instructor_id: instructor.id,
+                student_id: slot.student.id,
+                status: 'booked',
+                Instructor: {
+                    User: {
+                        name: instructor.name
+                    }
+                }
+            }
+            
+            selectedSlot.value = bookingObject
+            showEditBookingModal.value = true
+        }
+    }
 }
 
 const handleBookingConfirmed = (newBooking) => {
@@ -202,6 +267,27 @@ const handleBookingConfirmed = (newBooking) => {
     
     // Trigger schedule refresh using the schedule store (consistent with other booking updates)
     scheduleStore.triggerInstructorRefresh(instructor.id)
+}
+
+const handleBookingUpdated = () => {
+    showEditBookingModal.value = false
+    selectedSlot.value = null
+    
+    // Trigger schedule refresh for updated booking
+    scheduleStore.triggerInstructorRefresh(instructor.id)
+}
+
+const handleBookingCancelled = () => {
+    showEditBookingModal.value = false
+    selectedSlot.value = null
+    
+    // Trigger schedule refresh for cancelled booking
+    scheduleStore.triggerInstructorRefresh(instructor.id)
+}
+
+const closeEditBookingModal = () => {
+    showEditBookingModal.value = false
+    selectedSlot.value = null
 }
 
 const clearSelectedDate = () => {

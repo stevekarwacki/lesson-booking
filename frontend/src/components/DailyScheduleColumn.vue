@@ -83,6 +83,10 @@ const props = defineProps({
   isInstructor: {
     type: Boolean,
     default: false
+  },
+  isRescheduling: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -117,7 +121,8 @@ const getSlotClasses = (slot) => {
     'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
     'first-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0,
     'last-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === slot.totalSlots - 1,
-    'sixty-minute': slot.isMultiSlot && !slot.is_google_calendar && slot.totalSlots === 2
+    'sixty-minute': slot.isMultiSlot && !slot.is_google_calendar && slot.totalSlots === 2,
+    'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling
   }
 }
 
@@ -127,11 +132,24 @@ const handleSlotClick = (slot) => {
     return
   }
   
+  // Emit slot-selected for both available and booked slots
+  // The parent component (InstructorCalendar) will handle the logic
   if (slot.type === 'available') {
+    // In rescheduling mode, always allow selection of available slots
+    // In normal instructor view, prevent selection (unless rescheduling)
+    if (props.isRescheduling || !props.isInstructor) {
+      emit('slot-selected', {
+        date: props.date,
+        startSlot: slot.startSlot,
+        duration: 2, // 30 minutes
+        type: 'available'
+      })
+    }
+  } else if (slot.type === 'booked') {
     emit('slot-selected', {
+      ...slot,
       date: props.date,
-      startSlot: slot.startSlot,
-      duration: 2 // 30 minutes
+      type: 'booked'
     })
   }
 }
@@ -193,6 +211,11 @@ const handleSlotClick = (slot) => {
 .time-slot.available {
   background-color: var(--calendar-available);
   cursor: pointer;
+}
+
+/* Instructor viewing available slots - not clickable */
+.time-slot.instructor-view-available {
+  cursor: not-allowed;
 }
 
 .time-slot.booked {
