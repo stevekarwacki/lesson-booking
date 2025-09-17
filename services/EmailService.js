@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { default: ical } = require('ical-generator');
 const { User } = require('../models/User');
 
 class EmailService {
@@ -74,6 +75,43 @@ class EmailService {
             };
         } catch (error) {
             console.error('Failed to send email:', error);
+            return { 
+                success: false, 
+                error: error.message 
+            };
+        }
+    }
+
+    async sendEmailWithAttachment(to, subject, htmlContent, attachment = null, textContent = null) {
+        if (!this.isConfigured) {
+            console.warn('Email service not configured. Skipping email send.');
+            return { success: false, error: 'Email service not configured' };
+        }
+
+        try {
+            const mailOptions = {
+                from: `"${process.env.EMAIL_FROM_NAME || 'Lesson Booking'}" <${process.env.EMAIL_USER}>`,
+                to: to,
+                subject: subject,
+                html: htmlContent,
+                text: textContent || this.htmlToText(htmlContent)
+            };
+
+            // Add attachment if provided
+            if (attachment) {
+                mailOptions.attachments = [attachment];
+            }
+
+            const info = await this.transporter.sendMail(mailOptions);
+            console.log('Email with attachment sent successfully:', info.messageId);
+            
+            return { 
+                success: true, 
+                messageId: info.messageId,
+                response: info.response 
+            };
+        } catch (error) {
+            console.error('Failed to send email with attachment:', error);
             return { 
                 success: false, 
                 error: error.message 
@@ -239,8 +277,16 @@ class EmailService {
 
             const subject = 'Lesson Booking Confirmed';
             const htmlContent = this.generateBookingConfirmationHTML(bookingData, paymentMethod);
+            
+            // Generate calendar attachment
+            const calendarAttachment = this.generateCalendarAttachment(bookingData);
 
-            return await this.sendEmail(bookingData.student.email, subject, htmlContent);
+            return await this.sendEmailWithAttachment(
+                bookingData.student.email, 
+                subject, 
+                htmlContent,
+                calendarAttachment
+            );
         } catch (error) {
             console.error('Failed to send booking confirmation:', error);
             return { success: false, error: error.message };
@@ -334,7 +380,7 @@ class EmailService {
                     
                     <p><strong>What's Next?</strong></p>
                     <ul>
-                        <li>📅 Add this lesson to your calendar</li>
+                        <li>📅 <strong>Add to Calendar:</strong> Click the attached calendar file (.ics) to automatically add this lesson to your calendar</li>
                         <li>📝 Prepare any materials you'd like to work on</li>
                         <li>💬 Contact your instructor if you have any questions</li>
                     </ul>
@@ -352,6 +398,67 @@ class EmailService {
         </body>
         </html>
         `;
+    }
+
+    // Generate calendar attachment for booking
+    generateCalendarAttachment(booking) {
+        try {
+            // Convert slot to actual datetime
+            const startHour = Math.floor(booking.start_slot / 4) + 6;
+            const startMinute = (booking.start_slot % 4) * 15;
+            
+            // Create start and end dates
+            const startDate = new Date(`${booking.date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
+            const endDate = new Date(startDate.getTime() + booking.duration * 15 * 60000); // duration in 15-min slots
+            
+            const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
+            const studentName = booking.student?.name || 'Student';
+            
+            // Create calendar
+            const calendar = ical({
+                name: 'Lesson Booking',
+                prodId: {
+                    company: process.env.EMAIL_FROM_NAME || 'Lesson Booking',
+                    product: 'Booking System'
+                }
+            });
+
+            // Add the lesson event
+            calendar.createEvent({
+                start: startDate,
+                end: endDate,
+                summary: `Lesson with ${instructorName}`,
+                description: `Lesson booking confirmation for ${studentName}\n\nBooking ID: #${booking.id}\nDuration: ${booking.duration * 15} minutes\n\nWe look forward to your lesson!`,
+                location: 'Online Lesson', // You can customize this based on your setup
+                organizer: {
+                    name: instructorName,
+                    email: process.env.EMAIL_USER
+                },
+                attendees: [
+                    {
+                        name: studentName,
+                        email: booking.student.email,
+                        role: 'REQ-PARTICIPANT',
+                        status: 'ACCEPTED'
+                    }
+                ],
+                uid: `booking-${booking.id}@${process.env.EMAIL_USER?.split('@')[1] || 'lessonbooking.com'}`,
+                sequence: 0,
+                busyStatus: 'BUSY',
+                created: new Date(),
+                lastModified: new Date()
+            });
+
+            // Return attachment object for nodemailer
+            return {
+                filename: `lesson-${booking.id}.ics`,
+                content: calendar.toString(),
+                contentType: 'text/calendar; charset=utf-8; method=REQUEST'
+            };
+        } catch (error) {
+            console.error('Error generating calendar attachment:', error);
+            return null; // Return null if calendar generation fails
+        }
     }
 }
 
