@@ -6,6 +6,8 @@ const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Subscription } = require('../models/Subscription');
 const { authorize, authorizeUserAccess } = require('../middleware/permissions');
+const emailQueueService = require('../services/EmailQueueService');
+const cronJobService = require('../services/CronJobService');
 
 // Get all users - protected by CASL permissions
 router.get('/users', authorize('manage', 'User'), async (req, res) => {
@@ -668,5 +670,48 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
 // router.delete('/users/:userId/bookings/:bookingId', authorize('manage', 'all'), async (req, res) => {
 //     // Future implementation for admin to cancel user bookings
 // });
+
+// Email system monitoring endpoints
+// Get email queue status
+router.get('/email/status', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const queueStatus = emailQueueService.getStatus();
+        const cronStatus = cronJobService.getStatus();
+        
+        res.json({
+            email_queue: queueStatus,
+            cron_jobs: cronStatus,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error fetching email status:', error);
+        res.status(500).json({ error: 'Error fetching email status' });
+    }
+});
+
+// Clear email queue (emergency use)
+router.post('/email/clear-queue', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const clearedCount = emailQueueService.clearQueue();
+        res.json({ 
+            message: `Cleared ${clearedCount} emails from queue`,
+            clearedCount 
+        });
+    } catch (error) {
+        console.error('Error clearing email queue:', error);
+        res.status(500).json({ error: 'Error clearing email queue' });
+    }
+});
+
+// Manually trigger low balance check (for testing)
+router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, res) => {
+    try {
+        await cronJobService.runLowBalanceCheck();
+        res.json({ message: 'Low balance check triggered successfully' });
+    } catch (error) {
+        console.error('Error triggering low balance check:', error);
+        res.status(500).json({ error: 'Error triggering low balance check' });
+    }
+});
 
 module.exports = router; 

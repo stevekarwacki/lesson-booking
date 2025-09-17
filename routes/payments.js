@@ -123,15 +123,35 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
             case 'payment_intent.succeeded':
                 const paymentIntent = event.data.object;
                 
-                // Update transaction status
-                const updateResult = await Transactions.update(
-                    { status: 'completed' },
-                    { 
-                        where: { 
-                            payment_intent_id: paymentIntent.id 
-                        } 
+                // Find the pending transaction
+                const pendingTransaction = await Transactions.findOne({
+                    where: { 
+                        payment_intent_id: paymentIntent.id,
+                        status: 'pending'
                     }
-                );
+                });
+
+                if (pendingTransaction) {
+                    // Complete the purchase through PaymentPlan.purchase
+                    try {
+                        await PaymentPlan.purchase(
+                            pendingTransaction.user_id,
+                            pendingTransaction.payment_plan_id,
+                            'stripe',
+                            paymentIntent.id
+                        );
+                        
+                        // Update original transaction to completed
+                        await pendingTransaction.update({ status: 'completed' });
+                        
+                        console.log(`Stripe payment completed for user ${pendingTransaction.user_id}, plan ${pendingTransaction.payment_plan_id}`);
+                    } catch (error) {
+                        console.error('Error completing Stripe purchase:', error);
+                        await pendingTransaction.update({ status: 'failed' });
+                    }
+                } else {
+                    console.warn(`No pending transaction found for payment intent ${paymentIntent.id}`);
+                }
                 break;
                 
             case 'payment_intent.payment_failed':
