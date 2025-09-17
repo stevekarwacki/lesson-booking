@@ -104,6 +104,13 @@ class EmailQueueService {
                     );
                     break;
 
+                case 'booking_confirmation':
+                    result = await emailService.sendBookingConfirmation(
+                        job.data.bookingData,
+                        job.data.paymentMethod
+                    );
+                    break;
+
                 default:
                     throw new Error(`Unknown email type: ${job.type}`);
             }
@@ -184,6 +191,16 @@ class EmailQueueService {
             userId,
             creditsRemaining
         }, 'normal');
+    }
+
+    /**
+     * Queue a booking confirmation email
+     */
+    async queueBookingConfirmation(bookingData, paymentMethod = 'credits') {
+        return this.queueEmail('booking_confirmation', {
+            bookingData,
+            paymentMethod
+        }, 'high'); // High priority for booking confirmations
     }
 
     /**

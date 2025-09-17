@@ -229,6 +229,130 @@ class EmailService {
         </html>
         `;
     }
+
+    // Lesson booking confirmation email
+    async sendBookingConfirmation(bookingData, paymentMethod = 'credits') {
+        try {
+            if (!bookingData.student || !bookingData.student.email) {
+                throw new Error('Student email not found in booking data');
+            }
+
+            const subject = 'Lesson Booking Confirmed';
+            const htmlContent = this.generateBookingConfirmationHTML(bookingData, paymentMethod);
+
+            return await this.sendEmail(bookingData.student.email, subject, htmlContent);
+        } catch (error) {
+            console.error('Failed to send booking confirmation:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    generateBookingConfirmationHTML(booking, paymentMethod) {
+        // Convert slot to readable time (assuming 15-minute slots starting from 6:00 AM)
+        const startHour = Math.floor(booking.start_slot / 4) + 6;
+        const startMinute = (booking.start_slot % 4) * 15;
+        const endSlot = booking.start_slot + booking.duration;
+        const endHour = Math.floor(endSlot / 4) + 6;
+        const endMinute = (endSlot % 4) * 15;
+
+        const formatTime = (hour, minute) => {
+            const period = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+            return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+        };
+
+        const startTime = formatTime(startHour, startMinute);
+        const endTime = formatTime(endHour, endMinute);
+        const lessonDate = new Date(booking.date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const paymentDisplay = paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card';
+        const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
+
+        return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #e8f5e8; padding: 20px; text-align: center; border-radius: 8px; }
+                .content { padding: 20px 0; }
+                .booking-details { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 15px 0; }
+                .detail-row { margin: 10px 0; }
+                .detail-label { font-weight: bold; color: #555; }
+                .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+                .lesson-time { font-size: 18px; font-weight: bold; color: #28a745; }
+                .payment-method { background-color: #e9ecef; padding: 8px 12px; border-radius: 4px; display: inline-block; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>✅ Lesson Booked Successfully!</h1>
+                </div>
+                
+                <div class="content">
+                    <p>Hello ${booking.student.name},</p>
+                    
+                    <p>Great news! Your lesson has been confirmed. Here are the details:</p>
+                    
+                    <div class="booking-details">
+                        <h3>📚 Lesson Details</h3>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Date:</span> ${lessonDate}
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Time:</span> 
+                            <span class="lesson-time">${startTime} - ${endTime}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Instructor:</span> ${instructorName}
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Duration:</span> ${booking.duration * 15} minutes
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Payment Method:</span> 
+                            <span class="payment-method">${paymentDisplay}</span>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <span class="detail-label">Booking ID:</span> #${booking.id}
+                        </div>
+                    </div>
+                    
+                    <p><strong>What's Next?</strong></p>
+                    <ul>
+                        <li>📅 Add this lesson to your calendar</li>
+                        <li>📝 Prepare any materials you'd like to work on</li>
+                        <li>💬 Contact your instructor if you have any questions</li>
+                    </ul>
+                    
+                    <p>We're excited for your upcoming lesson!</p>
+                    
+                    <p>Best regards,<br>The Lesson Booking Team</p>
+                </div>
+                
+                <div class="footer">
+                    <p>This is an automated confirmation email for booking ID #${booking.id}</p>
+                    <p>If you need to modify or cancel this booking, please log into your account.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+    }
 }
 
 // Export singleton instance

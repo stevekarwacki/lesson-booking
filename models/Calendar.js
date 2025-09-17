@@ -8,6 +8,7 @@ const {
     isValidDateString,
     getCurrentDateUTC
 } = require('../utils/timeUtils');
+const emailQueueService = require('../services/EmailQueueService');
 
 const Calendar = sequelize.define('Calendar', {
     id: {
@@ -114,6 +115,24 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
                 await event.destroy();
                 throw error;
             }
+        }
+
+        // Send booking confirmation email after successful booking
+        // We do this after all booking operations are complete to ensure consistency
+        try {
+            // Get the complete booking data with relationships for the email
+            const bookingWithDetails = await this.getEventById(event.id);
+            
+            if (bookingWithDetails) {
+                const emailJobId = await emailQueueService.queueBookingConfirmation(
+                    bookingWithDetails,
+                    paymentMethod
+                );
+            }
+        } catch (emailError) {
+            // Log email error but don't fail the booking
+            // The booking is already complete and successful
+            console.error('Email queue error during booking confirmation:', emailError);
         }
 
         return event;
