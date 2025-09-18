@@ -272,8 +272,12 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
                         start_slot: rb.start_slot,
                         duration: rb.duration,
                         status: 'recurring_reserved',
-                        student_name: rb.Subscription.User.name,
-                        student_email: rb.Subscription.User.email,
+                        // Normalize student data to nested structure
+                        student: {
+                            id: rb.Subscription.user_id,
+                            name: rb.Subscription.User.name,
+                            email: rb.Subscription.User.email
+                        },
                         recurring_booking_id: rb.id
                     });
                 }
@@ -361,8 +365,12 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
             start_slot: rb.start_slot,
             duration: rb.duration,
             status: 'recurring_reserved',
-            student_name: rb.Subscription.User.name,
-            student_email: rb.Subscription.User.email,
+            // Normalize student data to nested structure
+            student: {
+                id: rb.Subscription.user_id,
+                name: rb.Subscription.User.name,
+                email: rb.Subscription.User.email
+            },
             recurring_booking_id: rb.id
         }));
         
@@ -667,8 +675,12 @@ router.get('/recurring/:instructorId/:startDate/:endDate', async (req, res) => {
                         start_slot: rb.start_slot,
                         duration: rb.duration,
                         status: 'recurring_reserved',
-                        student_name: rb.Subscription.User.name,
-                        student_email: rb.Subscription.User.email,
+                        // Normalize student data to nested structure
+                        student: {
+                            id: rb.Subscription.user_id,
+                            name: rb.Subscription.User.name,
+                            email: rb.Subscription.User.email
+                        },
                         recurring_booking_id: rb.id,
                         subscription_id: rb.subscription_id
                     });

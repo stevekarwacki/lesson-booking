@@ -8,7 +8,7 @@
             </div>
             <div>
                 <span>Time:</span>
-                <span>{{ formatTime(slotToTime(booking.start_slot)) }} - {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}</span>
+                <span>{{ booking.start_slot ? formatTime(slotToTime(booking.start_slot)) : '' }} - {{ booking.start_slot && booking.duration ? formatTime(slotToTime(booking.start_slot + booking.duration)) : '' }}</span>
             </div>
             <div>
                 <span>Instructor:</span>
@@ -21,7 +21,7 @@
             
             <div v-if="selectedSlot" class="selected-slot-info">
                 <h4>Selected New Time:</h4>
-                <p>{{ formatDate(selectedSlot.date) }} at {{ formatTime(slotToTime(selectedSlot.startSlot)) }} - {{ formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) }}</p>
+                <p>{{ formatDate(selectedSlot.date) }} at {{ selectedSlot.startSlot ? formatTime(slotToTime(selectedSlot.startSlot)) : '' }} - {{ selectedSlot.startSlot && selectedSlot.duration ? formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) : '' }}</p>
             </div>
             
             <div class="form-group">
@@ -42,6 +42,8 @@
                     :selected-day="selectedDay"
                     :isInstructorOrAdmin="false"
                     :isRescheduling="true"
+                    :selected-slot="selectedSlot"
+                    :original-slot="booking"
                     @slot-selected="handleSlotSelected"
                 />
             </div>

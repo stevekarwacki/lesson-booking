@@ -19,7 +19,7 @@
         @click="handleSlotClick(slot)"
       >
         <!-- Time label (shown when showTimeLabels is true or for available/unavailable slots) -->
-        <span class="slot-time" :class="{ 'always-visible': slot.isOwnBooking || (slot.type === 'booked' && props.isInstructor) }">
+        <span class="slot-time" :class="{ 'always-visible': slot.isOwnBooking}">
           {{ formatTime(slotToTime(slot.startSlot)) }}
         </span>
 
@@ -87,6 +87,18 @@ const props = defineProps({
   isRescheduling: {
     type: Boolean,
     default: false
+  },
+  
+  // Selection state
+  selectedSlot: {
+    type: Object,
+    default: null
+  },
+  
+  // Original slot being rescheduled (shows as unselectable)
+  originalSlot: {
+    type: Object,
+    default: null
   }
 })
 
@@ -110,6 +122,37 @@ const visibleSlots = computed(() => {
 })
 
 // Methods
+const isSlotSelected = (slot) => {
+  if (!props.selectedSlot) return false
+  
+  // Check if this slot matches the selected slot
+  // Compare by date and startSlot
+  const selectedDate = props.selectedSlot.date
+  const slotDate = props.date
+  
+  // Compare dates (handle both Date objects and ISO strings)
+  const selectedDateStr = selectedDate instanceof Date ? selectedDate.toISOString().split('T')[0] : selectedDate
+  const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
+  
+  return selectedDateStr === slotDateStr && 
+         props.selectedSlot.startSlot === slot.startSlot
+}
+
+const isOriginalSlot = (slot) => {
+  if (!props.originalSlot) return false
+  
+  // Check if this slot matches the original slot being rescheduled
+  const originalDate = props.originalSlot.date
+  const slotDate = props.date
+  
+  // Compare dates (handle both Date objects and ISO strings)
+  const originalDateStr = originalDate instanceof Date ? originalDate.toISOString().split('T')[0] : originalDate
+  const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
+  
+  return originalDateStr === slotDateStr && 
+         props.originalSlot.start_slot === slot.startSlot
+}
+
 const getSlotClasses = (slot) => {
   return {
     'available': slot.type === 'available',
@@ -122,13 +165,21 @@ const getSlotClasses = (slot) => {
     'first-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0,
     'last-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === slot.totalSlots - 1,
     'sixty-minute': slot.isMultiSlot && !slot.is_google_calendar && slot.totalSlots === 2,
-    'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling
+    'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling,
+    'instructor-view-booked': slot.type === 'booked' && props.isInstructor,
+    'selected': isSlotSelected(slot),
+    'original-slot': isOriginalSlot(slot)
   }
 }
 
 const handleSlotClick = (slot) => {
   // Prevent clicks on past time slots
   if (isPastTimeSlot(slot.startSlot, props.date.toISOString())) {
+    return
+  }
+  
+  // Prevent clicks on the original slot being rescheduled
+  if (isOriginalSlot(slot)) {
     return
   }
   
@@ -213,18 +264,14 @@ const handleSlotClick = (slot) => {
   cursor: pointer;
 }
 
-/* Instructor viewing available slots - not clickable */
-.time-slot.instructor-view-available {
-  cursor: not-allowed;
-}
-
 .time-slot.booked {
   background-color: var(--calendar-booked);
-  cursor: pointer;
 }
 
-.time-slot.booked.own-booking {
+.time-slot.booked.own-booking,
+.time-slot.instructor-view-booked {
   background-color: var(--calendar-booked-self);
+  cursor: pointer;
 }
 
 .time-slot.google-calendar {
@@ -261,6 +308,17 @@ const handleSlotClick = (slot) => {
   filter: brightness(1.1);
 }
 
+.time-slot.selected {
+  background-color: var(--primary-color, #0066ff);
+  color: white;
+}
+
+.time-slot.original-slot {
+  background-color: var(--calendar-booked, #e3f2fd);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .slot-time {
   font-size: var(--font-size-sm);
   vertical-align: middle;
@@ -268,7 +326,6 @@ const handleSlotClick = (slot) => {
   display: none;
 }
 
-.time-slot:hover .slot-time,
 .slot-time.always-visible {
   display: inline-block;
 }

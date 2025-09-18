@@ -22,6 +22,8 @@
                 :show-header="true"
                 :show-time-labels="false"
                 :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
+                :selected-slot="selectedSlot"
+                :original-slot="originalSlot"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -53,6 +55,14 @@ const props = defineProps({
     useColumnLayout: {
         type: Boolean,
         default: true  // Default to new layout, can be overridden for testing
+    },
+    selectedSlot: {
+        type: Object,
+        default: null
+    },
+    originalSlot: {
+        type: Object,
+        default: null
     }
 })
 
@@ -177,59 +187,6 @@ const handleSlotSelected = (slotData) => {
     border-right: 1px solid var(--border-color);
 }
 
-.time-slot {
-    border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
-    min-height: 40px;
-    position: relative;
-    transition: all 0.2s ease;
-    background-color: var(--calendar-unavailable);
-    cursor: not-allowed;
-}
-
-.time-slot.available {
-    background-color: var(--calendar-available);
-    cursor: pointer;
-}
-
-.time-slot.booked {
-    background-color: var( --calendar-booked);
-    cursor: pointer;
-}
-
-.time-slot.booked.own-booking {
-    background-color: var(--calendar-booked-self);
-}
-
-.time-slot.google-calendar {
-    background-color: var(--calendar-blocked);
-    background-image: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 4px,
-        rgba(255, 255, 255, 0.3) 4px,
-        rgba(255, 255, 255, 0.3) 8px
-    );
-    border-left: 4px solid #dc3545;
-    color: white;
-}
-
-.time-slot.blocked {
-    background-color: var(--calendar-blocked);
-    background-image: repeating-linear-gradient(
-        45deg,
-        transparent,
-        transparent 4px,
-        rgba(255, 255, 255, 0.3) 4px,
-        rgba(255, 255, 255, 0.3) 8px
-    );
-    color: white;
-}
-
-.time-slot:hover {
-    filter: brightness(1.1);
-}
-
 .slot-time {
     display: none;
     position: absolute;
@@ -290,63 +247,6 @@ const handleSlotSelected = (slotData) => {
     z-index: 1;
 }
 
-.booked-slot-content {
-    position: relative;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.student-name {
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-}
-
-.tooltip {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    transform: translateY(-100%);
-    background: var(--background-light);
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    z-index: 1000;
-    min-width: 200px;
-    font-size: var(--font-size-sm);
-    display: none;
-    border: 1px solid var(--border-color);
-    pointer-events: none;
-}
-
-.booked-slot-content {
-    z-index: 1;
-}
-
-.booked-slot-content:hover .tooltip {
-    display: block;
-}
-
-/* Ensure tooltip stays visible when cursor moves to it */
-.tooltip:hover {
-    display: block;
-    pointer-events: auto;
-}
-
-.tooltip-title {
-    font-weight: 500;
-    margin-bottom: var(--spacing-xs);
-    color: var(--text-primary);
-}
-
-.tooltip-content {
-    color: var(--text-secondary);
-}
-
-.tooltip-content p {
-    margin: var(--spacing-xs) 0;
-}
 
 @media (max-width: 768px) {
     .schedule-header {

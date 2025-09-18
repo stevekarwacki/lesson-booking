@@ -216,9 +216,12 @@ class GoogleCalendarService {
                     summary: event.summary || 'Busy',
                     source: 'google_calendar',
                     google_event_id: event.id,
-                    // Add visual indicators for Google Calendar events
-                    student_name: '🗓️ ' + (event.summary || 'Busy'),
-                    student_email: 'Google Calendar',
+                    // Normalize student data to nested structure  
+                    student: {
+                        id: null,
+                        name: '🗓️ ' + (event.summary || 'Busy'),
+                        email: 'Google Calendar'
+                    },
                     is_google_calendar: true
                 };
             });

@@ -143,7 +143,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 };
 
 Calendar.getInstructorEvents = async function(instructorId) {
-    return this.findAll({
+    const events = await this.findAll({
         where: { 
             instructor_id: instructorId,
             status: { [sequelize.Op.ne]: 'cancelled' }
@@ -163,6 +163,22 @@ Calendar.getInstructorEvents = async function(instructorId) {
             }
         ],
         order: [['date', 'ASC'], ['start_slot', 'ASC']]
+    });
+
+    // Normalize to flat structure with nested student object
+    return events.map(event => {
+        const eventData = event.toJSON();
+        return {
+            ...eventData,
+            // Normalize student data to nested structure
+            student: eventData.student ? {
+                id: eventData.student_id,
+                name: eventData.student.name,
+                email: eventData.student.email
+            } : null,
+            // Normalize instructor data
+            instructor_name: eventData.Instructor?.User?.name || null
+        };
     });
 };
 

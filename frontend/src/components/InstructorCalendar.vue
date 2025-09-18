@@ -70,6 +70,7 @@
                 :weeklySchedule="weeklySchedule"
                 :weekStartDate="weekStart"
                 :useColumnLayout="true"
+                :selected-slot="selectedSlot"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -81,6 +82,7 @@
             <DailyScheduleView 
                 :dailySchedule="dailySchedule"
                 :selected-day="selectedDay"
+                :selected-slot="selectedSlot"
                 @slot-selected="handleSlotSelected"
             />
         </div>
@@ -223,14 +225,14 @@ const handleSlotSelected = (slot) => {
             const bookingObject = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string
-                start_slot: slot.start_slot,
+                start_slot: slot.startSlot, // Normalized from scheduleTransform
                 duration: slot.duration,
                 instructor_id: instructor.id,
                 student_id: slot.student.id,
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name
+                        name: instructor.name // Normalized at model level
                     }
                 }
             }
@@ -243,14 +245,14 @@ const handleSlotSelected = (slot) => {
             const bookingObject = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0],
-                start_slot: slot.start_slot,
+                start_slot: slot.startSlot, // Normalized from scheduleTransform
                 duration: slot.duration,
                 instructor_id: instructor.id,
                 student_id: slot.student.id,
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name
+                        name: instructor.name // Normalized at model level
                     }
                 }
             }
@@ -294,6 +296,7 @@ const clearSelectedDate = () => {
     selectedDate.value = ''
 }
 
+
 /**
  * Formats slot for display
  * @param {Object} slot - slot to be formatted
@@ -322,23 +325,10 @@ const formatSlot = (slot, date) => {
     formattedSlot.startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`
     formattedSlot.endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`
 
-    // Handle student information for both regular bookings and Google Calendar events
-    if (slot.student_id) {
-        formattedSlot.student = {
-            id: slot.student_id,
-            name: slot.student_name,
-            email: slot.student_email
-        }
-        // Check if this booking belongs to the current user
-        formattedSlot.isOwnBooking = slot.student_id === userStore.user.id
-    } else if (slot.is_google_calendar || slot.source === 'google_calendar') {
-        // For Google Calendar events, use the formatted display info
-        formattedSlot.student = {
-            id: null,
-            name: slot.student_name || '🗓️ ' + (slot.summary || 'Busy'),
-            email: slot.student_email || 'Google Calendar'
-        }
-        formattedSlot.isOwnBooking = false
+    // Student data is now normalized at the model/API level
+    if (slot.student) {
+        formattedSlot.student = slot.student
+        formattedSlot.isOwnBooking = slot.student.id === userStore.user.id
     }
 
     return formattedSlot

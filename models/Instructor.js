@@ -112,13 +112,23 @@ Instructor.getAllActive = async function() {
 };
 
 Instructor.findByUserId = async function(userId) {
-    return this.findOne({
+    const instructor = await this.findOne({
         where: { user_id: userId },
         include: [{
             model: User,
             attributes: ['name', 'email']
         }]
     });
+    
+    if (!instructor) return null;
+    
+    // Normalize to include flat instructor_name
+    const instructorData = instructor.toJSON();
+    return {
+        ...instructorData,
+        name: instructorData.User?.name || null,
+        email: instructorData.User?.email || null
+    };
 };
 
 module.exports = { Instructor }; 

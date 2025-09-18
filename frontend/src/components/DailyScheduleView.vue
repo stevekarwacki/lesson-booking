@@ -23,6 +23,8 @@
                 :show-time-labels="false"
                 :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
                 :is-rescheduling="isRescheduling"
+                :selected-slot="selectedSlot"
+                :original-slot="originalSlot"
                 :layout="'daily'"
                 @slot-selected="handleSlotSelected"
             />
@@ -51,6 +53,14 @@ const props = defineProps({
     isRescheduling: {
         type: Boolean,
         default: false
+    },
+    selectedSlot: {
+        type: Object,
+        default: null
+    },
+    originalSlot: {
+        type: Object,
+        default: null
     }
 })
 
