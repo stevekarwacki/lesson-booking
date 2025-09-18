@@ -111,6 +111,14 @@ class EmailQueueService {
                     );
                     break;
 
+                case 'rescheduling_confirmation':
+                    result = await emailService.sendReschedulingConfirmation(
+                        job.data.oldBooking,
+                        job.data.newBooking,
+                        job.data.recipientType
+                    );
+                    break;
+
                 default:
                     throw new Error(`Unknown email type: ${job.type}`);
             }
@@ -201,6 +209,33 @@ class EmailQueueService {
             bookingData,
             paymentMethod
         }, 'high'); // High priority for booking confirmations
+    }
+
+    /**
+     * Queue rescheduling confirmation emails for both student and instructor
+     */
+    async queueReschedulingConfirmations(oldBooking, newBooking) {
+        const jobIds = [];
+
+        // Queue email for student
+        const studentJobId = await this.queueEmail('rescheduling_confirmation', {
+            oldBooking,
+            newBooking,
+            recipientType: 'student'
+        }, 'high'); // High priority for rescheduling notifications
+        
+        jobIds.push({ recipient: 'student', jobId: studentJobId });
+
+        // Queue email for instructor
+        const instructorJobId = await this.queueEmail('rescheduling_confirmation', {
+            oldBooking,
+            newBooking,
+            recipientType: 'instructor'
+        }, 'high'); // High priority for rescheduling notifications
+        
+        jobIds.push({ recipient: 'instructor', jobId: instructorJobId });
+
+        return jobIds;
     }
 
     /**

@@ -250,7 +250,7 @@ Calendar.getEventById = async function(eventId) {
                 model: Instructor,
                 include: [{
                     model: User,
-                    attributes: ['id', 'name']
+                    attributes: ['id', 'name', 'email']
                 }]
             }
         ]

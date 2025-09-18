@@ -4,6 +4,7 @@ const { Calendar } = require('../models/Calendar');
 const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
+const emailQueueService = require('../services/EmailQueueService');
 const { 
     timeToSlotUTC,
     formatDateUTC,
@@ -565,12 +566,41 @@ router.patch('/student/:bookingId', authorizeBooking('update', async (req) => {
             }
         }
 
+        // Store old booking details for email notification
+        const oldBookingDetails = {
+            id: booking.id,
+            date: booking.date,
+            start_slot: booking.start_slot,
+            duration: booking.duration
+        };
+
         // Update the booking
         await booking.update({
             date: formattedDate,
             start_slot: startSlot,
             duration: duration
         });
+
+        // Send rescheduling confirmation emails to both student and instructor
+        // We do this after the booking is successfully updated
+        try {
+            // Get the complete booking data with relationships for emails
+            const updatedBookingWithDetails = await Calendar.getEventById(booking.id);
+            
+            if (updatedBookingWithDetails) {
+                const emailJobIds = await emailQueueService.queueReschedulingConfirmations(
+                    oldBookingDetails,
+                    updatedBookingWithDetails
+                );
+                
+                console.log(`Rescheduling confirmation emails queued for booking ${booking.id}:`, 
+                    emailJobIds.map(job => `${job.recipient} (${job.jobId})`).join(', '));
+            }
+        } catch (emailError) {
+            // Log email error but don't fail the booking update
+            // The rescheduling is already complete and successful
+            console.error('Email queue error during rescheduling confirmation:', emailError);
+        }
 
         res.json({
             message: 'Booking updated successfully',

@@ -221,6 +221,38 @@ class EmailService {
         }
     }
 
+    // Lesson rescheduling confirmation emails
+    async sendReschedulingConfirmation(oldBooking, newBooking, recipientType = 'student') {
+        try {
+            if (!oldBooking || !newBooking) {
+                throw new Error('Both old and new booking data required');
+            }
+
+            const isForStudent = recipientType === 'student';
+            const recipient = isForStudent ? newBooking.student : newBooking.Instructor?.User;
+            
+            if (!recipient || !recipient.email) {
+                throw new Error(`${recipientType} email not found in booking data`);
+            }
+
+            const subject = `Lesson Rescheduled - ${isForStudent ? 'Updated' : 'Student Updated'} Booking`;
+            const htmlContent = this.generateReschedulingHTML(oldBooking, newBooking, recipientType);
+            
+            // Generate updated calendar attachment
+            const calendarAttachment = this.generateCalendarAttachment(newBooking);
+
+            return await this.sendEmailWithAttachment(
+                recipient.email, 
+                subject, 
+                htmlContent,
+                calendarAttachment
+            );
+        } catch (error) {
+            console.error('Failed to send rescheduling confirmation:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     generateLowBalanceHTML(user, creditsRemaining) {
         return `
         <!DOCTYPE html>
@@ -294,11 +326,11 @@ class EmailService {
     }
 
     generateBookingConfirmationHTML(booking, paymentMethod) {
-        // Convert slot to readable time (assuming 15-minute slots starting from 6:00 AM)
-        const startHour = Math.floor(booking.start_slot / 4) + 6;
+        // Convert slot to readable time using UTC slots (0 = 00:00 UTC)
+        const startHour = Math.floor(booking.start_slot / 4);
         const startMinute = (booking.start_slot % 4) * 15;
         const endSlot = booking.start_slot + booking.duration;
-        const endHour = Math.floor(endSlot / 4) + 6;
+        const endHour = Math.floor(endSlot / 4);
         const endMinute = (endSlot % 4) * 15;
 
         const formatTime = (hour, minute) => {
@@ -309,11 +341,12 @@ class EmailService {
 
         const startTime = formatTime(startHour, startMinute);
         const endTime = formatTime(endHour, endMinute);
-        const lessonDate = new Date(booking.date).toLocaleDateString('en-US', {
+        const lessonDate = new Date(booking.date + 'T00:00:00Z').toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'UTC'
         });
 
         const paymentDisplay = paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card';
@@ -400,15 +433,150 @@ class EmailService {
         `;
     }
 
+    generateReschedulingHTML(oldBooking, newBooking, recipientType) {
+        // Helper function to format time (using UTC slots where 0 = 00:00 UTC)
+        const formatTimeFromSlot = (slot) => {
+            const hour = Math.floor(slot / 4);
+            const minute = (slot % 4) * 15;
+            const period = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+            return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+        };
+
+        // Helper function to format date
+        const formatDate = (dateString) => {
+            return new Date(dateString + 'T00:00:00Z').toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'UTC'
+            });
+        };
+
+        // Old booking details
+        const oldStartTime = formatTimeFromSlot(oldBooking.start_slot);
+        const oldEndTime = formatTimeFromSlot(oldBooking.start_slot + oldBooking.duration);
+        const oldDate = formatDate(oldBooking.date);
+
+        // New booking details
+        const newStartTime = formatTimeFromSlot(newBooking.start_slot);
+        const newEndTime = formatTimeFromSlot(newBooking.start_slot + newBooking.duration);
+        const newDate = formatDate(newBooking.date);
+
+        const isForStudent = recipientType === 'student';
+        const recipientName = isForStudent ? newBooking.student?.name : newBooking.Instructor?.User?.name;
+        const otherPartyName = isForStudent ? newBooking.Instructor?.User?.name : newBooking.student?.name;
+        const otherPartyRole = isForStudent ? 'instructor' : 'student';
+
+        return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #fff3cd; padding: 20px; text-align: center; border-radius: 8px; border-left: 4px solid #ffc107; }
+                .content { padding: 20px 0; }
+                .booking-comparison { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 15px 0; }
+                .old-booking { background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #dc3545; }
+                .new-booking { background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #28a745; }
+                .detail-row { margin: 8px 0; }
+                .detail-label { font-weight: bold; color: #555; }
+                .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+                .lesson-time { font-size: 16px; font-weight: bold; }
+                .old-time { color: #dc3545; }
+                .new-time { color: #28a745; }
+                .change-icon { font-size: 24px; margin: 0 15px; color: #ffc107; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📅 Lesson Rescheduled</h1>
+                    <p>${isForStudent ? 'Your lesson has been moved to a new time' : `${otherPartyName} has rescheduled their lesson`}</p>
+                </div>
+                
+                <div class="content">
+                    <p>Hello ${recipientName},</p>
+                    
+                    <p>${isForStudent ? 'Your lesson has been successfully rescheduled.' : `Your ${otherPartyRole} ${otherPartyName} has rescheduled their lesson.`} Here are the updated details:</p>
+                    
+                    <div class="booking-comparison">
+                        <h3>📋 Booking Changes</h3>
+                        
+                        <div class="old-booking">
+                            <h4>❌ Previous Time</h4>
+                            <div class="detail-row">
+                                <span class="detail-label">Date:</span> ${oldDate}
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Time:</span> 
+                                <span class="lesson-time old-time">${oldStartTime} - ${oldEndTime}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Duration:</span> ${oldBooking.duration * 15} minutes
+                            </div>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <span class="change-icon">⬇️</span>
+                        </div>
+
+                        <div class="new-booking">
+                            <h4>✅ New Time</h4>
+                            <div class="detail-row">
+                                <span class="detail-label">Date:</span> ${newDate}
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Time:</span> 
+                                <span class="lesson-time new-time">${newStartTime} - ${newEndTime}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Duration:</span> ${newBooking.duration * 15} minutes
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">${isForStudent ? 'Instructor' : 'Student'}:</span> ${otherPartyName}
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Booking ID:</span> #${newBooking.id}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p><strong>What's Next?</strong></p>
+                    <ul>
+                        <li>📅 <strong>Update Your Calendar:</strong> Click the attached calendar file (.ics) to update this lesson in your calendar</li>
+                        <li>📝 Review any materials you've prepared for the lesson</li>
+                        <li>💬 Contact your ${otherPartyRole} if you have any questions about the change</li>
+                        ${isForStudent ? '<li>⏰ Make sure you\'re available at the new time</li>' : '<li>📋 Prepare for the lesson at the new scheduled time</li>'}
+                    </ul>
+                    
+                    <p>Thank you for your flexibility!</p>
+                    
+                    <p>Best regards,<br>The Lesson Booking Team</p>
+                </div>
+                
+                <div class="footer">
+                    <p>This is an automated rescheduling notification for booking ID #${newBooking.id}</p>
+                    <p>If you need to make further changes, please log into your account.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+    }
+
     // Generate calendar attachment for booking
     generateCalendarAttachment(booking) {
         try {
-            // Convert slot to actual datetime
-            const startHour = Math.floor(booking.start_slot / 4) + 6;
+            // Convert slot to actual datetime (UTC slots where 0 = 00:00 UTC)
+            const startHour = Math.floor(booking.start_slot / 4);
             const startMinute = (booking.start_slot % 4) * 15;
             
-            // Create start and end dates
-            const startDate = new Date(`${booking.date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`);
+            // Create start and end dates (specify as UTC)
+            const startDate = new Date(`${booking.date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00Z`);
             const endDate = new Date(startDate.getTime() + booking.duration * 15 * 60000); // duration in 15-min slots
             
             const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
