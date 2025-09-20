@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #fff3cd; padding: 20px; text-align: center; border-radius: 8px; border-left: 4px solid #ffc107; }
+        .content { padding: 20px 0; }
+        .booking-comparison { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 15px 0; }
+        .old-booking { background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #dc3545; }
+        .new-booking { background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #28a745; }
+        .detail-row { margin: 8px 0; }
+        .detail-label { font-weight: bold; color: #555; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        .lesson-time { font-size: 16px; font-weight: bold; }
+        .old-time { color: #dc3545; }
+        .new-time { color: #28a745; }
+        .change-icon { font-size: 24px; margin: 0 15px; color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Lesson Rescheduled</h1>
+            <p>Your lesson has been moved to a new time</p>
+        </div>
+        
+        <div class="content">
+            <p>Hello {{studentName}},</p>
+            
+            <p>Your lesson has been successfully rescheduled. Here are the updated details:</p>
+            
+            <div class="booking-comparison">
+                <h3>📋 Booking Changes</h3>
+                
+                <div class="old-booking">
+                    <h4>❌ Previous Time</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span> {{oldDate}}
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Time:</span> 
+                        <span class="lesson-time old-time">{{oldStartTime}} - {{oldEndTime}}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Duration:</span> {{oldDuration}} minutes
+                    </div>
+                </div>
+
+                <div style="text-align: center;">
+                    <span class="change-icon">⬇️</span>
+                </div>
+
+                <div class="new-booking">
+                    <h4>✅ New Time</h4>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span> {{newDate}}
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Time:</span> 
+                        <span class="lesson-time new-time">{{newStartTime}} - {{newEndTime}}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Duration:</span> {{newDuration}} minutes
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Instructor:</span> {{instructorName}}
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Booking ID:</span> #{{bookingId}}
+                    </div>
+                </div>
+            </div>
+            
+            <p><strong>What's Next?</strong></p>
+            <ul>
+                <li>📅 <strong>Update Your Calendar:</strong> Click the attached calendar file (.ics) to update this lesson in your calendar</li>
+                <li>📝 Review any materials you've prepared for the lesson</li>
+                <li>💬 Contact your instructor if you have any questions about the change</li>
+                <li>⏰ Make sure you're available at the new time</li>
+            </ul>
+            
+            <p>Thank you for your flexibility!</p>
+            
+            <p>Best regards,<br>The Lesson Booking Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated rescheduling notification for booking ID #{{bookingId}}</p>
+            <p>If you need to make further changes, please log into your account.</p>
+        </div>
+    </div>
+</body>
+</html>
