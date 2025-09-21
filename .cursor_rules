@@ -1,0 +1,155 @@
+# Cursor Development Rules
+
+## General
+
+Follow a functional programming style where possible. Avoid classes unless necessary.
+
+## Development Process
+
+Implement features iteratively. Break down tasks into small, testable chunks.
+
+After each code generation or modification, confirm that the new functionality works as expected.
+
+Also, perform a quick regression test on existing, related functionality to ensure nothing has broken.
+
+Create tests concurrently with feature development. The goal is to create a safety net that catches regressions before code is committed. Refer to the [Testing](#testing) section for specific guidelines.
+
+## Version Control (Git)
+
+Before starting any new feature, bug fix, or chore, create a new branch from the main branch.
+
+Use the following branch naming conventions:
+- `feat/descriptive-name`
+- `fix/descriptive-name` 
+- `chore/descriptive-name`
+
+All git commit messages must follow the Conventional Commits specification. The subject line should be concise and written in the imperative mood (e.g., "add feature" not "added feature").
+
+**Examples:**
+```
+feat(api): add endpoint for student lesson booking
+fix(ui): prevent double submission on booking form
+refactor(auth): simplify token validation logic
+```
+
+Once a feature is implemented and tested, ensure all relevant project documentation (README.md, /docs, inline comments) is updated to reflect the changes. This step applies to new features (feat) and significant refactors, not bug fixes (fix).
+
+When the developer states a feature is complete and has been tested on its branch, the final step is to merge the branch directly into main.
+
+### Semantic Versioning
+
+The project follows Semantic Versioning (vMAJOR.MINOR.PATCH). After merging changes into main, a new version tag should be created to mark the release.
+
+- **PATCH** release (e.g., v1.0.0 → v1.0.1) for bug fixes (fix)
+- **MINOR** release (e.g., v1.0.1 → v1.1.0) for new features (feat)
+- **MAJOR** release (e.g., v1.1.0 → v2.0.0) for backward-incompatible changes (marked with BREAKING CHANGE:)
+
+## Documentation
+
+Adhere to the three-level documentation strategy:
+- **README.md** for a high-level overview
+- **/docs** for deep dives on complex systems
+- **Inline code comments** for specific logic
+
+When updating README.md, keep it focused on project setup, key features, and links to the /docs directory. Do not add detailed implementation specifics.
+
+For any complex feature (e.g., new integrations, complex data flows), create or update a dedicated markdown file in the /docs directory.
+
+Documentation in /docs must be explicit and AI-friendly, including:
+- Clear headings for structure
+- Specific file paths, function names, and environment variables
+- Explanations for architectural decisions (the "why," not just the "what")
+
+Use inline code comments to explain non-obvious logic or workarounds. Do not use comments to state what the code is already clearly doing.
+
+## Testing
+
+**Test Types:** Use Unit Tests for isolated logic (e.g., a utility function, a Pinia action) and Integration Tests to verify interactions between multiple parts of the system (e.g., an API route that interacts with the database).
+
+### Test Frameworks
+
+- **Backend:** Node.js built-in test runner for backend tests
+- **Frontend:** Vitest for Vue component and frontend logic tests
+- **Integration:** Custom integration test runner for end-to-end permission scenarios
+
+### Test Commands
+
+- **Run all tests:** `npm test`
+- **Backend only:** `npm run test:backend`
+- **Frontend only:** `npm run test:frontend`
+- **Integration tests:** `npm run test:integration`
+- **Watch mode:** `npm run test:watch`
+
+### Guidelines
+
+**Naming Convention:** Test descriptions must be clear and descriptive, following a "should [expected behavior] when [condition]" format. 
+
+Example: `it('should return a 403 error when a student tries to access admin routes')`
+
+**Mocking Dependencies:** All external services (Stripe, Google Mail) and database connections MUST be mocked or stubbed. Tests must not make live network requests to ensure they are fast and reliable.
+
+**Test Maintenance:** When refactoring or fixing a bug, the corresponding tests must be updated. If tests do not exist for the modified code, they must be added.
+
+**Pre-Merge Check:** Before a feature branch is merged into main, the entire test suite (`npm test`) must be run, and all tests must pass.
+
+### Git Hooks (Husky)
+
+The project uses Husky to automate quality checks through Git hooks:
+
+- **Pre-commit Hook:** Runs code quality checks on staged files
+  - Prevents commits with `console.log` statements in production code
+  - Fast checks to catch common issues early
+  
+- **Pre-push Hook:** Runs the complete test suite (`npm test`)
+  - Ensures all backend and frontend tests pass before pushing
+  - Prevents pushing broken code to the repository
+  - Automatically aborts push if any tests fail
+
+**Setup:** Husky is automatically configured. To reinstall hooks: `npx husky install`
+
+**Bypassing Hooks:** Only in emergencies, use `--no-verify` flag:
+```bash
+git commit --no-verify  # Skip pre-commit hook
+git push --no-verify    # Skip pre-push hook
+```
+
+## Vue Frontend
+
+- When creating a new component, generate it as a Single File Component (.vue)
+- Use Pinia for state management. Create actions for any mutations to the state
+- **Store Organization:** Create focused stores in `/frontend/src/stores/` (userStore.js, scheduleStore.js, etc.). Use actions for asynchronous operations and state mutations
+- **Build Tool:** Use Vite as the build system. Configure responsive breakpoints using vue3-mq for mobile-first design
+
+## Permissions and Authorization
+
+Use CASL (Code Access Security Layer) for all permission logic throughout the application.
+
+- **Permission Definitions:** Define user abilities in `/utils/abilities.js` using role-based rules with resource-specific conditions
+- **Frontend Integration:** Use @casl/vue in components with ability.can() checks. Import abilities from userStore
+- **Backend Integration:** Use authorize() middleware in routes with action/subject parameters. Use authorizeResource() and authorizeBooking() for resource-specific checks
+- **Time-based Restrictions:** Implement 24-hour booking modification policy for students (instructors and admins exempt)
+
+## Express Backend
+
+- All API routes must be defined in the `/routes` directory
+- Follow the RESTful API design pattern
+- Use async/await for all asynchronous operations
+- For database interactions, use sequelize. Do not write raw SQL queries
+
+## Integrations
+
+### Stripe
+- Use the environment variable `process.env.STRIPE_SECRET_KEY`. Never hardcode API keys
+- Stripe configuration is in `/config/stripe.js`
+
+### Google Services
+- Configure OAuth and calendar integration
+- Use googleapis library for Google Calendar integration
+
+### Email Templates
+- Use Handlebars templates in the `/email-templates` directory
+- **Structure:** 
+  - `base/` for layouts
+  - `contents/` for email content
+  - `partials/` for reusable components
+- Always use email template service for transactional emails
