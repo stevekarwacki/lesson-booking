@@ -1,0 +1,29 @@
+<div style="margin: 30px 0; text-align: center;">
+    {{#if title}}
+    <h3>{{title}}</h3>
+    {{/if}}
+    
+    {{#if description}}
+    <p>{{description}}</p>
+    {{/if}}
+    
+    {{#if primaryButton}}
+    <a href="{{primaryButton.url}}" class="btn btn-{{primaryButton.style}}" style="margin: 10px;">
+        {{primaryButton.text}}
+    </a>
+    {{/if}}
+    
+    {{#if secondaryButton}}
+    <a href="{{secondaryButton.url}}" class="btn btn-{{secondaryButton.style}}" style="margin: 10px;">
+        {{secondaryButton.text}}
+    </a>
+    {{/if}}
+    
+    {{#if buttons}}
+    {{#each buttons}}
+    <a href="{{url}}" class="btn btn-{{style}}" style="margin: 10px;">
+        {{text}}
+    </a>
+    {{/each}}
+    {{/if}}
+</div>

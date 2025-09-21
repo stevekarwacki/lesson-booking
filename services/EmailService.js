@@ -10,6 +10,7 @@ class EmailService {
         this.transporter = null;
         this.isConfigured = false;
         this.templateCache = new Map();
+        this.handlebarsInitialized = false;
         this.initializeTransporter();
     }
 
@@ -54,7 +55,64 @@ class EmailService {
         }
     }
 
+    async initializeHandlebars() {
+        if (this.handlebarsInitialized) {
+            return;
+        }
+
+        try {
+            // Register partials
+            const partialsDir = path.join(__dirname, '..', 'email-templates', 'partials');
+            const partialFiles = await fs.readdir(partialsDir);
+            
+            for (const file of partialFiles) {
+                if (file.endsWith('.html')) {
+                    const partialName = file.replace('.html', '');
+                    const partialPath = path.join(partialsDir, file);
+                    const partialContent = await fs.readFile(partialPath, 'utf8');
+                    handlebars.registerPartial(partialName, partialContent);
+                }
+            }
+
+            // Register helpers
+            handlebars.registerHelper('currentYear', () => new Date().getFullYear());
+            handlebars.registerHelper('formatDate', (date) => {
+                return new Date(date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            });
+            handlebars.registerHelper('formatTime', (time) => {
+                return time; // Already formatted in the service
+            });
+            handlebars.registerHelper('object', (...args) => {
+                // Remove the handlebars options object from the end
+                const options = args.pop();
+                const obj = {};
+                
+                // Parse key=value pairs
+                for (let i = 0; i < args.length; i += 2) {
+                    if (i + 1 < args.length) {
+                        obj[args[i]] = args[i + 1];
+                    }
+                }
+                return obj;
+            });
+
+            this.handlebarsInitialized = true;
+            console.log('Handlebars initialized with partials and helpers');
+        } catch (error) {
+            console.error('Failed to initialize Handlebars:', error);
+            throw error;
+        }
+    }
+
     async loadTemplate(templateName, templateFile = 'template.html') {
+        // Ensure Handlebars is initialized
+        await this.initializeHandlebars();
+
         const cacheKey = `${templateName}:${templateFile}`;
         
         // Return cached template if available
@@ -74,6 +132,46 @@ class EmailService {
             console.error(`Failed to load email template ${templateName}/${templateFile}:`, error);
             throw new Error(`Template loading failed: ${templateName}/${templateFile}`);
         }
+    }
+
+    async loadBaseTemplate(contentTemplate, templateData) {
+        // Ensure Handlebars is initialized
+        await this.initializeHandlebars();
+
+        const cacheKey = 'base:email-layout';
+        
+        let baseTemplate;
+        if (this.templateCache.has(cacheKey)) {
+            baseTemplate = this.templateCache.get(cacheKey);
+        } else {
+            const basePath = path.join(__dirname, '..', 'email-templates', 'base', 'email-layout.html');
+            const baseContent = await fs.readFile(basePath, 'utf8');
+            baseTemplate = handlebars.compile(baseContent);
+            this.templateCache.set(cacheKey, baseTemplate);
+        }
+
+        // Render the content template first
+        const contentHtml = contentTemplate(templateData);
+
+        // Then render the base template with the content
+        const baseData = {
+            ...templateData,
+            content: contentHtml,
+            companyName: process.env.COMPANY_NAME || 'Lesson Booking',
+            recipientEmail: templateData.recipientEmail || templateData.studentEmail || templateData.userEmail,
+            currentYear: new Date().getFullYear(),
+            supportUrl: process.env.SUPPORT_URL || '#',
+            unsubscribeUrl: templateData.unsubscribeUrl || '#',
+            preferencesUrl: templateData.preferencesUrl || '#',
+            socialLinks: {
+                website: process.env.WEBSITE_URL,
+                twitter: process.env.TWITTER_URL,
+                facebook: process.env.FACEBOOK_URL,
+                instagram: process.env.INSTAGRAM_URL
+            }
+        };
+
+        return baseTemplate(baseData);
     }
 
     async sendEmail(to, subject, htmlContent, textContent = null) {
@@ -247,6 +345,76 @@ class EmailService {
         });
     }
 
+    // Credits exhausted email
+    async sendCreditsExhausted(userId, totalLessonsCompleted = 0) {
+        try {
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            const subject = 'All Lesson Credits Used - Time to Restock!';
+            const htmlContent = await this.generateCreditsExhaustedHTML(user, totalLessonsCompleted);
+
+            return await this.sendEmail(user.email, subject, htmlContent);
+        } catch (error) {
+            console.error('Failed to send credits exhausted email:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async generateCreditsExhaustedHTML(user, totalLessonsCompleted) {
+        // Load the content template
+        const contentTemplate = await this.loadTemplate('credits-exhausted', 'content.html');
+        
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Credits Exhausted - Get More Lessons',
+            headerTitle: '🎯 All Credits Used!',
+            headerSubtitle: 'Great progress - time to get more lessons',
+            
+            // Recipient info
+            studentName: user.name,
+            studentEmail: user.email,
+            totalLessonsCompleted: totalLessonsCompleted,
+            
+            // Next steps
+            steps: [
+                {
+                    icon: '💳',
+                    title: 'Choose Your Package',
+                    description: 'Browse our flexible lesson packages to find the perfect fit for your learning goals'
+                },
+                {
+                    icon: '⚡',
+                    title: 'Instant Access',
+                    description: 'Credits are added immediately after purchase - start booking right away'
+                },
+                {
+                    icon: '📅',
+                    title: 'Book Your Next Lesson',
+                    description: 'Continue your learning momentum with your favorite instructors'
+                }
+            ],
+            
+            // CTA buttons
+            purchaseButton: {
+                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/plans` : '#',
+                text: 'Purchase Credits',
+                style: 'primary'
+            },
+            supportButton: {
+                url: process.env.SUPPORT_URL || '#',
+                text: 'Contact Support',
+                style: 'secondary'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
+    }
+
     // Lesson booking confirmation email
     async sendBookingConfirmation(bookingData, paymentMethod = 'credits') {
         try {
@@ -299,18 +467,63 @@ class EmailService {
         const paymentDisplay = paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card';
         const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
 
-        const template = await this.loadTemplate('booking-confirmation');
+        // Load the content template
+        const contentTemplate = await this.loadTemplate('booking-confirmation', 'content.html');
         
-        return template({
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Lesson Booking Confirmed',
+            headerTitle: '✅ Lesson Booked Successfully!',
+            headerSubtitle: 'Your lesson has been confirmed',
+            
+            // Recipient info
             studentName: booking.student.name,
+            studentEmail: booking.student.email,
+            
+            // Lesson details
             lessonDate: lessonDate,
             startTime: startTime,
             endTime: endTime,
             instructorName: instructorName,
             duration: booking.duration * 15,
             paymentDisplay: paymentDisplay,
-            bookingId: booking.id
-        });
+            bookingId: booking.id,
+            
+            // Next steps
+            nextSteps: [
+                {
+                    icon: '📅',
+                    title: 'Add to Calendar',
+                    description: 'Click the attached calendar file (.ics) to automatically add this lesson to your calendar'
+                },
+                {
+                    icon: '📝',
+                    title: 'Prepare Materials',
+                    description: 'Gather any materials you\'d like to work on during your lesson'
+                },
+                {
+                    icon: '💬',
+                    title: 'Contact Instructor',
+                    description: 'Reach out if you have any questions or special requests'
+                }
+            ],
+            
+            // CTA buttons
+            primaryButton: {
+                url: process.env.FRONTEND_URL || '#',
+                text: 'View Dashboard',
+                style: 'primary'
+            },
+            secondaryButton: {
+                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/bookings` : '#',
+                text: 'Manage Bookings',
+                style: 'secondary'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
     }
 
     async generateReschedulingHTML(oldBooking, newBooking, recipientType) {

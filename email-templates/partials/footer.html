@@ -1,0 +1,40 @@
+<p>
+    <strong>{{companyName}}</strong><br>
+    Making learning accessible through personalized lessons
+</p>
+
+{{#if unsubscribeUrl}}
+<p>
+    <a href="{{unsubscribeUrl}}">Unsubscribe</a> | 
+    <a href="{{preferencesUrl}}">Email Preferences</a> | 
+    <a href="{{supportUrl}}">Support</a>
+</p>
+{{/if}}
+
+<div class="social-links">
+    {{#if socialLinks.website}}
+    <a href="{{socialLinks.website}}" title="Visit our website">🌐</a>
+    {{/if}}
+    {{#if socialLinks.twitter}}
+    <a href="{{socialLinks.twitter}}" title="Follow us on Twitter">🐦</a>
+    {{/if}}
+    {{#if socialLinks.facebook}}
+    <a href="{{socialLinks.facebook}}" title="Like us on Facebook">📘</a>
+    {{/if}}
+    {{#if socialLinks.instagram}}
+    <a href="{{socialLinks.instagram}}" title="Follow us on Instagram">📷</a>
+    {{/if}}
+</div>
+
+<p style="margin-top: 20px; font-size: 12px; color: #999;">
+    This email was sent to {{recipientEmail}}.<br>
+    {{#if companyAddress}}
+    {{companyAddress}}<br>
+    {{/if}}
+    © {{currentYear}} {{companyName}}. All rights reserved.
+</p>
+
+<p style="font-size: 11px; color: #999; margin-top: 15px;">
+    This is an automated email. Please do not reply directly to this message.
+    For support, please contact us through our <a href="{{supportUrl}}">support center</a>.
+</p>

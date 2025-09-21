@@ -54,46 +54,12 @@ class CronJobService {
     async checkLowBalanceUsers() {
         console.log('Running low balance check...');
         
-        try {
-            // Get all users with the 'student' role
-            const students = await User.findAll({
-                where: { role: 'student' },
-                attributes: ['id', 'name', 'email']
-            });
-
-            let emailsSent = 0;
-            const lowBalanceThreshold = 2; // Send warning when 2 or fewer credits remain
-
-            for (const student of students) {
-                try {
-                    const credits = await Credits.getUserCredits(student.id);
-                    
-                    // Check if user has low balance (2 or fewer credits)
-                    if (credits.total_credits <= lowBalanceThreshold && credits.total_credits > 0) {
-                        // TODO: Add logic to check if we've already sent a warning recently
-                        // For now, we'll send every time the job runs
-                        
-                        try {
-                            const emailJobId = await emailQueueService.queueLowBalanceWarning(
-                                student.id, 
-                                credits.total_credits
-                            );
-                            
-                            emailsSent++;
-                            console.log(`Low balance warning queued for ${student.email} (${credits.total_credits} credits remaining, Job ID: ${emailJobId})`);
-                        } catch (error) {
-                            console.error(`Failed to queue low balance warning for ${student.email}:`, error);
-                        }
-                    }
-                } catch (error) {
-                    console.error(`Error checking credits for user ${student.id}:`, error);
-                }
-            }
-
-            console.log(`Low balance check completed. Emails queued: ${emailsSent}`);
-        } catch (error) {
-            console.error('Error during low balance check:', error);
-        }
+        // NOTE: Credit monitoring is now handled real-time during booking
+        // This cron job is kept for future use (maybe monthly summaries, etc.)
+        // but no longer sends credit warnings to prevent spam
+        
+        console.log('Credit monitoring is handled real-time during booking. Cron job disabled for credits.');
+        console.log('Low balance check completed (no action taken).');
     }
 
     // Stop a specific job

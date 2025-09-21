@@ -1,0 +1,22 @@
+<div style="margin: 25px 0;">
+    <h3>{{title}}</h3>
+    
+    {{#if description}}
+    <p>{{description}}</p>
+    {{/if}}
+    
+    <ul style="list-style: none; padding: 0;">
+        {{#each steps}}
+        <li style="margin: 12px 0; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">
+            <span class="icon">{{icon}}</span>
+            <strong>{{title}}:</strong> {{description}}
+        </li>
+        {{/each}}
+    </ul>
+    
+    {{#if footerNote}}
+    <p style="font-style: italic; color: #6c757d; margin-top: 20px;">
+        {{footerNote}}
+    </p>
+    {{/if}}
+</div>

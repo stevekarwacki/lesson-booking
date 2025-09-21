@@ -119,6 +119,13 @@ class EmailQueueService {
                     );
                     break;
 
+                case 'credits_exhausted':
+                    result = await emailService.sendCreditsExhausted(
+                        job.data.userId,
+                        job.data.totalLessonsCompleted
+                    );
+                    break;
+
                 default:
                     throw new Error(`Unknown email type: ${job.type}`);
             }
@@ -199,6 +206,16 @@ class EmailQueueService {
             userId,
             creditsRemaining
         }, 'normal');
+    }
+
+    /**
+     * Queue a credits exhausted email
+     */
+    async queueCreditsExhausted(userId, totalLessonsCompleted = 0) {
+        return this.queueEmail('credits_exhausted', {
+            userId,
+            totalLessonsCompleted
+        }, 'high'); // High priority since user can't book without credits
     }
 
     /**

@@ -144,6 +144,14 @@ const Credits = {
             }, { transaction });
 
             await transaction.commit();
+            
+            // Check credits after successful deduction for real-time monitoring
+            try {
+                await this.checkUserCreditsStatus(userId);
+            } catch (emailError) {
+                // Don't fail the credit usage if email fails
+                console.error('Email notification error after credit usage:', emailError);
+            }
         } catch (error) {
             await transaction.rollback();
             throw error;
@@ -153,6 +161,64 @@ const Credits = {
     hasSufficientCredits: async (userId) => {
         const credits = await Credits.getUserCredits(userId);
         return credits.total_credits > 0;
+    },
+
+    checkUserCreditsStatus: async (userId) => {
+        const emailQueueService = require('../services/EmailQueueService');
+        const { User } = require('./User');
+        
+        try {
+            const credits = await Credits.getUserCredits(userId);
+            const user = await User.findByPk(userId);
+            
+            if (!user) {
+                console.error(`User ${userId} not found for credit status check`);
+                return;
+            }
+
+            const currentCredits = credits.total_credits;
+            
+            // Get previous credit level from last time we checked
+            const cacheKey = `last_credit_check_${userId}`;
+            const lastCredits = Credits._creditCheckCache?.get(cacheKey) || null;
+            
+            // Initialize cache if it doesn't exist
+            if (!Credits._creditCheckCache) {
+                Credits._creditCheckCache = new Map();
+            }
+            
+            // Store current credit level for next check
+            Credits._creditCheckCache.set(cacheKey, currentCredits);
+            
+            // Only send emails when crossing thresholds downward
+            
+            // Credits exhausted: send only when going from >0 to 0
+            if (currentCredits === 0 && lastCredits !== null && lastCredits > 0) {
+                console.log(`User ${user.email} crossed threshold: ${lastCredits} → 0 credits - sending exhausted notification`);
+                
+                const completedLessons = await CreditUsage.count({
+                    where: { user_id: userId }
+                });
+                
+                await emailQueueService.queueCreditsExhausted(userId, completedLessons);
+            }
+            // Low balance warning: send only when going from >2 to ≤2 (but not 0)
+            else if (currentCredits <= 2 && currentCredits > 0 && lastCredits !== null && lastCredits > 2) {
+                console.log(`User ${user.email} crossed threshold: ${lastCredits} → ${currentCredits} credits - sending low balance warning`);
+                await emailQueueService.queueLowBalanceWarning(userId, currentCredits);
+            }
+            // First time checking (lastCredits is null) - only for truly new users
+            // In production, this would only happen for users who have never had their credits checked
+            // We're being conservative and NOT sending emails on first check to avoid spam
+            // No email needed - either credits increased or no threshold crossed
+            else {
+                console.log(`User ${user.email}: ${lastCredits} → ${currentCredits} credits (no email needed)`);
+            }
+            
+        } catch (error) {
+            console.error('Error checking user credit status:', error);
+            throw error;
+        }
     }
 };
 
