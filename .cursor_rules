@@ -142,6 +142,30 @@ Use CASL (Code Access Security Layer) for all permission logic throughout the ap
 - Use the environment variable `process.env.STRIPE_SECRET_KEY`. Never hardcode API keys
 - Stripe configuration is in `/config/stripe.js`
 
+## CRITICAL SECURITY RULES
+
+**NEVER UNDER ANY CIRCUMSTANCES:**
+- Add API keys, tokens, passwords, or any sensitive credentials to code files
+- Commit environment variables containing real credentials to the repository
+- Include test keys, even official Stripe test keys, directly in source code
+- Store any form of authentication data in version control
+
+**FOR TESTING:**
+- Use environment variables or test configuration files that are git-ignored
+- Mock external API calls instead of using real or test credentials
+- If test keys are absolutely required, they must be loaded from environment variables only
+- All sensitive data must be kept out of the codebase entirely
+
+## TERMINAL COMMAND EXECUTION RULES
+
+**COMMAND EXECUTION BEHAVIOR:**
+- After running a terminal command, do NOT wait indefinitely for output
+- Assume commands complete successfully unless the user reports an error
+- Continue with the next step in the workflow immediately after running a command
+- Only investigate command failures if explicitly told by the user that something went wrong
+- Do not use timeouts on terminal commands - let them complete naturally
+- If a command appears to hang, continue with workflow - the user can see output and will report issues
+
 ### Google Services
 - Configure OAuth and calendar integration
 - Use googleapis library for Google Calendar integration
