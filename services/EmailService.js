@@ -134,6 +134,31 @@ class EmailService {
         }
     }
 
+    async loadContentTemplate(templateName) {
+        // Ensure Handlebars is initialized
+        await this.initializeHandlebars();
+
+        const cacheKey = `content:${templateName}`;
+        
+        // Return cached template if available
+        if (this.templateCache.has(cacheKey)) {
+            return this.templateCache.get(cacheKey);
+        }
+
+        try {
+            const templatePath = path.join(__dirname, '..', 'email-templates', 'contents', `${templateName}.html`);
+            const templateContent = await fs.readFile(templatePath, 'utf8');
+            const compiledTemplate = handlebars.compile(templateContent);
+            
+            // Cache the compiled template
+            this.templateCache.set(cacheKey, compiledTemplate);
+            return compiledTemplate;
+        } catch (error) {
+            console.error(`Failed to load content template ${templateName}:`, error);
+            throw new Error(`Content template loading failed: ${templateName}`);
+        }
+    }
+
     async loadBaseTemplate(contentTemplate, templateData) {
         // Ensure Handlebars is initialized
         await this.initializeHandlebars();
@@ -273,17 +298,62 @@ class EmailService {
     }
 
     async generatePurchaseConfirmationHTML(user, planDetails, transactionDetails) {
-        const template = await this.loadTemplate('purchase-confirmation');
+        // Load the content template
+        const contentTemplate = await this.loadContentTemplate('purchase-confirmation');
         
-        return template({
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Purchase Confirmation - Lesson Credits',
+            headerTitle: '🎉 Purchase Successful!',
+            headerSubtitle: 'Your lesson credits have been added',
+            
+            // Recipient info
             userName: user.name,
+            userEmail: user.email,
+            
+            // Purchase details
             planName: planDetails.name,
             planCredits: planDetails.credits,
             transactionAmount: transactionDetails.amount,
             paymentMethod: transactionDetails.payment_method,
             transactionDate: new Date().toLocaleDateString(),
-            transactionId: transactionDetails.payment_intent_id
-        });
+            transactionId: transactionDetails.payment_intent_id,
+            
+            // Next steps
+            nextSteps: [
+                {
+                    icon: '🎯',
+                    title: 'Browse Instructors',
+                    description: 'Find the perfect instructor for your learning goals and schedule'
+                },
+                {
+                    icon: '📅',
+                    title: 'Book Your First Lesson',
+                    description: 'Use your new credits to schedule a lesson at your convenience'
+                },
+                {
+                    icon: '🚀',
+                    title: 'Start Learning',
+                    description: 'Join your lesson and begin your educational journey'
+                }
+            ],
+            
+            // CTA buttons
+            dashboardButton: {
+                url: process.env.FRONTEND_URL || '#',
+                text: 'View Dashboard',
+                style: 'primary'
+            },
+            bookingButton: {
+                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/instructors` : '#',
+                text: 'Book a Lesson',
+                style: 'success'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
     }
 
     // Low balance warning email (for future use with cron jobs)
@@ -337,12 +407,55 @@ class EmailService {
     }
 
     async generateLowBalanceHTML(user, creditsRemaining) {
-        const template = await this.loadTemplate('low-balance-warning');
+        // Load the content template
+        const contentTemplate = await this.loadContentTemplate('low-balance-warning');
         
-        return template({
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Low Credit Balance Warning',
+            headerTitle: '⚠️ Credits Running Low',
+            headerSubtitle: 'Time to restock your lesson credits',
+            
+            // Recipient info
             userName: user.name,
-            creditsRemaining: creditsRemaining
-        });
+            userEmail: user.email,
+            creditsRemaining: creditsRemaining,
+            
+            // Next steps
+            nextSteps: [
+                {
+                    icon: '💳',
+                    title: 'Choose Your Package',
+                    description: 'Select from our flexible lesson packages to suit your learning needs'
+                },
+                {
+                    icon: '⚡',
+                    title: 'Instant Credit Add',
+                    description: 'Credits are added immediately after purchase - no waiting time'
+                },
+                {
+                    icon: '📚',
+                    title: 'Continue Learning',
+                    description: 'Keep your learning momentum going without interruption'
+                }
+            ],
+            
+            // CTA buttons
+            purchaseButton: {
+                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/plans` : '#',
+                text: 'Purchase Credits',
+                style: 'warning'
+            },
+            dashboardButton: {
+                url: process.env.FRONTEND_URL || '#',
+                text: 'View Dashboard',
+                style: 'secondary'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
     }
 
     // Credits exhausted email
@@ -365,7 +478,7 @@ class EmailService {
 
     async generateCreditsExhaustedHTML(user, totalLessonsCompleted) {
         // Load the content template
-        const contentTemplate = await this.loadTemplate('credits-exhausted', 'content.html');
+        const contentTemplate = await this.loadContentTemplate('credits-exhausted');
         
         // Prepare template data
         const templateData = {
@@ -468,7 +581,7 @@ class EmailService {
         const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
 
         // Load the content template
-        const contentTemplate = await this.loadTemplate('booking-confirmation', 'content.html');
+        const contentTemplate = await this.loadContentTemplate('booking-confirmation');
         
         // Prepare template data
         const templateData = {
@@ -563,12 +676,23 @@ class EmailService {
         const otherPartyRole = isForStudent ? 'instructor' : 'student';
 
         // Load appropriate template based on recipient type
-        const templateFile = isForStudent ? 'student-template.html' : 'instructor-template.html';
-        const template = await this.loadTemplate('rescheduling-notification', templateFile);
+        const templateName = isForStudent ? 'rescheduling-student' : 'rescheduling-instructor';
+        const contentTemplate = await this.loadContentTemplate(templateName);
         
-        return template({
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Lesson Rescheduled',
+            headerTitle: '📅 Lesson Rescheduled',
+            headerSubtitle: isForStudent ? 'Your lesson has been moved to a new time' : `${newBooking.student?.name} has rescheduled their lesson`,
+            
+            // Recipient info
             studentName: newBooking.student?.name,
+            studentEmail: newBooking.student?.email,
             instructorName: newBooking.Instructor?.User?.name,
+            instructorEmail: newBooking.Instructor?.User?.email,
+            
+            // Lesson details
             oldDate: oldDate,
             oldStartTime: oldStartTime,
             oldEndTime: oldEndTime,
@@ -577,8 +701,42 @@ class EmailService {
             newStartTime: newStartTime,
             newEndTime: newEndTime,
             newDuration: newBooking.duration * 15,
-            bookingId: newBooking.id
-        });
+            bookingId: newBooking.id,
+            
+            // Next steps
+            nextSteps: [
+                {
+                    icon: '📅',
+                    title: 'Update Your Calendar',
+                    description: 'Click the attached calendar file (.ics) to update this lesson in your calendar'
+                },
+                {
+                    icon: '📝',
+                    title: 'Review Materials',
+                    description: 'Review any materials you\'ve prepared for the lesson'
+                },
+                {
+                    icon: '💬',
+                    title: `Contact Your ${isForStudent ? 'Instructor' : 'Student'}`,
+                    description: `Reach out if you have any questions about the change`
+                }
+            ],
+            
+            // CTA buttons
+            dashboardButton: {
+                url: process.env.FRONTEND_URL || '#',
+                text: 'View Dashboard',
+                style: 'primary'
+            },
+            contactButton: {
+                url: process.env.SUPPORT_URL || '#',
+                text: 'Contact Support',
+                style: 'secondary'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
     }
 
     // Generate calendar attachment for booking

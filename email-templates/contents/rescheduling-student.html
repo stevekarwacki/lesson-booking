@@ -1,0 +1,35 @@
+<p>Hello {{studentName}},</p>
+
+<p>Your lesson has been successfully rescheduled. Here are the updated details:</p>
+
+{{> lesson-details 
+    sectionTitle="📋 Lesson Changes"
+    boxStyle="primary"
+    showComparison=true
+    oldDate=oldDate
+    oldStartTime=oldStartTime
+    oldEndTime=oldEndTime
+    oldDuration=oldDuration
+    newDate=newDate
+    newStartTime=newStartTime
+    newEndTime=newEndTime
+    newDuration=newDuration
+    instructorName=instructorName
+    instructorLabel="Instructor"
+    bookingId=bookingId
+}}
+
+{{> next-steps 
+    title="What's Next?"
+    steps=nextSteps
+    footerNote="Thank you for your flexibility!"
+}}
+
+{{> cta-section
+    primaryButton=dashboardButton
+    secondaryButton=contactButton
+}}
+
+<p>If you have any questions about the rescheduled lesson, please don't hesitate to contact your instructor or our support team.</p>
+
+<p>Best regards,<br>The Lesson Booking Team</p>
