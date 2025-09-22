@@ -31,4 +31,5 @@ const config = {
     }
 };
 
-module.exports = config[process.env.NODE_ENV || 'development']; 
+// Export full config for CLI, individual config for app
+module.exports = process.env.SEQUELIZE_CLI ? config : config[process.env.NODE_ENV || 'development']; 

@@ -5,6 +5,7 @@ const { User } = require('../models/User');
 const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Subscription } = require('../models/Subscription');
+const { AppSettings } = require('../models/AppSettings');
 const { authorize, authorizeUserAccess } = require('../middleware/permissions');
 const emailQueueService = require('../services/EmailQueueService');
 const cronJobService = require('../services/CronJobService');
@@ -721,36 +722,42 @@ router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, r
 // Get all settings
 router.get('/settings', authorize('manage', 'User'), async (req, res) => {
     try {
-        // TODO: Replace with actual database queries
+        // Get business settings from database
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
+        // Provide default values for missing settings
+        const business = {
+            companyName: businessSettings.company_name || '',
+            contactEmail: businessSettings.contact_email || '',
+            phoneNumber: businessSettings.phone_number || '',
+            website: businessSettings.base_url || '',
+            address: businessSettings.address || '',
+            // Complex objects will be implemented later
+            socialMedia: {
+                facebook: '',
+                twitter: '',
+                instagram: '',
+                linkedin: ''
+            },
+            businessHours: {
+                monday: { isOpen: true, open: '09:00', close: '17:00' },
+                tuesday: { isOpen: true, open: '09:00', close: '17:00' },
+                wednesday: { isOpen: true, open: '09:00', close: '17:00' },
+                thursday: { isOpen: true, open: '09:00', close: '17:00' },
+                friday: { isOpen: true, open: '09:00', close: '17:00' },
+                saturday: { isOpen: false, open: '09:00', close: '17:00' },
+                sunday: { isOpen: false, open: '09:00', close: '17:00' }
+            }
+        };
+        
         const settings = {
+            business,
+            // Placeholder for theme and email settings
             theme: {
                 primaryColor: '#28a745',
                 secondaryColor: '#20c997',
                 palette: 'Forest Green',
                 logoUrl: null
-            },
-            business: {
-                companyName: 'Lesson Booking App',
-                contactEmail: 'contact@lessonbooking.com',
-                phoneNumber: '',
-                website: '',
-                address: '',
-                description: '',
-                socialMedia: {
-                    facebook: '',
-                    twitter: '',
-                    instagram: '',
-                    linkedin: ''
-                },
-                businessHours: {
-                    monday: { isOpen: true, open: '09:00', close: '17:00' },
-                    tuesday: { isOpen: true, open: '09:00', close: '17:00' },
-                    wednesday: { isOpen: true, open: '09:00', close: '17:00' },
-                    thursday: { isOpen: true, open: '09:00', close: '17:00' },
-                    friday: { isOpen: true, open: '09:00', close: '17:00' },
-                    saturday: { isOpen: false, open: '09:00', close: '17:00' },
-                    sunday: { isOpen: false, open: '09:00', close: '17:00' }
-                }
             },
             email: {
                 fromName: 'Lesson Booking App',
@@ -773,18 +780,71 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
         const { category } = req.params;
         const settingsData = req.body;
         
-        // TODO: Implement actual database updates
-        // Log settings updates for development (remove in production)
-        
-        // For now, just return the submitted data as confirmation
-        res.json({
-            success: true,
-            message: `${category} settings updated successfully`,
-            data: settingsData
-        });
+        if (category === 'business') {
+            // Handle business settings with validation
+            const businessFields = {
+                company_name: settingsData.companyName,
+                contact_email: settingsData.contactEmail,
+                phone_number: settingsData.phoneNumber,
+                base_url: settingsData.website,
+                address: settingsData.address
+            };
+            
+            // Validate each field
+            const validatedFields = {};
+            const errors = {};
+            
+            for (const [key, value] of Object.entries(businessFields)) {
+                try {
+                    const validatedValue = AppSettings.validateBusinessSetting(key, value);
+                    if (validatedValue !== null) {
+                        validatedFields[key] = validatedValue;
+                    }
+                } catch (error) {
+                    errors[key] = error.message;
+                }
+            }
+            
+            // If there are validation errors, return them
+            if (Object.keys(errors).length > 0) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: errors
+                });
+            }
+            
+            // Save validated settings to database
+            await AppSettings.setMultipleSettings('business', validatedFields, req.user.id);
+            
+            // Convert back to frontend format for consistent data flow
+            const frontendFormat = {
+                companyName: validatedFields.company_name || '',
+                contactEmail: validatedFields.contact_email || '',
+                phoneNumber: validatedFields.phone_number || '',
+                website: validatedFields.base_url || '',
+                address: validatedFields.address || ''
+            };
+            
+            res.json({
+                success: true,
+                message: 'Business settings updated successfully',
+                data: frontendFormat
+            });
+            
+        } else {
+            // Handle other categories (theme, email) - placeholder for now
+            res.json({
+                success: true,
+                message: `${category} settings updated successfully`,
+                data: settingsData
+            });
+        }
     } catch (error) {
         console.error('Error updating settings:', error);
-        res.status(500).json({ error: 'Error updating settings' });
+        res.status(500).json({ 
+            error: 'Error updating settings',
+            message: 'An unexpected error occurred while saving settings'
+        });
     }
 });
 

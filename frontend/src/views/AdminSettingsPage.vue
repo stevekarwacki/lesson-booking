@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
 import SettingsTabs from '../components/SettingsTabs.vue'
@@ -11,29 +11,30 @@ const userStore = useUserStore()
 const router = useRouter()
 
 // Settings state
-const currentSection = ref('theme')
+const currentSection = ref('business')
 const settingsData = ref({})
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
 
-// Tab configuration
-const settingsTabs = [
-  {
-    id: 'theme',
-    label: 'Theme & Branding',
-    component: ThemeConfigSection,
-    props: {
-      initialData: () => settingsData.value.theme || {},
-      loading: loading.value
-    }
-  },
+// Tab configuration - using computed to make props reactive
+const settingsTabs = computed(() => [
   {
     id: 'business',
     label: 'Business Information',
     component: BusinessInfoSection,
     props: {
-      initialData: () => settingsData.value.business || {},
+      initialData: settingsData.value.business || {},
+      loading: loading.value,
+      clearErrors: success.value ? Date.now() : null
+    }
+  },
+  {
+    id: 'theme',
+    label: 'Theme & Branding',
+    component: ThemeConfigSection,
+    props: {
+      initialData: settingsData.value.theme || {},
       loading: loading.value
     }
   },
@@ -44,11 +45,11 @@ const settingsTabs = [
     badge: 'Future',
     disabled: true, // Enable when WYSIWYG is implemented
     props: {
-      initialData: () => settingsData.value.email || {},
+      initialData: settingsData.value.email || {},
       loading: loading.value
     }
   }
-]
+])
 
 // Methods
 const loadSettings = async () => {
@@ -103,6 +104,15 @@ const handleContentChange = async (data) => {
     
     if (!response.ok) {
       const errorData = await response.json()
+      
+      // Handle validation errors specially
+      if (response.status === 400 && errorData.details) {
+        const fieldErrors = Object.entries(errorData.details)
+          .map(([field, message]) => `${field}: ${message}`)
+          .join(', ')
+        throw new Error(`Validation failed: ${fieldErrors}`)
+      }
+      
       throw new Error(errorData.message || 'Failed to save settings')
     }
     
@@ -114,7 +124,10 @@ const handleContentChange = async (data) => {
       [tabId]: result.data
     }
     
-    success.value = `${settingsTabs.find(t => t.id === tabId)?.label} updated successfully`
+    // Clear any component-level validation errors on successful save
+    // This will trigger reactive updates in child components
+    
+    success.value = `${settingsTabs.value.find(t => t.id === tabId)?.label} updated successfully`
     
     // Clear success message after 3 seconds
     setTimeout(() => {
@@ -153,13 +166,11 @@ onMounted(() => {
     
     <!-- Global Messages -->
     <div v-if="error" class="message error-message">
-      <span class="message-icon">⚠️</span>
       <span class="message-text">{{ error }}</span>
       <button class="message-close" @click="error = ''" aria-label="Close error">&times;</button>
     </div>
     
     <div v-if="success" class="message success-message">
-      <span class="message-icon">✅</span>
       <span class="message-text">{{ success }}</span>
       <button class="message-close" @click="success = ''" aria-label="Close success">&times;</button>
     </div>
@@ -169,7 +180,7 @@ onMounted(() => {
       <SettingsTabs
         :tabs="settingsTabs"
         :initial-tab="currentSection"
-        default-tab-id="theme"
+        default-tab-id="business"
         @tab-change="handleTabChange"
         @content-change="handleContentChange"
       />
@@ -238,11 +249,6 @@ onMounted(() => {
   background: #f0fdf4;
   color: #16a34a;
   border: 1px solid #bbf7d0;
-}
-
-.message-icon {
-  font-size: 1.2rem;
-  flex-shrink: 0;
 }
 
 .message-text {

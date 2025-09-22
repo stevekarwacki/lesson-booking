@@ -90,20 +90,20 @@ const handleLogout = () => {
                     Packages
                 </router-link>
                 <router-link 
-                    v-if="canManageUsers"
-                    to="/admin/settings" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Settings
-                </router-link>
-                <router-link 
                     v-if="canManageAllInstructorAvailability && $mq.lgPlus"
                     to="/admin/availability" 
                     class="nav-link"
                     @click="closeMenu"
                 >
                     Instructor Availability
+                </router-link>
+                <router-link 
+                    v-if="canManageUsers"
+                    to="/admin/settings" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Settings
                 </router-link>
 
                 <!-- Calendar Management (Instructors only, not admins) -->

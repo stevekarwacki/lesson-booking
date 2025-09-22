@@ -1,0 +1,177 @@
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../db/index');
+
+const AppSettings = sequelize.define('AppSettings', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    category: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isIn: [['business', 'theme', 'email']]
+        }
+    },
+    key: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            len: [1, 100]
+        }
+    },
+    value: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    updated_by: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    }
+}, {
+    tableName: 'app_settings',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+        {
+            unique: true,
+            fields: ['category', 'key']
+        }
+    ]
+});
+
+// Static methods for easier CRUD operations
+AppSettings.getSetting = async function(category, key) {
+    const setting = await this.findOne({
+        where: { category, key }
+    });
+    return setting ? setting.value : null;
+};
+
+AppSettings.setSetting = async function(category, key, value, updatedBy) {
+    // Input sanitization
+    const sanitizedValue = typeof value === 'string' ? value.trim() : value;
+    
+    const [setting, created] = await this.upsert({
+        category,
+        key,
+        value: sanitizedValue,
+        updated_by: updatedBy
+    });
+    
+    return setting;
+};
+
+AppSettings.getSettingsByCategory = async function(category) {
+    const settings = await this.findAll({
+        where: { category },
+        order: [['key', 'ASC']]
+    });
+    
+    // Convert to key-value object
+    const result = {};
+    settings.forEach(setting => {
+        result[setting.key] = setting.value;
+    });
+    
+    return result;
+};
+
+AppSettings.setMultipleSettings = async function(category, keyValuePairs, updatedBy) {
+    const transaction = await sequelize.transaction();
+    
+    try {
+        const results = [];
+        
+        for (const [key, value] of Object.entries(keyValuePairs)) {
+            const sanitizedValue = typeof value === 'string' ? value.trim() : value;
+            
+            const [setting] = await this.upsert({
+                category,
+                key,
+                value: sanitizedValue,
+                updated_by: updatedBy
+            }, { transaction });
+            
+            results.push(setting);
+        }
+        
+        await transaction.commit();
+        return results;
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
+
+// Validation helpers
+AppSettings.validateBusinessSetting = function(key, value) {
+    if (!value || typeof value !== 'string') {
+        return null; // Allow empty values for optional fields
+    }
+
+    const trimmedValue = value.trim();
+    
+    switch (key) {
+        case 'company_name':
+            if (trimmedValue.length < 1) {
+                throw new Error('Company name is required');
+            }
+            if (trimmedValue.length > 100) {
+                throw new Error('Company name must be 100 characters or less');
+            }
+            break;
+            
+        case 'contact_email':
+            if (trimmedValue.length < 1) {
+                throw new Error('Contact email is required');
+            }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(trimmedValue)) {
+                throw new Error('Please enter a valid email address');
+            }
+            break;
+            
+        case 'phone_number':
+            if (trimmedValue.length > 0) {
+                // Basic phone validation - allows various formats
+                const phoneRegex = /^[\+]?[(]?[\d\s\-\(\)\.]{7,20}$/;
+                if (!phoneRegex.test(trimmedValue)) {
+                    throw new Error('Please enter a valid phone number');
+                }
+            }
+            break;
+            
+        case 'base_url':
+            if (trimmedValue.length > 0) {
+                try {
+                    new URL(trimmedValue);
+                } catch {
+                    throw new Error('Please enter a valid URL (e.g., https://example.com)');
+                }
+            }
+            break;
+            
+        case 'address':
+            if (trimmedValue.length > 500) {
+                throw new Error('Address must be 500 characters or less');
+            }
+            break;
+            
+        default:
+            // Allow other keys without specific validation
+            if (trimmedValue.length > 1000) {
+                throw new Error('Value must be 1000 characters or less');
+            }
+    }
+    
+    return trimmedValue;
+};
+
+module.exports = { AppSettings };

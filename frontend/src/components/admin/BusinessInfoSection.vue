@@ -68,10 +68,10 @@
           </span>
         </div>
         
-        <!-- Website -->
+        <!-- Base URL -->
         <div class="form-group">
           <label for="website" class="form-label">
-            Website
+            Base URL
           </label>
           <input
             id="website"
@@ -88,44 +88,22 @@
         </div>
         
         <!-- Business Address -->
-        <div class="form-group full-width">
+        <div class="form-group">
           <label for="address" class="form-label">
             Business Address
           </label>
-          <textarea
+          <input
             id="address"
             v-model="formData.address"
-            class="form-textarea"
+            type="text"
+            class="form-input"
             :class="{ error: errors.address }"
-            placeholder="123 Main Street&#10;City, State 12345&#10;Country"
-            rows="3"
+            placeholder="123 Main Street, City, State 12345"
             :disabled="loading"
-          ></textarea>
+          />
           <span v-if="errors.address" class="error-message">
             {{ errors.address }}
           </span>
-        </div>
-        
-        <!-- Business Description -->
-        <div class="form-group full-width">
-          <label for="description" class="form-label">
-            Business Description
-          </label>
-          <textarea
-            id="description"
-            v-model="formData.description"
-            class="form-textarea"
-            :class="{ error: errors.description }"
-            placeholder="Brief description of your business and services..."
-            rows="4"
-            :disabled="loading"
-          ></textarea>
-          <span v-if="errors.description" class="error-message">
-            {{ errors.description }}
-          </span>
-          <div class="character-count">
-            {{ formData.description.length }}/500 characters
-          </div>
         </div>
       </div>
       
@@ -274,6 +252,10 @@ export default {
     loading: {
       type: Boolean,
       default: false
+    },
+    clearErrors: {
+      type: [Number, null],
+      default: null
     }
   },
   
@@ -284,10 +266,9 @@ export default {
     const formData = reactive({
       companyName: '',
       contactEmail: '',
-      phoneNumber: '',
       website: '',
+      phoneNumber: '',
       address: '',
-      description: '',
       socialMedia: {
         facebook: '',
         twitter: '',
@@ -362,12 +343,6 @@ export default {
             errors[field] = 'Please enter a valid website URL'
           }
           break
-          
-        case 'description':
-          if (value && value.length > 500) {
-            errors[field] = 'Description must be 500 characters or less'
-          }
-          break
       }
     }
     
@@ -393,15 +368,22 @@ export default {
     }
     
     const saveBusinessInfo = () => {
+      // Clear existing errors first
+      Object.keys(errors).forEach(key => delete errors[key])
+      
       // Validate all fields before saving
       validateField('companyName', formData.companyName)
       validateField('contactEmail', formData.contactEmail)
       validateField('phoneNumber', formData.phoneNumber)
       validateField('website', formData.website)
-      validateField('description', formData.description)
       
-      if (isFormValid.value) {
+      // Double-check if form is valid after validation
+      const hasErrors = Object.keys(errors).length > 0
+      const hasRequiredFields = formData.companyName.trim() && formData.contactEmail.trim()
+      
+      if (!hasErrors && hasRequiredFields && isValidEmail(formData.contactEmail)) {
         emit('change', {
+          tabId: 'business',
           action: 'save_business_info',
           payload: { ...formData }
         })
@@ -422,7 +404,6 @@ export default {
           phoneNumber: '',
           website: '',
           address: '',
-          description: '',
           socialMedia: {
             facebook: '',
             twitter: '',
@@ -449,12 +430,19 @@ export default {
     // Watch for prop changes
     watch(() => props.initialData, loadInitialData, { immediate: true })
     
+    // Watch for clear errors signal from parent
+    watch(() => props.clearErrors, (newValue) => {
+      if (newValue) {
+        // Clear all validation errors when parent signals success
+        Object.keys(errors).forEach(key => delete errors[key])
+      }
+    })
+    
     // Watch form fields for validation
     watch(() => formData.companyName, (value) => validateField('companyName', value))
     watch(() => formData.contactEmail, (value) => validateField('contactEmail', value))
     watch(() => formData.phoneNumber, (value) => validateField('phoneNumber', value))
     watch(() => formData.website, (value) => validateField('website', value))
-    watch(() => formData.description, (value) => validateField('description', value))
     
     return {
       formData,
@@ -504,18 +492,21 @@ export default {
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-lg) var(--spacing-xl);
   margin-bottom: var(--spacing-xl);
+  align-items: start;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-sm);
+  min-height: 80px;
 }
 
 .form-group.full-width {
   grid-column: 1 / -1;
+  min-height: auto;
 }
 
 .form-label {
@@ -534,12 +525,14 @@ export default {
 
 .form-input,
 .form-textarea {
-  padding: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   font-size: var(--font-size-base);
   transition: border-color var(--transition-normal);
   font-family: var(--font-family);
+  min-height: 44px;
+  flex: 1;
 }
 
 .form-input:focus,
@@ -562,15 +555,10 @@ export default {
 
 .form-textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 100px;
+  line-height: 1.5;
 }
 
-.character-count {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  text-align: right;
-  margin-top: var(--spacing-xs);
-}
 
 .error-message {
   color: var(--error-color);
@@ -594,8 +582,9 @@ export default {
 
 .social-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-lg) var(--spacing-xl);
+  margin-top: var(--spacing-md);
 }
 
 /* Business Hours Section */
@@ -614,6 +603,7 @@ export default {
 
 .hours-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--spacing-md);
 }
 
@@ -628,7 +618,9 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .day-label {
@@ -685,7 +677,9 @@ export default {
 .time-inputs {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
+  justify-content: center;
+  padding-top: var(--spacing-xs);
 }
 
 .time-input {

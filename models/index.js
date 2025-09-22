@@ -8,6 +8,7 @@ const { PaymentPlan } = require('./PaymentPlan');
 const { Transactions } = require('./Transactions');
 const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
 const { RecurringBooking, setupAssociations: setupRecurringBookingAssociations } = require('./RecurringBooking');
+const { AppSettings } = require('./AppSettings');
 const runSeeds = require('../seeds');
 
 // Define associations
@@ -42,7 +43,8 @@ const models = {
     InstructorGoogleToken,
     InstructorCalendarConfig,
     Transactions,
-    RecurringBooking
+    RecurringBooking,
+    AppSettings
 };
 
 setupUserAssociations(models);
@@ -75,5 +77,6 @@ module.exports = {
     PaymentPlan,
     Transactions,
     Subscription,
-    RecurringBooking
+    RecurringBooking,
+    AppSettings
 }; 
