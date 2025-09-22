@@ -119,6 +119,7 @@ git push --no-verify    # Skip pre-push hook
 - Use Pinia for state management. Create actions for any mutations to the state
 - **Store Organization:** Create focused stores in `/frontend/src/stores/` (userStore.js, scheduleStore.js, etc.). Use actions for asynchronous operations and state mutations
 - **Build Tool:** Use Vite as the build system. Configure responsive breakpoints using vue3-mq for mobile-first design
+- **Design Philosophy:** Avoid excessive use of emojis and icons in UI components. Only use emojis/icons when they convey meaningful information or improve usability. Overuse creates visual clutter and appears unprofessional
 
 ## Permissions and Authorization
 

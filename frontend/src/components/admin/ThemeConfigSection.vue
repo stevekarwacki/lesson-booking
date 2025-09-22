@@ -67,7 +67,6 @@
             </div>
             
             <div v-if="contrastWarning" class="contrast-warning">
-              <span class="warning-icon">⚠️</span>
               <span class="warning-text">
                 This color may not meet accessibility standards. 
                 Consider using one of the recommended palettes above.
@@ -102,7 +101,6 @@
               class="upload-btn"
               :disabled="loading"
             >
-              <span class="upload-icon">📁</span>
               {{ currentLogoUrl ? 'Change Logo' : 'Upload Logo' }}
             </button>
           </div>

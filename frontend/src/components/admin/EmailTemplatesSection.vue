@@ -10,7 +10,6 @@
     
     <!-- Future Implementation Notice -->
     <div class="future-notice">
-      <div class="notice-icon">🚧</div>
       <div class="notice-content">
         <h3>Under Development</h3>
         <p>
@@ -22,12 +21,12 @@
         <div class="planned-features">
           <h4>Planned Features:</h4>
           <ul>
-            <li>✨ Rich text editing with Tiptap</li>
-            <li>📧 Email template management</li>
-            <li>🎨 Template customization with your branding</li>
-            <li>👀 Live email preview</li>
-            <li>📱 Mobile-responsive email design</li>
-            <li>🔧 Variable substitution ({{name}}, {{date}}, etc.)</li>
+            <li>Rich text editing with Tiptap</li>
+            <li>Email template management</li>
+            <li>Template customization with your branding</li>
+            <li>Live email preview</li>
+            <li>Mobile-responsive email design</li>
+            <li>Variable substitution ({{name}}, {{date}}, etc.)</li>
           </ul>
         </div>
         
@@ -161,7 +160,7 @@
           <div class="timeline-content">
             <h4>Phase 1: Planning & Architecture</h4>
             <p>Design email template system architecture</p>
-            <span class="timeline-status">✅ Completed</span>
+            <span class="timeline-status">Completed</span>
           </div>
         </div>
         
@@ -170,7 +169,7 @@
           <div class="timeline-content">
             <h4>Phase 2: Tiptap Integration</h4>
             <p>Integrate Tiptap WYSIWYG editor with Vue 3</p>
-            <span class="timeline-status">🚧 In Progress</span>
+            <span class="timeline-status">In Progress</span>
           </div>
         </div>
         
@@ -179,7 +178,7 @@
           <div class="timeline-content">
             <h4>Phase 3: Template Management</h4>
             <p>Build template CRUD operations and preview system</p>
-            <span class="timeline-status">⏳ Pending</span>
+            <span class="timeline-status">Pending</span>
           </div>
         </div>
         
@@ -188,7 +187,7 @@
           <div class="timeline-content">
             <h4>Phase 4: Advanced Features</h4>
             <p>Variable substitution, mobile preview, A/B testing</p>
-            <span class="timeline-status">⏳ Pending</span>
+            <span class="timeline-status">Pending</span>
           </div>
         </div>
       </div>
@@ -294,19 +293,11 @@ export default {
 
 /* Future Implementation Notice */
 .future-notice {
-  display: flex;
-  gap: var(--spacing-lg);
   padding: var(--spacing-xl);
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border: 2px dashed var(--border-color);
   border-radius: var(--border-radius-lg);
   margin-bottom: var(--spacing-xl);
-}
-
-.notice-icon {
-  font-size: 3rem;
-  flex-shrink: 0;
-  line-height: 1;
 }
 
 .notice-content h3 {
@@ -632,12 +623,7 @@ export default {
 /* Responsive Design */
 @media (max-width: 768px) {
   .future-notice {
-    flex-direction: column;
     text-align: center;
-  }
-  
-  .notice-icon {
-    align-self: center;
   }
   
   .template-list {

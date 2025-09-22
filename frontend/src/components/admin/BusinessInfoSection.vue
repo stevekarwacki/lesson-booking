@@ -139,7 +139,6 @@
         <div class="social-grid">
           <div class="form-group">
             <label for="facebook" class="form-label">
-              <span class="social-icon">📘</span>
               Facebook
             </label>
             <input
@@ -154,7 +153,6 @@
           
           <div class="form-group">
             <label for="twitter" class="form-label">
-              <span class="social-icon">🐦</span>
               Twitter
             </label>
             <input
@@ -169,7 +167,6 @@
           
           <div class="form-group">
             <label for="instagram" class="form-label">
-              <span class="social-icon">📷</span>
               Instagram
             </label>
             <input
@@ -184,7 +181,6 @@
           
           <div class="form-group">
             <label for="linkedin" class="form-label">
-              <span class="social-icon">💼</span>
               LinkedIn
             </label>
             <input
@@ -535,9 +531,6 @@ export default {
   color: var(--error-color);
 }
 
-.social-icon {
-  font-size: 1rem;
-}
 
 .form-input,
 .form-textarea {

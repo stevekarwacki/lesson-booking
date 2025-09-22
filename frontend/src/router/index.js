@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ManageInstructorsPage from '../views/ManageInstructorsPage.vue'
 import ManageUsersPage from '../views/ManageUsersPage.vue'
 import ManagePackagesPage from '../views/ManagePackagesPage.vue'
+import AdminSettingsPage from '../views/AdminSettingsPage.vue'
 import AccountPage from '../views/AccountPage.vue'
 import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
@@ -56,6 +57,15 @@ const routes = [
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'Package' }
+        }
+    },
+    {
+        path: '/admin/settings',
+        name: 'admin-settings',
+        component: AdminSettingsPage,
+        meta: { 
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'User' }
         }
     },
     {
@@ -125,7 +135,6 @@ router.beforeEach(async (to, from, next) => {
     
     // Check authentication requirement
     if (to.meta.requiresAuth && !userStore.user) {
-        console.log('Route requires auth but user not logged in')
         next('/')
         return
     }
@@ -136,7 +145,6 @@ router.beforeEach(async (to, from, next) => {
         const { action, subject, resource } = to.meta.permission
         
         if (!ability.can(action, subject, resource)) {
-            console.log(`Permission denied: Cannot ${action} ${subject}`)
             // Redirect to appropriate page based on permissions
             if (userStore.canManageUsers) {
                 next('/admin/users')

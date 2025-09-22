@@ -23,7 +23,6 @@ const settingsTabs = [
     id: 'theme',
     label: 'Theme & Branding',
     component: ThemeConfigSection,
-    icon: '🎨',
     props: {
       initialData: () => settingsData.value.theme || {},
       loading: loading.value
@@ -33,7 +32,6 @@ const settingsTabs = [
     id: 'business',
     label: 'Business Information',
     component: BusinessInfoSection,
-    icon: '🏢',
     props: {
       initialData: () => settingsData.value.business || {},
       loading: loading.value
@@ -43,7 +41,6 @@ const settingsTabs = [
     id: 'email',
     label: 'Email Templates',
     component: EmailTemplatesSection,
-    icon: '📧',
     badge: 'Future',
     disabled: true, // Enable when WYSIWYG is implemented
     props: {

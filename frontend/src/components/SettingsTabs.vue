@@ -365,7 +365,7 @@ export default {
   font-weight: 600;
 }
 
-.primary-content > :deep(> *) {
+.primary-content :deep(*) {
   padding: 0 var(--spacing-md) var(--spacing-md);
 }
 

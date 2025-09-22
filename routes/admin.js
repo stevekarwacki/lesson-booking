@@ -368,7 +368,7 @@ router.post('/subscriptions/:subscriptionId/reactivate', authorize('manage', 'al
                 reactivation_type: 'removed_cancel_at_period_end'
             });
             
-            console.log(`Admin ${req.user.name} (ID: ${req.user.id}) reactivated subscription ${subscriptionId} for user ${subscription.User?.name} (ID: ${subscription.user_id}) - removed cancel at period end`);
+            // Admin reactivated subscription - removed cancel at period end
             
             return res.json({
                 success: true,
@@ -502,7 +502,7 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
             try {
                 customer = await stripe.customers.retrieve(user.stripe_customer_id);
             } catch (error) {
-                console.log('Stripe customer not found, creating new one');
+                // Stripe customer not found, creating new one
                 customer = null;
             }
         }
@@ -531,7 +531,7 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
             try {
                 price = await stripe.prices.retrieve(plan.stripe_price_id);
             } catch (error) {
-                console.log('Stripe price not found, creating new one');
+                // Stripe price not found, creating new one
                 price = null;
             }
         }
@@ -602,7 +602,7 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
             trial_period_days: plan.duration_days
         });
         
-        console.log(`Admin ${req.user.name} (ID: ${req.user.id}) created subscription for user ${user.name} (ID: ${user.id}) with plan ${plan.name}`);
+        // Admin created subscription for user
         
         res.status(201).json({
             success: true,
@@ -711,6 +711,95 @@ router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, r
     } catch (error) {
         console.error('Error triggering low balance check:', error);
         res.status(500).json({ error: 'Error triggering low balance check' });
+    }
+});
+
+// =============================================================================
+// SETTINGS ENDPOINTS - Placeholder implementation for theming and branding
+// =============================================================================
+
+// Get all settings
+router.get('/settings', authorize('manage', 'User'), async (req, res) => {
+    try {
+        // TODO: Replace with actual database queries
+        const settings = {
+            theme: {
+                primaryColor: '#28a745',
+                secondaryColor: '#20c997',
+                palette: 'Forest Green',
+                logoUrl: null
+            },
+            business: {
+                companyName: 'Lesson Booking App',
+                contactEmail: 'contact@lessonbooking.com',
+                phoneNumber: '',
+                website: '',
+                address: '',
+                description: '',
+                socialMedia: {
+                    facebook: '',
+                    twitter: '',
+                    instagram: '',
+                    linkedin: ''
+                },
+                businessHours: {
+                    monday: { isOpen: true, open: '09:00', close: '17:00' },
+                    tuesday: { isOpen: true, open: '09:00', close: '17:00' },
+                    wednesday: { isOpen: true, open: '09:00', close: '17:00' },
+                    thursday: { isOpen: true, open: '09:00', close: '17:00' },
+                    friday: { isOpen: true, open: '09:00', close: '17:00' },
+                    saturday: { isOpen: false, open: '09:00', close: '17:00' },
+                    sunday: { isOpen: false, open: '09:00', close: '17:00' }
+                }
+            },
+            email: {
+                fromName: 'Lesson Booking App',
+                fromEmail: 'noreply@lessonbooking.com',
+                replyTo: 'support@lessonbooking.com',
+                footerText: '© 2024 Lesson Booking App. All rights reserved.'
+            }
+        };
+        
+        res.json(settings);
+    } catch (error) {
+        console.error('Error fetching settings:', error);
+        res.status(500).json({ error: 'Error fetching settings' });
+    }
+});
+
+// Update settings by category
+router.put('/settings/:category', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { category } = req.params;
+        const settingsData = req.body;
+        
+        // TODO: Implement actual database updates
+        // Log settings updates for development (remove in production)
+        
+        // For now, just return the submitted data as confirmation
+        res.json({
+            success: true,
+            message: `${category} settings updated successfully`,
+            data: settingsData
+        });
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).json({ error: 'Error updating settings' });
+    }
+});
+
+// Upload logo endpoint (placeholder)
+router.post('/settings/logo/upload', authorize('manage', 'User'), async (req, res) => {
+    try {
+        // TODO: Implement actual file upload with multer and sharp
+        res.json({
+            success: true,
+            message: 'Logo upload endpoint ready - implementation pending',
+            logoUrl: '/uploads/logos/placeholder-logo.png'
+        });
+    } catch (error) {
+        console.error('Error uploading logo:', error);
+        res.status(500).json({ error: 'Error uploading logo' });
     }
 });
 
