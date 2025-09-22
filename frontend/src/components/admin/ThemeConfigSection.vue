@@ -1,0 +1,772 @@
+<template>
+  <div class="theme-config-section">
+    <div class="section-header">
+      <h2>Theme & Branding Configuration</h2>
+      <p class="section-description">
+        Customize your application's colors and visual identity. Choose from curated palettes 
+        or create a custom color scheme with accessibility validation.
+      </p>
+    </div>
+    
+    <div class="config-grid">
+      <!-- Color Configuration -->
+      <div class="config-card">
+        <h3>Color Scheme</h3>
+        <div class="color-picker-section">
+          <div class="curated-palettes">
+            <h4>Recommended Palettes</h4>
+            <div class="palette-grid">
+              <button 
+                v-for="palette in curatedPalettes" 
+                :key="palette.name"
+                @click="selectPalette(palette)"
+                :class="['palette-option', { active: selectedPalette?.name === palette.name }]"
+                :aria-label="`Select ${palette.name} color palette`"
+              >
+                <div class="palette-colors">
+                  <div 
+                    class="palette-color primary" 
+                    :style="{ backgroundColor: palette.primary }"
+                  ></div>
+                  <div 
+                    class="palette-color secondary" 
+                    :style="{ backgroundColor: palette.secondary }"
+                  ></div>
+                </div>
+                <span class="palette-name">{{ palette.name }}</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="custom-color-section">
+            <h4>Custom Primary Color</h4>
+            <div class="color-input-group">
+              <input 
+                type="color" 
+                v-model="customPrimaryColor" 
+                @input="validateAndPreviewCustomColor"
+                class="color-input"
+                :disabled="loading"
+              />
+              <input 
+                type="text" 
+                v-model="customPrimaryColor" 
+                @input="validateAndPreviewCustomColor"
+                class="color-text-input"
+                placeholder="#28a745"
+                pattern="^#[0-9A-Fa-f]{6}$"
+                :disabled="loading"
+              />
+              <button 
+                @click="applyCustomColor" 
+                :disabled="!isCustomColorValid || loading"
+                class="apply-color-btn"
+              >
+                Apply Custom
+              </button>
+            </div>
+            
+            <div v-if="contrastWarning" class="contrast-warning">
+              <span class="warning-icon">⚠️</span>
+              <span class="warning-text">
+                This color may not meet accessibility standards. 
+                Consider using one of the recommended palettes above.
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Logo Upload -->
+      <div class="config-card">
+        <h3>Logo</h3>
+        <div class="logo-upload-section">
+          <div class="current-logo" v-if="currentLogoUrl">
+            <img :src="currentLogoUrl" alt="Current logo" class="logo-preview" />
+            <button @click="removeLogo" class="remove-logo-btn" :disabled="loading">
+              Remove Logo
+            </button>
+          </div>
+          
+          <div class="logo-upload">
+            <input 
+              type="file" 
+              ref="logoInput"
+              @change="handleLogoUpload"
+              accept="image/*"
+              class="file-input"
+              :disabled="loading"
+            />
+            <button 
+              @click="$refs.logoInput.click()" 
+              class="upload-btn"
+              :disabled="loading"
+            >
+              <span class="upload-icon">📁</span>
+              {{ currentLogoUrl ? 'Change Logo' : 'Upload Logo' }}
+            </button>
+          </div>
+          
+          <div class="upload-requirements">
+            <h5>Requirements:</h5>
+            <ul>
+              <li>Maximum size: 320×80 pixels</li>
+              <li>Minimum size: 50×50 pixels</li>
+              <li>Formats: JPG, PNG, WebP</li>
+              <li>Oversized images will be automatically resized</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Live Preview -->
+      <div class="config-card preview-card">
+        <h3>Live Preview</h3>
+        <div class="theme-preview" :style="previewStyles">
+          <div class="preview-header">
+            <div v-if="currentLogoUrl" class="preview-logo">
+              <img :src="currentLogoUrl" alt="Logo preview" />
+            </div>
+            <span class="preview-title">{{ businessName || 'Your Business Name' }}</span>
+          </div>
+          
+          <div class="preview-content">
+            <button class="preview-btn primary">Primary Button</button>
+            <button class="preview-btn secondary">Secondary Button</button>
+            <div class="preview-text">
+              <p>This is how your text content will appear with the selected theme.</p>
+              <a href="#" class="preview-link">Sample link styling</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="section-actions">
+      <button 
+        @click="resetToDefaults" 
+        class="btn secondary"
+        :disabled="loading"
+      >
+        Reset to Defaults
+      </button>
+      <button 
+        @click="saveThemeConfig" 
+        class="btn primary"
+        :disabled="loading || (!hasChanges)"
+      >
+        <span v-if="loading" class="loading-spinner"></span>
+        {{ loading ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, computed, watch } from 'vue'
+
+export default {
+  name: 'ThemeConfigSection',
+  props: {
+    initialData: {
+      type: Object,
+      default: () => ({})
+    },
+    loading: {
+      type: Boolean,
+      default: false
+    }
+  },
+  
+  emits: ['change'],
+  
+  setup(props, { emit }) {
+    // Reactive state
+    const selectedPalette = ref(null)
+    const customPrimaryColor = ref('#28a745')
+    const currentLogoUrl = ref('')
+    const businessName = ref('Lesson Booking App')
+    const contrastWarning = ref(false)
+    const isCustomColorValid = ref(true)
+    const originalData = ref({})
+    
+    // Curated color palettes
+    const curatedPalettes = [
+      { name: 'Forest Green', primary: '#28a745', secondary: '#20c997' },
+      { name: 'Ocean Blue', primary: '#007bff', secondary: '#17a2b8' },
+      { name: 'Sunset Orange', primary: '#fd7e14', secondary: '#ffc107' },
+      { name: 'Royal Purple', primary: '#6f42c1', secondary: '#e83e8c' },
+      { name: 'Charcoal', primary: '#495057', secondary: '#6c757d' }
+    ]
+    
+    // Computed properties
+    const hasChanges = computed(() => {
+      return JSON.stringify(getCurrentConfig()) !== JSON.stringify(originalData.value)
+    })
+    
+    const previewStyles = computed(() => {
+      const primary = selectedPalette.value?.primary || customPrimaryColor.value
+      const secondary = selectedPalette.value?.secondary || generateSecondaryColor(primary)
+      
+      return {
+        '--preview-primary': primary,
+        '--preview-secondary': secondary,
+        '--preview-primary-hover': darkenColor(primary, 0.1),
+        '--preview-text-on-primary': getContrastText(primary)
+      }
+    })
+    
+    // Methods
+    const selectPalette = (palette) => {
+      selectedPalette.value = palette
+      customPrimaryColor.value = palette.primary
+      contrastWarning.value = false
+      isCustomColorValid.value = true
+    }
+    
+    const validateAndPreviewCustomColor = () => {
+      // Reset palette selection when custom color is used
+      selectedPalette.value = null
+      
+      // Validate hex color format
+      const hexRegex = /^#[0-9A-Fa-f]{6}$/
+      isCustomColorValid.value = hexRegex.test(customPrimaryColor.value)
+      
+      if (isCustomColorValid.value) {
+        // Check contrast
+        contrastWarning.value = !validateContrast(customPrimaryColor.value)
+      }
+    }
+    
+    const applyCustomColor = () => {
+      if (isCustomColorValid.value) {
+        // Custom color is already applied via reactive binding
+        // Color validation and preview update automatically
+      }
+    }
+    
+    const handleLogoUpload = async (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+      
+      try {
+        // This would integrate with the actual upload logic
+        // TODO: Add actual file upload implementation
+        
+        // For now, create a preview URL
+        currentLogoUrl.value = URL.createObjectURL(file)
+        
+        // Emit change event
+        emitChange('logo_uploaded', { file })
+        
+      } catch (error) {
+        // Handle error appropriately - emit error event to parent
+        emitChange('upload_error', { error: error.message })
+      }
+    }
+    
+    const removeLogo = () => {
+      currentLogoUrl.value = ''
+      emitChange('logo_removed')
+    }
+    
+    const saveThemeConfig = () => {
+      const config = getCurrentConfig()
+      emitChange('save_theme', config)
+    }
+    
+    const resetToDefaults = () => {
+      selectedPalette.value = curatedPalettes[0]
+      customPrimaryColor.value = curatedPalettes[0].primary
+      contrastWarning.value = false
+      isCustomColorValid.value = true
+    }
+    
+    const getCurrentConfig = () => {
+      return {
+        primaryColor: customPrimaryColor.value,
+        secondaryColor: selectedPalette.value?.secondary || generateSecondaryColor(customPrimaryColor.value),
+        palette: selectedPalette.value?.name || 'custom',
+        logoUrl: currentLogoUrl.value
+      }
+    }
+    
+    const emitChange = (action, payload = {}) => {
+      emit('change', {
+        action,
+        payload: {
+          ...payload,
+          config: getCurrentConfig()
+        }
+      })
+    }
+    
+    // Utility functions
+    const validateContrast = (color) => {
+      // Simplified contrast validation
+      // In real implementation, use chroma-js or similar library
+      const hex = color.replace('#', '')
+      const r = parseInt(hex.substr(0, 2), 16)
+      const g = parseInt(hex.substr(2, 2), 16)
+      const b = parseInt(hex.substr(4, 2), 16)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      
+      // Simple heuristic: mid-range luminance values may have contrast issues
+      return luminance < 0.3 || luminance > 0.7
+    }
+    
+    const getContrastText = (backgroundColor) => {
+      // Simplified contrast text calculation
+      const hex = backgroundColor.replace('#', '')
+      const r = parseInt(hex.substr(0, 2), 16)
+      const g = parseInt(hex.substr(2, 2), 16)
+      const b = parseInt(hex.substr(4, 2), 16)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      
+      return luminance > 0.5 ? '#000000' : '#ffffff'
+    }
+    
+    const darkenColor = (color, amount) => {
+      // Simplified color darkening
+      const hex = color.replace('#', '')
+      const r = Math.max(0, parseInt(hex.substr(0, 2), 16) * (1 - amount))
+      const g = Math.max(0, parseInt(hex.substr(2, 2), 16) * (1 - amount))
+      const b = Math.max(0, parseInt(hex.substr(4, 2), 16) * (1 - amount))
+      
+      return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`
+    }
+    
+    const generateSecondaryColor = (primaryColor) => {
+      // Generate a complementary secondary color
+      const hex = primaryColor.replace('#', '')
+      const r = parseInt(hex.substr(0, 2), 16)
+      const g = parseInt(hex.substr(2, 2), 16)
+      const b = parseInt(hex.substr(4, 2), 16)
+      
+      // Simple complementary color generation
+      const newR = Math.min(255, r + 40)
+      const newG = Math.min(255, g + 40)
+      const newB = Math.max(0, b - 40)
+      
+      return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+    }
+    
+    // Initialize with props data
+    watch(() => props.initialData, (newData) => {
+      if (newData && Object.keys(newData).length > 0) {
+        originalData.value = { ...newData }
+        customPrimaryColor.value = newData.primaryColor || '#28a745'
+        currentLogoUrl.value = newData.logoUrl || ''
+        
+        // Try to match with a curated palette
+        const matchingPalette = curatedPalettes.find(p => p.primary === newData.primaryColor)
+        if (matchingPalette) {
+          selectedPalette.value = matchingPalette
+        }
+      }
+    }, { immediate: true })
+    
+    return {
+      selectedPalette,
+      customPrimaryColor,
+      currentLogoUrl,
+      businessName,
+      contrastWarning,
+      isCustomColorValid,
+      curatedPalettes,
+      hasChanges,
+      previewStyles,
+      selectPalette,
+      validateAndPreviewCustomColor,
+      applyCustomColor,
+      handleLogoUpload,
+      removeLogo,
+      saveThemeConfig,
+      resetToDefaults
+    }
+  }
+}
+</script>
+
+<style scoped>
+.theme-config-section {
+  max-width: 100%;
+}
+
+.section-header {
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+}
+
+.section-header h2 {
+  color: var(--text-primary);
+  font-size: var(--font-size-2xl);
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: 600;
+}
+
+.section-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.config-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.config-card h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  margin: 0 0 var(--spacing-md) 0;
+  font-weight: 600;
+}
+
+.preview-card {
+  grid-column: 1 / -1;
+}
+
+/* Color Configuration Styles */
+.curated-palettes h4,
+.custom-color-section h4 {
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: 500;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.palette-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: white;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.palette-option:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.palette-option.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
+}
+
+.palette-colors {
+  display: flex;
+  gap: 2px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.palette-color {
+  width: 24px;
+  height: 24px;
+}
+
+.palette-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+.color-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.color-input {
+  width: 50px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+}
+
+.color-text-input {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  font-family: monospace;
+}
+
+.apply-color-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background var(--transition-normal);
+}
+
+.apply-color-btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.apply-color-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.contrast-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: #fef3cd;
+  border: 1px solid #faebcd;
+  border-radius: var(--border-radius-sm);
+  color: #856404;
+  font-size: var(--font-size-sm);
+}
+
+/* Logo Upload Styles */
+.current-logo {
+  margin-bottom: var(--spacing-md);
+  text-align: center;
+}
+
+.logo-preview {
+  max-width: 200px;
+  max-height: 60px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.remove-logo-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--background-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  margin-bottom: var(--spacing-md);
+}
+
+.upload-requirements {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.upload-requirements h5 {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--text-primary);
+}
+
+.upload-requirements ul {
+  margin: 0;
+  padding-left: var(--spacing-md);
+}
+
+.upload-requirements li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Preview Styles */
+.theme-preview {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-lg);
+  background: white;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.preview-logo img {
+  max-height: 40px;
+  max-width: 160px;
+}
+
+.preview-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--preview-primary, var(--primary-color));
+}
+
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.preview-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-normal);
+  width: fit-content;
+}
+
+.preview-btn.primary {
+  background: var(--preview-primary, var(--primary-color));
+  color: var(--preview-text-on-primary, white);
+}
+
+.preview-btn.primary:hover {
+  background: var(--preview-primary-hover, var(--primary-dark));
+}
+
+.preview-btn.secondary {
+  background: var(--preview-secondary, var(--success-color));
+  color: white;
+}
+
+.preview-text p {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--text-primary);
+}
+
+.preview-link {
+  color: var(--preview-primary, var(--primary-color));
+  text-decoration: none;
+}
+
+.preview-link:hover {
+  text-decoration: underline;
+}
+
+/* Action Buttons */
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.btn.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.btn.secondary {
+  background: var(--background-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn.secondary:hover:not(:disabled) {
+  background: var(--border-color);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .palette-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .color-input-group {
+    flex-wrap: wrap;
+  }
+  
+  .section-actions {
+    flex-direction: column;
+  }
+  
+  .preview-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>
