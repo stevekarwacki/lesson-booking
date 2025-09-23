@@ -88,7 +88,29 @@ const handleContentChange = async (data) => {
   try {
     const { tabId, action, payload } = data
     
-    // Show loading state
+    // Handle logo-specific actions separately
+    if (action === 'logo_uploaded' || action === 'logo_removed') {
+      if (action === 'logo_uploaded') {
+        success.value = payload.message || 'Logo uploaded successfully'
+      } else {
+        success.value = payload.message || 'Logo removed successfully'
+      }
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        success.value = ''
+      }, 3000)
+      
+      return
+    }
+    
+    // Handle upload errors
+    if (action === 'upload_error') {
+      error.value = payload.error || 'Upload failed'
+      return
+    }
+    
+    // Show loading state for standard form submissions
     loading.value = true
     error.value = ''
     success.value = ''

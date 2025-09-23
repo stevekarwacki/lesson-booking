@@ -1,11 +1,38 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 
 const router = useRouter()
 const userStore = useUserStore()
 const isMenuOpen = ref(false)
+
+// Logo state
+const logoUrl = ref('')
+const companyName = ref('')
+
+// Fetch branding information
+const fetchBrandingInfo = async () => {
+  try {
+    const response = await fetch('/api/branding')
+    if (response.ok) {
+      const branding = await response.json()
+      if (branding.logoUrl) {
+        logoUrl.value = branding.logoUrl
+      }
+      if (branding.companyName) {
+        companyName.value = branding.companyName
+      }
+    }
+  } catch (error) {
+    console.warn('Could not fetch branding information:', error.message)
+  }
+}
+
+// Initialize on mount
+onMounted(() => {
+  fetchBrandingInfo()
+})
 
 // CASL-based permission checks
 const canManageUsers = computed(() => userStore.canManageUsers)
@@ -48,7 +75,15 @@ const handleLogout = () => {
 <template>
     <nav class="navbar">
         <div class="nav-brand">
-            <h1>Lesson Booking App</h1>
+            <router-link to="/" class="brand-link" @click="closeMenu">
+                <img 
+                    v-if="logoUrl" 
+                    :src="logoUrl" 
+                    :alt="companyName + ' logo'"
+                    class="brand-logo"
+                />
+                <h1 class="brand-text">{{ companyName }}</h1>
+            </router-link>
             <button class="hamburger" @click="toggleMenu" :class="{ 'is-active': isMenuOpen }">
                 <span class="hamburger-box">
                     <span class="hamburger-inner"></span>
@@ -178,10 +213,36 @@ const handleLogout = () => {
     align-items: center;
 }
 
-.nav-brand h1 {
-    margin: 0 0 0 10px;
+.brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    margin-left: 10px;
+}
+
+.brand-link:hover {
+    text-decoration: none;
+}
+
+.brand-logo {
+    max-height: 80px;
+    max-width: 160px;
+    height: auto;
+    object-fit: contain;
+}
+
+.brand-text {
+    margin: 0;
     color: var(--primary-color);
     font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Fallback for when there's no logo */
+.brand-link:not(:has(.brand-logo)) .brand-text {
+    margin-left: 0;
 }
 
 .nav-content {

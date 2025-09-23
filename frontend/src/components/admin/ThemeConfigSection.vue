@@ -105,12 +105,12 @@
             </button>
           </div>
           
-          <div class="upload-requirements">
+          <div v-if="logoConfig" class="upload-requirements">
             <h5>Requirements:</h5>
             <ul>
-              <li>Maximum size: 320×80 pixels</li>
-              <li>Minimum size: 50×50 pixels</li>
-              <li>Formats: JPG, PNG, WebP</li>
+              <li>Maximum size: {{ logoConfig.maxWidth }}×{{ logoConfig.maxHeight }} pixels</li>
+              <li>Minimum size: {{ logoConfig.minWidth }}×{{ logoConfig.minHeight }} pixels</li>
+              <li>Formats: {{ logoConfig.allowedFormats }}</li>
               <li>Oversized images will be automatically resized</li>
             </ul>
           </div>
@@ -188,6 +188,7 @@ export default {
     const contrastWarning = ref(false)
     const isCustomColorValid = ref(true)
     const originalData = ref({})
+    const logoConfig = ref(null)
     
     // Curated color palettes
     const curatedPalettes = [
@@ -249,24 +250,70 @@ export default {
       if (!file) return
       
       try {
-        // This would integrate with the actual upload logic
-        // TODO: Add actual file upload implementation
+        // Create FormData for file upload
+        const formData = new FormData()
+        formData.append('logo', file)
         
-        // For now, create a preview URL
-        currentLogoUrl.value = URL.createObjectURL(file)
+        // Upload to backend
+        const response = await fetch('/api/admin/settings/logo/upload', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         
-        // Emit change event
-        emitChange('logo_uploaded', { file })
+        const result = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(result.details || result.error || 'Upload failed')
+        }
+        
+        // Update logo URL
+        currentLogoUrl.value = result.logoUrl
+        
+        // Emit success event with upload info
+        emitChange('logo_uploaded', { 
+          logoUrl: result.logoUrl,
+          info: result.info,
+          message: result.message
+        })
         
       } catch (error) {
+        // Reset file input
+        event.target.value = ''
+        
         // Handle error appropriately - emit error event to parent
         emitChange('upload_error', { error: error.message })
       }
     }
     
-    const removeLogo = () => {
-      currentLogoUrl.value = ''
-      emitChange('logo_removed')
+    const removeLogo = async () => {
+      try {
+        const response = await fetch('/api/admin/settings/logo', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to remove logo')
+        }
+        
+        // Clear logo URL
+        currentLogoUrl.value = ''
+        
+        // Emit success event
+        emitChange('logo_removed', { message: result.message })
+        
+      } catch (error) {
+        // Handle error appropriately - emit error event to parent
+        emitChange('upload_error', { error: error.message })
+      }
     }
     
     const saveThemeConfig = () => {
@@ -350,6 +397,25 @@ export default {
       return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
     }
     
+    // Fetch current logo and config
+    const fetchCurrentLogo = async () => {
+      try {
+        // Fetch branding info (includes logo config)
+        const brandingResponse = await fetch('/api/branding')
+        if (brandingResponse.ok) {
+          const branding = await brandingResponse.json()
+          if (branding.logoUrl) {
+            currentLogoUrl.value = branding.logoUrl
+          }
+          if (branding.logoConfig) {
+            logoConfig.value = branding.logoConfig
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch branding information:', error.message)
+      }
+    }
+
     // Initialize with props data
     watch(() => props.initialData, (newData) => {
       if (newData && Object.keys(newData).length > 0) {
@@ -365,6 +431,9 @@ export default {
       }
     }, { immediate: true })
     
+    // Fetch current logo on component mount
+    fetchCurrentLogo()
+    
     return {
       selectedPalette,
       customPrimaryColor,
@@ -372,6 +441,7 @@ export default {
       businessName,
       contrastWarning,
       isCustomColorValid,
+      logoConfig,
       curatedPalettes,
       hasChanges,
       previewStyles,
@@ -562,8 +632,8 @@ export default {
 }
 
 .logo-preview {
-  max-width: 200px;
-  max-height: 60px;
+  max-width: 400px;
+  max-height: 100px;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   margin-bottom: var(--spacing-sm);

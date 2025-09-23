@@ -49,6 +49,9 @@ Thumbs.db
 # Documentation and notes for development plans
 /plans
 
+# Uploaded files
+/uploads
+
 # Optional npm cache directory
 .npm
 

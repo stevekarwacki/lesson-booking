@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const authRoutes = require('./routes/auth');
+const brandingRoutes = require('./routes/branding');
 const adminRoutes = require('./routes/admin');
 const instructorRoutes = require('./routes/instructors');
 const userRoutes = require('./routes/users');
@@ -10,6 +11,7 @@ const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const recurringBookingsRoutes = require('./routes/recurringBookings');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
+const { secureUploadsMiddleware } = require('./middleware/staticFiles');
 const { publishableKey } = require('./config/stripe');
 
 const app = express();
@@ -19,8 +21,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
+// Serve uploaded files securely
+app.use('/uploads', secureUploadsMiddleware);
+
 // Public routes
 app.use('/api/auth', authRoutes);
+app.use('/api/branding', brandingRoutes);
 
 // Public route for Stripe publishable key
 app.get('/api/stripe-key', (req, res) => {

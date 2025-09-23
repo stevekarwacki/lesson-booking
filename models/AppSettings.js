@@ -11,7 +11,7 @@ const AppSettings = sequelize.define('AppSettings', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['business', 'theme', 'email']]
+            isIn: [['business', 'theme', 'email', 'branding']]
         }
     },
     key: {
@@ -66,6 +66,13 @@ AppSettings.setSetting = async function(category, key, value, updatedBy) {
     });
     
     return setting;
+};
+
+AppSettings.deleteSetting = async function(category, key) {
+    const result = await this.destroy({
+        where: { category, key }
+    });
+    return result > 0; // Returns true if a record was deleted
 };
 
 AppSettings.getSettingsByCategory = async function(category) {

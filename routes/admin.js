@@ -1,14 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const path = require('path');
 const { User } = require('../models/User');
 const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Subscription } = require('../models/Subscription');
 const { AppSettings } = require('../models/AppSettings');
 const { authorize, authorizeUserAccess } = require('../middleware/permissions');
+const { logoUpload } = require('../middleware/uploadMiddleware');
+const { processLogoUpload, removeLogo } = require('../utils/logoOperations');
 const emailQueueService = require('../services/EmailQueueService');
 const cronJobService = require('../services/CronJobService');
+
 
 // Get all users - protected by CASL permissions
 router.get('/users', authorize('manage', 'User'), async (req, res) => {
@@ -848,18 +852,82 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
     }
 });
 
-// Upload logo endpoint (placeholder)
-router.post('/settings/logo/upload', authorize('manage', 'User'), async (req, res) => {
+// Upload logo endpoint
+router.post('/settings/logo/upload', authorize('manage', 'User'), logoUpload, async (req, res) => {
     try {
-        // TODO: Implement actual file upload with multer and sharp
-        res.json({
+        if (!req.file) {
+            return res.status(400).json({ 
+                error: 'No file uploaded',
+                details: 'Please select an image file to upload.'
+            });
+        }
+
+        const { buffer, originalname } = req.file;
+
+        // Process and save logo
+        const result = await processLogoUpload(buffer, originalname, req.user.id);
+
+        // Build response with helpful information
+        const response = {
             success: true,
-            message: 'Logo upload endpoint ready - implementation pending',
-            logoUrl: '/uploads/logos/placeholder-logo.png'
-        });
+            message: 'Logo uploaded successfully',
+            logoUrl: result.logoUrl,
+            info: result.info
+        };
+
+        if (result.info.wasResized) {
+            response.message += ` (resized from ${result.info.originalDimensions.width}x${result.info.originalDimensions.height} to ${result.info.finalDimensions.width}x${result.info.finalDimensions.height})`;
+        }
+
+        res.json(response);
     } catch (error) {
         console.error('Error uploading logo:', error);
-        res.status(500).json({ error: 'Error uploading logo' });
+        
+        // Handle specific validation errors
+        if (error.message.includes('too small') || error.message.includes('Minimum size')) {
+            return res.status(400).json({ 
+                error: 'Image too small',
+                details: error.message
+            });
+        }
+        
+        if (error.message.includes('Invalid file type') || error.message.includes('Only image')) {
+            return res.status(400).json({ 
+                error: 'Invalid file type',
+                details: error.message
+            });
+        }
+
+        res.status(500).json({ 
+            error: 'Error uploading logo',
+            details: 'An unexpected error occurred while processing your logo. Please try again.'
+        });
+    }
+});
+
+// Get current logo endpoint
+router.get('/settings/logo', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const logoUrl = await AppSettings.getSetting('branding', 'logo_url');
+        res.json({ logoUrl: logoUrl || null });
+    } catch (error) {
+        console.error('Error fetching logo:', error);
+        res.status(500).json({ error: 'Error fetching logo' });
+    }
+});
+
+// Delete logo endpoint
+router.delete('/settings/logo', authorize('manage', 'User'), async (req, res) => {
+    try {
+        await removeLogo();
+        
+        res.json({ 
+            success: true, 
+            message: 'Logo removed successfully' 
+        });
+    } catch (error) {
+        console.error('Error deleting logo:', error);
+        res.status(500).json({ error: 'Error deleting logo' });
     }
 });
 
