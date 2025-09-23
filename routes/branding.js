@@ -8,10 +8,14 @@ router.get('/', async (req, res) => {
     try {
         // Fetch public branding info
         const logoUrl = await AppSettings.getSetting('branding', 'logo_url');
+        const logoPosition = await AppSettings.getSetting('branding', 'logo_position');
         const companyName = await AppSettings.getSetting('business', 'company_name');
+        
+        const defaultPosition = LOGO_CONFIG.POSITION_OPTIONS.find(opt => opt.default)?.value || 'left';
         
         res.json({ 
             logoUrl: logoUrl || null,
+            logoPosition: logoPosition || defaultPosition,
             companyName: companyName || '',
             logoConfig: {
                 maxWidth: LOGO_CONFIG.MAX_WIDTH,
@@ -19,7 +23,8 @@ router.get('/', async (req, res) => {
                 minWidth: LOGO_CONFIG.MIN_WIDTH,
                 minHeight: LOGO_CONFIG.MIN_HEIGHT,
                 maxFileSize: LOGO_CONFIG.MAX_FILE_SIZE,
-                allowedFormats: 'JPG, PNG, WebP'
+                allowedFormats: 'JPG, PNG, WebP',
+                positionOptions: LOGO_CONFIG.POSITION_OPTIONS
             }
         });
     } catch (error) {

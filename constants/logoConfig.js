@@ -20,7 +20,13 @@ const LOGO_CONFIG = {
     OUTPUT_FORMAT: 'png',
     
     // Upload directory
-    UPLOAD_DIRECTORY: 'uploads/logos'
+    UPLOAD_DIRECTORY: 'uploads/logos',
+    
+    // Logo position options
+    POSITION_OPTIONS: [
+        { value: 'left', label: 'Left side of header', default: true },
+        { value: 'center', label: 'Center of header' }
+    ]
 };
 
 module.exports = LOGO_CONFIG;

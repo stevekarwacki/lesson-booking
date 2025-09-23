@@ -931,4 +931,40 @@ router.delete('/settings/logo', authorize('manage', 'User'), async (req, res) =>
     }
 });
 
+// Update logo position endpoint
+router.put('/settings/logo/position', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { position } = req.body;
+        
+        if (!position) {
+            return res.status(400).json({ 
+                error: 'Missing position',
+                details: 'Logo position is required.'
+            });
+        }
+        
+        // Validate position value
+        const LOGO_CONFIG = require('../constants/logoConfig');
+        const validPositions = LOGO_CONFIG.POSITION_OPTIONS.map(opt => opt.value);
+        if (!validPositions.includes(position)) {
+            return res.status(400).json({ 
+                error: 'Invalid position',
+                details: `Position must be one of: ${validPositions.join(', ')}`
+            });
+        }
+        
+        // Save logo position to settings
+        await AppSettings.setSetting('branding', 'logo_position', position, req.user.id);
+        
+        res.json({ 
+            success: true, 
+            message: 'Logo position updated successfully',
+            position 
+        });
+    } catch (error) {
+        console.error('Error updating logo position:', error);
+        res.status(500).json({ error: 'Error updating logo position' });
+    }
+});
+
 module.exports = router; 

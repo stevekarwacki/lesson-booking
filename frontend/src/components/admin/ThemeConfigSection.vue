@@ -79,6 +79,28 @@
       <!-- Logo Upload -->
       <div class="config-card">
         <h3>Logo</h3>
+        
+        <!-- Logo Position Selection -->
+        <div v-if="logoConfig" class="logo-position-section">
+          <h4>Logo Position</h4>
+          <div class="position-options">
+            <label 
+              v-for="option in logoConfig.positionOptions" 
+              :key="option.value"
+              class="position-option"
+            >
+              <input 
+                type="radio" 
+                :value="option.value" 
+                v-model="selectedLogoPosition"
+                @change="updateLogoPosition"
+                :disabled="loading"
+              />
+              <span class="position-label">{{ option.label }}</span>
+            </label>
+          </div>
+        </div>
+        
         <div class="logo-upload-section">
           <div class="current-logo" v-if="currentLogoUrl">
             <img :src="currentLogoUrl" alt="Current logo" class="logo-preview" />
@@ -189,6 +211,7 @@ export default {
     const isCustomColorValid = ref(true)
     const originalData = ref({})
     const logoConfig = ref(null)
+    const selectedLogoPosition = ref('left')
     
     // Curated color palettes
     const curatedPalettes = [
@@ -328,6 +351,35 @@ export default {
       isCustomColorValid.value = true
     }
     
+    const updateLogoPosition = async () => {
+      try {
+        const response = await fetch('/api/admin/settings/logo/position', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ position: selectedLogoPosition.value })
+        })
+        
+        const result = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(result.details || result.error || 'Failed to update logo position')
+        }
+        
+        // Emit success event
+        emitChange('logo_position_updated', { 
+          position: selectedLogoPosition.value,
+          message: result.message
+        })
+        
+      } catch (error) {
+        // Handle error appropriately - emit error event to parent
+        emitChange('upload_error', { error: error.message })
+      }
+    }
+    
     const getCurrentConfig = () => {
       return {
         primaryColor: customPrimaryColor.value,
@@ -410,6 +462,9 @@ export default {
           if (branding.logoConfig) {
             logoConfig.value = branding.logoConfig
           }
+          if (branding.logoPosition) {
+            selectedLogoPosition.value = branding.logoPosition
+          }
         }
       } catch (error) {
         console.warn('Could not fetch branding information:', error.message)
@@ -442,6 +497,7 @@ export default {
       contrastWarning,
       isCustomColorValid,
       logoConfig,
+      selectedLogoPosition,
       curatedPalettes,
       hasChanges,
       previewStyles,
@@ -450,6 +506,7 @@ export default {
       applyCustomColor,
       handleLogoUpload,
       removeLogo,
+      updateLogoPosition,
       saveThemeConfig,
       resetToDefaults
     }
@@ -623,6 +680,49 @@ export default {
   border-radius: var(--border-radius-sm);
   color: #856404;
   font-size: var(--font-size-sm);
+}
+
+/* Logo Position Styles */
+.logo-position-section {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.logo-position-section h4 {
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: 500;
+}
+
+.position-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.position-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-normal);
+}
+
+.position-option:hover {
+  background: var(--background-hover);
+}
+
+.position-option input[type="radio"] {
+  margin: 0;
+}
+
+.position-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
 }
 
 /* Logo Upload Styles */

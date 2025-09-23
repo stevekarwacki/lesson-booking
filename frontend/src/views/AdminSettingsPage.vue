@@ -89,11 +89,13 @@ const handleContentChange = async (data) => {
     const { tabId, action, payload } = data
     
     // Handle logo-specific actions separately
-    if (action === 'logo_uploaded' || action === 'logo_removed') {
+    if (action === 'logo_uploaded' || action === 'logo_removed' || action === 'logo_position_updated') {
       if (action === 'logo_uploaded') {
         success.value = payload.message || 'Logo uploaded successfully'
-      } else {
+      } else if (action === 'logo_removed') {
         success.value = payload.message || 'Logo removed successfully'
+      } else if (action === 'logo_position_updated') {
+        success.value = payload.message || 'Logo position updated successfully'
       }
       
       // Clear success message after 3 seconds

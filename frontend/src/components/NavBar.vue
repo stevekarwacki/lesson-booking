@@ -10,6 +10,7 @@ const isMenuOpen = ref(false)
 // Logo state
 const logoUrl = ref('')
 const companyName = ref('')
+const logoPosition = ref('left')
 
 // Fetch branding information
 const fetchBrandingInfo = async () => {
@@ -22,6 +23,9 @@ const fetchBrandingInfo = async () => {
       }
       if (branding.companyName) {
         companyName.value = branding.companyName
+      }
+      if (branding.logoPosition) {
+        logoPosition.value = branding.logoPosition
       }
     }
   } catch (error) {
@@ -73,8 +77,9 @@ const handleLogout = () => {
 </script>
 
 <template>
-    <nav class="navbar">
-        <div class="nav-brand">
+    <nav class="navbar" :class="`logo-${logoPosition}`">
+        <!-- Mobile: Brand area with hamburger -->
+        <div class="nav-brand-mobile">
             <router-link to="/" class="brand-link" @click="closeMenu">
                 <img 
                     v-if="logoUrl" 
@@ -82,7 +87,7 @@ const handleLogout = () => {
                     :alt="companyName + ' logo'"
                     class="brand-logo"
                 />
-                <h1 class="brand-text">{{ companyName }}</h1>
+                <h1 v-if="!logoUrl" class="brand-text">{{ companyName }}</h1>
             </router-link>
             <button class="hamburger" @click="toggleMenu" :class="{ 'is-active': isMenuOpen }">
                 <span class="hamburger-box">
@@ -91,6 +96,46 @@ const handleLogout = () => {
             </button>
         </div>
 
+        <!-- Desktop: Three-column grid layout -->
+        <div class="nav-grid-desktop">
+            <!-- Left column: Logo (if left position) + Company name -->
+            <div class="nav-left">
+                <router-link to="/" class="brand-link" @click="closeMenu">
+                    <img 
+                        v-if="logoUrl && logoPosition === 'left'" 
+                        :src="logoUrl" 
+                        :alt="companyName + ' logo'"
+                        class="brand-logo"
+                    />
+                    <h1 class="brand-text">{{ companyName }}</h1>
+                </router-link>
+            </div>
+            
+            <!-- Center column: Logo (if center position) -->
+            <div class="nav-center">
+                <router-link to="/" class="brand-link" @click="closeMenu" v-if="logoPosition === 'center'">
+                    <img 
+                        v-if="logoUrl" 
+                        :src="logoUrl" 
+                        :alt="companyName + ' logo'"
+                        class="brand-logo"
+                    />
+                    <h1 v-if="!logoUrl" class="brand-text">{{ companyName }}</h1>
+                </router-link>
+            </div>
+            
+            <!-- Right column: User info + logout -->
+            <div class="nav-right">
+                <div class="nav-auth" v-if="userStore.user">
+                    <span class="user-name">{{ userStore.user.name }}</span>
+                    <button @click="handleLogout" class="logout-button">
+                        Log Out
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile/Desktop: Collapsible navigation content -->
         <div class="nav-content" :class="{ 'is-open': isMenuOpen }">
             <div class="nav-links" v-if="userStore.user" @click="closeMenu">
                 <template v-if="isStudentUnapproved()">
@@ -182,7 +227,8 @@ const handleLogout = () => {
                 </router-link>
             </div>
 
-            <div class="nav-auth">
+            <!-- Mobile: Auth section in collapsible menu -->
+            <div class="nav-auth nav-auth-mobile">
                 <template v-if="userStore.user">
                     <span class="user-name">{{ userStore.user.name }}</span>
                     <button @click="handleLogout" class="logout-button">
@@ -207,10 +253,53 @@ const handleLogout = () => {
     z-index: 1000;
 }
 
-.nav-brand {
-    display: flex;
+/* Mobile: Brand area with hamburger (hidden on desktop) */
+.nav-brand-mobile {
+    display: none;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
+}
+
+/* Desktop: Three-column grid layout (hidden on mobile) */
+.nav-grid-desktop {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    width: 100%;
+    gap: var(--spacing-md);
+}
+
+.nav-left {
+    justify-self: start;
+}
+
+.nav-center {
+    justify-self: center;
+}
+
+.nav-right {
+    justify-self: end;
+}
+
+/* Desktop: Navigation content (below the grid header) */
+.nav-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: var(--spacing-sm);
+    border-top: 1px solid #eee;
+    padding-top: var(--spacing-sm);
+}
+
+/* Desktop: Hide mobile auth section */
+.nav-auth-mobile {
+    display: none;
+}
+
+/* Desktop: Ensure nav-content auth is hidden */
+.nav-content .nav-auth {
+    display: none;
 }
 
 .brand-link {
@@ -365,14 +454,29 @@ const handleLogout = () => {
         padding: var(--spacing-sm);
     }
 
+    /* Mobile: Show brand area with hamburger */
+    .nav-brand-mobile {
+        display: flex;
+    }
+
+    /* Mobile: Hide desktop grid */
+    .nav-grid-desktop {
+        display: none;
+    }
+
+    /* Mobile: Show hamburger */
     .hamburger {
         display: block;
     }
 
+    /* Mobile: Collapsible navigation */
     .nav-content {
         display: none;
         flex-direction: column;
         width: 100%;
+        padding-top: var(--spacing-md);
+        margin-top: 0;
+        border-top: none;
         padding-top: var(--spacing-md);
     }
 
@@ -394,7 +498,9 @@ const handleLogout = () => {
         border-bottom: 1px solid #eee;
     }
 
-    .nav-auth {
+    /* Mobile: Show auth section in collapsed menu */
+    .nav-content .nav-auth-mobile {
+        display: flex !important;
         width: 100%;
         justify-content: center;
         padding: var(--spacing-md) 0;
