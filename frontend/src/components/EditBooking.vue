@@ -203,7 +203,8 @@ const formatSlot = (slot, date) => {
 const handleSlotSelected = (slot) => {
     selectedSlot.value = {
         ...slot,
-        instructorId: props.booking.instructor_id
+        instructorId: props.booking.instructor_id,
+        duration: props.booking.duration // Always use original booking duration for rescheduling
     }
 }
 

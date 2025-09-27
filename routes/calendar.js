@@ -484,18 +484,21 @@ router.patch('/student/:bookingId', authorizeBooking('update', async (req) => {
         // Calculate time slots
         const startSlot = Math.floor(requestedDate.getUTCHours() * 4 + requestedDate.getUTCMinutes() / 15);
         const endSlot = Math.floor(endDate.getUTCHours() * 4 + endDate.getUTCMinutes() / 15);
-        const duration = endSlot - startSlot;
+        
+        // Get the booking to update and preserve original duration
+        const booking = await Calendar.findByPk(bookingId);
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+        
+        // Always preserve original duration during rescheduling
+        const duration = booking.duration;
 
         // Validate slot duration
         if (duration <= 0) {
             return res.status(400).json({ error: 'Invalid time slot duration' });
         }
 
-        // Get the booking to update
-        const booking = await Calendar.findByPk(bookingId);
-        if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
-        }
 
         // Booking ownership already verified by authorizeBooking middleware
 
@@ -593,8 +596,6 @@ router.patch('/student/:bookingId', authorizeBooking('update', async (req) => {
                     updatedBookingWithDetails
                 );
                 
-                console.log(`Rescheduling confirmation emails queued for booking ${booking.id}:`, 
-                    emailJobIds.map(job => `${job.recipient} (${job.jobId})`).join(', '));
             }
         } catch (emailError) {
             // Log email error but don't fail the booking update

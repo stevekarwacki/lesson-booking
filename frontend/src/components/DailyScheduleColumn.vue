@@ -134,8 +134,15 @@ const isSlotSelected = (slot) => {
   const selectedDateStr = selectedDate instanceof Date ? selectedDate.toISOString().split('T')[0] : selectedDate
   const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
   
-  return selectedDateStr === slotDateStr && 
-         props.selectedSlot.startSlot === slot.startSlot
+  // Check if dates match
+  if (selectedDateStr !== slotDateStr) return false
+  
+  // Check if this slot is within the selected duration range
+  const selectedStartSlot = props.selectedSlot.startSlot
+  const selectedDuration = props.selectedSlot.duration || 2
+  const selectedEndSlot = selectedStartSlot + selectedDuration
+  
+  return slot.startSlot >= selectedStartSlot && slot.startSlot < selectedEndSlot
 }
 
 const isOriginalSlot = (slot) => {
@@ -149,8 +156,15 @@ const isOriginalSlot = (slot) => {
   const originalDateStr = originalDate instanceof Date ? originalDate.toISOString().split('T')[0] : originalDate
   const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
   
-  return originalDateStr === slotDateStr && 
-         props.originalSlot.start_slot === slot.startSlot
+  // Check if dates match
+  if (originalDateStr !== slotDateStr) return false
+  
+  // Check if this slot is within the original booking's duration range
+  const originalStartSlot = props.originalSlot.start_slot
+  const originalDuration = props.originalSlot.duration || 2
+  const originalEndSlot = originalStartSlot + originalDuration
+  
+  return slot.startSlot >= originalStartSlot && slot.startSlot < originalEndSlot
 }
 
 const getSlotClasses = (slot) => {
@@ -192,7 +206,7 @@ const handleSlotClick = (slot) => {
       emit('slot-selected', {
         date: props.date,
         startSlot: slot.startSlot,
-        duration: 2, // 30 minutes
+        duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2, // Use original duration when rescheduling
         type: 'available'
       })
     }
