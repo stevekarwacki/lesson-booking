@@ -48,7 +48,14 @@
                     <p>{{ selectedDuration }} minutes - ${{ lessonPrice }}</p>
                 </div>
 
-                <div v-if="showPaymentOptions" class="payment-options">
+                <!-- Conflict Warning -->
+                <div v-if="hasTimeConflict" class="conflict-warning">
+                    <h3>Time Conflict</h3>
+                    <p>{{ conflictMessage }}</p>
+                    <p><strong>Please select a different time or choose 30 minutes instead.</strong></p>
+                </div>
+
+                <div v-if="showPaymentOptions && !hasTimeConflict" class="payment-options">
                     <h3>Payment Method</h3>
                     <div class="form-group">
                         <div class="form-input-group">
@@ -104,9 +111,9 @@
                     v-if="paymentMethod !== 'direct'"
                     class="form-button" 
                     @click="confirmBooking"
-                    :disabled="loading"
+                    :disabled="loading || hasTimeConflict"
                 >
-                    {{ loading ? 'Processing...' : 'Confirm Booking' }}
+                    {{ loading ? 'Processing...' : hasTimeConflict ? 'Booking Conflict' : 'Confirm Booking' }}
                 </button>
             </div>
         </div>
@@ -145,6 +152,88 @@ const instructorHourlyRate = ref(50) // Default rate, will be fetched from datab
 const displayEndTime = computed(() => {
     const durationInSlots = parseInt(selectedDuration.value) / 15;
     return slotToTime(parseInt(currentSlot.value.startSlot) + durationInSlots);
+})
+
+// Reactive properties for conflict checking
+const hasTimeConflict = ref(false)
+const conflictMessage = ref('')
+
+// Function to check for time conflicts when duration changes
+const checkTimeConflicts = async () => {
+    if (selectedDuration.value === '30') {
+        // 30-minute slots are pre-validated as available
+        hasTimeConflict.value = false
+        conflictMessage.value = ''
+        return
+    }
+
+    try {
+        // For 60-minute lessons, fetch availability and booked events to check conflicts
+        const formattedDate = currentSlot.value.date.toISOString().split('T')[0]
+        
+        const [availabilityResponse, eventsResponse] = await Promise.all([
+            fetch(`/api/availability/${currentSlot.value.instructorId}/daily/${formattedDate}`, {
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
+            }),
+            fetch(`/api/calendar/dailyEvents/${currentSlot.value.instructorId}/${formattedDate}`, {
+                headers: { 'Authorization': `Bearer ${userStore.token}` }
+            })
+        ])
+
+        if (!availabilityResponse.ok || !eventsResponse.ok) {
+            hasTimeConflict.value = true
+            conflictMessage.value = 'Unable to check availability'
+            return
+        }
+
+        const [availabilityData, bookedEvents] = await Promise.all([
+            availabilityResponse.json(),
+            eventsResponse.json()
+        ])
+
+        // Check if the extended duration (60 minutes = 4 slots) would conflict
+        const startSlot = currentSlot.value.startSlot
+        const durationInSlots = parseInt(selectedDuration.value) / 15
+        const endSlot = startSlot + durationInSlots
+
+        // Check for conflicts with existing bookings
+        const hasBookingConflict = bookedEvents.some(event => {
+            const eventStart = event.start_slot
+            const eventEnd = event.start_slot + event.duration
+            return startSlot < eventEnd && endSlot > eventStart
+        })
+
+        if (hasBookingConflict) {
+            hasTimeConflict.value = true
+            conflictMessage.value = 'The requested 60-minute time slot conflicts with existing bookings. Please select a different time or try a 30-minute lesson.'
+            return
+        }
+
+        // Check if instructor has availability for the full duration
+        const hasAvailability = availabilityData.some(slot => {
+            return startSlot >= slot.start_slot && 
+                   endSlot <= slot.start_slot + slot.duration
+        })
+
+        if (!hasAvailability) {
+            hasTimeConflict.value = true
+            conflictMessage.value = 'Instructor is not available for the full 60 minutes requested. Please check availability or select a shorter duration.'
+            return
+        }
+
+        // No conflicts found
+        hasTimeConflict.value = false
+        conflictMessage.value = ''
+
+    } catch (err) {
+        hasTimeConflict.value = true
+        conflictMessage.value = 'Unable to validate booking availability'
+    }
+}
+
+// Watch for duration changes and validate
+watch(selectedDuration, () => {
+    checkTimeConflicts()
 })
 
 // Computed property for pricing based on selected duration and instructor's hourly rate
@@ -208,6 +297,9 @@ onMounted(async () => {
         })(),
         fetchInstructorRate()
     ])
+    
+    // Check for conflicts on initial load
+    await checkTimeConflicts()
 })
 
 const handleStripeSuccess = async () => {
@@ -363,6 +455,24 @@ watch(() => props.slot, (newSlot) => {
     padding: var(--spacing-sm);
     background: rgba(255, 0, 0, 0.1);
     border-radius: var(--border-radius);
+}
+
+.conflict-warning {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid #ffc107;
+    border-radius: var(--border-radius);
+    color: #856404;
+}
+
+.conflict-warning h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: #856404;
+}
+
+.conflict-warning p {
+    margin: var(--spacing-sm) 0 0 0;
 }
 
 .modal-footer {

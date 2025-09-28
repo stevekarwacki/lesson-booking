@@ -195,16 +195,35 @@ router.post('/addEvent', authorize('create', 'Booking'), async (req, res) => {
             }
         }
 
-        // 5. Create the booking
-        const event = await Calendar.addEvent(
-            instructorId,
-            studentId,
-            formattedDate,
-            startSlot,
-            duration,
-            'booked',
-            paymentMethod
-        );
+        // 5. Create the booking with transaction safety
+        let event;
+        try {
+            event = await Calendar.addEvent(
+                instructorId,
+                studentId,
+                formattedDate,
+                startSlot,
+                duration,
+                'booked',
+                paymentMethod
+            );
+        } catch (bookingError) {
+            // If booking fails and this was a direct payment, we need to refund the Stripe payment
+            if (paymentMethod === 'direct') {
+                // TODO: Implement automatic Stripe refund here
+                // This would require storing the payment intent ID and calling Stripe's refund API
+                // For now, log the error so manual refunds can be processed
+                console.error('CRITICAL: Booking failed after Stripe payment. Manual refund required.', {
+                    studentId,
+                    instructorId,
+                    startTime,
+                    endTime,
+                    error: bookingError.message,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            throw bookingError;
+        }
 
         // Get the newly created booking data
         const newBooking = await Calendar.getEventById(event.id);
