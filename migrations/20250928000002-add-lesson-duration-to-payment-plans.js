@@ -18,14 +18,13 @@ module.exports = {
       WHERE lesson_duration_minutes IS NULL
     `);
 
-    console.log('✅ Added lesson duration support to payment plans');
-    console.log('   - All existing plans now provide 30-minute lesson credits');
+    // Migration completed successfully
   },
 
   async down(queryInterface, Sequelize) {
     // Remove the lesson_duration_minutes column
     await queryInterface.removeColumn('payment_plans', 'lesson_duration_minutes');
     
-    console.log('✅ Removed lesson duration support from payment plans');
+    // Migration rollback completed
   }
 };

@@ -61,14 +61,12 @@ const initModels = async () => {
         
         // Authenticate connection to ensure everything is working
         await sequelize.authenticate();
-        console.log('✅ Database connection established successfully.');
         
         // Run seeds after migrations
         if (process.env.RUN_SEEDS === 'true') {
             await runSeeds(models);
         }
     } catch (error) {
-        console.error('❌ Error initializing database:', error);
         throw error; // Re-throw to prevent server startup with broken DB
     }
 };

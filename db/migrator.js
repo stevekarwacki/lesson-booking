@@ -17,29 +17,18 @@ class DatabaseMigrator {
      */
     async runMigrations() {
         try {
-            console.log('🔄 Checking for pending database migrations...');
-            
-            // First check migration status
+            // Check for pending migrations
             const status = await this.getMigrationStatus();
             const pendingMigrations = status.filter(m => m.status === 'down');
             
             if (pendingMigrations.length === 0) {
-                console.log('✅ Database is up to date - no migrations needed');
-                return;
+                return; // Database is up to date
             }
 
-            console.log(`📋 Found ${pendingMigrations.length} pending migration(s):`);
-            pendingMigrations.forEach(migration => {
-                console.log(`   - ${migration.name}`);
-            });
-
-            console.log('🚀 Running migrations...');
+            // Run pending migrations
             await this.executeCommand('db:migrate');
-            
-            console.log(`✅ Successfully executed ${pendingMigrations.length} migration(s)`);
 
         } catch (error) {
-            console.error('❌ Migration failed:', error);
             throw error;
         }
     }
@@ -52,7 +41,6 @@ class DatabaseMigrator {
             const output = await this.executeCommand('db:migrate:status');
             return this.parseMigrationStatus(output);
         } catch (error) {
-            console.error('Error getting migration status:', error);
             return [];
         }
     }
@@ -123,9 +111,7 @@ class DatabaseMigrator {
             throw new Error('Rollback not allowed in production');
         }
         
-        console.log('⚠️  Rolling back last migration...');
         await this.executeCommand('db:migrate:undo');
-        console.log('✅ Rollback completed');
     }
 }
 

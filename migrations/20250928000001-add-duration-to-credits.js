@@ -31,10 +31,7 @@ module.exports = {
       WHERE duration_minutes IS NULL
     `);
 
-    console.log('✅ Added duration support to credit system');
-    console.log('   - All existing credits are now 30-minute credits');
-    console.log('   - All existing credit usage records marked as 30-minute');
-    console.log('   - Added performance index for duration queries');
+    // Migration completed successfully
   },
 
   async down(queryInterface, Sequelize) {
@@ -45,6 +42,6 @@ module.exports = {
     await queryInterface.removeColumn('user_credits', 'duration_minutes');
     await queryInterface.removeColumn('credit_usage', 'duration_minutes');
     
-    console.log('✅ Removed duration support from credit system');
+    // Migration rollback completed
   }
 };
