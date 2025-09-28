@@ -236,10 +236,11 @@ watch(selectedDuration, () => {
     checkTimeConflicts()
 })
 
-// Computed property for pricing based on selected duration and instructor's hourly rate
+// Computed property for pricing based on selected duration and instructor's rate
 const lessonPrice = computed(() => {
-    const rate = instructorHourlyRate.value || 50; // Fallback to $50 if no rate set
-    return parseInt(selectedDuration.value) === 30 ? rate / 2 : rate;
+    const rate = instructorHourlyRate.value || 50; // This is not actually a hourly rate, it's the cost of the shortest lesson offerred. Fallback to $50 if no rate set
+    // Rate represents 30-minute lesson cost, so 60-minute lessons cost double
+    return parseInt(selectedDuration.value) === 30 ? rate : rate * 2;
 })
 
 // Fetch instructor's hourly rate
