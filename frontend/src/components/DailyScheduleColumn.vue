@@ -174,6 +174,7 @@ const getSlotClasses = (slot) => {
     'past': isPastTimeSlot(slot.startSlot, props.date.toISOString()),
     'booked': slot.type === 'booked',
     'own-booking': slot.type === 'booked' && slot.isOwnBooking,
+    'rescheduling': slot.type === 'rescheduling',
     'google-calendar': slot.is_google_calendar,
     'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
     'first-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0,
@@ -182,7 +183,7 @@ const getSlotClasses = (slot) => {
     'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling,
     'instructor-view-booked': slot.type === 'booked' && props.isInstructor,
     'selected': isSlotSelected(slot),
-    'original-slot': isOriginalSlot(slot)
+    'original-slot': isOriginalSlot(slot) && slot.type !== 'rescheduling' // Don't apply to rescheduling slots
   }
 }
 
@@ -192,8 +193,11 @@ const handleSlotClick = (slot) => {
     return
   }
   
-  // Prevent clicks on the original slot being rescheduled
-  if (isOriginalSlot(slot)) {
+  // Allow clicks on rescheduling slots, prevent clicks on other original slots
+  if (slot.type === 'rescheduling') {
+    // Always allow rescheduling slots to be clicked
+  } else if (isOriginalSlot(slot)) {
+    // Prevent clicks on original slots that aren't rescheduling type
     return
   }
   
@@ -215,6 +219,14 @@ const handleSlotClick = (slot) => {
       ...slot,
       date: props.date,
       type: 'booked'
+    })
+  } else if (slot.type === 'rescheduling') {
+    // Allow selection of rescheduling slots (current booking being moved)
+    emit('slot-selected', {
+      date: props.date,
+      startSlot: slot.startSlot,
+      duration: props.originalSlot ? props.originalSlot.duration : 2, // Use original duration
+      type: 'available' // Emit as available so parent handles it correctly
     })
   }
 }
@@ -288,6 +300,12 @@ const handleSlotClick = (slot) => {
   cursor: pointer;
 }
 
+.time-slot.rescheduling {
+  background-color: var(--calendar-rescheduling-original);
+  cursor: pointer;
+  border: 2px solid var(--calendar-rescheduling-original);
+}
+
 .time-slot.google-calendar {
   background-color: var(--calendar-blocked);
   background-image: repeating-linear-gradient(
@@ -323,7 +341,7 @@ const handleSlotClick = (slot) => {
 }
 
 .time-slot.selected {
-  background-color: var(--primary-color, #0066ff);
+  background-color: var(--calendar-rescheduling-selected);
   color: white;
 }
 

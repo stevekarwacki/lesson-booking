@@ -222,11 +222,15 @@ const handleSlotSelected = (slot) => {
         // Check if current user can manage bookings (instructors and admins)
         if ((userStore.canManageCalendar || userStore.canManageUsers) && slot.student && slot.student.id) {
             // Create a booking object that matches the EditBookingModal expected format
+            // For multi-slot bookings, calculate the original start slot and total duration
+            const originalStartSlot = slot.isMultiSlot ? slot.startSlot - (slot.slotPosition * 2) : slot.startSlot
+            const totalDuration = slot.isMultiSlot ? slot.totalSlots * 2 : slot.duration
+            
             const bookingObject = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string
-                start_slot: slot.startSlot, // Normalized from scheduleTransform
-                duration: slot.duration,
+                start_slot: originalStartSlot, // Use original start slot, not clicked slot
+                duration: totalDuration, // Use total duration, not individual slot duration
                 instructor_id: instructor.id,
                 student_id: slot.student.id,
                 status: 'booked',
@@ -242,11 +246,15 @@ const handleSlotSelected = (slot) => {
         }
         // For students viewing their own bookings, allow them to edit as well
         else if (userStore.isStudent && slot.student && slot.student.id === userStore.user.id) {
+            // For multi-slot bookings, calculate the original start slot and total duration
+            const originalStartSlot = slot.isMultiSlot ? slot.startSlot - (slot.slotPosition * 2) : slot.startSlot
+            const totalDuration = slot.isMultiSlot ? slot.totalSlots * 2 : slot.duration
+            
             const bookingObject = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0],
-                start_slot: slot.startSlot, // Normalized from scheduleTransform
-                duration: slot.duration,
+                start_slot: originalStartSlot, // Use original start slot, not clicked slot
+                duration: totalDuration, // Use total duration, not individual slot duration
                 instructor_id: instructor.id,
                 student_id: slot.student.id,
                 status: 'booked',
@@ -652,7 +660,6 @@ const fetchDailyBookings = async () => {
 
 // BookingList event handlers
 const handleEditBookingFromList = (booking) => {
-    console.log('Edit booking from list:', booking)
     // For now, just log - later we can integrate with EditBookingModal
     // This could open the booking modal in edit mode
     selectedSlot.value = {
@@ -664,14 +671,12 @@ const handleEditBookingFromList = (booking) => {
 }
 
 const handleCancelBookingFromList = (booking) => {
-    console.log('Cancel booking from list:', booking)
     // TODO: Implement booking cancellation
     // This would call an API to cancel the booking
     alert(`Cancel booking functionality would be implemented here for booking ID: ${booking.id}`)
 }
 
 const handleViewBookingFromList = (booking) => {
-    console.log('View booking from list:', booking)
     // For cancelled bookings, show in view-only mode
     selectedSlot.value = {
         ...booking.originalBooking,

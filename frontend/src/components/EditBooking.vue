@@ -19,9 +19,16 @@
         <div class="schedule-section">
             <h3>Select New Time</h3>
             
-            <div v-if="selectedSlot" class="selected-slot-info">
-                <h4>Selected New Time:</h4>
-                <p>{{ formatDate(selectedSlot.date) }} at {{ selectedSlot.startSlot ? formatTime(slotToTime(selectedSlot.startSlot)) : '' }} - {{ selectedSlot.startSlot && selectedSlot.duration ? formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) : '' }}</p>
+            <div class="time-comparison">
+                <div class="original-time-info">
+                    <h4>Original Time:</h4>
+                    <p>{{ formatDate(new Date(booking.date + 'T00:00:00')) }} at {{ booking.start_slot ? formatTime(slotToTime(booking.start_slot)) : '' }} - {{ booking.start_slot && booking.duration ? formatTime(slotToTime(booking.start_slot + booking.duration)) : '' }}</p>
+                </div>
+                <div class="selected-slot-info">
+                    <h4>New Time:</h4>
+                    <p v-if="selectedSlot">{{ formatDate(selectedSlot.date) }} at {{ selectedSlot.startSlot ? formatTime(slotToTime(selectedSlot.startSlot)) : '' }} - {{ selectedSlot.startSlot && selectedSlot.duration ? formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) : '' }}</p>
+                    <p v-else class="placeholder-text">Select a new time slot</p>
+                </div>
             </div>
             
             <div class="form-group">
@@ -177,8 +184,23 @@ const handleDateChange = async () => {
 
         // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
-            // Skip the current booking when showing conflicts
-            if (event.id === props.booking.id) return
+            // Handle the current booking being rescheduled differently
+            if (event.id === props.booking.id) {
+                // Add current booking as a special "rescheduling" type - selectable and styled differently
+                for (let i = 0; i < event.duration; i += 2) {
+                    const currentSlot = event.start_slot + i
+                    const slotData = {
+                        ...event,
+                        start_slot: currentSlot,
+                        duration: 2
+                    }
+                    // Set type to rescheduling BEFORE calling formatSlot
+                    slotData.type = 'rescheduling'
+                    const reschedulingSlot = formatSlot(slotData, scheduleDate)
+                    formattedSchedule[currentSlot] = reschedulingSlot
+                }
+                return
+            }
             
             // Add booked event to schedule
             formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
@@ -195,7 +217,7 @@ const formatSlot = (slot, date) => {
     return {
         ...slot,
         date: date,
-        type: slot.student_id ? 'booked' : 'available',
+        type: slot.type || (slot.student_id ? 'booked' : 'available'), // Preserve existing type if set
         isOwnBooking: slot.student_id === userStore.user.id
     }
 }
@@ -334,23 +356,44 @@ const cancelBooking = async () => {
     border-radius: var(--border-radius);
 }
 
-.selected-slot-info {
+.time-comparison {
+    display: flex;
+    gap: var(--spacing-md);
     margin: var(--spacing-md) 0;
+}
+
+.original-time-info {
+    flex: 1;
     padding: var(--spacing-md);
-    background: var(--calendar-booked-self);
-    border: 1px solid var(--primary-color);
+    background: var(--calendar-rescheduling-original);
+    border: 1px solid var(--calendar-rescheduling-original);
     border-radius: var(--border-radius);
 }
 
-.selected-slot-info h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--text-primary);
+.selected-slot-info {
+    flex: 1;
+    padding: var(--spacing-md);
+    background: var(--calendar-rescheduling-selected);
+    border: 1px solid var(--calendar-rescheduling-selected);
+    border-radius: var(--border-radius);
 }
 
+.original-time-info h4,
+.selected-slot-info h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: white;
+}
+
+.original-time-info p,
 .selected-slot-info p {
     margin: 0;
     font-weight: 500;
-    color: var(--text-primary);
+    color: white;
+}
+
+.placeholder-text {
+    font-style: italic;
+    opacity: 0.8;
 }
 
 .form-label {
