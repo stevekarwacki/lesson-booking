@@ -124,6 +124,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
+import { useCredits } from '../composables/useCredits'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 
@@ -139,15 +140,16 @@ const emit = defineEmits(['close', 'booking-confirmed'])
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
 
+// Use credits composable for credit state management
+const { 
+    getAvailableCredits,
+    fetchCredits
+} = useCredits()
+
 const loading = ref(false)
 const error = ref(null)
 const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
-const userCredits = ref(0)
-const creditBreakdown = ref({
-    30: { credits: 0, next_expiry: null },
-    60: { credits: 0, next_expiry: null }
-})
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
@@ -256,8 +258,7 @@ const lessonPrice = computed(() => {
 
 // Computed property for available credits for selected duration
 const availableCredits = computed(() => {
-    const duration = parseInt(selectedDuration.value);
-    return creditBreakdown.value[duration]?.credits || 0;
+    return getAvailableCredits.value(selectedDuration.value);
 })
 
 // Fetch instructor's hourly rate
@@ -286,22 +287,7 @@ onMounted(async () => {
     await Promise.all([
         (async () => {
             try {
-                const response = await fetch('/api/payments/credits', {
-                    headers: {
-                        'Authorization': `Bearer ${userStore.token}`
-                    }
-                })
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch credits')
-                }
-                
-                const data = await response.json()
-                userCredits.value = data.total_credits || 0
-                creditBreakdown.value = data.breakdown || {
-                    30: { credits: 0, next_expiry: null },
-                    60: { credits: 0, next_expiry: null }
-                }
+                await fetchCredits()
                 
                 // If user has credits for the selected duration, default to using them
                 if (availableCredits.value > 0) {
@@ -311,7 +297,6 @@ onMounted(async () => {
                     showPaymentOptions.value = true
                 }
             } catch (err) {
-                console.error('Error fetching credits:', err)
                 // Default to direct payment if we can't fetch credits
                 paymentMethod.value = 'direct'
                 showPaymentOptions.value = true
@@ -406,6 +391,17 @@ const confirmBooking = async () => {
         }
 
         const result = await response.json()
+        
+        // Credits are automatically deducted by the backend, so we refresh to get accurate count
+        if (paymentMethod.value === 'credits') {
+            try {
+                await fetchCredits()
+            } catch (creditError) {
+                console.error('Failed to refresh credits after booking:', creditError)
+                // Don't fail the booking if credit refresh fails
+            }
+        }
+        
         emit('booking-confirmed', result.booking)
     } catch (err) {
         console.error('confirmBooking error:', err)

@@ -178,15 +178,18 @@ import { ref, onMounted, computed } from 'vue'
 import PaymentPlans from '../components/PaymentPlans.vue'
 import RecurringBookingModal from '../components/RecurringBookingModal.vue'
 import { useUserStore } from '../stores/userStore'
+import { useCredits } from '../composables/useCredits'
 import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
 
 const userStore = useUserStore()
-const userCredits = ref(0)
-const nextExpiry = ref(null)
-const creditBreakdown = ref({
-    30: { credits: 0, next_expiry: null },
-    60: { credits: 0, next_expiry: null }
-})
+
+// Use credits composable for credit state management
+const { 
+    userCredits, 
+    creditBreakdown, 
+    nextExpiry,
+    fetchCredits 
+} = useCredits()
 const transactions = ref([])
 const allPlans = ref([])
 const activeSubscriptions = ref([])
@@ -227,35 +230,7 @@ const getRecurringBooking = (subscriptionId) => {
     return recurringBookings.value.find(booking => booking.subscription_id === subscriptionId)
 }
 
-const fetchCredits = async () => {
-    try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch('/api/payments/credits', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch credits');
-        }
-        
-        const data = await response.json();
-        userCredits.value = data.total_credits || 0
-        nextExpiry.value = data.next_expiry
-        creditBreakdown.value = data.breakdown || {
-            30: { credits: 0, next_expiry: null },
-            60: { credits: 0, next_expiry: null }
-        }
-    } catch (err) {
-        error.value = 'Error fetching credits: ' + err.message;
-        console.error('Error fetching credits:', err);
-    } finally {
-        loading.value = false;
-    }
-};
+// fetchCredits is now provided by the useCredits composable
 
 const fetchPaymentPlans = async () => {
     try {

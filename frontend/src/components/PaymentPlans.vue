@@ -66,11 +66,13 @@ const handlePaymentSuccess = async () => {
         // For memberships, the subscription is handled by the subscription endpoint
         // So we don't need to call the purchase endpoint here
         
-        // Wait a moment to show the success message before resetting
+        // Emit success immediately for faster credit refresh
+        emit('purchase-success')
+        
+        // Wait a moment to show the success message before resetting UI
         setTimeout(() => {
-            emit('purchase-success')
             selectedPlan.value = null
-        }, 7000)
+        }, 3000)
     } catch (err) {
         error.value = err.message || 'Failed to process payment'
         console.error('Payment error:', err)
