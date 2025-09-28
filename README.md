@@ -6,7 +6,9 @@ A web application for managing lesson bookings.
 
 - User authentication and authorization
 - **CASL-based permission system** with role-based access control
-- Lesson scheduling and management
+- **Lesson scheduling and management** with 30 and 60-minute durations
+- **Duration-based pricing** (60-minute lessons cost 2x the 30-minute rate)
+- **Smart rescheduling** with duration preservation and conflict detection
 - Payment processing with email confirmations
 - Instructor profiles and availability
 - Student booking management
@@ -96,7 +98,9 @@ This application uses **CASL (Conditional Access Control List)** for comprehensi
 - **Time-based restrictions**: 24-hour booking modification policy for students
 - **Frontend/Backend sync**: Identical permission definitions across the stack
 
-For detailed documentation, see [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md)
+For detailed documentation, see:
+- [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md) - Permission system
+- [`docs/60_MINUTE_LESSON_FEATURES.md`](docs/60_MINUTE_LESSON_FEATURES.md) - 60-minute lesson functionality
 
 ### Permission Overview
 
@@ -114,7 +118,13 @@ npm test
 ```
 
 The test suite includes:
-- **68 total tests** covering permissions, routes, and integration
+- **71+ total tests** covering permissions, routes, and integration
 - Backend permission validation
 - Frontend router guard testing  
-- Time-based restriction verification 
+- Time-based restriction verification
+- **60-minute lesson functionality** (rescheduling, pricing, conflicts)
+
+### 60-Minute Lesson Tests
+- `tests/rescheduling-duration.test.js` - Duration preservation during rescheduling
+- `tests/pricing-calculations.test.js` - Correct pricing for different durations  
+- `tests/booking-conflicts.test.js` - Conflict detection for overlapping bookings 
