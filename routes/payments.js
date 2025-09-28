@@ -34,10 +34,16 @@ router.get('/plans/:id', async (req, res) => {
 // Get user credits - authenticated users only
 router.get('/credits', authorize('read', 'Credits'), async (req, res) => {
     try {
-        const credits = await Credits.getUserCredits(req.user.id);
-        res.json(credits);
+        const [credits, breakdown] = await Promise.all([
+            Credits.getUserCredits(req.user.id),
+            Credits.getUserCreditsBreakdown(req.user.id)
+        ]);
+        
+        res.json({
+            ...credits,
+            breakdown
+        });
     } catch (error) {
-        console.error('Error fetching user credits:', error);
         res.status(500).json({ error: 'Failed to fetch user credits' });
     }
 });
@@ -144,7 +150,7 @@ router.post('/webhook', express.raw({type: 'application/json'}), async (req, res
                         // Update original transaction to completed
                         await pendingTransaction.update({ status: 'completed' });
                         
-                        console.log(`Stripe payment completed for user ${pendingTransaction.user_id}, plan ${pendingTransaction.payment_plan_id}`);
+                        // Stripe payment completed successfully
                     } catch (error) {
                         console.error('Error completing Stripe purchase:', error);
                         await pendingTransaction.update({ status: 'failed' });

@@ -8,7 +8,9 @@
             
             <div class="card-body">
                 <p class="price">${{ plan.price }}{{ plan.type === 'membership' ? ' / month' : '' }}</p>
-                <p v-if="plan.type === 'one-time'" class="credits">{{ plan.credits }} Lesson Credits</p>
+                <p v-if="plan.type === 'one-time'" class="credits">
+                    {{ plan.credits }} Pre-paid {{ plan.lesson_duration_minutes || 30 }}-Minute Lessons
+                </p>
                 <p v-if="plan.type === 'membership'" class="membership-benefit">Enables weekly recurring lessons</p>
                 <p v-if="plan.description" class="description">
                     {{ plan.description }}

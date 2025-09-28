@@ -31,6 +31,11 @@ const PaymentPlan = sequelize.define('PaymentPlan', {
         type: DataTypes.INTEGER,
         allowNull: true
     },
+    lesson_duration_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30
+    },
     stripe_price_id: {
         type: DataTypes.STRING,
         allowNull: true
@@ -79,7 +84,7 @@ PaymentPlan.purchase = async function(userId, planId, paymentMethod, paymentInte
 
         // Only add credits for one-time plans (lesson packages), not memberships
         if (plan.type === 'one-time') {
-            await Credits.addCredits(userId, plan.credits, expiryDate);
+            await Credits.addCredits(userId, plan.credits, expiryDate, plan.lesson_duration_minutes);
         }
 
         await transaction.commit();
@@ -102,7 +107,7 @@ PaymentPlan.purchase = async function(userId, planId, paymentMethod, paymentInte
                 }
             );
             
-            console.log(`Purchase confirmation email queued for user ${userId}, plan ${planId} (Job ID: ${emailJobId})`);
+            // Purchase confirmation email queued successfully
         } catch (emailError) {
             // Log email queue error but don't fail the purchase
             // This is extremely unlikely to fail since queueing is synchronous

@@ -3,12 +3,24 @@
         <h1>Payments & Credits</h1>
         
         <div class="credit-balance card">
-            <h2>Your Credit Balance</h2>
+            <h2>Your Pre-paid Lessons</h2>
             <div class="balance-info">
-                <p class="credits-amount">{{ userCredits }} Lesson Credits</p>
-                <p v-if="nextExpiry" class="expiry-info">
-                    Next expiry: {{ formatDate(nextExpiry) }}
-                </p>
+                <div v-if="creditBreakdown[30].credits > 0" class="credit-type">
+                    <p class="credits-amount">{{ creditBreakdown[30].credits }} Pre-paid 30-Minute Lessons</p>
+                    <p v-if="creditBreakdown[30].next_expiry" class="expiry-info">
+                        Next expiry: {{ formatDate(creditBreakdown[30].next_expiry) }}
+                    </p>
+                </div>
+                <div v-if="creditBreakdown[60].credits > 0" class="credit-type">
+                    <p class="credits-amount">{{ creditBreakdown[60].credits }} Pre-paid 60-Minute Lessons</p>
+                    <p v-if="creditBreakdown[60].next_expiry" class="expiry-info">
+                        Next expiry: {{ formatDate(creditBreakdown[60].next_expiry) }}
+                    </p>
+                </div>
+                <div v-if="creditBreakdown[30].credits === 0 && creditBreakdown[60].credits === 0" class="no-credits">
+                    <p class="credits-amount">No Pre-paid Lessons</p>
+                    <p class="expiry-info">Purchase a lesson package below to get started</p>
+                </div>
             </div>
         </div>
 
@@ -171,6 +183,10 @@ import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
 const userStore = useUserStore()
 const userCredits = ref(0)
 const nextExpiry = ref(null)
+const creditBreakdown = ref({
+    30: { credits: 0, next_expiry: null },
+    60: { credits: 0, next_expiry: null }
+})
 const transactions = ref([])
 const allPlans = ref([])
 const activeSubscriptions = ref([])
@@ -229,6 +245,10 @@ const fetchCredits = async () => {
         const data = await response.json();
         userCredits.value = data.total_credits || 0
         nextExpiry.value = data.next_expiry
+        creditBreakdown.value = data.breakdown || {
+            30: { credits: 0, next_expiry: null },
+            60: { credits: 0, next_expiry: null }
+        }
     } catch (err) {
         error.value = 'Error fetching credits: ' + err.message;
         console.error('Error fetching credits:', err);
@@ -512,8 +532,24 @@ h3 {
 
 .balance-info {
     display: flex;
-    align-items: center;
-    gap: var(--spacing-lg);
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.credit-type {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-light);
+}
+
+.no-credits {
+    padding: var(--spacing-md);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-light);
+    text-align: center;
+    opacity: 0.7;
 }
 
 .credits-amount {

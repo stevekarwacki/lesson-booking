@@ -19,7 +19,8 @@ const newPackage = ref({
     price: '',
     credits: '',
     type: 'one-time',
-    duration_days: null
+    duration_days: null,
+    lesson_duration_minutes: 30
 })
 
 const resetNewPackage = () => {
@@ -28,7 +29,8 @@ const resetNewPackage = () => {
         price: '',
         credits: '',
         type: 'one-time',
-        duration_days: null
+        duration_days: null,
+        lesson_duration_minutes: 30
     }
 }
 
@@ -269,6 +271,23 @@ onMounted(fetchPackages)
                             </div>
                         </div>
 
+                        <div class="form-group" v-if="newPackage.type === 'one-time'">
+                            <label class="form-label">Lesson Duration:</label>
+                            <div class="form-input">
+                                <select 
+                                    v-model="newPackage.lesson_duration_minutes" 
+                                    class="form-input"
+                                    required
+                                >
+                                    <option value="30">30 Minutes</option>
+                                    <option value="60">60 Minutes</option>
+                                </select>
+                            </div>
+                            <small class="form-text">
+                                Duration of lessons this package provides credits for
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">Type:</label>
                             <div class="form-input">
@@ -331,7 +350,9 @@ onMounted(fetchPackages)
                 <div class="card-body">
                     <div class="package-info">
                         <p class="price">${{ pkg.price }}</p>
-                        <p v-if="pkg.type === 'one-time'" class="credits">{{ pkg.credits }} credits</p>
+                        <p v-if="pkg.type === 'one-time'" class="credits">
+                            {{ pkg.credits }} Pre-paid {{ pkg.lesson_duration_minutes || 30 }}-Minute Lessons
+                        </p>
                         <p v-if="pkg.type === 'membership'" class="duration">
                             Duration: {{ pkg.duration_days }} days
                         </p>
@@ -427,6 +448,22 @@ onMounted(fetchPackages)
                             <small class="form-text">Number of lesson credits included with this package</small>
                         </div>
                     </div>
+
+                    <div class="form-group" v-if="editingPackage.type === 'one-time'">
+                        <label class="form-label" for="editPackageLessonDuration">Lesson Duration:</label>
+                        <div class="form-input">
+                            <select 
+                                id="editPackageLessonDuration"
+                                v-model="editingPackage.lesson_duration_minutes" 
+                                class="form-input"
+                                required
+                            >
+                                <option value="30">30 Minutes</option>
+                                <option value="60">60 Minutes</option>
+                            </select>
+                            <small class="form-text">Duration of lessons this package provides credits for</small>
+                        </div>
+                    </div>
                     
 
                     
@@ -457,7 +494,9 @@ onMounted(fetchPackages)
                             </div>
                             <div class="preview-details">
                                 <p class="preview-price">${{ editingPackage.price }}</p>
-                                <p v-if="editingPackage.type === 'one-time'" class="preview-credits">{{ editingPackage.credits }} credits included</p>
+                                <p v-if="editingPackage.type === 'one-time'" class="preview-credits">
+                                    {{ editingPackage.credits }} Pre-paid {{ editingPackage.lesson_duration_minutes || 30 }}-Minute Lessons
+                                </p>
                                 <p v-if="editingPackage.type === 'membership'" class="preview-duration">
                                     Renews every {{ editingPackage.duration_days }} days
                                 </p>
@@ -511,7 +550,7 @@ onMounted(fetchPackages)
                                     <strong>Current Price:</strong> ${{ editingPackage?.price }}
                                 </div>
                                 <div v-if="editingPackage?.type === 'one-time'" class="action-info">
-                                    <strong>Credits:</strong> {{ editingPackage?.credits }} total
+                                    <strong>Credits:</strong> {{ editingPackage?.credits }} Pre-paid {{ editingPackage?.lesson_duration_minutes || 30 }}-Minute Lessons
                                 </div>
                             </div>
                         </div>

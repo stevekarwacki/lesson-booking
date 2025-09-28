@@ -90,7 +90,8 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 
         // Check if user has sufficient credits if using credits
         if (paymentMethod === 'credits') {
-            const hasCredits = await Credits.hasSufficientCredits(studentId);
+            const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
+            const hasCredits = await Credits.hasSufficientCredits(studentId, durationMinutes);
             if (!hasCredits) {
                 throw new Error('INSUFFICIENT_CREDITS');
             }
@@ -109,7 +110,8 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
         // If using credits, deduct them
         if (paymentMethod === 'credits') {
             try {
-                await Credits.useCredit(studentId, event.id);
+                const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
+                await Credits.useCredit(studentId, event.id, durationMinutes);
             } catch (error) {
                 // If credit deduction fails, rollback the booking
                 await event.destroy();

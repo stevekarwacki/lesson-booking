@@ -59,7 +59,7 @@
                     <h3>Payment Method</h3>
                     <div class="form-group">
                         <div class="form-input-group">
-                            <div v-if="userCredits > 0" class="form-radio-group">
+                            <div v-if="availableCredits > 0" class="form-radio-group">
                                 <input 
                                     type="radio" 
                                     id="useCredits" 
@@ -68,7 +68,7 @@
                                     class="form-input"
                                 >
                                 <label for="useCredits" class="form-radio-label">
-                                    Use Lesson Credits ({{ userCredits }} remaining)
+                                    Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
                                 </label>
                             </div>
                             <div class="form-radio-group">
@@ -144,6 +144,10 @@ const error = ref(null)
 const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
 const userCredits = ref(0)
+const creditBreakdown = ref({
+    30: { credits: 0, next_expiry: null },
+    60: { credits: 0, next_expiry: null }
+})
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Default to 30 minutes for backward compatibility
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
@@ -234,6 +238,13 @@ const checkTimeConflicts = async () => {
 // Watch for duration changes and validate
 watch(selectedDuration, () => {
     checkTimeConflicts()
+    
+    // Update payment method based on available credits for new duration
+    if (availableCredits.value > 0) {
+        paymentMethod.value = 'credits'
+    } else {
+        paymentMethod.value = 'direct'
+    }
 })
 
 // Computed property for pricing based on selected duration and instructor's rate
@@ -241,6 +252,12 @@ const lessonPrice = computed(() => {
     const rate = instructorHourlyRate.value || 50; // This is not actually a hourly rate, it's the cost of the shortest lesson offerred. Fallback to $50 if no rate set
     // Rate represents 30-minute lesson cost, so 60-minute lessons cost double
     return parseInt(selectedDuration.value) === 30 ? rate : rate * 2;
+})
+
+// Computed property for available credits for selected duration
+const availableCredits = computed(() => {
+    const duration = parseInt(selectedDuration.value);
+    return creditBreakdown.value[duration]?.credits || 0;
 })
 
 // Fetch instructor's hourly rate
@@ -281,9 +298,13 @@ onMounted(async () => {
                 
                 const data = await response.json()
                 userCredits.value = data.total_credits || 0
+                creditBreakdown.value = data.breakdown || {
+                    30: { credits: 0, next_expiry: null },
+                    60: { credits: 0, next_expiry: null }
+                }
                 
-                // If user has credits, default to using them
-                if (userCredits.value > 0) {
+                // If user has credits for the selected duration, default to using them
+                if (availableCredits.value > 0) {
                     paymentMethod.value = 'credits'
                 } else {
                     paymentMethod.value = 'direct'

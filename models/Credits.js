@@ -23,6 +23,11 @@ const UserCredits = sequelize.define('UserCredits', {
     expiry_date: {
         type: DataTypes.DATEONLY,
         allowNull: true
+    },
+    duration_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30
     }
 }, {
     tableName: 'user_credits',
@@ -50,6 +55,10 @@ const CreditUsage = sequelize.define('CreditUsage', {
             model: 'calendar_events',
             key: 'id'
         }
+    },
+    duration_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: 'credit_usage',
@@ -80,14 +89,51 @@ const Credits = {
         };
     },
 
-    addCredits: async (userId, credits, expiryDate = null) => {
+    getUserCreditsBreakdown: async (userId) => {
+        const results = await UserCredits.findAll({
+            where: {
+                user_id: userId,
+                credits_remaining: { [sequelize.Op.gt]: 0 },
+                [sequelize.Op.or]: [
+                    { expiry_date: null },
+                    { expiry_date: { [sequelize.Op.gte]: new Date() } }
+                ]
+            },
+            attributes: [
+                'duration_minutes',
+                [sequelize.fn('SUM', sequelize.col('credits_remaining')), 'total_credits'],
+                [sequelize.fn('MIN', sequelize.col('expiry_date')), 'next_expiry']
+            ],
+            group: ['duration_minutes'],
+            raw: true
+        });
+
+        // Convert to a more usable format
+        const breakdown = {
+            30: { credits: 0, next_expiry: null },
+            60: { credits: 0, next_expiry: null }
+        };
+
+        results.forEach(result => {
+            const duration = result.duration_minutes;
+            if (breakdown[duration]) {
+                breakdown[duration].credits = result.total_credits || 0;
+                breakdown[duration].next_expiry = result.next_expiry;
+            }
+        });
+
+        return breakdown;
+    },
+
+    addCredits: async (userId, credits, expiryDate = null, durationMinutes = 30) => {
         try {
-            // Try to update existing non-expired record
+            // Try to update existing non-expired record with matching duration
             const [updated] = await UserCredits.update(
                 { credits_remaining: sequelize.literal(`credits_remaining + ${credits}`) },
                 {
                     where: {
                         user_id: userId,
+                        duration_minutes: durationMinutes,
                         [sequelize.Op.or]: [
                             { expiry_date: null },
                             { expiry_date: { [sequelize.Op.gte]: new Date() } }
@@ -101,28 +147,29 @@ const Credits = {
                 const newCredit = await UserCredits.create({
                     user_id: userId,
                     credits_remaining: credits,
-                    expiry_date: expiryDate
+                    expiry_date: expiryDate,
+                    duration_minutes: durationMinutes
                 });
                 return newCredit.id;
             }
 
             return updated;
         } catch (error) {
-            console.error('Error adding credits:', error);
             throw error;
         }
     },
 
-    useCredit: async (userId, eventId) => {
+    useCredit: async (userId, eventId, durationMinutes = 30) => {
         const transaction = await sequelize.transaction();
 
         try {
-            // Update credits
+            // Update credits for specific duration
             const [updated] = await UserCredits.update(
                 { credits_remaining: sequelize.literal('credits_remaining - 1') },
                 {
                     where: {
                         user_id: userId,
+                        duration_minutes: durationMinutes,
                         credits_remaining: { [sequelize.Op.gt]: 0 },
                         [sequelize.Op.or]: [
                             { expiry_date: null },
@@ -137,10 +184,11 @@ const Credits = {
                 throw new Error('INSUFFICIENT_CREDITS');
             }
 
-            // Record credit usage
+            // Record credit usage with duration
             await CreditUsage.create({
                 user_id: userId,
-                calendar_event_id: eventId
+                calendar_event_id: eventId,
+                duration_minutes: durationMinutes
             }, { transaction });
 
             await transaction.commit();
@@ -150,7 +198,6 @@ const Credits = {
                 await this.checkUserCreditsStatus(userId);
             } catch (emailError) {
                 // Don't fail the credit usage if email fails
-                console.error('Email notification error after credit usage:', emailError);
             }
         } catch (error) {
             await transaction.rollback();
@@ -158,9 +205,24 @@ const Credits = {
         }
     },
 
-    hasSufficientCredits: async (userId) => {
-        const credits = await Credits.getUserCredits(userId);
-        return credits.total_credits > 0;
+    hasSufficientCredits: async (userId, durationMinutes = 30) => {
+        const result = await UserCredits.findOne({
+            where: {
+                user_id: userId,
+                duration_minutes: durationMinutes,
+                credits_remaining: { [sequelize.Op.gt]: 0 },
+                [sequelize.Op.or]: [
+                    { expiry_date: null },
+                    { expiry_date: { [sequelize.Op.gte]: new Date() } }
+                ]
+            },
+            attributes: [
+                [sequelize.fn('SUM', sequelize.col('credits_remaining')), 'total_credits']
+            ],
+            raw: true
+        });
+
+        return (result?.total_credits || 0) > 0;
     },
 
     checkUserCreditsStatus: async (userId) => {
@@ -194,7 +256,7 @@ const Credits = {
             
             // Credits exhausted: send only when going from >0 to 0
             if (currentCredits === 0 && lastCredits !== null && lastCredits > 0) {
-                console.log(`User ${user.email} crossed threshold: ${lastCredits} → 0 credits - sending exhausted notification`);
+                // User credits exhausted notification sent
                 
                 const completedLessons = await CreditUsage.count({
                     where: { user_id: userId }
@@ -204,7 +266,7 @@ const Credits = {
             }
             // Low balance warning: send only when going from >2 to ≤2 (but not 0)
             else if (currentCredits <= 2 && currentCredits > 0 && lastCredits !== null && lastCredits > 2) {
-                console.log(`User ${user.email} crossed threshold: ${lastCredits} → ${currentCredits} credits - sending low balance warning`);
+                // User low balance warning sent
                 await emailQueueService.queueLowBalanceWarning(userId, currentCredits);
             }
             // First time checking (lastCredits is null) - only for truly new users
@@ -212,7 +274,7 @@ const Credits = {
             // We're being conservative and NOT sending emails on first check to avoid spam
             // No email needed - either credits increased or no threshold crossed
             else {
-                console.log(`User ${user.email}: ${lastCredits} → ${currentCredits} credits (no email needed)`);
+                // No email notification needed
             }
             
         } catch (error) {
