@@ -54,15 +54,22 @@ setupRecurringBookingAssociations(models);
 // Initialize all models
 const initModels = async () => {
     try {
-        await sequelize.sync();
-        console.log('All models were synchronized successfully.');
+        // Run migrations first (replaces sequelize.sync for production safety)
+        const DatabaseMigrator = require('../db/migrator');
+        const migrator = new DatabaseMigrator();
+        await migrator.runMigrations();
         
-        // Run seeds after sync
+        // Authenticate connection to ensure everything is working
+        await sequelize.authenticate();
+        console.log('✅ Database connection established successfully.');
+        
+        // Run seeds after migrations
         if (process.env.RUN_SEEDS === 'true') {
             await runSeeds(models);
         }
     } catch (error) {
-        console.error('Error synchronizing models:', error);
+        console.error('❌ Error initializing database:', error);
+        throw error; // Re-throw to prevent server startup with broken DB
     }
 };
 
