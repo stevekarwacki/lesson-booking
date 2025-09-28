@@ -1,8 +1,8 @@
-# 60-Minute Lesson Features
+# Duration-Specific Lesson System
 
 ## Overview
 
-The lesson booking system supports both 30-minute and 60-minute lesson durations with automatic pricing, intelligent rescheduling, and conflict detection.
+The lesson booking system supports both 30-minute and 60-minute lesson durations with duration-specific credits, automatic pricing, intelligent rescheduling, conflict detection, and admin-configurable settings.
 
 ## Lesson Durations
 
@@ -14,6 +14,7 @@ The lesson booking system supports both 30-minute and 60-minute lesson durations
 - **30-minute lessons**: Instructor's base rate
 - **60-minute lessons**: Exactly 2x the instructor's base rate
 - **Example**: If instructor rate is $60, then 30-min = $60, 60-min = $120
+- **Admin configurable**: Default lesson duration can be set by administrators
 
 ## Booking Process
 
@@ -49,18 +50,37 @@ The system automatically validates that your selected time slot is available for
 - Automatic pricing based on selected duration
 - Instant confirmation
 
-### Credit System
-- Purchase lesson packages for discounted rates
-- Credits are applied automatically during booking
-- Balance tracking and notifications
+### Duration-Specific Credit System
+- **Separate credit types**: 30-minute and 60-minute credits are distinct
+- **No credit conversion**: Cannot use 30-minute credits for 60-minute lessons or vice versa
+- **Smart purchasing**: Buy specific lesson packages (e.g., "5 Pre-paid 60-Minute Lessons")
+- **Real-time updates**: Credit balance updates immediately after purchases and bookings
+- **Automatic application**: Credits are applied automatically during booking
+- **Balance tracking**: View separate balances for each lesson duration
+- **Expiry notifications**: Get notified when credits are approaching expiration
+
+## Admin Features
+
+### Lesson Settings Management
+- **Default Duration Control**: Set the default lesson duration (30 or 60 minutes) for new bookings
+- **Payment Plan Management**: Create and manage duration-specific lesson packages
+- **Credit System Oversight**: Monitor credit usage and expiration across all users
+- **Transaction Handling**: All credit operations use atomic database transactions for data integrity
+
+### Admin Interface
+- **Settings Panel**: Easy-to-use interface for configuring lesson defaults
+- **Package Creation**: Create custom lesson packages with specific durations and pricing
+- **Real-time Updates**: Changes take effect immediately across the platform
 
 ## User Interface Features
 
 ### Booking Modal
 - Clear duration selection buttons
 - Real-time price calculation
+- Duration-specific credit display (e.g., "5 Pre-paid 60-Minute Lessons")
 - Conflict warnings with specific guidance
 - Payment method selection
+- Immediate credit balance updates after booking
 
 ### Schedule View
 - Color-coded time slots
@@ -76,23 +96,38 @@ The system automatically validates that your selected time slot is available for
 
 ## Technical Details
 
+### Database Architecture
+- **Duration-specific credits**: `user_credits` table includes `duration_minutes` field
+- **Credit usage tracking**: `credit_usage` table records duration for audit purposes
+- **Payment plan integration**: `payment_plans` table includes `lesson_duration_minutes`
+- **Atomic transactions**: All credit operations use database transactions for consistency
+- **Automated migrations**: Database schema updates are fully automated
+
 ### Time Slots
-- System uses 30-minute time slots internally
-- 30-minute lessons = 1 slot
-- 60-minute lessons = 2 consecutive slots
+- System uses 15-minute time slots internally (4 slots = 60 minutes)
+- 30-minute lessons = 2 slots
+- 60-minute lessons = 4 consecutive slots
 - All times displayed in user's local timezone
+
+### Credit System Architecture
+- **Validation layer**: Comprehensive parameter validation for all credit operations
+- **Composable pattern**: Vue 3 composable for reactive credit state management
+- **Real-time updates**: Automatic credit refresh after purchases and bookings
+- **Error resilience**: Graceful handling of credit refresh failures
 
 ### Availability Calculation
 - Checks instructor availability patterns
 - Validates against existing bookings
 - Accounts for full lesson duration
 - Prevents overlapping appointments
+- Real-time conflict detection for 60-minute lessons
 
 ### Error Handling
 - Clear error messages for booking conflicts
 - Specific guidance for resolution
 - Graceful fallbacks for edge cases
 - User-friendly notifications
+- Comprehensive validation with descriptive error messages
 
 ## Best Practices
 
