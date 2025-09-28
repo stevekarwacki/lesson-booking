@@ -88,7 +88,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
         // Date is already in UTC format (YYYY-MM-DD string)
         const utcDate = date;
 
-        // Check if user has sufficient credits if using credits
+        // Check if user has sufficient credits if using credits (outside transaction for early validation)
         if (paymentMethod === 'credits') {
             const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
             const hasCredits = await UserCredits.hasSufficientCredits(studentId, durationMinutes);
@@ -97,44 +97,49 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
             }
         }
 
-        // Create the event
-        const event = await this.create({
-            instructor_id: instructorId,
-            student_id: studentId,
-            date: utcDate,
-            start_slot: startSlot,
-            duration,
-            status
-        });
-
-        // If using credits, deduct them
-        if (paymentMethod === 'credits') {
-            try {
-                const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
-                await UserCredits.useCredit(studentId, event.id, durationMinutes);
-            } catch (error) {
-                // If credit deduction fails, rollback the booking
-                await event.destroy();
-                throw error;
-            }
-        }
-
-        // Send booking confirmation email after successful booking
-        // We do this after all booking operations are complete to ensure consistency
+        // Use transaction to ensure atomicity of event creation and credit deduction
+        const transaction = await sequelize.transaction();
+        let event; // Declare event outside transaction scope
+        
         try {
-            // Get the complete booking data with relationships for the email
-            const bookingWithDetails = await this.getEventById(event.id);
-            
-            if (bookingWithDetails) {
-                const emailJobId = await emailQueueService.queueBookingConfirmation(
-                    bookingWithDetails,
-                    paymentMethod
-                );
+            // Create the event
+            event = await this.create({
+                instructor_id: instructorId,
+                student_id: studentId,
+                date: utcDate,
+                start_slot: startSlot,
+                duration,
+                status
+            }, { transaction });
+
+            // If using credits, deduct them within the same transaction
+            if (paymentMethod === 'credits') {
+                const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
+                await UserCredits.useCredit(studentId, event.id, durationMinutes, transaction);
             }
-        } catch (emailError) {
-            // Log email error but don't fail the booking
-            // The booking is already complete and successful
-            console.error('Email queue error during booking confirmation:', emailError);
+
+            await transaction.commit();
+
+            // Send booking confirmation email after successful booking
+            // We do this after all booking operations are complete to ensure consistency
+            try {
+                // Get the complete booking data with relationships for the email
+                const bookingWithDetails = await this.getEventById(event.id);
+                
+                if (bookingWithDetails) {
+                    const emailJobId = await emailQueueService.queueBookingConfirmation(
+                        bookingWithDetails,
+                        paymentMethod
+                    );
+                }
+            } catch (emailError) {
+                // Log email error but don't fail the booking
+                // The booking is already complete and successful
+                console.error('Email queue error during booking confirmation:', emailError);
+            }
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
         }
 
         return event;
@@ -184,12 +189,12 @@ Calendar.getInstructorEvents = async function(instructorId) {
     });
 };
 
-Calendar.updateEvent = async function(eventId, updates) {
-    const event = await this.findByPk(eventId);
+Calendar.updateEvent = async function(eventId, updates, transaction = null) {
+    const event = await this.findByPk(eventId, { transaction });
     if (!event) {
         throw new Error('Event not found');
     }
-    await event.update(updates);
+    await event.update(updates, { transaction });
     return event;
 };
 

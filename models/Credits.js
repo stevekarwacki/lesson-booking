@@ -137,7 +137,7 @@ UserCredits.getUserCreditsBreakdown = async function(userId) {
     return breakdown;
 };
 
-UserCredits.addCredits = async function(userId, credits, expiryDate = null, durationMinutes = null) {
+UserCredits.addCredits = async function(userId, credits, expiryDate = null, durationMinutes = null, externalTransaction = null) {
     try {
         // Validate parameters
         const validUserId = validateUserId(userId);
@@ -152,6 +152,11 @@ UserCredits.addCredits = async function(userId, credits, expiryDate = null, dura
         
         // Validate duration (after potentially getting from settings)
         const validDuration = validateDuration(durationMinutes);
+        
+        // Use external transaction if provided, otherwise create new one
+        const transaction = externalTransaction || await sequelize.transaction();
+        const shouldCommit = !externalTransaction; // Only commit if we created the transaction
+        
         // Try to update existing non-expired record with matching duration
         const [updated] = await this.update(
             { credits_remaining: sequelize.literal(`credits_remaining + ${validCredits}`) },
@@ -163,7 +168,8 @@ UserCredits.addCredits = async function(userId, credits, expiryDate = null, dura
                         { expiry_date: null },
                         { expiry_date: { [sequelize.Op.gte]: new Date() } }
                     ]
-                }
+                },
+                transaction
             }
         );
 
@@ -174,17 +180,27 @@ UserCredits.addCredits = async function(userId, credits, expiryDate = null, dura
                 credits_remaining: validCredits,
                 expiry_date: validExpiryDate,
                 duration_minutes: validDuration
-            });
+            }, { transaction });
+            
+            if (shouldCommit) {
+                await transaction.commit();
+            }
             return newCredit.id;
         }
 
+        if (shouldCommit) {
+            await transaction.commit();
+        }
         return updated;
     } catch (error) {
+        if (shouldCommit) {
+            await transaction.rollback();
+        }
         throw error;
     }
 };
 
-UserCredits.useCredit = async function(userId, eventId, durationMinutes = null) {
+UserCredits.useCredit = async function(userId, eventId, durationMinutes = null, externalTransaction = null) {
     // Validate parameters
     const validUserId = validateUserId(userId);
     const validEventId = validateEventId(eventId);
@@ -197,7 +213,10 @@ UserCredits.useCredit = async function(userId, eventId, durationMinutes = null) 
     
     // Validate duration (after potentially getting from settings)
     const validDuration = validateDuration(durationMinutes);
-    const transaction = await sequelize.transaction();
+    
+    // Use external transaction if provided, otherwise create new one
+    const transaction = externalTransaction || await sequelize.transaction();
+    const shouldCommit = !externalTransaction; // Only commit if we created the transaction
 
     try {
         // Update credits for specific duration
@@ -228,7 +247,9 @@ UserCredits.useCredit = async function(userId, eventId, durationMinutes = null) 
             duration_minutes: validDuration
         }, { transaction });
 
-        await transaction.commit();
+        if (shouldCommit) {
+            await transaction.commit();
+        }
         
         // Check credits after successful deduction for real-time monitoring
         try {
@@ -238,7 +259,9 @@ UserCredits.useCredit = async function(userId, eventId, durationMinutes = null) 
             // Don't fail the credit usage if email fails
         }
     } catch (error) {
-        await transaction.rollback();
+        if (shouldCommit) {
+            await transaction.rollback();
+        }
         throw error;
     }
 };

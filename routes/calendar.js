@@ -664,16 +664,27 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
             where: { calendar_event_id: bookingId }
         });
 
-        // If there was a credit used, refund it with the correct duration
-        if (creditUsage) {
-            const { UserCredits } = require('../models/Credits');
-            const durationMinutes = creditUsage.duration_minutes || 30; // Default to 30 if not set
-            await UserCredits.addCredits(studentId, 1, null, durationMinutes);
-            // Keep the credit usage record for audit purposes, but mark the booking as cancelled
-        }
+        // Use transaction for credit refund and booking cancellation
+        const { sequelize } = require('../db/index');
+        const transaction = await sequelize.transaction();
+        
+        try {
+            // If there was a credit used, refund it with the correct duration
+            if (creditUsage) {
+                const { UserCredits } = require('../models/Credits');
+                const durationMinutes = creditUsage.duration_minutes || 30; // Default to 30 if not set
+                await UserCredits.addCredits(studentId, 1, null, durationMinutes, transaction);
+                // Keep the credit usage record for audit purposes, but mark the booking as cancelled
+            }
 
-        // Update the booking status to cancelled instead of deleting
-        await Calendar.updateEvent(bookingId, { status: 'cancelled' });
+            // Update the booking status to cancelled instead of deleting
+            await Calendar.updateEvent(bookingId, { status: 'cancelled' }, transaction);
+            
+            await transaction.commit();
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
 
         res.json({
             message: 'Booking cancelled successfully',
