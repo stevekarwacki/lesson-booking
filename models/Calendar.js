@@ -2,7 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
 const { User } = require('./User');
 const { Instructor } = require('./Instructor');
-const { Credits } = require('./Credits');
+const { UserCredits } = require('./Credits');
 const { 
     isValidSlot,
     isValidDateString,
@@ -91,7 +91,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
         // Check if user has sufficient credits if using credits
         if (paymentMethod === 'credits') {
             const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
-            const hasCredits = await Credits.hasSufficientCredits(studentId, durationMinutes);
+            const hasCredits = await UserCredits.hasSufficientCredits(studentId, durationMinutes);
             if (!hasCredits) {
                 throw new Error('INSUFFICIENT_CREDITS');
             }
@@ -111,7 +111,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
         if (paymentMethod === 'credits') {
             try {
                 const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
-                await Credits.useCredit(studentId, event.id, durationMinutes);
+                await UserCredits.useCredit(studentId, event.id, durationMinutes);
             } catch (error) {
                 // If credit deduction fails, rollback the booking
                 await event.destroy();

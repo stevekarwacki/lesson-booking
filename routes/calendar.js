@@ -664,10 +664,11 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
             where: { calendar_event_id: bookingId }
         });
 
-        // If there was a credit used, refund it
+        // If there was a credit used, refund it with the correct duration
         if (creditUsage) {
-            const { Credits } = require('../models/Credits');
-            await Credits.addCredits(studentId, 1);
+            const { UserCredits } = require('../models/Credits');
+            const durationMinutes = creditUsage.duration_minutes || 30; // Default to 30 if not set
+            await UserCredits.addCredits(studentId, 1, null, durationMinutes);
             // Keep the credit usage record for audit purposes, but mark the booking as cancelled
         }
 

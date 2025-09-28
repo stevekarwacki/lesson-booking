@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const emailService = require('./EmailService');
 const emailQueueService = require('./EmailQueueService');
-const { Credits } = require('../models/Credits');
+const { checkUserCreditsStatus } = require('../utils/creditNotifications');
 const { User } = require('../models/User');
 
 class CronJobService {
@@ -16,7 +16,7 @@ class CronJobService {
         }
 
         try {
-            console.log('Initializing cron job service...');
+            // Initializing cron job service
             
             // Verify email service is working
             const emailConfigured = await emailService.verifyConnection();
@@ -29,7 +29,7 @@ class CronJobService {
             this.setupLowBalanceCheck();
             
             this.isInitialized = true;
-            console.log('Cron job service initialized successfully');
+            // Cron job service initialized successfully
         } catch (error) {
             console.error('Failed to initialize cron job service:', error);
         }
@@ -48,18 +48,18 @@ class CronJobService {
         
         // Start the job
         job.start();
-        console.log('Low balance check scheduled for 9:00 AM daily');
+        // Low balance check scheduled for 9:00 AM daily
     }
 
     async checkLowBalanceUsers() {
-        console.log('Running low balance check...');
+        // Running low balance check
         
         // NOTE: Credit monitoring is now handled real-time during booking
         // This cron job is kept for future use (maybe monthly summaries, etc.)
         // but no longer sends credit warnings to prevent spam
         
-        console.log('Credit monitoring is handled real-time during booking. Cron job disabled for credits.');
-        console.log('Low balance check completed (no action taken).');
+        // Credit monitoring is handled real-time during booking. Cron job disabled for credits
+        // Low balance check completed (no action taken)
     }
 
     // Stop a specific job
@@ -67,7 +67,7 @@ class CronJobService {
         const job = this.jobs.get(jobName);
         if (job) {
             job.stop();
-            console.log(`Stopped job: ${jobName}`);
+            // Stopped job
         }
     }
 
@@ -76,7 +76,7 @@ class CronJobService {
         const job = this.jobs.get(jobName);
         if (job) {
             job.start();
-            console.log(`Started job: ${jobName}`);
+            // Started job
         }
     }
 
@@ -84,7 +84,7 @@ class CronJobService {
     stopAll() {
         this.jobs.forEach((job, name) => {
             job.stop();
-            console.log(`Stopped job: ${name}`);
+            // Stopped job
         });
         this.isInitialized = false;
     }
@@ -103,7 +103,7 @@ class CronJobService {
 
     // Manual trigger for testing
     async runLowBalanceCheck() {
-        console.log('Manually triggering low balance check...');
+        // Manually triggering low balance check
         await this.checkLowBalanceUsers();
     }
 }

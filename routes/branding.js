@@ -33,4 +33,20 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Public route for lesson settings (default duration)
+router.get('/lesson-settings', async (req, res) => {
+    try {
+        const defaultDuration = await AppSettings.getDefaultLessonDuration();
+        res.json({
+            default_duration_minutes: defaultDuration
+        });
+    } catch (error) {
+        console.error('Error fetching lesson settings:', error);
+        res.status(500).json({ 
+            error: 'Error fetching lesson settings',
+            default_duration_minutes: 30 // Fallback
+        });
+    }
+});
+
 module.exports = router;

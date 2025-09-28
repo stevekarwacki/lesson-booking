@@ -149,7 +149,7 @@ const creditBreakdown = ref({
     60: { credits: 0, next_expiry: null }
 })
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
-const selectedDuration = ref('30') // Default to 30 minutes for backward compatibility
+const selectedDuration = ref('30') // Will be updated from admin settings
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
 
 // Computed property for the displayed end time based on selected duration
@@ -282,7 +282,7 @@ const fetchInstructorRate = async () => {
 
 // Fetch user credits and instructor rate when modal opens
 onMounted(async () => {
-    // Fetch both credits and instructor rate in parallel
+    // Fetch credits, instructor rate, and lesson settings in parallel
     await Promise.all([
         (async () => {
             try {
@@ -317,7 +317,20 @@ onMounted(async () => {
                 showPaymentOptions.value = true
             }
         })(),
-        fetchInstructorRate()
+        fetchInstructorRate(),
+        (async () => {
+            try {
+                const response = await fetch('/api/branding/lesson-settings')
+                if (response.ok) {
+                    const data = await response.json()
+                    const defaultDuration = data.default_duration_minutes || 30
+                    selectedDuration.value = defaultDuration.toString()
+                }
+            } catch (err) {
+                console.error('Error fetching lesson settings:', err)
+                // Keep default of 30 minutes
+            }
+        })()
     ])
     
     // Check for conflicts on initial load

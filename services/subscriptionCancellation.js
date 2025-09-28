@@ -1,7 +1,7 @@
 const { Subscription } = require('../models/Subscription');
 const { User } = require('../models/User');
 const { SubscriptionEvent } = require('../models/SubscriptionEvent');
-const { Credits } = require('../models/Credits');
+const { UserCredits } = require('../models/Credits');
 const { RecurringBooking } = require('../models/RecurringBooking');
 const { stripe, cancelSubscription } = require('../config/stripe');
 
@@ -52,14 +52,13 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
     
     // If already cancelled in Stripe, sync our database
     if (stripeSubscription.status === 'canceled') {
-        const logPrefix = isAdminAction ? 'Admin cancellation' : 'User cancellation';
-        console.log(`${logPrefix}: Subscription already cancelled in Stripe, syncing database:`, subscription.stripe_subscription_id);
+        // Subscription already cancelled in Stripe, syncing database
         
         // Clean up recurring bookings
         const recurringBooking = await RecurringBooking.findBySubscriptionId(subscriptionId);
         if (recurringBooking) {
             await recurringBooking.destroy();
-            console.log(`${logPrefix}: Cleaned up recurring booking for sync`);
+            // Cleaned up recurring booking for sync
         }
         
         // Update local database to match Stripe
@@ -67,7 +66,7 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
             status: 'canceled',
             canceled_at: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : new Date()
         });
-        console.log(`${logPrefix}: Updated subscription status to canceled`);
+        // Updated subscription status to canceled
         
         // Record subscription event with appropriate info
         const eventType = isAdminAction ? 'admin.subscription.sync_canceled' : 'subscription.sync_canceled';
@@ -108,7 +107,7 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
     // Award prorated credits if eligible
     let creditsAwarded = 0;
     if (creditCalculation.eligible && creditCalculation.credits > 0) {
-        await Credits.addCredits(subscription.user_id, creditCalculation.credits);
+        await UserCredits.addCredits(subscription.user_id, creditCalculation.credits);
         creditsAwarded = creditCalculation.credits;
     }
     
@@ -146,7 +145,7 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
     const logMessage = isAdminAction 
         ? `Admin ${requestingUser.name} (ID: ${requestingUser.id}) cancelled subscription ${subscriptionId} for user ${subscription.User?.name} (ID: ${subscription.user_id})`
         : `User ${requestingUser.name} (ID: ${requestingUser.id}) cancelled their subscription ${subscriptionId}`;
-    console.log(logMessage);
+    // Log message recorded
     
     const message = isAdminAction 
         ? 'Subscription canceled successfully by admin'

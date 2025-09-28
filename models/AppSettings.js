@@ -11,7 +11,7 @@ const AppSettings = sequelize.define('AppSettings', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['business', 'theme', 'email', 'branding']]
+            isIn: [['business', 'theme', 'email', 'branding', 'lessons']]
         }
     },
     key: {
@@ -179,6 +179,30 @@ AppSettings.validateBusinessSetting = function(key, value) {
     }
     
     return trimmedValue;
+};
+
+// Static method to get default lesson duration
+AppSettings.getDefaultLessonDuration = async function() {
+    try {
+        const setting = await this.findOne({
+            where: {
+                category: 'lessons',
+                key: 'default_duration_minutes'
+            }
+        });
+        
+        if (!setting) {
+            // Fallback to 30 minutes if setting doesn't exist
+            return 30;
+        }
+        
+        const duration = parseInt(setting.value);
+        return isNaN(duration) ? 30 : duration;
+    } catch (error) {
+        console.error('Error getting default lesson duration:', error);
+        // Fallback to 30 minutes on error
+        return 30;
+    }
 };
 
 module.exports = { AppSettings };

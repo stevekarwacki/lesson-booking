@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
-const { Credits } = require('./Credits');
+const { UserCredits } = require('./Credits');
 const { Transactions } = require('./Transactions');
 const emailQueueService = require('../services/EmailQueueService');
 
@@ -84,7 +84,7 @@ PaymentPlan.purchase = async function(userId, planId, paymentMethod, paymentInte
 
         // Only add credits for one-time plans (lesson packages), not memberships
         if (plan.type === 'one-time') {
-            await Credits.addCredits(userId, plan.credits, expiryDate, plan.lesson_duration_minutes);
+            await UserCredits.addCredits(userId, plan.credits, expiryDate, plan.lesson_duration_minutes);
         }
 
         await transaction.commit();

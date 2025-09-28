@@ -6,6 +6,7 @@ import SettingsTabs from '../components/SettingsTabs.vue'
 import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
 import EmailTemplatesSection from '../components/admin/EmailTemplatesSection.vue'
+import LessonsSection from '../components/admin/LessonsSection.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -36,6 +37,16 @@ const settingsTabs = computed(() => [
     props: {
       initialData: settingsData.value.theme || {},
       loading: loading.value
+    }
+  },
+  {
+    id: 'lessons',
+    label: 'Lesson Settings',
+    component: LessonsSection,
+    props: {
+      initialData: settingsData.value.lessons || {},
+      loading: loading.value,
+      clearErrors: success.value ? Date.now() : null
     }
   },
   {

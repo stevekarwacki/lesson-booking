@@ -729,6 +729,9 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         // Get business settings from database
         const businessSettings = await AppSettings.getSettingsByCategory('business');
         
+        // Get lesson settings from database
+        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
+        
         // Provide default values for missing settings
         const business = {
             companyName: businessSettings.company_name || '',
@@ -754,8 +757,14 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
             }
         };
         
+        // Prepare lesson settings with defaults
+        const lessons = {
+            default_duration_minutes: lessonSettings.default_duration_minutes || '30'
+        };
+        
         const settings = {
             business,
+            lessons,
             // Placeholder for theme and email settings
             theme: {
                 primaryColor: '#28a745',
@@ -833,6 +842,45 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 success: true,
                 message: 'Business settings updated successfully',
                 data: frontendFormat
+            });
+            
+        } else if (category === 'lessons') {
+            // Handle lesson settings
+            const lessonFields = {
+                default_duration_minutes: settingsData.default_duration_minutes
+            };
+            
+            // Validate lesson settings
+            const validatedFields = {};
+            const errors = {};
+            
+            // Validate default duration
+            const duration = parseInt(lessonFields.default_duration_minutes);
+            if (isNaN(duration) || duration < 15 || duration > 180) {
+                errors.default_duration_minutes = 'Duration must be between 15 and 180 minutes';
+            } else if (![15, 30, 45, 60, 90, 120].includes(duration)) {
+                errors.default_duration_minutes = 'Invalid duration value';
+            } else {
+                validatedFields.default_duration_minutes = duration.toString();
+            }
+            
+            // If there are validation errors, return them
+            if (Object.keys(errors).length > 0) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: errors
+                });
+            }
+            
+            // Save validated settings to database
+            await AppSettings.setMultipleSettings('lessons', validatedFields, req.user.id);
+            
+            res.json({
+                success: true,
+                message: 'Lesson settings updated successfully',
+                data: {
+                    default_duration_minutes: validatedFields.default_duration_minutes
+                }
             });
             
         } else {

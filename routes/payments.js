@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { PaymentPlan } = require('../models/PaymentPlan');
-const { Credits } = require('../models/Credits');
+const { UserCredits } = require('../models/Credits');
 const { Transactions } = require('../models/Transactions');
 const { createPaymentIntent, verifyWebhookSignature } = require('../config/stripe');
 const { authorize } = require('../middleware/permissions');
@@ -35,8 +35,8 @@ router.get('/plans/:id', async (req, res) => {
 router.get('/credits', authorize('read', 'Credits'), async (req, res) => {
     try {
         const [credits, breakdown] = await Promise.all([
-            Credits.getUserCredits(req.user.id),
-            Credits.getUserCreditsBreakdown(req.user.id)
+            UserCredits.getUserCredits(req.user.id),
+            UserCredits.getUserCreditsBreakdown(req.user.id)
         ]);
         
         res.json({

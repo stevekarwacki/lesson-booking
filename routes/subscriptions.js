@@ -4,7 +4,7 @@ const { stripe, createSubscription, cancelSubscription, verifyWebhookSignature }
 const { Subscription } = require('../models/Subscription');
 const { SubscriptionEvent } = require('../models/SubscriptionEvent');
 const { PaymentPlan } = require('../models/PaymentPlan');
-const { Credits } = require('../models/Credits');
+const { UserCredits } = require('../models/Credits');
 const { User } = require('../models/User');
 const { authMiddleware } = require('../middleware/auth');
 const { authorize, authorizeUserAccess, authorizeResource } = require('../middleware/permissions');
@@ -197,7 +197,7 @@ router.get('/preview-cancellation/:subscriptionId', authMiddleware, authorizeRes
         }
 
         // Get current user credits
-        const currentCredits = await Credits.getUserCredits(req.user.id);
+        const currentCredits = await UserCredits.getUserCredits(req.user.id);
 
         // Check for existing recurring booking
         const { RecurringBooking } = require('../models/RecurringBooking');
@@ -208,12 +208,12 @@ router.get('/preview-cancellation/:subscriptionId', authMiddleware, authorizeRes
 
         // Handle case where subscription is already cancelled in Stripe but not in local DB
         if (creditCalculation.alreadyCancelled) {
-            console.log('Preview detected sync issue - subscription already cancelled in Stripe, syncing database:', subscription.stripe_subscription_id);
+            // Preview detected sync issue - subscription already cancelled in Stripe, syncing database
             
             // Clean up recurring bookings
             if (recurringBooking) {
                 await recurringBooking.destroy();
-                console.log('Cleaned up recurring booking during preview sync');
+                // Cleaned up recurring booking during preview sync
             }
 
             // Get current subscription state from Stripe to sync our database
@@ -225,7 +225,7 @@ router.get('/preview-cancellation/:subscriptionId', authMiddleware, authorizeRes
                 status: 'canceled',
                 canceled_at: creditCalculation.cancelledAt || new Date()
             });
-            console.log('Updated subscription status to canceled during preview');
+            // Updated subscription status to canceled during preview
 
             // Record subscription event
             await SubscriptionEvent.recordEvent(subscription.id, 'subscription.canceled', stripeSubscription);
@@ -372,27 +372,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         switch (event.type) {
             case 'customer.subscription.updated': {
                 const subscription = event.data.object;
-                console.log('Webhook received subscription update:', {
-                    id: subscription.id,
-                    status: subscription.status,
-                    current_period_start: subscription.current_period_start,
-                    current_period_end: subscription.current_period_end
-                });
+                // Webhook received subscription update
 
                 const dbSubscription = await Subscription.findOne({
                     where: { stripe_subscription_id: subscription.id }
                 });
 
                 if (dbSubscription) {
-                    console.log('Updating database subscription:', {
-                        id: dbSubscription.id,
-                        old_status: dbSubscription.status,
-                        new_status: subscription.status,
-                        old_period_start: dbSubscription.current_period_start,
-                        new_period_start: new Date(subscription.current_period_start * 1000),
-                        old_period_end: dbSubscription.current_period_end,
-                        new_period_end: new Date(subscription.current_period_end * 1000)
-                    });
+                    // Updating database subscription
 
                     await dbSubscription.update({
                         status: subscription.status,
@@ -401,7 +388,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                         cancel_at_period_end: subscription.cancel_at_period_end
                     });
 
-                    console.log('Database subscription updated successfully');
+                    // Database subscription updated successfully
 
                     await SubscriptionEvent.recordEvent(dbSubscription.id, event.type, subscription);
 
@@ -409,7 +396,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     if (subscription.status === 'active') {
                         const plan = await PaymentPlan.findByPk(dbSubscription.plan_id);
                         if (plan) {
-                            await Credits.addCredits(
+                            await UserCredits.addCredits(
                                 dbSubscription.user_id,
                                 plan.credits,
                                 new Date(subscription.current_period_end * 1000)
@@ -421,7 +408,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     if (subscription.status !== 'active' || subscription.cancel_at_period_end) {
                         const { RecurringBooking } = require('../models/RecurringBooking');
                         await RecurringBooking.deleteBySubscriptionId(dbSubscription.id);
-                        console.log('Cleaned up recurring booking for inactive subscription:', dbSubscription.id);
+                        // Cleaned up recurring booking for inactive subscription
                     }
                 }
                 break;
@@ -429,17 +416,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             
             case 'customer.subscription.deleted': {
                 const subscription = event.data.object;
-                console.log('Webhook received subscription deletion:', {
-                    id: subscription.id,
-                    status: subscription.status
-                });
+                // Webhook received subscription deletion
 
                 const dbSubscription = await Subscription.findOne({
                     where: { stripe_subscription_id: subscription.id }
                 });
 
                 if (dbSubscription) {
-                    console.log('Cleaning up recurring booking for deleted subscription:', dbSubscription.id);
+                    // Cleaning up recurring booking for deleted subscription
                     
                     // Clean up recurring booking
                     const { RecurringBooking } = require('../models/RecurringBooking');
@@ -451,7 +435,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     });
 
                     await SubscriptionEvent.recordEvent(dbSubscription.id, event.type, subscription);
-                    console.log('Subscription and recurring booking cleaned up successfully');
+                    // Subscription and recurring booking cleaned up successfully
                 }
                 break;
             }
