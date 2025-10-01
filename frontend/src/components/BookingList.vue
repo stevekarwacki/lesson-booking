@@ -31,7 +31,7 @@
           
           <div class="booking-details">
             <div class="booking-instructor">
-              {{ booking.instructorName }}
+              {{ userRole === 'instructor' ? booking.studentName : booking.instructorName }}
             </div>
             <div class="booking-status" v-if="booking.status">
               <span :class="`status-${booking.status}`">
@@ -41,28 +41,58 @@
                 🔄 Recurring
               </span>
             </div>
+            
+            <!-- Attendance Status Display -->
+            <div v-if="userRole === 'instructor' && booking.attendance" class="attendance-status">
+              <span :class="`attendance-${booking.attendance.status}`">
+                📋 {{ booking.attendance.status?.charAt(0).toUpperCase() + booking.attendance.status?.slice(1) }}
+              </span>
+              <span v-if="booking.attendance.notes" class="attendance-notes">
+                ({{ booking.attendance.notes }})
+              </span>
+            </div>
+            <div v-else-if="userRole === 'instructor' && isPastBooking(booking)" class="attendance-status">
+              <span class="attendance-not-recorded">📋 Not Recorded</span>
+            </div>
           </div>
 
           <div v-if="showActions" class="booking-actions">
-            <!-- Admin/Instructor actions -->
-            <template v-if="userRole === 'admin' || userRole === 'instructor'">
-              <button 
-                @click="handleViewBooking(booking)"
-                class="action-button action-button-secondary"
+            <!-- Attendance Controls for Instructors -->
+            <div v-if="userRole === 'instructor' && canMarkAttendance(booking)" class="attendance-controls">
+              <select 
+                :value="booking.attendance?.status || ''"
+                @change="handleAttendanceChange(booking, $event.target.value)"
+                class="attendance-select"
               >
-                View/Edit ›
-              </button>
-            </template>
+                <option value="">Mark Attendance</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="tardy">Tardy</option>
+              </select>
+            </div>
             
-            <!-- Student actions -->
-            <template v-else-if="userRole === 'student'">
-              <button 
-                @click="handleViewBooking(booking)"
-                class="action-button action-button-secondary"
-              >
-                View ›
-              </button>
-            </template>
+            <!-- Action buttons - always present to maintain consistent layout -->
+            <div class="action-buttons">
+              <!-- Admin/Instructor actions -->
+              <template v-if="userRole === 'admin' || userRole === 'instructor'">
+                <button 
+                  @click="handleViewBooking(booking)"
+                  class="action-button action-button-secondary"
+                >
+                  Reschedule ›
+                </button>
+              </template>
+              
+              <!-- Student actions -->
+              <template v-else-if="userRole === 'student'">
+                <button 
+                  @click="handleViewBooking(booking)"
+                  class="action-button action-button-secondary"
+                >
+                  Reschedule ›
+                </button>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -140,10 +170,10 @@ export default {
       default: true
     }
   },
-  emits: ['edit-booking', 'cancel-booking', 'view-booking'],
+  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed'],
   setup(props, { emit }) {
     const filters = filterPresets.bookings
-    const activeFilter = ref('upcoming')
+    const activeFilter = ref('today')
     const currentPage = ref(1)
     const itemsPerPage = 25
 
@@ -151,8 +181,11 @@ export default {
     const filterCounts = computed(() => {
       const now = new Date()
       now.setHours(0, 0, 0, 0) // Start of today
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
       
       const counts = {
+        today: 0,
         upcoming: 0,
         past: 0,
         cancelled: 0
@@ -169,6 +202,8 @@ export default {
         
         if (booking.status === 'cancelled') {
           counts.cancelled++
+        } else if (bookingDate >= now && bookingDate < tomorrow) {
+          counts.today++
         } else if (bookingDate >= now) {
           counts.upcoming++
         } else {
@@ -183,6 +218,8 @@ export default {
     const filteredBookings = computed(() => {
       const now = new Date()
       now.setHours(0, 0, 0, 0) // Start of today for fair comparison
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
       
       const filtered = props.bookings.filter(booking => {
         // Parse date correctly to avoid timezone issues
@@ -194,6 +231,8 @@ export default {
         )
         
         switch (activeFilter.value) {
+          case 'today':
+            return booking.status !== 'cancelled' && bookingDate >= now && bookingDate < tomorrow
           case 'upcoming':
             return booking.status !== 'cancelled' && bookingDate >= now
           case 'past':
@@ -336,6 +375,34 @@ export default {
       emit('view-booking', booking)
     }
 
+    const handleAttendanceChange = (booking, status) => {
+      if (status) {
+        emit('attendance-changed', booking, status)
+      }
+    }
+
+    const canMarkAttendance = (booking) => {
+      // Can mark attendance if lesson has started (for current/past bookings)
+      const now = new Date()
+      const lessonDate = new Date(booking.date)
+      
+      // Parse the start time to get the actual lesson datetime
+      const [hours, minutes] = booking.startTime.split(':')
+      const period = booking.startTime.includes('PM') ? 'PM' : 'AM'
+      let hour24 = parseInt(hours)
+      
+      if (period === 'PM' && hour24 !== 12) {
+        hour24 += 12
+      } else if (period === 'AM' && hour24 === 12) {
+        hour24 = 0
+      }
+      
+      lessonDate.setHours(hour24, parseInt(minutes.replace(/\D/g, '')), 0, 0)
+      
+      // Allow attendance marking if lesson has started
+      return now >= lessonDate
+    }
+
     const goToPreviousPage = () => {
       if (currentPage.value > 1) {
         currentPage.value--
@@ -367,6 +434,8 @@ export default {
       handleEditBooking,
       handleCancelBooking,
       handleViewBooking,
+      handleAttendanceChange,
+      canMarkAttendance,
       goToPreviousPage,
       goToNextPage
     }
@@ -463,8 +532,16 @@ export default {
 
 .booking-actions {
   display: flex;
+  flex-direction: row;
   gap: var(--spacing-xs);
   flex-shrink: 0;
+  min-width: 300px;
+  justify-content: end;
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
 }
 
 .action-button {
@@ -510,6 +587,55 @@ export default {
 
 .action-button-disabled:hover {
   background: var(--background-light) !important;
+}
+
+/* Attendance Styles */
+.attendance-status {
+  font-size: var(--font-size-sm);
+  margin-top: 4px;
+}
+
+.attendance-present {
+  color: var(--color-success);
+}
+
+.attendance-absent {
+  color: var(--color-error);
+}
+
+.attendance-tardy {
+  color: var(--color-warning, #f59e0b);
+}
+
+.attendance-not-recorded {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.attendance-notes {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.attendance-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.attendance-select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: white;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.attendance-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pagination-controls {

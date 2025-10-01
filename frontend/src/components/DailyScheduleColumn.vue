@@ -39,7 +39,7 @@
               <p v-if="slot.isMultiSlot && !slot.is_google_calendar">
                 Duration: {{ slot.totalSlots * 30 }} minutes
               </p>
-              <p>Time: {{ formatTime(slotToTime(slot.startSlot)) }} - {{ formatTime(slotToTime(slot.startSlot + slot.duration)) }}</p>
+              <p>Time: {{ formatTime(slotToTime(slot.startSlot)) }} - {{ formatTime(slotToTime(Math.min(slot.startSlot + slot.duration, MAX_SLOT_INDEX))) }}</p>
               <p>Student: {{ slot.student?.name }}</p>
             </div>
           </div>
@@ -52,6 +52,8 @@
 <script setup>
 import { computed } from 'vue'
 import { formatTime, slotToTime, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
+
+const MAX_SLOT_INDEX = 95; // 0-95 slots per day
 
 const props = defineProps({
   // Data

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Calendar } = require('../models/Calendar');
+const { Attendance } = require('../models/Attendance');
 const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
@@ -11,7 +12,8 @@ const {
     getDayOfWeekUTC,
     calculateDurationInSlots,
     isValidSlot,
-    isBookingAvailable
+    isBookingAvailable,
+    slotToTime
 } = require('../utils/timeUtils');
 
 // Get instructor's calendar events - requires read permission for instructor data
@@ -52,6 +54,68 @@ router.delete('/:eventId', authorizeBooking('cancel', async (req) => {
     } catch (error) {
         console.error('Error deleting calendar event:', error);
         res.status(500).json({ error: 'Error deleting calendar event' });
+    }
+});
+
+// Mark or update attendance for a lesson
+router.post('/attendance', authorizeBooking('update', async (req) => {
+    return await Calendar.getEventById(req.body.eventId);
+}), async (req, res) => {
+    try {
+        const { eventId, status, notes } = req.body;
+
+        // Validate required fields
+        if (!eventId) {
+            return res.status(400).json({ error: 'Event ID is required' });
+        }
+
+        // Validate status if provided
+        if (status && !['present', 'absent', 'tardy'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid attendance status. Must be present, absent, or tardy.' });
+        }
+
+        // Get the calendar event to check lesson timing
+        const event = await Calendar.getEventById(eventId);
+        if (!event) {
+            return res.status(404).json({ error: 'Calendar event not found' });
+        }
+
+        // Check if lesson has started (attendance can only be marked after lesson start time)
+        const lessonDate = new Date(event.date);
+        const lessonStartTime = slotToTime(event.start_slot);
+        const [hours, minutes] = lessonStartTime.split(':');
+        lessonDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const now = new Date();
+        if (now < lessonDate) {
+            return res.status(400).json({ 
+                error: 'Attendance can only be marked after the lesson has started',
+                lessonStartTime: lessonDate.toISOString()
+            });
+        }
+
+        // Mark attendance using the model method
+        const result = await Attendance.markAttendance(eventId, status, notes);
+
+        res.json({
+            success: true,
+            message: result.created ? 'Attendance recorded successfully' : 'Attendance updated successfully',
+            attendance: {
+                status: result.attendance.status,
+                notes: result.attendance.notes,
+                recorded_at: result.attendance.updated_at
+            }
+        });
+
+    } catch (error) {
+        console.error('Error marking attendance:', error);
+        
+        // Handle specific error messages
+        if (error.message.includes('Invalid attendance status')) {
+            return res.status(400).json({ error: error.message });
+        }
+        
+        res.status(500).json({ error: 'Error marking attendance' });
     }
 });
 

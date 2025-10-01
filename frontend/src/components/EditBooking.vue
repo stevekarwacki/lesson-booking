@@ -173,12 +173,22 @@ const handleDateChange = async () => {
 
         const formattedSchedule = {}
 
+        // Use the original booking's duration for rescheduling
+        const originalDuration = props.booking.duration
+        
         availabilityData.forEach(slot => {
-            for (let i = 0; i < slot.duration; i += 2) {
-                const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: 2 });
+            // For rescheduling, only show slots that can accommodate the original duration
+            if (slot.duration >= originalDuration) {
+                // Create slots that match the original booking duration
+                for (let i = 0; i <= slot.duration - originalDuration; i += 2) {
+                    const slotStart = slot.start_slot + i
+                    const newSlot = Object.assign({}, slot, { 
+                        start_slot: slotStart, 
+                        duration: originalDuration 
+                    });
 
-                formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
+                    formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
+                }
             }
         })
 
@@ -186,24 +196,38 @@ const handleDateChange = async () => {
         bookedEvents.forEach(event => {
             // Handle the current booking being rescheduled differently
             if (event.id === props.booking.id) {
-                // Add current booking as a special "rescheduling" type - selectable and styled differently
+                // Add current booking as a special "rescheduling" type - keep original duration
+                const slotData = {
+                    ...event,
+                    duration: originalDuration,
+                    type: 'rescheduling'
+                }
+                const reschedulingSlot = formatSlot(slotData, scheduleDate)
+                formattedSchedule[event.start_slot] = reschedulingSlot
+                return
+            }
+            
+            // Add booked event to schedule - handle multi-slot bookings properly
+            if (event.duration > 2) {
+                // Multi-slot booking - create entries for each slot
+                const totalSlots = event.duration / 2
                 for (let i = 0; i < event.duration; i += 2) {
                     const currentSlot = event.start_slot + i
                     const slotData = {
                         ...event,
                         start_slot: currentSlot,
-                        duration: 2
+                        duration: 2,
+                        isMultiSlot: true,
+                        totalSlots: totalSlots,
+                        slotPosition: i / 2,
+                        bookingId: event.id
                     }
-                    // Set type to rescheduling BEFORE calling formatSlot
-                    slotData.type = 'rescheduling'
-                    const reschedulingSlot = formatSlot(slotData, scheduleDate)
-                    formattedSchedule[currentSlot] = reschedulingSlot
+                    formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
                 }
-                return
+            } else {
+                // Single slot booking
+                formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
             }
-            
-            // Add booked event to schedule
-            formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
         })
 
         dailySchedule.value = formattedSchedule

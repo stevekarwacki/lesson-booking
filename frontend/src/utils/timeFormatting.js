@@ -5,6 +5,9 @@
  * Consolidates all time-related functionality in a single, maintainable file.
  */
 
+// Time slot constants
+const MAX_SLOT_INDEX = 95; // 0-95 slots per day (24 hours * 4 slots per hour - 1)
+
 // ============================================================================
 // CORE UTC TIME AND SLOT FUNCTIONS
 // ============================================================================
@@ -257,16 +260,28 @@ function timeToSlot(timeString) {
 
 /**
  * Convert slot to local time
- * @param {number} slot - Slot number (0-95)
+ * @param {number} slot - Slot number (0-MAX_SLOT_INDEX)
  * @returns {string} Time in HH:MM format
  */
 function slotToTime(slot) {
-    if (slot < 0 || slot > 95) {
-        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`);
+    // Handle invalid slot numbers gracefully
+    if (typeof slot !== 'number' || isNaN(slot)) {
+        console.warn(`Invalid slot number: ${slot}. Expected a number.`);
+        return '00:00';
     }
     
-    const hours = Math.floor(slot / 4);
-    const minutes = (slot % 4) * 15;
+    // Clamp slot to valid range
+    let clampedSlot = slot;
+    if (slot < 0) {
+        console.warn(`Slot number ${slot} is below minimum (0). Using 0.`);
+        clampedSlot = 0;
+    } else if (slot > MAX_SLOT_INDEX) {
+        console.warn(`Slot number ${slot} exceeds maximum (${MAX_SLOT_INDEX}). Using ${MAX_SLOT_INDEX}.`);
+        clampedSlot = MAX_SLOT_INDEX;
+    }
+    
+    const hours = Math.floor(clampedSlot / 4);
+    const minutes = (clampedSlot % 4) * 15;
     
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }

@@ -9,6 +9,8 @@ const { Transactions } = require('./Transactions');
 const { Subscription, setupAssociations: setupSubscriptionAssociations } = require('./Subscription');
 const { RecurringBooking, setupAssociations: setupRecurringBookingAssociations } = require('./RecurringBooking');
 const { AppSettings } = require('./AppSettings');
+const { Attendance } = require('./Attendance');
+const { Calendar } = require('./Calendar');
 const runSeeds = require('../seeds');
 
 // Define associations
@@ -33,6 +35,10 @@ Transactions.belongsTo(User, { foreignKey: 'user_id' });
 PaymentPlan.hasMany(Transactions, { foreignKey: 'payment_plan_id' });
 Transactions.belongsTo(PaymentPlan, { foreignKey: 'payment_plan_id' });
 
+// Calendar and attendance associations
+Calendar.hasOne(Attendance, { foreignKey: 'calendar_event_id' });
+Attendance.belongsTo(Calendar, { foreignKey: 'calendar_event_id' });
+
 // Set up model associations
 const models = {
     User,
@@ -44,7 +50,9 @@ const models = {
     InstructorCalendarConfig,
     Transactions,
     RecurringBooking,
-    AppSettings
+    AppSettings,
+    Attendance,
+    Calendar
 };
 
 setupUserAssociations(models);
@@ -83,5 +91,7 @@ module.exports = {
     Transactions,
     Subscription,
     RecurringBooking,
-    AppSettings
+    AppSettings,
+    Attendance,
+    Calendar
 }; 

@@ -1,7 +1,10 @@
+// Time slot constants
+const MAX_SLOT_INDEX = 95; // 0-95 slots per day (24 hours * 4 slots per hour - 1)
+
 /**
  * Convert UTC time to slot number
  * @param {Date|string} dateTime - Date object or ISO string
- * @returns {number} Slot number (0-95, where 0 = 00:00 UTC, 95 = 23:45 UTC)
+ * @returns {number} Slot number (0-MAX_SLOT_INDEX, where 0 = 00:00 UTC, MAX_SLOT_INDEX = 23:45 UTC)
  */
 function timeToSlotUTC(dateTime) {
     const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
@@ -18,12 +21,12 @@ function timeToSlotUTC(dateTime) {
 
 /**
  * Convert slot number to UTC time string
- * @param {number} slot - Slot number (0-95)
+ * @param {number} slot - Slot number (0-MAX_SLOT_INDEX)
  * @returns {string} Time in HH:MM format (UTC)
  */
 function slotToTimeUTC(slot) {
-    if (slot < 0 || slot > 95) {
-        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and 95.`);
+    if (typeof slot !== 'number' || slot < 0 || slot > MAX_SLOT_INDEX) {
+        throw new Error(`Invalid slot number: ${slot}. Must be between 0 and ${MAX_SLOT_INDEX}.`);
     }
     
     const hours = Math.floor(slot / 4);
@@ -96,7 +99,7 @@ function calculateDurationInSlots(startDate, endDate) {
  * @returns {boolean} Whether slot is valid
  */
 function isValidSlot(slot) {
-    return typeof slot === 'number' && slot >= 0 && slot <= 95;
+    return typeof slot === 'number' && slot >= 0 && slot <= MAX_SLOT_INDEX;
 }
 
 /**

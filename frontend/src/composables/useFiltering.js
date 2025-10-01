@@ -99,6 +99,17 @@ export function useFiltering(options = {}) {
     const now = new Date()
     
     switch (filterValue) {
+      case 'today':
+        return items.filter(item => {
+          const itemDate = new Date(item.date || item.start_time || item.created_at)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const tomorrow = new Date(today)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          
+          return itemDate >= today && itemDate < tomorrow && (item.status !== 'cancelled' && item.status !== 'canceled')
+        })
+        
       case 'upcoming':
         return items.filter(item => {
           const itemDate = new Date(item.date || item.start_time || item.created_at)
@@ -176,6 +187,7 @@ export function useFiltering(options = {}) {
  */
 export const filterPresets = {
   bookings: [
+    { label: 'Today', value: 'today', icon: '📍' },
     { label: 'Upcoming', value: 'upcoming', icon: '📅' },
     { label: 'Past', value: 'past', icon: '📋' },
     { label: 'Cancelled', value: 'cancelled', icon: '❌' }
@@ -202,7 +214,7 @@ export const filterPresets = {
 export function useBookingFiltering(options = {}) {
   const defaultOptions = {
     filters: filterPresets.bookings,
-    defaultFilter: 'upcoming',
+    defaultFilter: 'today',
     ...options
   }
   

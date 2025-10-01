@@ -8,6 +8,9 @@ const {
     isValidDateString,
     getCurrentDateUTC
 } = require('../utils/timeUtils');
+
+// Time slot constants
+const MAX_SLOT_INDEX = 95; // 0-95 slots per day (24 hours * 4 slots per hour - 1)
 const emailQueueService = require('../services/EmailQueueService');
 
 const Calendar = sequelize.define('Calendar', {
@@ -41,7 +44,7 @@ const Calendar = sequelize.define('Calendar', {
         allowNull: false,
         validate: {
             min: 0,
-            max: 95
+            max: MAX_SLOT_INDEX
         }
     },
     duration: {
@@ -81,7 +84,7 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
             throw new Error('Invalid duration. Must be a positive integer.');
         }
         
-        if (startSlot + duration > 96) {
+        if (startSlot + duration > MAX_SLOT_INDEX + 1) {
             throw new Error('Event duration exceeds daily slot limit.');
         }
 
@@ -150,6 +153,9 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 };
 
 Calendar.getInstructorEvents = async function(instructorId) {
+    // Import Attendance model here to avoid circular dependency
+    const { Attendance } = require('./Attendance');
+    
     const events = await this.findAll({
         where: { 
             instructor_id: instructorId,
@@ -167,12 +173,17 @@ Calendar.getInstructorEvents = async function(instructorId) {
                     model: User,
                     attributes: ['name']
                 }]
+            },
+            {
+                model: Attendance,
+                required: false, // LEFT JOIN - include events without attendance records
+                attributes: ['status', 'notes', 'created_at', 'updated_at']
             }
         ],
         order: [['date', 'ASC'], ['start_slot', 'ASC']]
     });
 
-    // Normalize to flat structure with nested student object
+    // Normalize to flat structure with nested student object and attendance data
     return events.map(event => {
         const eventData = event.toJSON();
         return {
@@ -184,7 +195,13 @@ Calendar.getInstructorEvents = async function(instructorId) {
                 email: eventData.student.email
             } : null,
             // Normalize instructor data
-            instructor_name: eventData.Instructor?.User?.name || null
+            instructor_name: eventData.Instructor?.User?.name || null,
+            // Include attendance data
+            attendance: eventData.Attendance ? {
+                status: eventData.Attendance.status,
+                notes: eventData.Attendance.notes,
+                recorded_at: eventData.Attendance.updated_at
+            } : null
         };
     });
 };
@@ -246,6 +263,9 @@ Calendar.getAllStudentEvents = async function(studentId) {
 };
 
 Calendar.getEventById = async function(eventId) {
+    // Import Attendance model here to avoid circular dependency
+    const { Attendance } = require('./Attendance');
+    
     return this.findByPk(eventId, {
         include: [
             {
@@ -259,6 +279,11 @@ Calendar.getEventById = async function(eventId) {
                     model: User,
                     attributes: ['id', 'name', 'email']
                 }]
+            },
+            {
+                model: Attendance,
+                required: false, // LEFT JOIN - include events without attendance records
+                attributes: ['status', 'notes', 'created_at', 'updated_at']
             }
         ]
     });
