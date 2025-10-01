@@ -1,0 +1,34 @@
+<p>Hello {{studentName}},</p>
+
+<p>We noticed you weren't able to make it to your scheduled lesson today. No worries - we understand that things come up!</p>
+
+{{> lesson-details 
+    sectionTitle="📅 Missed Lesson"
+    boxStyle="warning"
+    lessonDate=lessonDate
+    startTime=startTime
+    endTime=endTime
+    duration=duration
+    instructorName=instructorName
+    instructorLabel="Instructor"
+    bookingId=bookingId
+    location="Online Lesson"
+}}
+
+{{#if attendanceNotes}}
+<div class="detail-box">
+    <h3>📝 Instructor Notes</h3>
+    <p style="font-style: italic; color: #6c757d;">{{attendanceNotes}}</p>
+</div>
+{{/if}}
+
+<p>When you're ready, you can book your next lesson with {{instructorName}} using the link below.</p>
+
+{{> cta-section
+    primaryButton=primaryButton
+    secondaryButton=secondaryButton
+}}
+
+<p>If you experienced any technical issues or need assistance, feel free to reach out - we're here to help!</p>
+
+<p>Best regards,<br>{{companyName}}</p>

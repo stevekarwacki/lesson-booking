@@ -6,6 +6,7 @@ const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
 const emailQueueService = require('../services/EmailQueueService');
+const emailService = require('../services/EmailService');
 const { 
     timeToSlotUTC,
     formatDateUTC,
@@ -96,6 +97,20 @@ router.post('/attendance', authorizeBooking('update', async (req) => {
 
         // Mark attendance using the model method
         const result = await Attendance.markAttendance(eventId, status, notes);
+
+        // Send absence notification email if student is marked absent
+        if (status === 'absent') {
+            try {
+                // Get full event details with student and instructor info for email
+                const fullEvent = await Calendar.getEventById(eventId);
+                if (fullEvent && fullEvent.student && fullEvent.student.email) {
+                    await emailService.sendAbsenceNotification(fullEvent, notes || '');
+                }
+            } catch (emailError) {
+                // Don't fail the attendance marking if email fails
+                console.error('Failed to send absence notification email:', emailError);
+            }
+        }
 
         res.json({
             success: true,

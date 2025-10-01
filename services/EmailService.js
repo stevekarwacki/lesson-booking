@@ -739,6 +739,89 @@ class EmailService {
         return await this.loadBaseTemplate(contentTemplate, templateData);
     }
 
+    // Absence notification email
+    async sendAbsenceNotification(bookingData, attendanceNotes = '') {
+        try {
+            if (!bookingData.student || !bookingData.student.email) {
+                throw new Error('Student email not found in booking data');
+            }
+
+            const subject = 'Lesson Update - Book Your Next Session';
+            const htmlContent = await this.generateAbsenceNotificationHTML(bookingData, attendanceNotes);
+
+            return await this.sendEmail(bookingData.student.email, subject, htmlContent);
+        } catch (error) {
+            console.error('Failed to send absence notification:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async generateAbsenceNotificationHTML(booking, attendanceNotes) {
+        // Convert slot to readable time using UTC slots (0 = 00:00 UTC)
+        const startHour = Math.floor(booking.start_slot / 4);
+        const startMinute = (booking.start_slot % 4) * 15;
+        const endSlot = booking.start_slot + booking.duration;
+        const endHour = Math.floor(endSlot / 4);
+        const endMinute = (endSlot % 4) * 15;
+
+        const formatTime = (hour, minute) => {
+            const period = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+            return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`;
+        };
+
+        const startTime = formatTime(startHour, startMinute);
+        const endTime = formatTime(endHour, endMinute);
+        const lessonDate = new Date(booking.date + 'T00:00:00Z').toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'UTC'
+        });
+
+        const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
+
+        // Load the content template
+        const contentTemplate = await this.loadContentTemplate('absence-notification');
+        
+        // Prepare template data
+        const templateData = {
+            // Email meta data
+            emailTitle: 'Lesson Update - Book Your Next Session',
+            headerTitle: '📅 Lesson Update',
+            headerSubtitle: 'Your lesson status and next steps',
+            
+            // Recipient info
+            studentName: booking.student.name,
+            studentEmail: booking.student.email,
+            
+            // Lesson details
+            lessonDate: lessonDate,
+            startTime: startTime,
+            endTime: endTime,
+            instructorName: instructorName,
+            duration: booking.duration * 15,
+            bookingId: booking.id,
+            attendanceNotes: attendanceNotes,
+            
+            // CTA buttons
+            primaryButton: {
+                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/book-lesson` : '#',
+                text: 'Book New Lesson',
+                style: 'primary'
+            },
+            secondaryButton: {
+                url: process.env.SUPPORT_URL || '#',
+                text: 'Contact Support',
+                style: 'secondary'
+            }
+        };
+
+        // Use base template with content
+        return await this.loadBaseTemplate(contentTemplate, templateData);
+    }
+
     // Generate calendar attachment for booking
     generateCalendarAttachment(booking) {
         try {
