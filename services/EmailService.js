@@ -4,6 +4,7 @@ const { User } = require('../models/User');
 const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
+const logger = require('../utils/logger');
 
 class EmailService {
     constructor() {
@@ -33,7 +34,7 @@ class EmailService {
             });
 
             this.isConfigured = true;
-            console.log('Email service initialized successfully');
+            logger.email('Email service initialized successfully');
         } catch (error) {
             console.error('Failed to initialize email service:', error);
             this.isConfigured = false;
@@ -47,7 +48,7 @@ class EmailService {
 
         try {
             await this.transporter.verify();
-            console.log('Email service connection verified');
+            logger.email('Email service connection verified');
             return true;
         } catch (error) {
             console.error('Email service connection failed:', error);
@@ -102,7 +103,7 @@ class EmailService {
             });
 
             this.handlebarsInitialized = true;
-            console.log('Handlebars initialized with partials and helpers');
+            logger.email('Handlebars initialized with partials and helpers');
         } catch (error) {
             console.error('Failed to initialize Handlebars:', error);
             throw error;
@@ -215,7 +216,7 @@ class EmailService {
             };
 
             const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email sent successfully:', info.messageId);
+            logger.email('Email sent successfully', { messageId: info.messageId });
             
             return { 
                 success: true, 
@@ -252,7 +253,7 @@ class EmailService {
             }
 
             const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email with attachment sent successfully:', info.messageId);
+            logger.email('Email with attachment sent successfully', { messageId: info.messageId });
             
             return { 
                 success: true, 

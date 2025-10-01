@@ -14,7 +14,7 @@ const {
     calculateDurationInSlots,
     isValidSlot,
     isBookingAvailable,
-    slotToTime
+    localSlotToTime
 } = require('../utils/timeUtils');
 
 // Get instructor's calendar events - requires read permission for instructor data
@@ -83,7 +83,7 @@ router.post('/attendance', authorizeBooking('update', async (req) => {
 
         // Check if lesson has started (attendance can only be marked after lesson start time)
         const lessonDate = new Date(event.date);
-        const lessonStartTime = slotToTime(event.start_slot);
+        const lessonStartTime = localSlotToTime(event.start_slot);
         const [hours, minutes] = lessonStartTime.split(':');
         lessonDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
         

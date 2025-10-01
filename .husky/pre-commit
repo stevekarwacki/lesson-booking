@@ -1,8 +1,8 @@
 echo "🔍 Running pre-commit checks..."
 echo "📋 Checking for console.log statements..."
 
-# Check for console.log in JavaScript/Vue files (excluding test files)
-if git diff --cached --name-only | grep -E '\.(js|vue|ts)$' | grep -v test | xargs grep -l 'console\.log' 2>/dev/null; then
+# Check for console.log in JavaScript/Vue files (excluding test files and logger utility)
+if git diff --cached --name-only | grep -E '\.(js|vue|ts)$' | grep -v test | grep -v 'utils/logger.js' | xargs grep -l 'console\.log' 2>/dev/null; then
     echo "❌ Found console.log statements in staged files. Please remove them before committing."
     exit 1
 fi

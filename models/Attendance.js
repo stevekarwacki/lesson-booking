@@ -43,14 +43,22 @@ Attendance.markAttendance = async function(calendarEventId, status, notes = null
             throw new Error('Invalid attendance status. Must be present, absent, or tardy.');
         }
 
-        // Use upsert to create or update attendance record
-        const [attendance, created] = await this.upsert({
-            calendar_event_id: calendarEventId,
-            status: status,
-            notes: notes
-        }, {
-            returning: true
+        // Use findOrCreate for cross-database compatibility
+        const [attendance, created] = await this.findOrCreate({
+            where: { calendar_event_id: calendarEventId },
+            defaults: {
+                calendar_event_id: calendarEventId,
+                status: status,
+                notes: notes
+            }
         });
+
+        // If record existed, update it
+        if (!created) {
+            attendance.status = status;
+            attendance.notes = notes;
+            await attendance.save();
+        }
 
         return {
             attendance,
