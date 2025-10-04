@@ -125,6 +125,9 @@ const defineAbilitiesFor = (user) => {
       // Read students who have bookings with them
       can('read', 'Student'); // Will be filtered by booking relationship in routes
       
+      // Refund permissions - instructors can refund bookings for their students
+      can('refund', 'Booking', { instructor_id: user.instructor_id });
+      
       // Calendar and schedule management (instructor-specific)
       can('manage', 'Calendar', { instructor_id: user.instructor_id });
       can('manage', 'OwnInstructorCalendar');
@@ -138,6 +141,9 @@ const defineAbilitiesFor = (user) => {
       
       // Explicit permissions for clarity
       can('manage', 'AllInstructorAvailability');
+      
+      // Refund permissions - admins can refund any booking
+      can('refund', 'Booking');
       
       // User role management permissions
       can('edit', 'UserRole'); // Can edit user roles in general

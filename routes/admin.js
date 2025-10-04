@@ -12,6 +12,8 @@ const { logoUpload } = require('../middleware/uploadMiddleware');
 const { processLogoUpload, removeLogo } = require('../utils/logoOperations');
 const emailQueueService = require('../services/EmailQueueService');
 const cronJobService = require('../services/CronJobService');
+const RefundService = require('../services/RefundService');
+const { Refund } = require('../models/Refund');
 
 
 // Get all users - protected by CASL permissions
@@ -631,6 +633,191 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
         res.status(500).json({ 
             error: 'Failed to create subscription',
             details: error.message 
+        });
+    }
+});
+
+// =============================================================================
+// REFUND ENDPOINTS - Manual refund processing for Admins and Instructors
+// =============================================================================
+
+/**
+ * Process a manual refund for a booking
+ * @route POST /api/admin/refunds
+ * @access Admin and Instructor (with proper booking ownership)
+ */
+router.post('/refunds', authorize('refund', 'Booking'), async (req, res) => {
+    try {
+        const { bookingId, refundType, reason } = req.body;
+        
+        // Validate required fields
+        if (!bookingId || !refundType) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                details: 'bookingId and refundType are required'
+            });
+        }
+        
+        // Validate refund type
+        if (!['stripe', 'credit'].includes(refundType)) {
+            return res.status(400).json({
+                error: 'Invalid refund type',
+                details: 'refundType must be either "stripe" or "credit"'
+            });
+        }
+        
+        const refundService = new RefundService();
+        
+        // Get refund information to validate permissions
+        const refundInfo = await refundService.getRefundInfo(bookingId);
+        
+        // Additional permission check for instructors
+        if (req.user.role === 'instructor') {
+            // Instructors can only refund bookings for their own students
+            if (refundInfo.booking.instructor_id !== req.user.instructor_id) {
+                return res.status(403).json({
+                    error: 'Permission denied',
+                    details: 'Instructors can only refund bookings for their own students'
+                });
+            }
+        }
+        
+        // Validate refund eligibility based on payment method and user requirements
+        if (refundType === 'stripe' && !refundInfo.paidWithStripe) {
+            return res.status(400).json({
+                error: 'Invalid refund method',
+                details: 'Cannot refund to Stripe - this booking was not paid with Stripe'
+            });
+        }
+        
+        // Process the refund
+        const refundResult = await refundService.processRefund(
+            bookingId,
+            refundType,
+            req.user.id,
+            reason
+        );
+        
+        res.json({
+            success: true,
+            message: 'Refund processed successfully',
+            refund: {
+                id: refundResult.refundId,
+                bookingId: bookingId,
+                type: refundResult.refundType,
+                amount: refundResult.amount,
+                processedBy: req.user.name,
+                processedAt: new Date(),
+                stripeRefundId: refundResult.stripeRefundId
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error processing refund:', error);
+        
+        // Handle specific error cases
+        if (error.message === 'Booking not found') {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+        
+        if (error.message === 'Booking has already been refunded') {
+            return res.status(400).json({ 
+                error: 'Booking already refunded',
+                details: 'This booking has already been refunded'
+            });
+        }
+        
+        if (error.message.includes('Stripe refund failed')) {
+            return res.status(500).json({
+                error: 'Stripe refund failed',
+                details: error.message
+            });
+        }
+        
+        res.status(500).json({ 
+            error: 'Error processing refund',
+            details: 'An unexpected error occurred while processing the refund'
+        });
+    }
+});
+
+/**
+ * Get refund information for a booking (for UI display)
+ * @route GET /api/admin/refunds/:bookingId/info
+ * @access Admin and Instructor (with proper booking ownership)
+ */
+router.get('/refunds/:bookingId/info', authorize('refund', 'Booking'), async (req, res) => {
+    try {
+        const bookingId = parseInt(req.params.bookingId, 10);
+        
+        if (!bookingId) {
+            return res.status(400).json({ error: 'Invalid booking ID' });
+        }
+        
+        const refundService = new RefundService();
+        const refundInfo = await refundService.getRefundInfo(bookingId);
+        
+        // Additional permission check for instructors
+        if (req.user.role === 'instructor') {
+            if (refundInfo.booking.instructor_id !== req.user.instructor_id) {
+                return res.status(403).json({
+                    error: 'Permission denied',
+                    details: 'Instructors can only view refund info for their own students'
+                });
+            }
+        }
+        
+        // Return refund eligibility and options
+        const refundOptions = [];
+        
+        if (refundInfo.paidWithCredits) {
+            refundOptions.push({
+                type: 'credit',
+                label: 'Refund as Lesson Credits',
+                description: 'Add credits back to student account'
+            });
+        }
+        
+        if (refundInfo.paidWithStripe) {
+            refundOptions.push({
+                type: 'stripe',
+                label: 'Refund to Original Payment Method',
+                description: 'Process refund through Stripe to original payment method',
+                isDefault: true
+            });
+            refundOptions.push({
+                type: 'credit',
+                label: 'Refund as Lesson Credits',
+                description: 'Add credits to student account instead of Stripe refund'
+            });
+        }
+        
+        res.json({
+            booking: {
+                id: refundInfo.booking.id,
+                date: refundInfo.booking.date,
+                startSlot: refundInfo.booking.start_slot,
+                duration: refundInfo.booking.duration,
+                status: refundInfo.booking.status,
+                student: refundInfo.booking.student
+            },
+            canRefund: refundInfo.canRefund,
+            paidWithCredits: refundInfo.paidWithCredits,
+            paidWithStripe: refundInfo.paidWithStripe,
+            refundOptions,
+            // Check if already refunded
+            refundStatus: await Refund.getRefundStatus(bookingId)
+        });
+        
+    } catch (error) {
+        console.error('Error fetching refund info:', error);
+        
+        if (error.message === 'Booking not found') {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+        
+        res.status(500).json({ 
+            error: 'Error fetching refund information'
         });
     }
 });

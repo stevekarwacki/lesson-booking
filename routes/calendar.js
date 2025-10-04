@@ -739,17 +739,23 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
 
         // Check for credit usage to refund
         const { CreditUsage } = require('../models/Credits');
+        const RefundService = require('../services/RefundService');
+        
         const creditUsage = await CreditUsage.findOne({
             where: { calendar_event_id: bookingId }
         });
 
-        // Use transaction for credit refund and booking cancellation
+        // Use transaction for refund processing and booking cancellation
         const { sequelize } = require('../db/index');
         const transaction = await sequelize.transaction();
         
         try {
-            // If there was a credit used, refund it with the correct duration
-            if (creditUsage) {
+            // Check if eligible for automatic refund (>24 hours in advance)
+            const refundService = new RefundService();
+            const automaticRefund = await refundService.processAutomaticRefund(bookingId, studentId);
+            
+            // If no automatic refund was processed, handle manual credit refund for existing logic
+            if (!automaticRefund && creditUsage) {
                 const { UserCredits } = require('../models/Credits');
                 const durationMinutes = creditUsage.duration_minutes || 30; // Default to 30 if not set
                 await UserCredits.addCredits(studentId, 1, null, durationMinutes, transaction);
@@ -760,15 +766,36 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
             await Calendar.updateEvent(bookingId, { status: 'cancelled' }, transaction);
             
             await transaction.commit();
+            
+            // Prepare response with refund information
+            const response = {
+                message: 'Booking cancelled successfully',
+                bookingId,
+                cancelled: true
+            };
+            
+            if (automaticRefund) {
+                response.refund = {
+                    processed: true,
+                    type: automaticRefund.refundType,
+                    amount: automaticRefund.amount,
+                    message: automaticRefund.refundType === 'stripe' 
+                        ? 'Refund has been processed to your original payment method'
+                        : 'Credits have been added back to your account'
+                };
+            } else if (creditUsage) {
+                response.refund = {
+                    processed: true,
+                    type: 'credit',
+                    message: 'Credits have been added back to your account'
+                };
+            }
+            
+            res.json(response);
         } catch (error) {
             await transaction.rollback();
             throw error;
         }
-
-        res.json({
-            message: 'Booking cancelled successfully',
-            creditRefunded: !!creditUsage
-        });
 
     } catch (error) {
         console.error('Error cancelling booking:', error);
