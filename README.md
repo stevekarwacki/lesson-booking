@@ -9,6 +9,7 @@ A web application for managing lesson bookings.
 - **Lesson scheduling and management** with 30 and 60-minute durations
 - **Duration-based pricing** (60-minute lessons cost 2x the 30-minute rate)
 - **Smart rescheduling** with duration preservation and conflict detection
+- **Comprehensive refund system** with Stripe integration and credit restoration
 - Payment processing with email confirmations
 - Instructor profiles and availability
 - Student booking management
@@ -101,14 +102,15 @@ This application uses **CASL (Conditional Access Control List)** for comprehensi
 For detailed documentation, see:
 - [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md) - Permission system
 - [`docs/60_MINUTE_LESSON_FEATURES.md`](docs/60_MINUTE_LESSON_FEATURES.md) - 60-minute lesson functionality
+- [`docs/REFUND_SYSTEM.md`](docs/REFUND_SYSTEM.md) - Comprehensive refund system
 
 ### Permission Overview
 
-| Role | Can Book | Can Manage Bookings | Can Manage Users | Can Access Payments |
-|------|----------|-------------------|------------------|-------------------|
-| **Student** | ✅ Own | ✅ Own (24hr limit) | ❌ | ✅ Own |
-| **Instructor** | ❌ | ✅ Students' | ❌ | ❌ |
-| **Admin** | ❌ | ✅ All | ✅ All | ❌ |
+| Role | Can Book | Can Manage Bookings | Can Manage Users | Can Access Payments | Can Process Refunds |
+|------|----------|-------------------|------------------|-------------------|-------------------|
+| **Student** | ✅ Own | ✅ Own (24hr limit) | ❌ | ✅ Own | ❌ (Auto-refund only) |
+| **Instructor** | ❌ | ✅ Students' | ❌ | ❌ | ✅ Students' |
+| **Admin** | ❌ | ✅ All | ✅ All | ❌ | ✅ All |
 
 ## Testing
 
@@ -116,15 +118,3 @@ To run tests:
 ```bash
 npm test
 ```
-
-The test suite includes:
-- **71+ total tests** covering permissions, routes, and integration
-- Backend permission validation
-- Frontend router guard testing  
-- Time-based restriction verification
-- **60-minute lesson functionality** (rescheduling, pricing, conflicts)
-
-### 60-Minute Lesson Tests
-- `tests/rescheduling-duration.test.js` - Duration preservation during rescheduling
-- `tests/pricing-calculations.test.js` - Correct pricing for different durations  
-- `tests/booking-conflicts.test.js` - Conflict detection for overlapping bookings 
