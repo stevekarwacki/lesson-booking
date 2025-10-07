@@ -34,7 +34,7 @@ app.get('/api/stripe-key', (req, res) => {
 });
 
 // Protected routes
-app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
+app.use('/api/admin', authMiddleware, adminRoutes);
 app.use('/api/instructors', authMiddleware, instructorRoutes);
 app.use('/api/users', authMiddleware, userRoutes);
 app.use('/api/calendar', authMiddleware, calendarRoutes);

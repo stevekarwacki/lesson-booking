@@ -544,8 +544,32 @@ router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(re
         const events = includeAll 
             ? await Calendar.getAllStudentEvents(studentId)
             : await Calendar.getStudentEvents(studentId);
+        
+        // Transform events to include refund status
+        const eventsWithRefundStatus = events.map(event => {
+            const eventData = event.toJSON();
             
-        res.json(events);
+            // Transform refund data to expected format
+            if (eventData.Refunds && eventData.Refunds.length > 0) {
+                const refund = eventData.Refunds[0]; // Get the first (and should be only) refund
+                eventData.refundStatus = {
+                    status: refund.type === 'stripe' ? 'refunded_stripe' : 'refunded_credit',
+                    type: refund.type,
+                    amount: refund.amount,
+                    refunded_at: refund.created_at,
+                    refunded_by: refund.refunded_by
+                };
+            } else {
+                eventData.refundStatus = { status: 'none' };
+            }
+            
+            // Remove the raw Refunds array to clean up response
+            delete eventData.Refunds;
+            
+            return eventData;
+        });
+            
+        res.json(eventsWithRefundStatus);
     } catch (error) {
         console.error('Error fetching student bookings:', error);
         res.status(500).json({ error: 'Failed to fetch bookings' });

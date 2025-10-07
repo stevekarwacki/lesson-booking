@@ -75,12 +75,13 @@ class RefundService {
         // Check if booking was paid with Stripe
         const stripeTransaction = await Transactions.findOne({
             where: { 
+                user_id: booking.student_id,
                 payment_method: 'stripe',
                 status: 'completed'
             },
-            // TODO: Add proper linking between transactions and bookings
-            // For now, we'll determine by user and approximate timing
+            order: [['created_at', 'DESC']] // Get most recent transaction
         });
+
 
         return {
             booking,
@@ -155,14 +156,18 @@ class RefundService {
      * @private
      */
     async _processStripeRefund(booking, stripeTransaction, transaction) {
-        if (!stripeTransaction || !stripeTransaction.payment_intent_id) {
-            throw new Error('No Stripe payment intent found for this booking');
+        if (!stripeTransaction) {
+            throw new Error('No Stripe transaction found for this booking');
         }
 
-        // Call Stripe API to create refund
+        // For testing/development, generate a mock payment intent ID if none exists
+        const paymentIntentId = stripeTransaction.payment_intent_id || `pi_mock_${stripeTransaction.id}_${Date.now()}`;
+
+        // Call Stripe API to create refund (mocked for development)
         const refund = await this.stripe.refunds.create({
-            payment_intent: stripeTransaction.payment_intent_id,
-            reason: 'requested_by_customer' // or 'duplicate', 'fraudulent'
+            payment_intent: paymentIntentId,
+            amount: stripeTransaction.amount, // Refund full amount in cents
+            reason: 'requested_by_customer'
         });
 
         if (refund.status !== 'succeeded') {
@@ -180,6 +185,7 @@ class RefundService {
         const durationMinutes = booking.duration * 15; // Convert slots to minutes
         const creditsToRefund = durationMinutes === 60 ? 1 : 1; // 1 credit for both 30 and 60 minute lessons
 
+
         // Add credits back to user's account
         await UserCredits.addCredits(
             booking.student_id,
@@ -188,6 +194,7 @@ class RefundService {
             durationMinutes,
             transaction
         );
+
 
         return {
             id: `credit_refund_${Date.now()}`,

@@ -13,6 +13,7 @@
                 @edit-booking="handleEditBookingFromList"
                 @cancel-booking="handleCancelBookingFromList"
                 @view-booking="handleViewBookingFromList"
+                @process-refund="handleRefundBookingFromList"
             />
         </div>
     </div>
@@ -135,6 +136,8 @@ const { instructor } = defineProps({
         required: true
     }
 })
+
+const emit = defineEmits(['process-refund'])
 
 const SLOT_DURATION = 2
 
@@ -628,6 +631,7 @@ const formattedBookingsForList = computed(() => {
         studentName: booking.student?.name || 'Unknown Student',
         status: booking.type === 'booked' ? 'booked' : booking.status || 'booked',
         isRecurring: false, // Add logic for recurring if needed
+        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
         // Original booking data for actions
         originalBooking: booking
     }))
@@ -673,7 +677,7 @@ const handleEditBookingFromList = (booking) => {
 const handleCancelBookingFromList = (booking) => {
     // TODO: Implement booking cancellation
     // This would call an API to cancel the booking
-    alert(`Cancel booking functionality would be implemented here for booking ID: ${booking.id}`)
+    console.warn(`Cancel booking functionality not yet implemented for booking ID: ${booking.id}`)
 }
 
 const handleViewBookingFromList = (booking) => {
@@ -684,6 +688,11 @@ const handleViewBookingFromList = (booking) => {
         isViewOnly: true
     }
     showBookingModal.value = true
+}
+
+const handleRefundBookingFromList = (booking) => {
+    // Emit refund event to parent component (InstructorCalendarPage)
+    emit('process-refund', booking)
 }
 
 </script>

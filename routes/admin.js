@@ -673,8 +673,18 @@ router.post('/refunds', authorize('refund', 'Booking'), async (req, res) => {
         
         // Additional permission check for instructors
         if (req.user.role === 'instructor') {
+            // Get instructor record to find instructor_id
+            const { Instructor } = require('../models/Instructor');
+            const instructor = await Instructor.findByUserId(req.user.id);
+            
+            if (!instructor) {
+                return res.status(403).json({
+                    error: 'Instructor profile not found'
+                });
+            }
+            
             // Instructors can only refund bookings for their own students
-            if (refundInfo.booking.instructor_id !== req.user.instructor_id) {
+            if (refundInfo.booking.instructor_id !== instructor.id) {
                 return res.status(403).json({
                     error: 'Permission denied',
                     details: 'Instructors can only refund bookings for their own students'
@@ -759,7 +769,17 @@ router.get('/refunds/:bookingId/info', authorize('refund', 'Booking'), async (re
         
         // Additional permission check for instructors
         if (req.user.role === 'instructor') {
-            if (refundInfo.booking.instructor_id !== req.user.instructor_id) {
+            // Get instructor record to find instructor_id
+            const { Instructor } = require('../models/Instructor');
+            const instructor = await Instructor.findByUserId(req.user.id);
+            
+            if (!instructor) {
+                return res.status(403).json({
+                    error: 'Instructor profile not found'
+                });
+            }
+            
+            if (refundInfo.booking.instructor_id !== instructor.id) {
                 return res.status(403).json({
                     error: 'Permission denied',
                     details: 'Instructors can only view refund info for their own students'

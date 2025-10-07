@@ -42,6 +42,9 @@ export const useUserStore = defineStore('user', {
         // User role editing permissions
         canEditUserRole: (state) => state.user ? defineAbilitiesFor(state.user).can('edit', 'UserRole') : false,
         
+        // Refund permissions
+        canRefundBooking: (state) => state.user ? defineAbilitiesFor(state.user).can('refund', 'Booking') : false,
+        
         // Helper method to check if we can edit a specific user's role
         canEditSpecificUserRole: (state) => (targetUser) => {
             if (!state.user || !targetUser) return false;

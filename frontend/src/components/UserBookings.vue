@@ -9,10 +9,11 @@
                 :bookings="formattedBookings"
                 :loading="loading"
                 :userId="userStore.user.id"
-                :userRole="'student'"
+                :userRole="userStore.user.role"
                 @edit-booking="handleEditBookingFromList"
                 @cancel-booking="handleCancelBookingFromList"
                 @view-booking="handleViewBookingFromList"
+                @process-refund="handleRefundBookingFromList"
             />
         </div>
 
@@ -23,6 +24,13 @@
             @booking-updated="handleBookingUpdated"
             @booking-cancelled="handleBookingCancelled"
         />
+
+        <RefundModal
+            v-if="showRefundModal"
+            :booking="selectedBooking"
+            @close="closeRefundModal"
+            @refund-processed="handleRefundProcessed"
+        />
     </div>
 </template>
 
@@ -32,6 +40,7 @@ import { useUserStore } from '../stores/userStore'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 import BookingList from './BookingList.vue'
 import EditBookingModal from './EditBookingModal.vue'
+import RefundModal from './RefundModal.vue'
 import { useMq } from 'vue3-mq'
 
 const userStore = useUserStore()
@@ -39,6 +48,7 @@ const bookings = ref([])
 const loading = ref(true)
 const error = ref(null)
 const showEditModal = ref(false)
+const showRefundModal = ref(false)
 const selectedBooking = ref(null)
 
 // Transform bookings for BookingList component
@@ -51,6 +61,7 @@ const formattedBookings = computed(() => {
         instructorName: booking.Instructor.User.name,
         status: booking.status || 'booked',
         isRecurring: false,
+        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
         // Original booking data for EditBookingModal
         originalBooking: booking
     }))
@@ -99,13 +110,6 @@ const handleBookingUpdated = async () => {
 const handleBookingCancelled = async (result) => {
     closeEditModal()
     await fetchBookings()
-    
-    // Show a success message
-    if (result.creditRefunded) {
-        alert('Booking cancelled successfully and credit refunded!')
-    } else {
-        alert('Booking cancelled successfully!')
-    }
 }
 
 // BookingList event handlers
@@ -122,6 +126,21 @@ const handleCancelBookingFromList = (booking) => {
 const handleViewBookingFromList = (booking) => {
     selectedBooking.value = booking.originalBooking
     showEditModal.value = true
+}
+
+const handleRefundBookingFromList = (booking) => {
+    selectedBooking.value = booking.originalBooking  // This is for the RefundModal
+    showRefundModal.value = true
+}
+
+const closeRefundModal = () => {
+    showRefundModal.value = false
+    selectedBooking.value = null
+}
+
+const handleRefundProcessed = async (result) => {
+    closeRefundModal()
+    await fetchBookings()
 }
 
 onMounted(async () => {

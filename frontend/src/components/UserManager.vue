@@ -6,6 +6,7 @@ import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
 import SlideTransition from './SlideTransition.vue'
 import EditBooking from './EditBooking.vue'
+import RefundModal from './RefundModal.vue'
 
 const userStore = useUserStore()
 const users = ref([])
@@ -27,6 +28,10 @@ const creatingSubscription = ref(false)
 const userBookings = ref([])
 const loadingUserBookings = ref(false)
 const selectedBooking = ref(null)
+
+// Refund modal data
+const showRefundModal = ref(false)
+const selectedRefundBooking = ref(null)
 
 // Computed property to safely get current user ID
 const currentUserId = computed(() => userStore.user?.id)
@@ -410,6 +415,7 @@ const fetchUserBookings = async (userId) => {
             instructorName: booking.Instructor.User.name,
             status: booking.status || 'booked',
             isRecurring: false,
+            refundStatus: booking.refundStatus || { status: 'none' },
             originalBooking: booking
         }))
     } catch (err) {
@@ -427,12 +433,40 @@ const handleEditUserBooking = (booking) => {
 
 const handleCancelUserBooking = (booking) => {
     // TODO: Implement booking cancellation for admin/instructor
-    alert('Admin booking cancellation will be implemented here')
+    console.warn('Admin booking cancellation not yet implemented for booking:', booking.id)
 }
 
 const handleViewUserBooking = (booking) => {
     // Set selected booking and navigate to detail slide  
     selectedBooking.value = booking.originalBooking
+}
+
+const handleRefundUserBooking = (booking) => {
+    selectedRefundBooking.value = booking.originalBooking
+    showRefundModal.value = true
+}
+
+const closeRefundModal = () => {
+    showRefundModal.value = false
+    selectedRefundBooking.value = null
+}
+
+const handleRefundProcessed = async (result) => {
+    closeRefundModal()
+    
+    // Refresh user bookings to show updated refund status
+    if (editingUser.value) {
+        await fetchUserBookings(editingUser.value.id)
+    }
+    
+    // Show success message
+    const refundType = result.refund.type === 'stripe' ? 'to original payment method' : 'as lesson credits'
+    success.value = `Refund processed successfully ${refundType}!`
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+        success.value = ''
+    }, 5000)
 }
 
 // EditBooking event handlers
@@ -679,6 +713,7 @@ onMounted(async () => {
                                     @edit-booking="(booking) => { handleEditUserBooking(booking); navigate(); }"
                                     @cancel-booking="handleCancelUserBooking"
                                     @view-booking="(booking) => { handleViewUserBooking(booking); navigate(); }"
+                                    @process-refund="handleRefundUserBooking"
                                 />
                             </div>
                             <div v-else class="no-bookings-message">
@@ -916,6 +951,14 @@ onMounted(async () => {
             </div>
         </div>
     </div>
+
+    <!-- Refund Modal -->
+    <RefundModal
+        v-if="showRefundModal && selectedRefundBooking"
+        :booking="selectedRefundBooking"
+        @close="closeRefundModal"
+        @refund-processed="handleRefundProcessed"
+    />
 </template>
 
 <style scoped>

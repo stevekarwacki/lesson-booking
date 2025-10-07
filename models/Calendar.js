@@ -153,8 +153,9 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
 };
 
 Calendar.getInstructorEvents = async function(instructorId) {
-    // Import Attendance model here to avoid circular dependency
+    // Import Attendance and Refund models here to avoid circular dependency
     const { Attendance } = require('./Attendance');
+    const { Refund } = require('./Refund');
     
     const events = await this.findAll({
         where: { 
@@ -178,6 +179,11 @@ Calendar.getInstructorEvents = async function(instructorId) {
                 model: Attendance,
                 required: false, // LEFT JOIN - include events without attendance records
                 attributes: ['status', 'notes', 'created_at', 'updated_at']
+            },
+            {
+                model: Refund,
+                required: false, // LEFT JOIN - include events without refund records
+                attributes: ['type', 'amount', 'created_at', 'refunded_by']
             }
         ],
         order: [['date', 'ASC'], ['start_slot', 'ASC']]
@@ -201,7 +207,14 @@ Calendar.getInstructorEvents = async function(instructorId) {
                 status: eventData.Attendance.status,
                 notes: eventData.Attendance.notes,
                 recorded_at: eventData.Attendance.updated_at
-            } : null
+            } : null,
+            // Include refund status
+            refundStatus: eventData.Refunds && eventData.Refunds.length > 0 ? {
+                status: 'refunded',
+                type: eventData.Refunds[0].type,
+                amount: eventData.Refunds[0].amount,
+                refunded_at: eventData.Refunds[0].created_at
+            } : { status: 'none' }
         };
     });
 };
@@ -226,6 +239,7 @@ Calendar.deleteEvent = async function(eventId) {
 Calendar.getStudentEvents = async function(studentId) {
     // Use UTC date for comparison to ensure consistent filtering
     const currentDateUTC = getCurrentDateUTC();
+    const { Refund } = require('./Refund');
     
     return this.findAll({
         where: {
@@ -235,29 +249,45 @@ Calendar.getStudentEvents = async function(studentId) {
             },
             status: { [sequelize.Op.ne]: 'cancelled' }
         },
-        include: [{
-            model: Instructor,
-            include: [{
-                model: User,
-                attributes: ['name']
-            }]
-        }],
+        include: [
+            {
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['name']
+                }]
+            },
+            {
+                model: Refund,
+                required: false, // LEFT JOIN - include events without refunds
+                attributes: ['type', 'amount', 'created_at', 'refunded_by']
+            }
+        ],
         order: [['date', 'ASC'], ['start_slot', 'ASC']]
     });
 };
 
 Calendar.getAllStudentEvents = async function(studentId) {
+    const { Refund } = require('./Refund');
+    
     return this.findAll({
         where: {
             student_id: studentId
         },
-        include: [{
-            model: Instructor,
-            include: [{
-                model: User,
-                attributes: ['name']
-            }]
-        }],
+        include: [
+            {
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['name']
+                }]
+            },
+            {
+                model: Refund,
+                required: false, // LEFT JOIN - include events without refunds
+                attributes: ['type', 'amount', 'created_at', 'refunded_by']
+            }
+        ],
         order: [['date', 'DESC'], ['start_slot', 'ASC']]
     });
 };

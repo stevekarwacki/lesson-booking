@@ -19,12 +19,17 @@
                     @cancel-booking="handleCancelBooking"
                     @view-booking="handleViewBooking"
                     @attendance-changed="handleAttendanceChanged"
+                    @process-refund="handleRefundBooking"
                 />
             </div>
         </div>
 
         <!-- Calendar Interface -->
-        <InstructorCalendar v-if="instructor && instructor.id" :instructor="instructor" />
+        <InstructorCalendar 
+            v-if="instructor && instructor.id" 
+            :instructor="instructor" 
+            @process-refund="handleRefundBooking"
+        />
 
         <!-- Edit Booking Modal -->
         <EditBookingModal
@@ -34,6 +39,14 @@
             @booking-updated="handleBookingUpdated"
             @booking-cancelled="handleBookingCancelled"
         />
+
+        <!-- Refund Modal -->
+        <RefundModal
+            v-if="showRefundModal"
+            :booking="selectedRefundBooking"
+            @close="closeRefundModal"
+            @refund-processed="handleRefundProcessed"
+        />
     </div>
 </template>
 
@@ -41,6 +54,7 @@
 import InstructorCalendar from '../components/InstructorCalendar.vue'
 import BookingList from '../components/BookingList.vue'
 import EditBookingModal from '../components/EditBookingModal.vue'
+import RefundModal from '../components/RefundModal.vue'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -53,7 +67,9 @@ const loading = ref(false)
 const bookings = ref([])
 const bookingsLoading = ref(false)
 const showEditModal = ref(false)
+const showRefundModal = ref(false)
 const selectedBooking = ref(null)
+const selectedRefundBooking = ref(null)
 
 const fetchInstructor = async () => {
     try {
@@ -121,6 +137,7 @@ const formattedBookings = computed(() => {
         status: booking.status || 'booked',
         isRecurring: false, // Add logic for recurring if needed
         attendance: booking.attendance, // Include attendance data from backend
+        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
         // Original booking data for actions
         originalBooking: booking
     }));
@@ -193,6 +210,24 @@ const handleCancelBooking = (booking) => {
 const handleViewBooking = (booking) => {
     selectedBooking.value = booking.originalBooking;
     showEditModal.value = true;
+};
+
+const handleRefundBooking = (booking) => {
+    selectedRefundBooking.value = booking.originalBooking || booking;
+    showRefundModal.value = true;
+};
+
+const closeRefundModal = () => {
+    showRefundModal.value = false;
+    selectedRefundBooking.value = null;
+};
+
+const handleRefundProcessed = async (result) => {
+    closeRefundModal();
+    // Refresh bookings after refund
+    if (instructor.value?.id) {
+        await fetchBookings(instructor.value.id);
+    }
 };
 
 const handleAttendanceChanged = async (booking, status, notes = '') => {

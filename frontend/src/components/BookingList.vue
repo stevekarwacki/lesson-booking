@@ -40,6 +40,10 @@
               <span v-if="booking.isRecurring" class="recurring-indicator">
                 🔄 Recurring
               </span>
+              <!-- Refund status display -->
+              <span v-if="booking.refundStatus && booking.refundStatus.status !== 'none'" class="refund-indicator">
+                💰 {{ booking.refundStatus.type === 'stripe' ? 'Refunded' : 'Credit Refunded' }}
+              </span>
             </div>
             
             <!-- Attendance Status Display -->
@@ -80,6 +84,15 @@
                   class="action-button action-button-secondary"
                 >
                   Reschedule ›
+                </button>
+                <!-- Refund button for admins and instructors -->
+                <button 
+                  v-if="canRefundBooking(booking)"
+                  @click="handleRefundBooking(booking)"
+                  class="action-button action-button-warning"
+                  title="Process refund for this booking"
+                >
+                  Refund
                 </button>
               </template>
               
@@ -170,7 +183,7 @@ export default {
       default: true
     }
   },
-  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed'],
+  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund'],
   setup(props, { emit }) {
     const filters = filterPresets.bookings
     const activeFilter = ref('today')
@@ -381,6 +394,32 @@ export default {
       }
     }
 
+    const handleRefundBooking = (booking) => {
+      emit('process-refund', booking)
+    }
+
+    // Permission check for refund button visibility
+    const canRefundBooking = (booking) => {
+      // Only show refund button for non-cancelled bookings that haven't been refunded
+      if (booking.status === 'cancelled' || (booking.refundStatus && booking.refundStatus.status !== 'none')) {
+        return false
+      }
+      
+      // Admins can refund any booking
+      if (props.userRole === 'admin') {
+        return true
+      }
+      
+      // Instructors can refund bookings for their students
+      if (props.userRole === 'instructor') {
+        // This would need to check if the booking belongs to this instructor
+        // For now, we'll show the button and let the backend handle permission checks
+        return true
+      }
+      
+      return false
+    }
+
     const canMarkAttendance = (booking) => {
       // Can mark attendance if lesson has started (for current/past bookings)
       const now = new Date()
@@ -435,6 +474,8 @@ export default {
       handleCancelBooking,
       handleViewBooking,
       handleAttendanceChange,
+      handleRefundBooking,
+      canRefundBooking,
       canMarkAttendance,
       goToPreviousPage,
       goToNextPage
@@ -530,6 +571,16 @@ export default {
   color: var(--text-secondary);
 }
 
+.refund-indicator {
+  background: #059669;
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  margin-left: var(--spacing-xs);
+}
+
 .booking-actions {
   display: flex;
   flex-direction: row;
@@ -575,6 +626,16 @@ export default {
 
 .action-button-secondary:hover {
   background: var(--background-light);
+}
+
+.action-button-warning {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.action-button-warning:hover {
+  background: #dc2626;
+  color: white;
 }
 
 .action-button-disabled {
