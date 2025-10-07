@@ -3,6 +3,7 @@ const { Transactions } = require('../models/Transactions');
 const { UserCredits, CreditUsage } = require('../models/Credits');
 const { Refund } = require('../models/Refund');
 const { sequelize } = require('../db/index');
+const { stripe } = require('../config/stripe');
 
 /**
  * RefundService - Handles refund processing for both Stripe and credit refunds
@@ -16,29 +17,7 @@ const { sequelize } = require('../db/index');
  */
 class RefundService {
     constructor() {
-        // Mock Stripe for testing - replace with actual Stripe in production
-        this.stripe = this._createMockStripe();
-    }
-
-    /**
-     * Create mock Stripe client for testing
-     * TODO: Replace with actual Stripe client when ready
-     */
-    _createMockStripe() {
-        return {
-            refunds: {
-                create: async (params) => {
-                    // Mock successful Stripe refund
-                    return {
-                        id: `re_mock_${Date.now()}`,
-                        amount: params.amount,
-                        payment_intent: params.payment_intent,
-                        status: 'succeeded',
-                        created: Math.floor(Date.now() / 1000)
-                    };
-                }
-            }
-        };
+        this.stripe = stripe;
     }
 
     /**
@@ -77,7 +56,7 @@ class RefundService {
             where: { 
                 user_id: booking.student_id,
                 payment_method: 'stripe',
-                status: 'completed'
+                status: ['completed', 'pending'] // Include both completed and pending transactions
             },
             order: [['created_at', 'DESC']] // Get most recent transaction
         });
@@ -118,7 +97,7 @@ class RefundService {
 
             if (refundType === 'stripe') {
                 refundResult = await this._processStripeRefund(booking, stripeTransaction, transaction);
-                refundAmount = refundResult.amount / 100; // Convert from cents
+                refundAmount = stripeTransaction.amount; // Use original transaction amount in dollars
             } else {
                 refundResult = await this._processCreditRefund(booking, creditUsage, refundedByUserId, transaction);
                 refundAmount = 0; // Credit refunds don't have monetary amount
@@ -160,21 +139,31 @@ class RefundService {
             throw new Error('No Stripe transaction found for this booking');
         }
 
-        // For testing/development, generate a mock payment intent ID if none exists
-        const paymentIntentId = stripeTransaction.payment_intent_id || `pi_mock_${stripeTransaction.id}_${Date.now()}`;
-
-        // Call Stripe API to create refund (mocked for development)
-        const refund = await this.stripe.refunds.create({
-            payment_intent: paymentIntentId,
-            amount: stripeTransaction.amount, // Refund full amount in cents
-            reason: 'requested_by_customer'
-        });
-
-        if (refund.status !== 'succeeded') {
-            throw new Error(`Stripe refund failed: ${refund.status}`);
+        if (!stripeTransaction.payment_intent_id) {
+            throw new Error('No Stripe payment intent found for this booking');
         }
 
-        return refund;
+        try {
+            // Call Stripe API to create refund
+            const refund = await this.stripe.refunds.create({
+                payment_intent: stripeTransaction.payment_intent_id,
+                amount: Math.round(stripeTransaction.amount * 100), // Convert dollars to cents for Stripe
+                reason: 'requested_by_customer'
+            });
+
+            // Stripe refunds are typically 'pending' initially, then become 'succeeded'
+            if (refund.status !== 'succeeded' && refund.status !== 'pending') {
+                throw new Error(`Stripe refund failed: ${refund.status}`);
+            }
+
+            return refund;
+        } catch (error) {
+            // Handle Stripe API errors
+            if (error.type === 'StripeCardError' || error.type === 'StripeInvalidRequestError') {
+                throw new Error(`Stripe refund failed: ${error.message}`);
+            }
+            throw error;
+        }
     }
 
     /**
