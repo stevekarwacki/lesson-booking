@@ -31,8 +31,8 @@ describe('Refund System Tests', () => {
     beforeEach(async () => {
         refundService = new RefundService();
         
-        // Create unique test data using timestamp
-        const timestamp = Date.now();
+        // Create unique test data using timestamp + random number + process ID
+        const timestamp = `${Date.now()}_${Math.floor(Math.random() * 100000)}_${process.pid}`;
         
         // Create test users
         testInstructor = await User.create({
