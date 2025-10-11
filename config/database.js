@@ -8,9 +8,9 @@ const config = {
         logging: false,
     },
     test: {
-        dialect: process.env.DB_DIALECT || 'sqlite',
-        storage: process.env.DB_STORAGE || path.join(__dirname, '../db/test.sqlite'),
-        ssl: process.env.DB_SSL || false,
+        dialect: 'sqlite',
+        storage: ':memory:', // In-memory database for tests
+        ssl: false,
         logging: false,
     },
     production: {

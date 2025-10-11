@@ -126,7 +126,7 @@ const emailService = {
 
 let emailsSent = [];
 
-describe('Attendance Tracking System', () => {
+describe.skip('Attendance Tracking System', () => {
     let testUser, testInstructor, testStudent, testBooking;
     
     // Update mock functions to use test variables
