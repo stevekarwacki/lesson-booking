@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Calendar } = require('../models/Calendar');
 const { Attendance } = require('../models/Attendance');
+const { Transactions } = require('../models/Transactions');
 const InstructorAvailability = require('../models/InstructorAvailability');
 const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
@@ -884,6 +885,64 @@ router.get('/recurring/:instructorId/:startDate/:endDate', async (req, res) => {
     } catch (error) {
         console.error('Error fetching recurring bookings:', error);
         res.status(500).json({ error: 'Error fetching recurring bookings' });
+    }
+});
+
+// Update payment status for booking - instructor can update their students' payments
+router.put('/bookings/:id/payment-status', authorizeBooking('update'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+
+        // Validate status
+        const validStatuses = ['outstanding', 'completed'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Invalid status. Must be "outstanding" or "completed".' });
+        }
+
+        // Find the booking
+        const booking = await Calendar.findByPk(id);
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        // Find the associated in-person payment transaction
+        const transaction = await Transactions.findOne({
+            where: {
+                user_id: booking.student_id,
+                payment_method: 'in-person'
+            },
+            order: [['created_at', 'DESC']] // Get the most recent in-person transaction
+        });
+
+        if (!transaction) {
+            return res.status(404).json({ error: 'No in-person payment transaction found for this booking' });
+        }
+
+        // Update the transaction
+        await transaction.update({ 
+            status,
+            // Add notes to any existing notes field if it exists
+            ...(notes && { notes: notes })
+        });
+
+        res.json({ 
+            message: 'Payment status updated successfully',
+            booking: {
+                id: booking.id,
+                student_id: booking.student_id,
+                instructor_id: booking.instructor_id
+            },
+            transaction: {
+                id: transaction.id,
+                status: transaction.status,
+                payment_method: transaction.payment_method,
+                amount: transaction.amount
+            }
+        });
+    } catch (error) {
+        console.error('Error updating payment status:', error);
+        res.status(500).json({ error: 'Error updating payment status' });
     }
 });
 

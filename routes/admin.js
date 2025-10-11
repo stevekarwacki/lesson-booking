@@ -7,6 +7,7 @@ const { Instructor } = require('../models/Instructor');
 const { PaymentPlan } = require('../models/PaymentPlan');
 const { Subscription } = require('../models/Subscription');
 const { AppSettings } = require('../models/AppSettings');
+const { Transactions } = require('../models/Transactions');
 const { authorize, authorizeUserAccess } = require('../middleware/permissions');
 const { logoUpload } = require('../middleware/uploadMiddleware');
 const { processLogoUpload, removeLogo } = require('../utils/logoOperations');
@@ -1250,6 +1251,51 @@ router.put('/settings/logo/position', authorize('manage', 'User'), async (req, r
     } catch (error) {
         console.error('Error updating logo position:', error);
         res.status(500).json({ error: 'Error updating logo position' });
+    }
+});
+
+// Update transaction payment status - admin only
+router.put('/transactions/:id/payment-status', authorize('manage', 'Transaction'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+
+        // Validate status
+        const validStatuses = ['outstanding', 'completed'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Invalid status. Must be "outstanding" or "completed".' });
+        }
+
+        // Find the transaction
+        const transaction = await Transactions.findByPk(id);
+        if (!transaction) {
+            return res.status(404).json({ error: 'Transaction not found' });
+        }
+
+        // Only allow updating in-person payments
+        if (transaction.payment_method !== 'in-person') {
+            return res.status(400).json({ error: 'Only in-person payment transactions can have their status updated' });
+        }
+
+        // Update the transaction
+        await transaction.update({ 
+            status,
+            // Add notes to any existing notes field if it exists
+            ...(notes && { notes: notes })
+        });
+
+        res.json({ 
+            message: 'Payment status updated successfully',
+            transaction: {
+                id: transaction.id,
+                status: transaction.status,
+                payment_method: transaction.payment_method,
+                amount: transaction.amount
+            }
+        });
+    } catch (error) {
+        console.error('Error updating payment status:', error);
+        res.status(500).json({ error: 'Error updating payment status' });
     }
 });
 
