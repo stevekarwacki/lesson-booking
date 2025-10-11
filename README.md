@@ -9,6 +9,7 @@ A web application for managing lesson bookings.
 - **Lesson scheduling and management** with 30 and 60-minute durations
 - **Duration-based pricing** (60-minute lessons cost 2x the 30-minute rate)
 - **Smart rescheduling** with duration preservation and conflict detection
+- **In-person payment system** with configurable global/per-student settings
 - **Comprehensive refund system** with Stripe integration and credit restoration
 - Payment processing with email confirmations
 - Instructor profiles and availability
