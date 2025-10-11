@@ -100,6 +100,19 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
             }
         }
 
+        // For in-person payments, we need to calculate the amount and create a transaction record
+        let transactionAmount = null;
+        if (paymentMethod === 'in-person') {
+            // Get instructor's rate to calculate the amount
+            const { Instructor } = require('./Instructor');
+            const instructor = await Instructor.findOne({ where: { user_id: instructorId } });
+            const rate = instructor?.hourly_rate || 50; // Fallback to $50 if no rate set
+            
+            // Rate represents 30-minute lesson cost, so 60-minute lessons cost double
+            const durationMinutes = duration * 15;
+            transactionAmount = durationMinutes === 30 ? rate : rate * 2;
+        }
+
         // Use transaction to ensure atomicity of event creation and credit deduction
         const transaction = await sequelize.transaction();
         let event; // Declare event outside transaction scope
@@ -119,6 +132,21 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
             if (paymentMethod === 'credits') {
                 const durationMinutes = duration * 15; // Convert slots to minutes (each slot = 15 minutes)
                 await UserCredits.useCredit(studentId, event.id, durationMinutes, transaction);
+            }
+
+            // If using in-person payment, create a transaction record with outstanding status
+            if (paymentMethod === 'in-person') {
+                const { Transactions } = require('./Transactions');
+                await Transactions.recordTransaction(
+                    studentId,
+                    transactionAmount,
+                    'in-person',
+                    'outstanding', // Status is outstanding until payment is collected
+                    null, // No payment intent ID for in-person
+                    null, // No Stripe customer ID for in-person
+                    null, // No plan ID for single lessons
+                    transaction // Pass the transaction to ensure atomicity
+                );
             }
 
             await transaction.commit();

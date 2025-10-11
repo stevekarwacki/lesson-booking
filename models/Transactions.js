@@ -59,7 +59,7 @@ const Transactions = sequelize.define('Transactions', {
 });
 
 // Static methods
-Transactions.recordTransaction = async function(userId, amount, paymentMethod, status = 'completed', paymentIntentId = null, stripeCustomerId = null, planId = null) {
+Transactions.recordTransaction = async function(userId, amount, paymentMethod, status = 'completed', paymentIntentId = null, stripeCustomerId = null, planId = null, transaction = null) {
     // Validate transaction data before creating
     const transactionData = validateTransactionData({
         user_id: userId,
@@ -68,7 +68,7 @@ Transactions.recordTransaction = async function(userId, amount, paymentMethod, s
         status
     });
 
-    return this.create({
+    const createOptions = {
         user_id: transactionData.user_id,
         payment_plan_id: planId,
         amount: transactionData.amount,
@@ -76,7 +76,14 @@ Transactions.recordTransaction = async function(userId, amount, paymentMethod, s
         status: transactionData.status,
         payment_intent_id: paymentIntentId,
         stripe_customer_id: stripeCustomerId
-    });
+    };
+
+    // If a transaction is provided, use it for atomicity
+    if (transaction) {
+        return this.create(createOptions, { transaction });
+    } else {
+        return this.create(createOptions);
+    }
 };
 
 Transactions.getTransactions = async function(userId) {

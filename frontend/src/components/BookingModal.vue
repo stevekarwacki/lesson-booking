@@ -81,6 +81,16 @@
                                 >
                                 <label for="payNow" class="form-radio-label">Pay Now (${{ lessonPrice }})</label>
                             </div>
+                            <div v-if="canUseInPersonPayment" class="form-radio-group">
+                                <input 
+                                    type="radio" 
+                                    id="payInPerson" 
+                                    v-model="paymentMethod" 
+                                    value="in-person"
+                                    class="form-input"
+                                >
+                                <label for="payInPerson" class="form-radio-label">Pay In-Person (${{ lessonPrice }})</label>
+                            </div>
                         </div>
                     </div>
 
@@ -153,6 +163,7 @@ const showPaymentOptions = ref(true)
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
+const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
 
 // Computed property for the displayed end time based on selected duration
 const displayEndTime = computed(() => {
@@ -244,6 +255,8 @@ watch(selectedDuration, () => {
     // Update payment method based on available credits for new duration
     if (availableCredits.value > 0) {
         paymentMethod.value = 'credits'
+    } else if (canUseInPersonPayment.value) {
+        paymentMethod.value = 'in-person'
     } else {
         paymentMethod.value = 'direct'
     }
@@ -281,9 +294,29 @@ const fetchInstructorRate = async () => {
     }
 }
 
+// Fetch user's payment options (including in-person payment eligibility)
+const fetchPaymentOptions = async () => {
+    try {
+        const response = await fetch('/api/users/me/payment-options', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            const data = await response.json()
+            canUseInPersonPayment.value = data.canUseInPersonPayment || false
+        }
+    } catch (err) {
+        console.error('Error fetching payment options:', err)
+        // Default to false if we can't fetch payment options
+        canUseInPersonPayment.value = false
+    }
+}
+
 // Fetch user credits and instructor rate when modal opens
 onMounted(async () => {
-    // Fetch credits, instructor rate, and lesson settings in parallel
+    // Fetch credits, instructor rate, payment options, and lesson settings in parallel
     await Promise.all([
         (async () => {
             try {
@@ -292,17 +325,25 @@ onMounted(async () => {
                 // If user has credits for the selected duration, default to using them
                 if (availableCredits.value > 0) {
                     paymentMethod.value = 'credits'
+                } else if (canUseInPersonPayment.value) {
+                    paymentMethod.value = 'in-person'
+                    showPaymentOptions.value = true
                 } else {
                     paymentMethod.value = 'direct'
                     showPaymentOptions.value = true
                 }
             } catch (err) {
                 // Default to direct payment if we can't fetch credits
-                paymentMethod.value = 'direct'
+                if (canUseInPersonPayment.value) {
+                    paymentMethod.value = 'in-person'
+                } else {
+                    paymentMethod.value = 'direct'
+                }
                 showPaymentOptions.value = true
             }
         })(),
         fetchInstructorRate(),
+        fetchPaymentOptions(),
         (async () => {
             try {
                 const response = await fetch('/api/branding/lesson-settings')
