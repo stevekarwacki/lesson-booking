@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
+const { validateTransactionData } = require('../utils/paymentValidation');
 
 const Transactions = sequelize.define('Transactions', {
     id: {
@@ -28,13 +29,19 @@ const Transactions = sequelize.define('Transactions', {
         allowNull: false
     },
     payment_method: {
-        type: DataTypes.ENUM('stripe', 'cash', 'credits'),
-        allowNull: false
+        type: DataTypes.ENUM('stripe', 'credits', 'in-person'),
+        allowNull: false,
+        validate: {
+            isIn: [['stripe', 'credits', 'in-person']]
+        }
     },
     status: {
-        type: DataTypes.ENUM('pending', 'completed', 'failed'),
+        type: DataTypes.ENUM('pending', 'completed', 'failed', 'outstanding'),
         allowNull: false,
-        defaultValue: 'completed'
+        defaultValue: 'completed',
+        validate: {
+            isIn: [['pending', 'completed', 'failed', 'outstanding']]
+        }
     },
     payment_intent_id: {
         type: DataTypes.STRING,
@@ -53,12 +60,20 @@ const Transactions = sequelize.define('Transactions', {
 
 // Static methods
 Transactions.recordTransaction = async function(userId, amount, paymentMethod, status = 'completed', paymentIntentId = null, stripeCustomerId = null, planId = null) {
-    return this.create({
+    // Validate transaction data before creating
+    const transactionData = validateTransactionData({
         user_id: userId,
-        payment_plan_id: planId,
         amount,
         payment_method: paymentMethod,
-        status,
+        status
+    });
+
+    return this.create({
+        user_id: transactionData.user_id,
+        payment_plan_id: planId,
+        amount: transactionData.amount,
+        payment_method: transactionData.payment_method,
+        status: transactionData.status,
         payment_intent_id: paymentIntentId,
         stripe_customer_id: stripeCustomerId
     });

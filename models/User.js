@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
 const cache = require('../db/cache');
-const { stripe } = require('../config/stripe');
 
 const CACHE_KEYS = {
     allUsers: 'users:all',
@@ -44,6 +43,14 @@ const User = sequelize.define('User', {
     stripe_customer_id: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    in_person_payment_override: {
+        type: DataTypes.ENUM('enabled', 'disabled'),
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+            isIn: [['enabled', 'disabled']]
+        }
     }
 }, {
     tableName: 'users',
@@ -148,6 +155,7 @@ User.updateSubscriptionPeriods = async function(userId) {
             }
 
             // Retrieve subscription from Stripe to get latest period dates
+            const { stripe } = require('../config/stripe');
             const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
 
             // Convert Unix timestamps to Date objects

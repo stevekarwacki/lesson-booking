@@ -205,4 +205,58 @@ AppSettings.getDefaultLessonDuration = async function() {
     }
 };
 
+// Static method to get in-person payment enabled setting
+AppSettings.getInPersonPaymentEnabled = async function() {
+    try {
+        const setting = await this.findOne({
+            where: {
+                category: 'lessons',
+                key: 'in_person_payment_enabled'
+            }
+        });
+        
+        if (!setting) {
+            // Default to false if setting doesn't exist
+            return false;
+        }
+        
+        // Convert string to boolean
+        return setting.value === 'true';
+    } catch (error) {
+        console.error('Error getting in-person payment enabled setting:', error);
+        // Default to false on error
+        return false;
+    }
+};
+
+// Validation helper for lesson settings
+AppSettings.validateLessonSetting = function(key, value) {
+    switch (key) {
+        case 'default_duration_minutes':
+            const duration = parseInt(value);
+            if (isNaN(duration) || duration < 15 || duration > 180) {
+                throw new Error('Duration must be between 15 and 180 minutes');
+            }
+            if (![15, 30, 45, 60, 90, 120].includes(duration)) {
+                throw new Error('Invalid duration value');
+            }
+            return duration.toString();
+            
+        case 'in_person_payment_enabled':
+            if (typeof value === 'boolean') {
+                return value.toString();
+            }
+            if (typeof value === 'string') {
+                const lowerValue = value.toLowerCase().trim();
+                if (lowerValue === 'true' || lowerValue === 'false') {
+                    return lowerValue;
+                }
+            }
+            throw new Error('In-person payment setting must be true or false');
+            
+        default:
+            throw new Error(`Unknown lesson setting: ${key}`);
+    }
+};
+
 module.exports = { AppSettings };
