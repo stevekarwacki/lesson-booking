@@ -138,6 +138,8 @@ const formattedBookings = computed(() => {
         isRecurring: false, // Add logic for recurring if needed
         attendance: booking.attendance, // Include attendance data from backend
         refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
+        paymentMethod: booking.paymentMethod, // From backend
+        paymentStatus: booking.paymentStatus, // From backend
         // Original booking data for actions
         originalBooking: booking
     }));

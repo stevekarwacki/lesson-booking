@@ -62,6 +62,8 @@ const formattedBookings = computed(() => {
         status: booking.status || 'booked',
         isRecurring: false,
         refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
+        paymentMethod: booking.paymentMethod, // From backend
+        paymentStatus: booking.paymentStatus, // From backend
         // Original booking data for EditBookingModal
         originalBooking: booking
     }))

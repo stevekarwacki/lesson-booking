@@ -18,11 +18,17 @@ const {
     localSlotToTime
 } = require('../utils/timeUtils');
 
+const { enrichEventsWithPaymentInfo, enrichEventWithPaymentInfo } = require('../utils/paymentEnrichment');
+
 // Get instructor's calendar events - requires read permission for instructor data
 router.get('/instructor/:instructorId', authorize('read', 'Instructor'), async (req, res) => {
     try {
         const events = await Calendar.getInstructorEvents(req.params.instructorId);
-        res.json(events);
+        
+        // Transform events to include payment information
+        const eventsWithPaymentInfo = await enrichEventsWithPaymentInfo(events);
+        
+        res.json(eventsWithPaymentInfo);
     } catch (error) {
         console.error('Error fetching calendar events:', error);
         res.status(500).json({ error: 'Error fetching calendar events' });
@@ -546,8 +552,8 @@ router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(re
             ? await Calendar.getAllStudentEvents(studentId)
             : await Calendar.getStudentEvents(studentId);
         
-        // Transform events to include refund status
-        const eventsWithRefundStatus = events.map(event => {
+        // Transform events to include refund status and payment information
+        const eventsWithRefundStatus = await Promise.all(events.map(async (event) => {
             const eventData = event.toJSON();
             
             // Transform refund data to expected format
@@ -568,9 +574,14 @@ router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(re
             delete eventData.Refunds;
             
             return eventData;
-        });
+        }));
+        
+        // Enrich events with payment information
+        const eventsWithPaymentInfo = await Promise.all(eventsWithRefundStatus.map(async (eventData) => {
+            return enrichEventWithPaymentInfo(eventData, studentId);
+        }));
             
-        res.json(eventsWithRefundStatus);
+        res.json(eventsWithPaymentInfo);
     } catch (error) {
         console.error('Error fetching student bookings:', error);
         res.status(500).json({ error: 'Failed to fetch bookings' });
@@ -889,7 +900,9 @@ router.get('/recurring/:instructorId/:startDate/:endDate', async (req, res) => {
 });
 
 // Update payment status for booking - instructor can update their students' payments
-router.put('/bookings/:id/payment-status', authorizeBooking('update'), async (req, res) => {
+router.put('/bookings/:id/payment-status', authorizeBooking('update', async (req) => {
+    return await Calendar.getEventById(req.params.id);
+}), async (req, res) => {
     try {
         const { id } = req.params;
         const { status, notes } = req.body;

@@ -91,8 +91,21 @@
             </div>
             <div v-else class="transactions-list">
                 <div v-for="transaction in transactions" :key="transaction.id" class="transaction-item">
-                    <span class="transaction-date">{{ formatDate(transaction.created_at) }}</span>
-                    <span class="transaction-name">{{ transaction.plan_name }}</span>
+                    <div class="transaction-info">
+                        <span class="transaction-date">{{ formatDate(transaction.created_at) }}</span>
+                        <span class="transaction-name">{{ transaction.plan_name || 'Payment' }}</span>
+                        <div class="transaction-payment-info">
+                            <span class="payment-method" :class="`payment-method-${transaction.payment_method}`">
+                                {{ formatPaymentMethod(transaction.payment_method) }}
+                            </span>
+                            <span v-if="transaction.payment_method === 'in-person'" 
+                                  class="payment-status" 
+                                  :class="`payment-status-${transaction.status}`"
+                                  :style="{ color: getPaymentStatusColor(transaction) }">
+                                {{ formatPaymentStatus(transaction.status) }}
+                            </span>
+                        </div>
+                    </div>
                     <span class="transaction-amount">${{ transaction.amount }}</span>
                 </div>
             </div>
@@ -180,6 +193,7 @@ import RecurringBookingModal from '../components/RecurringBookingModal.vue'
 import { useUserStore } from '../stores/userStore'
 import { useCredits } from '../composables/useCredits'
 import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
+import { getPaymentStatusColor, formatPaymentMethod, formatPaymentStatus } from '../utils/paymentUtils'
 
 const userStore = useUserStore()
 
@@ -565,6 +579,63 @@ h3 {
     border-bottom: 1px solid var(--border-color);
 }
 
+.transaction-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.transaction-payment-info {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.payment-method {
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.payment-method-stripe {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.payment-method-credits {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.payment-method-in-person {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.payment-status {
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.payment-status-outstanding {
+    background-color: #fff8e1;
+}
+
+.payment-status-completed {
+    background-color: #e8f5e8;
+}
+
+.payment-status-pending {
+    background-color: #f5f5f5;
+}
+
+.payment-status-failed {
+    background-color: #ffebee;
+}
+
 .transaction-name {
     font-weight: 500;
 }
@@ -847,6 +918,14 @@ h3 {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
+    }
+    
+    .transaction-info {
+        width: 100%;
+    }
+    
+    .transaction-payment-info {
+        flex-wrap: wrap;
     }
     
     .subscription-item {

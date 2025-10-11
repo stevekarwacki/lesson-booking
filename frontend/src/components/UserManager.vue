@@ -421,6 +421,8 @@ const fetchUserBookings = async (userId) => {
             status: booking.status || 'booked',
             isRecurring: false,
             refundStatus: booking.refundStatus || { status: 'none' },
+            paymentMethod: booking.paymentMethod, // From backend
+            paymentStatus: booking.paymentStatus, // From backend
             originalBooking: booking
         }))
     } catch (err) {

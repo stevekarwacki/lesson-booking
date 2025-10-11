@@ -58,6 +58,18 @@
             <div v-else-if="userRole === 'instructor' && isPastBooking(booking)" class="attendance-status">
               <span class="attendance-not-recorded">📋 Not Recorded</span>
             </div>
+
+            <!-- Payment Status Display -->
+            <div v-if="booking.paymentMethod === 'in-person'" class="payment-status-display">
+              <span class="payment-method-badge">In-Person Payment</span>
+              <span 
+                class="payment-status-badge" 
+                :class="`payment-status-${booking.paymentStatus}`"
+                :style="{ color: getPaymentStatusColor(booking) }"
+              >
+                {{ formatPaymentStatus(booking.paymentStatus) }}
+              </span>
+            </div>
           </div>
 
           <div v-if="showActions" class="booking-actions">
@@ -73,6 +85,17 @@
                 <option value="absent">Absent</option>
                 <option value="tardy">Tardy</option>
               </select>
+            </div>
+
+            <!-- Payment Status Controls for Instructors -->
+            <div v-if="(userRole === 'instructor' || userRole === 'admin') && booking.paymentMethod === 'in-person' && booking.paymentStatus === 'outstanding' && (!booking.refundStatus || booking.refundStatus.status === 'none')" class="payment-controls">
+              <button 
+                @click="handlePaymentStatusUpdate(booking, 'completed')"
+                class="action-button action-button-success payment-received-btn"
+                :disabled="updatingPayment === booking.id"
+              >
+                {{ updatingPayment === booking.id ? 'Updating...' : 'Mark as Paid' }}
+              </button>
             </div>
             
             <!-- Action buttons - always present to maintain consistent layout -->
@@ -154,6 +177,8 @@
 import { ref, computed } from 'vue'
 import FilterTabs from './FilterTabs.vue'
 import { filterPresets } from '../composables/useFiltering.js'
+import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
+import { useUserStore } from '../stores/userStore'
 
 export default {
   name: 'BookingList',
@@ -183,7 +208,7 @@ export default {
       default: true
     }
   },
-  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund'],
+  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed'],
   setup(props, { emit }) {
     const filters = filterPresets.bookings
     const activeFilter = ref('today')
@@ -454,6 +479,45 @@ export default {
       }
     }
 
+    // Payment status handling
+    const userStore = useUserStore()
+    const updatingPayment = ref(null)
+
+    const handlePaymentStatusUpdate = async (booking, newStatus) => {
+      try {
+        updatingPayment.value = booking.id
+        
+        const response = await fetch(`/api/calendar/bookings/${booking.id}/payment-status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userStore.token}`
+          },
+          body: JSON.stringify({
+            status: newStatus,
+            notes: `Payment marked as ${newStatus} by ${props.userRole}`
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to update payment status')
+        }
+
+        // Update the booking's payment status locally
+        booking.paymentStatus = newStatus
+        
+        // Emit event to parent component for any additional handling
+        emit('payment-status-changed', booking, newStatus)
+        
+      } catch (error) {
+        console.error('Error updating payment status:', error)
+        alert('Failed to update payment status: ' + error.message)
+      } finally {
+        updatingPayment.value = null
+      }
+    }
+
     return {
       filters,
       activeFilter,
@@ -478,7 +542,12 @@ export default {
       canRefundBooking,
       canMarkAttendance,
       goToPreviousPage,
-      goToNextPage
+      goToNextPage,
+      // Payment status methods
+      getPaymentStatusColor,
+      formatPaymentStatus,
+      handlePaymentStatusUpdate,
+      updatingPayment
     }
   }
 }
@@ -682,6 +751,65 @@ export default {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+}
+
+.payment-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.payment-status-display {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+  margin-top: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.payment-method-badge {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background-color: #fff3e0;
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.payment-status-badge {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.payment-status-outstanding {
+  background-color: #fff8e1;
+}
+
+.payment-status-completed {
+  background-color: #e8f5e8;
+}
+
+.payment-received-btn {
+  font-size: 0.85rem;
+  padding: 4px 12px;
+}
+
+.action-button-success {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+}
+
+.action-button-success:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.action-button-success:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .attendance-select {
