@@ -30,12 +30,28 @@ router.get('/users', authorize('manage', 'User'), async (req, res) => {
 // Update user
 router.put('/users/:id', authorize('manage', 'User'), async (req, res) => {
     const userId = parseInt(req.params.id, 10);
-    const { name, email, role } = req.body;
+    const { name, email, role, in_person_payment_override } = req.body;
     
     try {
-        await User.updateUser(userId, { name, email, role });
+        // Validate in-person payment override if provided
+        if (in_person_payment_override !== undefined) {
+            const { isValidInPersonPaymentOverride } = require('../utils/inPersonPaymentUtils');
+            if (!isValidInPersonPaymentOverride(in_person_payment_override)) {
+                return res.status(400).json({ 
+                    error: 'Invalid in-person payment override. Must be "enabled", "disabled", or null.' 
+                });
+            }
+        }
+
+        const updateData = { name, email, role };
+        if (in_person_payment_override !== undefined) {
+            updateData.in_person_payment_override = in_person_payment_override;
+        }
+
+        await User.updateUser(userId, updateData);
         res.json({ message: 'User updated successfully' });
     } catch (error) {
+        console.error('Error updating user:', error);
         res.status(500).json({ error: 'Error updating user' });
     }
 });
@@ -966,7 +982,8 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         
         // Prepare lesson settings with defaults
         const lessons = {
-            default_duration_minutes: lessonSettings.default_duration_minutes || '30'
+            default_duration_minutes: lessonSettings.default_duration_minutes || '30',
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true'
         };
         
         const settings = {
@@ -1054,7 +1071,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
         } else if (category === 'lessons') {
             // Handle lesson settings
             const lessonFields = {
-                default_duration_minutes: settingsData.default_duration_minutes
+                default_duration_minutes: settingsData.default_duration_minutes,
+                in_person_payment_enabled: settingsData.in_person_payment_enabled
             };
             
             // Validate lesson settings
@@ -1062,13 +1080,25 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
             const errors = {};
             
             // Validate default duration
-            const duration = parseInt(lessonFields.default_duration_minutes);
-            if (isNaN(duration) || duration < 15 || duration > 180) {
-                errors.default_duration_minutes = 'Duration must be between 15 and 180 minutes';
-            } else if (![15, 30, 45, 60, 90, 120].includes(duration)) {
-                errors.default_duration_minutes = 'Invalid duration value';
-            } else {
-                validatedFields.default_duration_minutes = duration.toString();
+            if (lessonFields.default_duration_minutes !== undefined) {
+                const duration = parseInt(lessonFields.default_duration_minutes);
+                if (isNaN(duration) || duration < 15 || duration > 180) {
+                    errors.default_duration_minutes = 'Duration must be between 15 and 180 minutes';
+                } else if (![15, 30, 45, 60, 90, 120].includes(duration)) {
+                    errors.default_duration_minutes = 'Invalid duration value';
+                } else {
+                    validatedFields.default_duration_minutes = duration.toString();
+                }
+            }
+            
+            // Validate in-person payment enabled setting
+            if (lessonFields.in_person_payment_enabled !== undefined) {
+                try {
+                    const validated = AppSettings.validateLessonSetting('in_person_payment_enabled', lessonFields.in_person_payment_enabled);
+                    validatedFields.in_person_payment_enabled = validated;
+                } catch (error) {
+                    errors.in_person_payment_enabled = error.message;
+                }
             }
             
             // If there are validation errors, return them
@@ -1086,7 +1116,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 success: true,
                 message: 'Lesson settings updated successfully',
                 data: {
-                    default_duration_minutes: validatedFields.default_duration_minutes
+                    default_duration_minutes: validatedFields.default_duration_minutes,
+                    in_person_payment_enabled: validatedFields.in_person_payment_enabled === 'true'
                 }
             });
             

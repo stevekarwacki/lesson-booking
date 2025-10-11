@@ -201,19 +201,24 @@ const closeEditModal = () => {
 
 const saveUserEdit = async () => {
     try {
-        // Update role
-        const roleResponse = await fetch(`/api/admin/users/${editingUser.value.id}`, {
-            method: 'PATCH',
+        // Update user with all fields including in-person payment override
+        const userUpdateResponse = await fetch(`/api/admin/users/${editingUser.value.id}`, {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${userStore.token}`
             },
-            body: JSON.stringify({ role: editingUser.value.role })
+            body: JSON.stringify({ 
+                name: editingUser.value.name,
+                email: editingUser.value.email,
+                role: editingUser.value.role,
+                in_person_payment_override: editingUser.value.in_person_payment_override
+            })
         });
         
-        if (!roleResponse.ok) throw new Error('Failed to update user role');
+        if (!userUpdateResponse.ok) throw new Error('Failed to update user');
 
-        // Update approval status
+        // Update approval status (separate endpoint)
         const approvalResponse = await fetch(`/api/users/${editingUser.value.id}/approval`, {
             method: 'POST',
             headers: {
@@ -659,6 +664,24 @@ onMounted(async () => {
                                 <option value="instructor">Instructor</option>
                                 <option value="admin">Admin</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">In-Person Payment Override:</label>
+                        <div class="form-input">
+                            <select 
+                                v-model="editingUser.in_person_payment_override"
+                                class="form-input"
+                            >
+                                <option :value="null">Use Global Setting</option>
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                            <small class="form-text">
+                                Override the global in-person payment setting for this user. 
+                                "Use Global Setting" means they follow the system-wide preference.
+                            </small>
                         </div>
                     </div>
 

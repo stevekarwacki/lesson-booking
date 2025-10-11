@@ -34,8 +34,8 @@ const searchResults = computed(() => {
     return allUsers.value.filter(user => 
         (user.role === 'student' && 
         !instructors.value.some(instructor => instructor.user_id === user.id)) &&
-        (user.name.toLowerCase().includes(query) || 
-         user.email.toLowerCase().includes(query))
+        ((user.name?.toLowerCase().includes(query)) || 
+         (user.email?.toLowerCase().includes(query)))
     )
 })
 
@@ -114,7 +114,7 @@ const handleAddInstructor = async () => {
 const selectUser = (user) => {
     selectedUser.value = user
     newInstructor.value.user_id = user.id
-    searchQuery.value = user.name
+    searchQuery.value = user.name || user.email || 'Unknown User'
 }
 
 const clearSelection = () => {
@@ -197,7 +197,7 @@ const saveInstructorEdit = async () => {
         }
         
         const result = await response.json();
-        console.log('Update response:', result);
+        // Update completed successfully
         
         success.value = 'Instructor updated successfully';
         closeEditModal();
@@ -309,7 +309,7 @@ onMounted(async () => {
                                             class="search-result-item"
                                             @mousedown="selectUser(user)"
                                         >
-                                            <div class="user-name">{{ user.name }}</div>
+                                            <div class="user-name">{{ user.name || 'Unknown User' }}</div>
                                             <div class="user-email">{{ user.email }}</div>
                                         </div>
                                     </div>
@@ -375,7 +375,7 @@ onMounted(async () => {
                 <div v-for="instructor in instructors" :key="instructor.id" class="instructor-card card">
                     <div class="card-body">
                         <div class="instructor-header">
-                            <h3>{{ instructor.User.name }}</h3>
+                            <h3>{{ instructor.User?.name || 'Unknown User' }}</h3>
                             <div class="instructor-actions">
                                 <button 
                                     class="form-button form-button-edit"

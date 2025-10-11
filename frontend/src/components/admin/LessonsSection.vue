@@ -38,6 +38,34 @@
             This duration will be used as the default when creating new credits or when no specific duration is specified.
           </span>
         </div>
+        
+        <!-- In-Person Payment Setting -->
+        <div class="form-group full-width">
+          <label for="inPersonPayment" class="form-label">
+            In-Person Payment Option
+          </label>
+          <div class="toggle-input-group">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                id="inPersonPayment"
+                v-model="formData.inPersonPaymentEnabled"
+                :disabled="loading"
+                class="toggle-input"
+              >
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">
+              {{ formData.inPersonPaymentEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <span v-if="errors.inPersonPaymentEnabled" class="error-message">
+            {{ errors.inPersonPaymentEnabled }}
+          </span>
+          <span class="help-text">
+            When enabled globally, students can choose to pay for lessons in person. Individual students can have this overridden in their user settings.
+          </span>
+        </div>
       </div>
       
       <!-- Preview Section -->
@@ -46,6 +74,9 @@
         <div class="preview-card">
           <div class="preview-item">
             <strong>Default Duration:</strong> {{ formData.defaultDurationMinutes }} minutes
+          </div>
+          <div class="preview-item">
+            <strong>In-Person Payment:</strong> {{ formData.inPersonPaymentEnabled ? 'Enabled' : 'Disabled' }}
           </div>
           <div class="preview-note">
             <small>
@@ -103,7 +134,8 @@ export default {
   setup(props, { emit }) {
     // Form data
     const formData = reactive({
-      defaultDurationMinutes: '30'
+      defaultDurationMinutes: '30',
+      inPersonPaymentEnabled: false
     })
     
     // Original data for change tracking
@@ -111,7 +143,8 @@ export default {
     
     // Form validation
     const errors = reactive({
-      defaultDurationMinutes: ''
+      defaultDurationMinutes: '',
+      inPersonPaymentEnabled: ''
     })
     
     // Validation functions
@@ -158,7 +191,8 @@ export default {
       }
       
       const settingsToSave = {
-        default_duration_minutes: formData.defaultDurationMinutes
+        default_duration_minutes: formData.defaultDurationMinutes,
+        in_person_payment_enabled: formData.inPersonPaymentEnabled
       }
       
       emit('change', {
@@ -172,6 +206,7 @@ export default {
       const lessonData = data || {}
       
       formData.defaultDurationMinutes = lessonData.default_duration_minutes || '30'
+      formData.inPersonPaymentEnabled = lessonData.in_person_payment_enabled || false
       
       // Store original data for change tracking
       originalData.value = JSON.parse(JSON.stringify(formData))
@@ -392,6 +427,69 @@ export default {
 
 .form-button-primary:hover:not(:disabled) {
   background: #1e7e34 !important;
+}
+
+/* Toggle Switch Styles */
+.toggle-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-input:checked + .toggle-slider {
+  background-color: #28a745;
+}
+
+.toggle-input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-input:disabled + .toggle-slider {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toggle-label {
+  font-weight: 500;
+  color: var(--color-text);
 }
 
 @media (max-width: 768px) {
