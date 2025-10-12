@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import BookingList from '../components/BookingList.vue'
 import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
 import { useUserStore } from '../stores/userStore'
+import { today, fromString } from '../utils/dateHelpers.js'
 
 // Mock fetch for API calls
 global.fetch = vi.fn()
@@ -22,8 +23,12 @@ describe('Attendance Tracking Frontend', () => {
   let userStore
   
   // Create dynamic dates for testing - available to all tests
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  // Use date helpers for consistent timezone-aware date creation
+  const todayHelper = today()
+  const yesterdayHelper = todayHelper.addDays(-1)
+  
+  const todayStr = todayHelper.toDateString()
+  const yesterdayStr = yesterdayHelper.toDateString()
 
   beforeEach(() => {
     pinia = createPinia()
@@ -53,7 +58,7 @@ describe('Attendance Tracking Frontend', () => {
     const mockBookings = [
       {
         id: 1,
-        date: today, // Use today's date
+        date: todayStr, // Use today's date
         startTime: '10:00 AM',
         endTime: '11:00 AM',
         instructorName: 'Test Instructor',
@@ -62,7 +67,7 @@ describe('Attendance Tracking Frontend', () => {
         attendance: {
           status: 'present',
           notes: 'Great lesson!',
-          recorded_at: `${today}T14:30:00Z`
+          recorded_at: `${todayStr}T14:30:00Z`
         },
         originalBooking: {
           id: 1,
@@ -72,7 +77,7 @@ describe('Attendance Tracking Frontend', () => {
       },
       {
         id: 2,
-        date: yesterday, // Past date to trigger "Not Recorded" display
+        date: yesterdayStr, // Past date to trigger "Not Recorded" display
         startTime: '2:00 PM',
         endTime: '2:30 PM',
         instructorName: 'Test Instructor',
@@ -87,7 +92,7 @@ describe('Attendance Tracking Frontend', () => {
       },
       {
         id: 3,
-        date: today, // Use today's date
+        date: todayStr, // Use today's date
         startTime: '9:00 AM',
         endTime: '10:00 AM',
         instructorName: 'Test Instructor',
@@ -96,7 +101,7 @@ describe('Attendance Tracking Frontend', () => {
         attendance: {
           status: 'absent',
           notes: 'No show',
-          recorded_at: `${today}T13:15:00Z`
+          recorded_at: `${todayStr}T13:15:00Z`
         },
         originalBooking: {
           id: 3,
@@ -136,9 +141,9 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should show attendance controls for past bookings', async () => {
-      // Mock current time to be after the lessons
-      const mockDate = new Date(`${today}T15:00:00Z`)
-      vi.setSystemTime(mockDate)
+        // Mock current time to be after the lessons
+        const mockDate = new Date(`${todayStr}T15:00:00Z`)
+        vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
         props: {
@@ -167,10 +172,10 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it.skip('should hide attendance controls for future bookings', () => {
-      // Use fake timers and set time before lessons start
-      vi.useFakeTimers()
-      const mockDate = new Date(`${today}T06:00:00Z`) // 6 AM UTC, before 9 AM lessons
-      vi.setSystemTime(mockDate)
+        // Use fake timers and set time before lessons start
+        vi.useFakeTimers()
+        const mockDate = new Date(`${todayStr}T06:00:00Z`) // 6 AM UTC, before 9 AM lessons
+        vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
         props: {
@@ -192,7 +197,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should emit attendance-changed event when dropdown changes', async () => {
-      const mockDate = new Date(`${today}T15:00:00Z`)
+      const mockDate = new Date(`${todayStr}T15:00:00Z`)
       vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
@@ -328,11 +333,11 @@ describe('Attendance Tracking Frontend', () => {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve([
-              {
-                id: 1,
-                date: `${today}`,
-                start_slot: 40,
-                duration: 4,
+                {
+                  id: 1,
+                  date: `${todayStr}`,
+                  start_slot: 40,
+                  duration: 4,
                 student: { name: 'John Doe', email: 'john@test.com' },
                 attendance: { status: 'present', notes: 'Great!' }
               }
@@ -500,7 +505,7 @@ describe('Attendance Tracking Frontend', () => {
         originalBooking: { 
           id: 1, 
           instructor_id: 1,
-          date: `${today}`,
+          date: `${todayStr}`,
           start_slot: 36, // 9:00 AM
           duration: 2,
           Instructor: {
@@ -537,13 +542,10 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should filter bookings by today correctly', () => {
-      const today = new Date().toISOString().split('T')[0]
-      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      
       const testBookings = [
         {
           id: 1,
-          date: today,
+          date: todayStr,
           startTime: '10:00 AM',
           endTime: '11:00 AM',
           instructorName: 'Test Instructor',
@@ -552,7 +554,7 @@ describe('Attendance Tracking Frontend', () => {
         },
         {
           id: 2,
-          date: tomorrow,
+          date: todayHelper.addDays(1).toDateString(),
           startTime: '2:00 PM',
           endTime: '2:30 PM',
           instructorName: 'Test Instructor',
@@ -561,7 +563,7 @@ describe('Attendance Tracking Frontend', () => {
         },
         {
           id: 3,
-          date: `${yesterday}`,
+          date: yesterdayStr,
           startTime: '9:00 AM',
           endTime: '10:00 AM',
           instructorName: 'Test Instructor',
@@ -587,7 +589,7 @@ describe('Attendance Tracking Frontend', () => {
       // Should only show today's bookings
       const todayBookings = wrapper.vm.filteredBookings
       expect(todayBookings.length).toBe(1)
-      expect(todayBookings[0].date).toBe(today)
+      expect(todayBookings[0].date).toBe(todayStr)
     })
   })
 
@@ -595,7 +597,7 @@ describe('Attendance Tracking Frontend', () => {
     it('should correctly determine if lesson has started', () => {
       // Use fake timers and set current time to 11:00 AM
       vi.useFakeTimers()
-      const mockDate = new Date(`${today}T11:00:00Z`)
+      const mockDate = new Date(`${todayStr}T11:00:00Z`)
       vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
@@ -610,11 +612,11 @@ describe('Attendance Tracking Frontend', () => {
         }
       })
 
-      // Mock a booking that started 1 hour ago (10:00 AM)
-      const pastBooking = {
-        date: `${today}`,
-        startTime: '10:00 AM'
-      }
+        // Mock a booking that started 1 hour ago (10:00 AM)
+        const pastBooking = {
+          date: todayStr,
+          startTime: '10:00 AM'
+        }
 
       const canMark = wrapper.vm.canMarkAttendance(pastBooking)
       expect(canMark).toBe(true)
@@ -625,7 +627,7 @@ describe('Attendance Tracking Frontend', () => {
     it.skip('should prevent attendance marking for future lessons', () => {
       // Use fake timers and set current time to 11:00 AM
       vi.useFakeTimers()
-      const mockDate = new Date(`${today}T11:00:00Z`)
+      const mockDate = new Date(`${todayStr}T11:00:00Z`)
       vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
@@ -640,11 +642,11 @@ describe('Attendance Tracking Frontend', () => {
         }
       })
 
-      // Mock a booking that starts in 1 hour (12:00 PM)
-      const futureBooking = {
-        date: `${today}`,
-        startTime: '12:00 PM'
-      }
+        // Mock a booking that starts in 1 hour (12:00 PM)
+        const futureBooking = {
+          date: todayStr,
+          startTime: '12:00 PM'
+        }
 
       const canMark = wrapper.vm.canMarkAttendance(futureBooking)
       expect(canMark).toBe(false)

@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue'
+import { filterToday, filterPast, filterFuture, fromString, today } from '../utils/dateHelpers.js'
 
 /**
  * Generic filtering composable for handling filter state and data filtering
@@ -96,31 +97,21 @@ export function useFiltering(options = {}) {
   function defaultFilterLogic(items, filterValue) {
     if (!filterValue || !items) return items
 
-    const now = new Date()
-    
     switch (filterValue) {
       case 'today':
-        return items.filter(item => {
-          const itemDate = new Date(item.date || item.start_time || item.created_at)
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          const tomorrow = new Date(today)
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          
-          return itemDate >= today && itemDate < tomorrow && (item.status !== 'cancelled' && item.status !== 'canceled')
-        })
+        return filterToday(items, 'date').filter(item => 
+          item.status !== 'cancelled' && item.status !== 'canceled'
+        )
         
       case 'upcoming':
-        return items.filter(item => {
-          const itemDate = new Date(item.date || item.start_time || item.created_at)
-          return itemDate >= now && (item.status !== 'cancelled' && item.status !== 'canceled')
-        })
+        return filterFuture(items, 'date').filter(item => 
+          item.status !== 'cancelled' && item.status !== 'canceled'
+        )
         
       case 'past':
-        return items.filter(item => {
-          const itemDate = new Date(item.date || item.start_time || item.created_at)
-          return itemDate < now && (item.status !== 'cancelled' && item.status !== 'canceled')
-        })
+        return filterPast(items, 'date').filter(item => 
+          item.status !== 'cancelled' && item.status !== 'canceled'
+        )
         
       case 'cancelled':
       case 'canceled':
