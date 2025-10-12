@@ -2,7 +2,8 @@ const { google } = require('googleapis');
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
 const { 
     timeToSlotUTC, 
-    calculateDurationInSlots 
+    calculateDurationInSlots,
+    getUserTimezone
 } = require('../utils/timeUtils');
 const { today, fromTimestamp } = require('../utils/dateHelpers');
 
@@ -263,15 +264,17 @@ class GoogleCalendarService {
      * Create blocking events for the entire day
      * @param {Object} event - Google Calendar event
      * @param {string} eventDate - Date string (YYYY-MM-DD)
-     * @returns {Array} Array with single blocking event covering the entire day
+     * @returns {Array} Array with single blocking event covering available hours
      */
     createAllDayBlockingEvents(event, eventDate) {
-        // Create one large blocking event for the entire day (slots 0-95)
+        // Create a special all-day blocking event that the frontend can handle appropriately
+        // Instead of blocking all 96 slots, let the frontend determine which slots to block
+        // based on the instructor's actual availability for that day
         return [{
             id: `google_allday_${event.id}`,
             date: eventDate,
-            start_slot: 0,
-            duration: 96, // All 96 slots (24 hours)
+            start_slot: 0,  // Placeholder - frontend will handle appropriately
+            duration: 0,    // Special marker for all-day events
             type: 'booked',
             status: 'google_calendar_all_day',
             summary: `🗓️ All Day: ${event.summary || 'Busy'}`,
@@ -283,7 +286,9 @@ class GoogleCalendarService {
                 email: 'Google Calendar'
             },
             is_google_calendar: true,
-            is_all_day: true
+            is_all_day: true,
+            // Special flag to indicate this should block all available slots for the day
+            blocks_all_available_slots: true
         }];
     }
     
@@ -297,24 +302,108 @@ class GoogleCalendarService {
     }
     
     /**
-     * Convert time to slot number (15-minute increments) - UTC version
-     * @param {Date} date - Date object
-     * @returns {number} Slot number (0-95)
+     * Convert time to slot number (30-minute increments) - Local timezone version
+     * @param {Date} date - Date object (with timezone info from Google Calendar)
+     * @returns {number} Slot number (0-95) in local timezone, rounded up to next 30-min increment
      */
     timeToSlot(date) {
-        // Use UTC utility function for consistency
-        return timeToSlotUTC(date);
+        // Get the local timezone
+        const userTimezone = getUserTimezone();
+        
+        // Convert the date to local timezone and extract hours/minutes
+        const localTimeString = date.toLocaleString('en-US', {
+            timeZone: userTimezone,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Parse the local time (format: "14:30")
+        const [hours, minutes] = localTimeString.split(':').map(Number);
+        
+        // Round UP to next 30-minute increment for our slot system
+        // This ensures Google Calendar events fit into our 30-minute UI slots
+        let roundedMinutes;
+        if (minutes === 0) {
+            roundedMinutes = 0;  // Exactly on the hour
+        } else if (minutes <= 30) {
+            roundedMinutes = 30; // Round up to :30
+        } else {
+            roundedMinutes = 60; // Round up to next hour
+        }
+        
+        const adjustedHours = roundedMinutes >= 60 ? hours + 1 : hours;
+        const finalMinutes = roundedMinutes >= 60 ? 0 : roundedMinutes;
+        
+        // Convert to slot number - our slots are 15-min increments, but we use 30-min (duration=2)
+        const MAX_SLOT_INDEX = 95;
+        const slot = Math.floor(adjustedHours * 4 + finalMinutes / 15);
+        
+        // Ensure slot is within valid range
+        return Math.max(0, Math.min(slot, MAX_SLOT_INDEX));
     }
     
     /**
-     * Calculate duration between two times in slots - UTC version
+     * Calculate duration between two times in slots - Local timezone version
+     * Rounds up to cover all 30-minute slots that the event touches
      * @param {Date} startTime - Start time
      * @param {Date} endTime - End time
-     * @returns {number} Duration in slots
+     * @returns {number} Duration in slots (30-minute increments)
      */
     calculateDuration(startTime, endTime) {
-        // Use UTC utility function for consistency
-        return calculateDurationInSlots(startTime, endTime);
+        // Get the local timezone
+        const userTimezone = getUserTimezone();
+        
+        // Convert both times to local timezone
+        const startLocal = startTime.toLocaleString('en-US', {
+            timeZone: userTimezone,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const endLocal = endTime.toLocaleString('en-US', {
+            timeZone: userTimezone,
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const [startHours, startMinutes] = startLocal.split(':').map(Number);
+        const [endHours, endMinutes] = endLocal.split(':').map(Number);
+        
+        // Calculate which 30-minute slots are touched by this event
+        
+        // Start slot: round DOWN to the 30-minute slot that contains the start time
+        let startSlotMinutes;
+        if (startMinutes < 30) {
+            startSlotMinutes = 0;   // 0-29 minutes -> :00 slot
+        } else {
+            startSlotMinutes = 30;  // 30-59 minutes -> :30 slot
+        }
+        
+        // End slot: round UP to the 30-minute slot that contains the end time
+        let endSlotHours = endHours;
+        let endSlotMinutes;
+        if (endMinutes === 0) {
+            endSlotMinutes = 0;     // Exactly on the hour -> that hour's :00 slot
+        } else if (endMinutes <= 30) {
+            endSlotMinutes = 30;    // 1-30 minutes -> :30 slot
+        } else {
+            endSlotHours = endHours + 1;  // 31-59 minutes -> next hour's :00 slot
+            endSlotMinutes = 0;
+        }
+        
+        // Convert to total minutes for easy calculation
+        const startTotalMinutes = startHours * 60 + startSlotMinutes;
+        const endTotalMinutes = endSlotHours * 60 + endSlotMinutes;
+        
+        // Calculate duration in 30-minute increments
+        const durationMinutes = endTotalMinutes - startTotalMinutes;
+        const durationSlots = durationMinutes / 30;
+        
+        // Ensure minimum duration of 1 slot (30 minutes) and convert to our slot system (duration = 2 per 30-min)
+        return Math.max(2, durationSlots * 2);
     }
     
     /**

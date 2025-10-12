@@ -408,6 +408,23 @@ const fetchWeeklySchedule = async () => {
 
         // Overwrite availability with booked events
         bookedEvents.forEach(event => {
+            // Handle all-day events that should block all available slots
+            if (event.blocks_all_available_slots) {
+                // Create date in UTC to match backend
+                let eventDate = new Date(event.date)
+                eventDate.setUTCHours(0, 0, 0, 0)
+                const dayIndex = eventDate.getUTCDay()
+                
+                // Block all slots that exist in the schedule for this day
+                Object.keys(formattedSchedule).forEach(slotKey => {
+                    const slot = parseInt(slotKey);
+                    if (formattedSchedule[slot] && formattedSchedule[slot][dayIndex]) {
+                        formattedSchedule[slot][dayIndex] = formatSlot(event, formattedSchedule[slot][dayIndex].date);
+                    }
+                });
+                return; // Skip normal duration processing for all-day events
+            }
+            
             // Create date in UTC to match backend
             let eventDate = new Date(event.date)
             eventDate.setUTCHours(0, 0, 0, 0)
@@ -446,6 +463,25 @@ const fetchWeeklySchedule = async () => {
                         slotData.bookingId = event.id // To group related slots
                     }
                     
+                    formattedSchedule[currentSlot][dayIndex] = slotData
+                } else if (event.is_google_calendar) {
+                    // Google Calendar events should show even if instructor doesn't have availability
+                    // Create the slot structure if it doesn't exist
+                    if (!formattedSchedule[currentSlot]) {
+                        formattedSchedule[currentSlot] = {}
+                    }
+                    if (formattedSchedule[currentSlot][dayIndex] === undefined) {
+                        // Create a basic slot structure for this time
+                        const slotDate = new Date(eventDate)
+                        formattedSchedule[currentSlot][dayIndex] = {
+                            type: 'unavailable', // This will be overwritten
+                            date: slotDate,
+                            start_slot: currentSlot,
+                            duration: 2
+                        }
+                    }
+                    
+                    const slotData = formatSlot(event, eventDate)
                     formattedSchedule[currentSlot][dayIndex] = slotData
                 }
             }
@@ -520,6 +556,18 @@ const fetchDailySchedule = async () => {
 
         // Split availability slots around booked events and add booked events to schedule
         bookedEvents.forEach(event => {
+            // Handle all-day events that should block all available slots
+            if (event.blocks_all_available_slots) {
+                // Block all slots that exist in the schedule (all available slots)
+                Object.keys(formattedSchedule).forEach(slotKey => {
+                    const slot = parseInt(slotKey);
+                    if (formattedSchedule[slot]) {
+                        formattedSchedule[slot] = formatSlot(event, scheduleDate);
+                    }
+                });
+                return; // Skip normal duration processing for all-day events
+            }
+            
             const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
             
             // For bookings longer than 30 minutes, fill all consecutive slots

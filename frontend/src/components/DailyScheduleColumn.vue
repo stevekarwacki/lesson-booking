@@ -376,6 +376,7 @@ const handleSlotClick = (slot) => {
 .student-name {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
+  text-wrap-mode: nowrap;
 }
 
 .tooltip {
