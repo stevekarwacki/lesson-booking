@@ -171,6 +171,24 @@ AppSettings.validateBusinessSetting = function(key, value) {
             }
             break;
             
+        case 'social_media_facebook':
+        case 'social_media_twitter':
+        case 'social_media_instagram':
+        case 'social_media_linkedin':
+        case 'social_media_youtube':
+            if (trimmedValue.length > 0) {
+                try {
+                    const url = new URL(trimmedValue);
+                    // Basic validation that it's a proper URL
+                    if (!['http:', 'https:'].includes(url.protocol)) {
+                        throw new Error('Social media URL must use http or https');
+                    }
+                } catch {
+                    throw new Error('Please enter a valid URL (e.g., https://youtube.com/yourchannel)');
+                }
+            }
+            break;
+            
         default:
             // Allow other keys without specific validation
             if (trimmedValue.length > 1000) {

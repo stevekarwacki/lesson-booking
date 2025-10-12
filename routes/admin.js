@@ -963,12 +963,13 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
             phoneNumber: businessSettings.phone_number || '',
             website: businessSettings.base_url || '',
             address: businessSettings.address || '',
-            // Complex objects will be implemented later
+            // Social media links from database
             socialMedia: {
-                facebook: '',
-                twitter: '',
-                instagram: '',
-                linkedin: ''
+                facebook: businessSettings.social_media_facebook || '',
+                twitter: businessSettings.social_media_twitter || '',
+                instagram: businessSettings.social_media_instagram || '',
+                linkedin: businessSettings.social_media_linkedin || '',
+                youtube: businessSettings.social_media_youtube || ''
             },
             businessHours: {
                 monday: { isOpen: true, open: '09:00', close: '17:00' },
@@ -1028,6 +1029,15 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 address: settingsData.address
             };
             
+            // Handle social media fields if they exist
+            if (settingsData.socialMedia) {
+                businessFields.social_media_facebook = settingsData.socialMedia.facebook;
+                businessFields.social_media_twitter = settingsData.socialMedia.twitter;
+                businessFields.social_media_instagram = settingsData.socialMedia.instagram;
+                businessFields.social_media_linkedin = settingsData.socialMedia.linkedin;
+                businessFields.social_media_youtube = settingsData.socialMedia.youtube;
+            }
+            
             // Validate each field
             const validatedFields = {};
             const errors = {};
@@ -1060,7 +1070,14 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 contactEmail: validatedFields.contact_email || '',
                 phoneNumber: validatedFields.phone_number || '',
                 website: validatedFields.base_url || '',
-                address: validatedFields.address || ''
+                address: validatedFields.address || '',
+                socialMedia: {
+                    facebook: validatedFields.social_media_facebook || '',
+                    twitter: validatedFields.social_media_twitter || '',
+                    instagram: validatedFields.social_media_instagram || '',
+                    linkedin: validatedFields.social_media_linkedin || '',
+                    youtube: validatedFields.social_media_youtube || ''
+                }
             };
             
             res.json({
