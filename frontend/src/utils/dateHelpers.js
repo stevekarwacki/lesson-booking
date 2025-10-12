@@ -33,6 +33,7 @@ function createDateHelper(date = null, timezone = null) {
         isTomorrow: () => isTomorrow({ timestamp, timezone: tz }),
         isPast: () => isPast({ timestamp, timezone: tz }),
         isFuture: () => isFuture({ timestamp, timezone: tz }),
+        isValid: () => !isNaN(timestamp),
         
         // Manipulation methods
         addDays: (days) => createDateHelper(new Date(timestamp + (days * 24 * 60 * 60 * 1000)), tz),

@@ -5,6 +5,8 @@
  * data (for DailyScheduleColumn component)
  */
 
+import { fromTimestamp } from './dateHelpers.js'
+
 /**
  * Transform weekly schedule from row-based to column-based format
  * @param {Object} weeklySchedule - Current format: weeklySchedule[timeSlot][dayIndex]
@@ -17,13 +19,11 @@ export function transformWeeklySchedule(weeklySchedule, weekStartDate) {
   
   // Initialize 7 days
   for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-    const dayDate = new Date(weekStartDate)
-    dayDate.setDate(weekStartDate.getDate() + dayIndex)
-    dayDate.setHours(0, 0, 0, 0)
+    const dayHelper = fromTimestamp(weekStartDate.getTime()).addDays(dayIndex).startOfDay()
     
     weekColumns.push({
       dayIndex,
-      date: dayDate,
+      date: dayHelper.toDate(),
       dayName: dayNames[dayIndex],
       slots: []
     })

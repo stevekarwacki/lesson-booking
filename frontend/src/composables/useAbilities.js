@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import { useUserStore } from '@/stores/userStore';
 import { defineAbilitiesFor, can, canBookingAction, canAccessUserData } from '@/utils/abilities';
+import { fromString, today } from '../utils/dateHelpers.js';
 
 /**
  * Composable for checking user permissions using CASL
@@ -100,9 +101,9 @@ export function useAbilities() {
 
     // Check time restrictions for students
     if (userStore.user.role === 'student' && (action === 'update' || action === 'cancel')) {
-      const bookingDate = new Date(booking.date);
-      const now = new Date();
-      const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
+      const bookingHelper = fromString(booking.date);
+      const nowHelper = today();
+      const hoursUntil = (bookingHelper.toTimestamp() - nowHelper.toTimestamp()) / (1000 * 60 * 60);
 
       if (hoursUntil < 24) {
         return { 

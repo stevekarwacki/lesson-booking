@@ -1,4 +1,5 @@
 const { defineAbility, subject } = require('@casl/ability');
+const { fromString, createDateHelper } = require('./dateHelpers');
 
 /**
  * Check if a booking is within 24 hours (for student restrictions)
@@ -8,22 +9,24 @@ const { defineAbility, subject } = require('@casl/ability');
 function isWithin24Hours(booking) {
   if (!booking || !booking.date) return false;
   
-  // Create booking datetime by combining date and start_slot
-  const bookingDate = new Date(booking.date + 'T00:00:00Z'); // Parse as UTC
+  // Create booking datetime using date helpers
+  const bookingHelper = fromString(booking.date);
   
   // Add the slot time to get the actual booking time
   if (booking.start_slot !== undefined) {
     const hours = Math.floor(booking.start_slot / 4);
     const minutes = (booking.start_slot % 4) * 15;
-    bookingDate.setUTCHours(hours, minutes, 0, 0);
+    const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
+    
+    const nowHelper = createDateHelper();
+    const timeDiff = bookingDateTime.toTimestamp() - nowHelper.toTimestamp();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    // Only restrict if booking is in the future AND within 24 hours
+    return hoursDiff > 0 && hoursDiff <= 24;
   }
   
-  const now = new Date();
-  const timeDiff = bookingDate.getTime() - now.getTime();
-  const hoursDiff = timeDiff / (1000 * 60 * 60);
-  
-  // Only restrict if booking is in the future AND within 24 hours
-  return hoursDiff > 0 && hoursDiff <= 24;
+  return false;
 }
 
 /**
@@ -214,12 +217,11 @@ const canBookingAction = (user, booking, action) => {
   
   // Apply time-based restrictions for students
   if (user.role === 'student' && (action === 'update' || action === 'cancel')) {
-    // Create booking datetime by combining date and start_slot
-    // booking.date is YYYY-MM-DD, start_slot is the time slot (0-95)
-    const bookingDate = new Date(booking.date + 'T00:00:00Z'); // Parse as UTC
+    // Create booking datetime using date helpers
+    const bookingHelper = fromString(booking.date);
     
     // Handle malformed dates gracefully
-    if (isNaN(bookingDate.getTime())) {
+    if (!bookingHelper.isValid()) {
       return false; // Invalid date, deny access
     }
     
@@ -227,15 +229,15 @@ const canBookingAction = (user, booking, action) => {
     if (booking.start_slot !== undefined) {
       const hours = Math.floor(booking.start_slot / 4);
       const minutes = (booking.start_slot % 4) * 15;
-      bookingDate.setUTCHours(hours, minutes, 0, 0);
-    }
-    
-    const now = new Date();
-    const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
-    
-    // Students cannot modify bookings within 24 hours
-    if (hoursUntil < 24) {
-      return false;
+      const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
+      
+      const nowHelper = createDateHelper();
+      const hoursUntil = (bookingDateTime.toTimestamp() - nowHelper.toTimestamp()) / (1000 * 60 * 60);
+      
+      // Students cannot modify bookings within 24 hours
+      if (hoursUntil < 24) {
+        return false;
+      }
     }
   }
   
