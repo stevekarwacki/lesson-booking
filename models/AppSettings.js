@@ -119,11 +119,9 @@ AppSettings.setMultipleSettings = async function(category, keyValuePairs, update
 
 // Validation helpers
 AppSettings.validateBusinessSetting = function(key, value) {
-    if (!value || typeof value !== 'string') {
-        return null; // Allow empty values for optional fields
-    }
-
-    const trimmedValue = value.trim();
+    // Convert value to string and handle null/undefined
+    const stringValue = value == null ? '' : String(value);
+    const trimmedValue = stringValue.trim();
     
     switch (key) {
         case 'company_name':
@@ -171,6 +169,29 @@ AppSettings.validateBusinessSetting = function(key, value) {
             }
             break;
             
+        case 'social_media_facebook':
+        case 'social_media_twitter':
+        case 'social_media_instagram':
+        case 'social_media_linkedin':
+        case 'social_media_youtube':
+            if (trimmedValue.length > 0) {
+                try {
+                    const url = new URL(trimmedValue);
+                    // Basic validation that it's a proper URL
+                    if (!['http:', 'https:'].includes(url.protocol)) {
+                        throw new Error('Social media URL must use http or https');
+                    }
+                } catch (error) {
+                    // If it's our protocol error, re-throw it
+                    if (error.message === 'Social media URL must use http or https') {
+                        throw error;
+                    }
+                    // Otherwise it's a URL parsing error
+                    throw new Error('Please enter a valid URL (e.g., https://youtube.com/yourchannel)');
+                }
+            }
+            break;
+            
         default:
             // Allow other keys without specific validation
             if (trimmedValue.length > 1000) {
@@ -178,7 +199,8 @@ AppSettings.validateBusinessSetting = function(key, value) {
             }
     }
     
-    return trimmedValue;
+    // Return null for empty optional fields, trimmed value otherwise
+    return trimmedValue.length === 0 ? null : trimmedValue;
 };
 
 // Static method to get default lesson duration

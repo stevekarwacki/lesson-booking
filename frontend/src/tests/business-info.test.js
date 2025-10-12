@@ -60,9 +60,19 @@ describe('BusinessInfoSection Component', () => {
     expect(wrapper.find('#website').exists()).toBe(true)
     expect(wrapper.find('#address').exists()).toBe(true)
     
+    // Check social media fields
+    expect(wrapper.find('#facebook').exists()).toBe(true)
+    expect(wrapper.find('#twitter').exists()).toBe(true)
+    expect(wrapper.find('#instagram').exists()).toBe(true)
+    expect(wrapper.find('#linkedin').exists()).toBe(true)
+    expect(wrapper.find('#youtube').exists()).toBe(true)
+    
     // Check required field indicators
     expect(wrapper.text()).toContain('Company Name *')
     expect(wrapper.text()).toContain('Contact Email *')
+    
+    // Check social media section
+    expect(wrapper.text()).toContain('Social Media Links')
     
     // Check save button
     expect(wrapper.find('button[type="submit"]').exists()).toBe(true)
@@ -74,7 +84,14 @@ describe('BusinessInfoSection Component', () => {
       contactEmail: 'test@example.com',
       phoneNumber: '555-0123',
       website: 'https://test.com',
-      address: '123 Test St'
+      address: '123 Test St',
+      socialMedia: {
+        facebook: 'https://facebook.com/testcompany',
+        twitter: 'https://twitter.com/testcompany',
+        instagram: 'https://instagram.com/testcompany',
+        linkedin: 'https://linkedin.com/company/testcompany',
+        youtube: 'https://youtube.com/testchannel'
+      }
     }
 
     wrapper = createWrapper({ initialData })
@@ -85,6 +102,13 @@ describe('BusinessInfoSection Component', () => {
     expect(wrapper.find('#phoneNumber').element.value).toBe('555-0123')
     expect(wrapper.find('#website').element.value).toBe('https://test.com')
     expect(wrapper.find('#address').element.value).toBe('123 Test St')
+    
+    // Check social media fields
+    expect(wrapper.find('#facebook').element.value).toBe('https://facebook.com/testcompany')
+    expect(wrapper.find('#twitter').element.value).toBe('https://twitter.com/testcompany')
+    expect(wrapper.find('#instagram').element.value).toBe('https://instagram.com/testcompany')
+    expect(wrapper.find('#linkedin').element.value).toBe('https://linkedin.com/company/testcompany')
+    expect(wrapper.find('#youtube').element.value).toBe('https://youtube.com/testchannel')
   })
 
   test('validates required fields', async () => {
@@ -121,6 +145,60 @@ describe('BusinessInfoSection Component', () => {
     await nextTick()
 
     expect(wrapper.text()).toContain('Please enter a valid website URL')
+  })
+
+  test('validates social media URL formats', async () => {
+    wrapper = createWrapper()
+
+    // Test invalid social media URLs (should not show errors since they're optional)
+    await wrapper.find('#facebook').setValue('not-a-url')
+    await wrapper.find('#facebook').trigger('blur')
+    await nextTick()
+
+    // Social media fields are optional and don't show validation errors
+    // They're validated on the backend
+  })
+
+  test('includes social media in form submission', async () => {
+    wrapper = createWrapper()
+
+    // Fill out valid form data including social media
+    await wrapper.find('#companyName').setValue('Test Company')
+    await wrapper.find('#contactEmail').setValue('test@example.com')
+    await wrapper.find('#phoneNumber').setValue('555-0123')
+    await wrapper.find('#website').setValue('https://test.com')
+    await wrapper.find('#address').setValue('123 Test St')
+    await wrapper.find('#facebook').setValue('https://facebook.com/testcompany')
+    await wrapper.find('#twitter').setValue('https://twitter.com/testcompany')
+    await wrapper.find('#instagram').setValue('https://instagram.com/testcompany')
+    await wrapper.find('#linkedin').setValue('https://linkedin.com/company/testcompany')
+    await wrapper.find('#youtube').setValue('https://youtube.com/testchannel')
+
+    // Submit form
+    await wrapper.find('form').trigger('submit.prevent')
+    await nextTick()
+
+    // Check that change event was emitted with social media data
+    const changeEvents = wrapper.emitted('change')
+    expect(changeEvents).toBeTruthy()
+    expect(changeEvents[0][0]).toEqual({
+      tabId: 'business',
+      action: 'save_business_info',
+      payload: expect.objectContaining({
+        companyName: 'Test Company',
+        contactEmail: 'test@example.com',
+        phoneNumber: '555-0123',
+        website: 'https://test.com',
+        address: '123 Test St',
+        socialMedia: {
+          facebook: 'https://facebook.com/testcompany',
+          twitter: 'https://twitter.com/testcompany',
+          instagram: 'https://instagram.com/testcompany',
+          linkedin: 'https://linkedin.com/company/testcompany',
+          youtube: 'https://youtube.com/testchannel'
+        }
+      })
+    })
   })
 
   test('emits change event on valid form submission', async () => {

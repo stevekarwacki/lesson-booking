@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const authRoutes = require('./routes/auth');
 const brandingRoutes = require('./routes/branding');
+const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
 const instructorRoutes = require('./routes/instructors');
 const userRoutes = require('./routes/users');
@@ -27,6 +28,7 @@ app.use('/uploads', secureUploadsMiddleware);
 // Public routes
 app.use('/api/auth', authRoutes);
 app.use('/api/branding', brandingRoutes);
+app.use('/api/public', publicRoutes);
 
 // Public route for Stripe publishable key
 app.get('/api/stripe-key', (req, res) => {

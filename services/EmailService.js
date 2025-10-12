@@ -179,6 +179,10 @@ class EmailService {
         // Render the content template first
         const contentHtml = contentTemplate(templateData);
 
+        // Get social media links from database
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
         // Then render the base template with the content
         const baseData = {
             ...templateData,
@@ -190,10 +194,11 @@ class EmailService {
             unsubscribeUrl: templateData.unsubscribeUrl || '#',
             preferencesUrl: templateData.preferencesUrl || '#',
             socialLinks: {
-                website: process.env.WEBSITE_URL,
-                twitter: process.env.TWITTER_URL,
-                facebook: process.env.FACEBOOK_URL,
-                instagram: process.env.INSTAGRAM_URL
+                website: process.env.WEBSITE_URL || businessSettings.base_url,
+                twitter: businessSettings.social_media_twitter || process.env.TWITTER_URL,
+                facebook: businessSettings.social_media_facebook || process.env.FACEBOOK_URL,
+                instagram: businessSettings.social_media_instagram || process.env.INSTAGRAM_URL,
+                youtube: businessSettings.social_media_youtube || process.env.YOUTUBE_URL
             }
         };
 

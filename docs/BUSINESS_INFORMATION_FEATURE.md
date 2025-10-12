@@ -32,9 +32,9 @@ The Business Information feature allows administrators to configure and manage c
 - **Phone Number** (optional) - Business phone contact
 - **Base URL** (optional) - Company website URL
 - **Business Address** (optional) - Physical business location
+- **Social Media Links** (optional) - Facebook, Twitter, Instagram, LinkedIn, YouTube URLs
 
 ### Future Extensions
-- **Social Media Links** - Facebook, Twitter, Instagram, LinkedIn
 - **Business Hours** - Operating hours by day of the week
 - **Logo Upload** - Company logo with validation and processing
 
@@ -92,6 +92,11 @@ Business information is stored with these keys:
 - `business.phone_number` - Business phone number
 - `business.base_url` - Company website URL
 - `business.address` - Business address
+- `business.social_media_facebook` - Facebook profile URL
+- `business.social_media_twitter` - Twitter profile URL
+- `business.social_media_instagram` - Instagram profile URL
+- `business.social_media_linkedin` - LinkedIn company page URL
+- `business.social_media_youtube` - YouTube channel URL
 
 ## API Endpoints
 
@@ -111,7 +116,13 @@ Retrieves all application settings organized by category.
     "phoneNumber": "555-0123",
     "website": "https://company.com",
     "address": "123 Business St",
-    "socialMedia": { "facebook": "", "twitter": "" },
+    "socialMedia": { 
+      "facebook": "https://facebook.com/mycompany",
+      "twitter": "https://twitter.com/mycompany",
+      "instagram": "https://instagram.com/mycompany",
+      "linkedin": "https://linkedin.com/company/mycompany",
+      "youtube": "https://youtube.com/mychannel"
+    },
     "businessHours": { "monday": { "isOpen": true, "open": "09:00", "close": "17:00" } }
   },
   "theme": { },
@@ -135,7 +146,14 @@ Updates business information settings.
   "contactEmail": "new@company.com",
   "phoneNumber": "555-0199",
   "website": "https://newcompany.com",
-  "address": "456 New Street"
+  "address": "456 New Street",
+  "socialMedia": {
+    "facebook": "https://facebook.com/newcompany",
+    "twitter": "https://twitter.com/newcompany",
+    "instagram": "https://instagram.com/newcompany",
+    "linkedin": "https://linkedin.com/company/newcompany",
+    "youtube": "https://youtube.com/newchannel"
+  }
 }
 ```
 
@@ -164,6 +182,32 @@ Updates business information settings.
   }
 }
 ```
+
+### GET /api/public/business-info
+Retrieves public business information for display in footers and other public areas.
+
+**Authentication**: None required (public endpoint)
+**Method**: GET
+
+**Response**:
+```json
+{
+  "companyName": "My Company",
+  "contactEmail": "contact@company.com",
+  "phoneNumber": "555-0123",
+  "website": "https://company.com",
+  "address": "123 Business St",
+  "socialMedia": {
+    "facebook": "https://facebook.com/mycompany",
+    "twitter": "https://twitter.com/mycompany",
+    "instagram": "https://instagram.com/mycompany",
+    "linkedin": "https://linkedin.com/company/mycompany",
+    "youtube": "https://youtube.com/mychannel"
+  }
+}
+```
+
+**Error Handling**: Returns empty structure instead of error to prevent breaking public displays
 
 ## Frontend Components
 
@@ -244,17 +288,27 @@ Reusable tab navigation component.
 - **Error Messages**:
   - "Address must be 500 characters or less" (too long)
 
+### Social Media URLs
+- **Required**: No (all platforms optional)
+- **Format**: Valid URL with http/https protocol
+- **Supported Platforms**: Facebook, Twitter, Instagram, LinkedIn, YouTube
+- **Error Messages**:
+  - "Please enter a valid URL (e.g., https://facebook.com/yourcompany)" (invalid format)
+  - "Social media URL must use http or https" (invalid protocol)
+
 ## Testing
 
 ### Backend Tests
-Location: `/tests/app-settings.test.js`
+Location: `/tests/app-settings-validation.test.js` and `/tests/public-api.test.js`
 
 **Test Coverage**:
 - AppSettings model CRUD operations
-- Data validation functions
-- API endpoint responses
+- Business setting validation functions (including social media URLs)
+- Social media URL validation (valid/invalid formats, protocols)
+- API endpoint responses (admin and public endpoints)
 - Error handling scenarios
 - Database constraints and indexes
+- Public API graceful error handling
 
 **Running Tests**:
 ```bash
@@ -269,8 +323,9 @@ npm test
 Location: `/frontend/src/tests/business-info.test.js`
 
 **Test Coverage**:
-- Component rendering and form fields
+- Component rendering and form fields (including social media inputs)
 - Form validation (client-side)
+- Social media field population and submission
 - Data binding and reactivity
 - Event emission and handling
 - Error state management
