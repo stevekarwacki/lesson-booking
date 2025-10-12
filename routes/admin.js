@@ -13,6 +13,7 @@ const { logoUpload } = require('../middleware/uploadMiddleware');
 const { processLogoUpload, removeLogo } = require('../utils/logoOperations');
 const emailQueueService = require('../services/EmailQueueService');
 const cronJobService = require('../services/CronJobService');
+const { createDateHelper } = require('../utils/dateHelpers');
 const RefundService = require('../services/RefundService');
 const { Refund } = require('../models/Refund');
 
@@ -401,7 +402,7 @@ router.post('/subscriptions/:subscriptionId/reactivate', authorize('manage', 'al
                     subscriptionId: subscription.id,
                     userId: subscription.user_id,
                     userName: subscription.User?.name,
-                    reactivatedAt: new Date(),
+                    reactivatedAt: createDateHelper().toDate(),
                     stripeStatus: updatedSubscription.status,
                     reactivationType: 'removed_cancel_at_period_end',
                     reactivatedByAdmin: req.user.name
@@ -597,10 +598,10 @@ router.post('/users/:userId/subscription', authorize('manage', 'all'), async (re
             }
         });
         
-        // Calculate period dates
-        const now = new Date();
-        const periodStart = now;
-        const periodEnd = new Date(now.getTime() + (plan.duration_days * 24 * 60 * 60 * 1000));
+        // Calculate period dates using date helpers
+        const nowHelper = createDateHelper();
+        const periodStart = nowHelper.toDate();
+        const periodEnd = nowHelper.addDays(plan.duration_days).toDate();
         
         // Create subscription record in database
         const dbSubscription = await Subscription.createSubscription(
@@ -734,7 +735,7 @@ router.post('/refunds', authorize('refund', 'Booking'), async (req, res) => {
                 type: refundResult.refundType,
                 amount: refundResult.amount,
                 processedBy: req.user.name,
-                processedAt: new Date(),
+                processedAt: createDateHelper().toDate(),
                 stripeRefundId: refundResult.stripeRefundId
             }
         });
@@ -910,7 +911,7 @@ router.get('/email/status', authorize('manage', 'all'), async (req, res) => {
         res.json({
             email_queue: queueStatus,
             cron_jobs: cronStatus,
-            timestamp: new Date().toISOString()
+            timestamp: createDateHelper().toDate().toISOString()
         });
     } catch (error) {
         console.error('Error fetching email status:', error);

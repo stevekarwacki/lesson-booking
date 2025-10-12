@@ -179,7 +179,7 @@ import FilterTabs from './FilterTabs.vue'
 import { filterPresets } from '../composables/useFiltering.js'
 import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
 import { useUserStore } from '../stores/userStore'
-import { fromString, filterToday, filterPast, filterFuture } from '../utils/dateHelpers.js'
+import { fromString, filterToday, filterPast, filterFuture, today, createDateHelper } from '../utils/dateHelpers.js'
 
 export default {
   name: 'BookingList',
@@ -218,11 +218,6 @@ export default {
 
     // Filter counts for tab badges
     const filterCounts = computed(() => {
-      const now = new Date()
-      now.setHours(0, 0, 0, 0) // Start of today
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      
       const counts = {
         today: 0,
         upcoming: 0,
@@ -231,19 +226,14 @@ export default {
       }
 
       props.bookings.forEach(booking => {
-        // Parse date correctly to avoid timezone issues
-        const dateParts = booking.date.split('-')
-        const bookingDate = new Date(
-          parseInt(dateParts[0]), // year
-          parseInt(dateParts[1]) - 1, // month (0-indexed)
-          parseInt(dateParts[2]) // day
-        )
+        // Use date helpers for consistent parsing
+        const bookingHelper = fromString(booking.date)
         
         if (booking.status === 'cancelled') {
           counts.cancelled++
-        } else if (bookingDate >= now && bookingDate < tomorrow) {
+        } else if (bookingHelper.isToday()) {
           counts.today++
-        } else if (bookingDate >= now) {
+        } else if (bookingHelper.isFuture()) {
           counts.upcoming++
         } else {
           counts.past++
@@ -320,10 +310,11 @@ export default {
     const formatTime = (timeString) => {
       // Assumes timeString is in format "HH:MM"
       const [hours, minutes] = timeString.split(':')
-      const date = new Date()
-      date.setHours(parseInt(hours), parseInt(minutes))
+      const dateHelper = today()
+      const timeDate = dateHelper.toDate()
+      timeDate.setHours(parseInt(hours), parseInt(minutes))
       
-      return date.toLocaleTimeString(undefined, {
+      return timeDate.toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
@@ -403,8 +394,8 @@ export default {
 
     const canMarkAttendance = (booking) => {
       // Can mark attendance if lesson has started (for current/past bookings)
-      const now = new Date()
-      const lessonDate = new Date(booking.date)
+      const nowHelper = createDateHelper()
+      const lessonHelper = fromString(booking.date)
       
       // Parse the start time to get the actual lesson datetime
       const [hours, minutes] = booking.startTime.split(':')
@@ -417,10 +408,10 @@ export default {
         hour24 = 0
       }
       
-      lessonDate.setHours(hour24, parseInt(minutes.replace(/\D/g, '')), 0, 0)
+      const lessonDateTime = lessonHelper.addHours(hour24).addMinutes(parseInt(minutes.replace(/\D/g, '')))
       
       // Allow attendance marking if lesson has started
-      return now >= lessonDate
+      return nowHelper.toTimestamp() >= lessonDateTime.toTimestamp()
     }
 
     const goToPreviousPage = () => {

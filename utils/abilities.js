@@ -222,15 +222,15 @@ const canBookingAction = (user, booking, action) => {
     }
     
     // Add the slot time to get the actual booking time
-    if (booking.start_slot !== undefined) {
-      const hours = Math.floor(booking.start_slot / 4);
-      const minutes = (booking.start_slot % 4) * 15;
-      const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
-      
-      // Students cannot modify bookings within 24 hours using business logic helper
-      if (bookingDateTime.isWithinCancellationWindow(24)) {
-        return false;
-      }
+    // If start_slot is not provided, assume beginning of day (slot 0 = 6:00 AM)
+    const startSlot = booking.start_slot !== undefined ? booking.start_slot : 0;
+    const hours = Math.floor(startSlot / 4);
+    const minutes = (startSlot % 4) * 15;
+    const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
+    
+    // Students cannot modify bookings within 24 hours using business logic helper
+    if (bookingDateTime.isWithinCancellationWindow(24)) {
+      return false;
     }
   }
   

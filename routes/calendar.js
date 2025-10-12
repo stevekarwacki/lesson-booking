@@ -8,6 +8,7 @@ const GoogleCalendarService = require('../services/GoogleCalendarService');
 const { authorize, authorizeBooking, authorizeUserAccess } = require('../middleware/permissions');
 const emailQueueService = require('../services/EmailQueueService');
 const emailService = require('../services/EmailService');
+const { fromString, createDateHelper } = require('../utils/dateHelpers');
 const { 
     timeToSlotUTC,
     formatDateUTC,
@@ -89,16 +90,16 @@ router.post('/attendance', authorizeBooking('update', async (req) => {
         }
 
         // Check if lesson has started (attendance can only be marked after lesson start time)
-        const lessonDate = new Date(event.date);
+        const lessonHelper = fromString(event.date);
         const lessonStartTime = localSlotToTime(event.start_slot);
         const [hours, minutes] = lessonStartTime.split(':');
-        lessonDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        const lessonDateTime = lessonHelper.addHours(parseInt(hours)).addMinutes(parseInt(minutes));
         
-        const now = new Date();
-        if (now < lessonDate) {
+        const nowHelper = createDateHelper();
+        if (nowHelper.toTimestamp() < lessonDateTime.toTimestamp()) {
             return res.status(400).json({ 
                 error: 'Attendance can only be marked after the lesson has started',
-                lessonStartTime: lessonDate.toISOString()
+                lessonStartTime: lessonDateTime.toDate().toISOString()
             });
         }
 
@@ -305,7 +306,7 @@ router.post('/addEvent', authorize('create', 'Booking'), async (req, res) => {
                     startTime,
                     endTime,
                     error: bookingError.message,
-                    timestamp: new Date().toISOString()
+                    timestamp: createDateHelper().toDate().toISOString()
                 });
             }
             throw bookingError;
@@ -768,7 +769,7 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
         // Booking ownership already verified by authorizeBooking middleware
 
         // Check if booking is in the future (can't cancel past bookings)
-        const currentDate = new Date().toISOString().split('T')[0];
+        const currentDate = createDateHelper().toDateString();
         if (booking.date < currentDate) {
             return res.status(400).json({ error: 'Cannot cancel past bookings' });
         }

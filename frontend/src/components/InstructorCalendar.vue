@@ -126,6 +126,7 @@ import BookingList from './BookingList.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 import EditBookingModal from './EditBookingModal.vue'
+import { fromString, today } from '../utils/dateHelpers.js'
 
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
@@ -141,7 +142,7 @@ const emit = defineEmits(['process-refund'])
 
 const SLOT_DURATION = 2
 
-const selectedDate = useMq().lgPlus ? ref('') : ref(new Date().toISOString().split('T')[0])
+const selectedDate = useMq().lgPlus ? ref('') : ref(today().toDateString())
 const weeklyScheduleData = ref([])
 const dailyScheduleData = ref({})
 const dailyScheduleLoaded = ref(false)
@@ -149,13 +150,7 @@ const error = ref('')
 const dailyBookings = ref([])
 
 // Week selection state
-const selectedWeek = ref(firstDayOfWeek(new Date()))
-
-// Get today's date in YYYY-MM-DD format
-const today = computed(() => {
-    const date = new Date()
-    return date.toISOString().split('T')[0]
-})
+const selectedWeek = ref(firstDayOfWeek(today().toDate()))
 
 // Get start of week (Sunday)
 const weekStart = computed(() => {
