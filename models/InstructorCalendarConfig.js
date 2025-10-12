@@ -45,6 +45,11 @@ const InstructorCalendarConfig = sequelize.define('InstructorCalendarConfig', {
         type: DataTypes.ENUM('success', 'failed', 'never_tested'),
         defaultValue: 'never_tested',
         comment: 'Status of the last connection test'
+    },
+    all_day_event_handling: {
+        type: DataTypes.ENUM('ignore', 'block'),
+        defaultValue: 'ignore',
+        comment: 'How to handle all-day events: ignore them or block the entire day'
     }
 }, {
     tableName: 'instructor_calendar_configs',
