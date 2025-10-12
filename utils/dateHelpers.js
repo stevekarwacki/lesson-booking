@@ -49,7 +49,9 @@ function createDateHelper(date = null, timezone = null) {
         // Business Logic Helpers
         isWithinCancellationWindow: (hours = 24) => {
             const now = Date.now();
-            return (timestamp - now) < (hours * 60 * 60 * 1000);
+            const timeDiff = timestamp - now;
+            // Return true if booking is in the future AND within the specified hours
+            return timeDiff > 0 && timeDiff < (hours * 60 * 60 * 1000);
         },
         
         isSubscriptionActive: (periodEndHelper) => {
