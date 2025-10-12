@@ -5,6 +5,7 @@ const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
+const { fromString, createDateHelper } = require('../utils/dateHelpers');
 
 class EmailService {
     constructor() {
@@ -76,9 +77,9 @@ class EmailService {
             }
 
             // Register helpers
-            handlebars.registerHelper('currentYear', () => new Date().getFullYear());
+            handlebars.registerHelper('currentYear', () => createDateHelper().toDate().getFullYear());
             handlebars.registerHelper('formatDate', (date) => {
-                return new Date(date).toLocaleDateString('en-US', {
+                return fromString(date).toDate().toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -189,7 +190,7 @@ class EmailService {
             content: contentHtml,
             companyName: process.env.COMPANY_NAME || 'Lesson Booking',
             recipientEmail: templateData.recipientEmail || templateData.studentEmail || templateData.userEmail,
-            currentYear: new Date().getFullYear(),
+            currentYear: createDateHelper().toDate().getFullYear(),
             supportUrl: process.env.SUPPORT_URL || '#',
             unsubscribeUrl: templateData.unsubscribeUrl || '#',
             preferencesUrl: templateData.preferencesUrl || '#',
@@ -323,7 +324,7 @@ class EmailService {
             planCredits: planDetails.credits,
             transactionAmount: transactionDetails.amount,
             paymentMethod: transactionDetails.payment_method,
-            transactionDate: new Date().toLocaleDateString(),
+            transactionDate: createDateHelper().toDate().toLocaleDateString(),
             transactionId: transactionDetails.payment_intent_id,
             
             // Next steps
@@ -575,12 +576,11 @@ class EmailService {
 
         const startTime = formatTime(startHour, startMinute);
         const endTime = formatTime(endHour, endMinute);
-        const lessonDate = new Date(booking.date + 'T00:00:00Z').toLocaleDateString('en-US', {
+        const lessonDate = fromString(booking.date).toDate().toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC'
+            day: 'numeric'
         });
 
         const paymentDisplay = paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card';
@@ -657,12 +657,11 @@ class EmailService {
 
         // Helper function to format date
         const formatDate = (dateString) => {
-            return new Date(dateString + 'T00:00:00Z').toLocaleDateString('en-US', {
+            return fromString(dateString).toDate().toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric',
-                timeZone: 'UTC'
+                day: 'numeric'
             });
         };
 
@@ -778,12 +777,11 @@ class EmailService {
 
         const startTime = formatTime(startHour, startMinute);
         const endTime = formatTime(endHour, endMinute);
-        const lessonDate = new Date(booking.date + 'T00:00:00Z').toLocaleDateString('en-US', {
+        const lessonDate = fromString(booking.date).toDate().toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
-            day: 'numeric',
-            timeZone: 'UTC'
+            day: 'numeric'
         });
 
         const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
@@ -831,13 +829,17 @@ class EmailService {
     // Generate calendar attachment for booking
     generateCalendarAttachment(booking) {
         try {
-            // Convert slot to actual datetime (UTC slots where 0 = 00:00 UTC)
+            // Convert slot to actual datetime using date helpers
             const startHour = Math.floor(booking.start_slot / 4);
             const startMinute = (booking.start_slot % 4) * 15;
             
-            // Create start and end dates (specify as UTC)
-            const startDate = new Date(`${booking.date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00Z`);
-            const endDate = new Date(startDate.getTime() + booking.duration * 15 * 60000); // duration in 15-min slots
+            // Create start datetime using date helpers for proper timezone handling
+            const bookingDateHelper = fromString(booking.date);
+            const startDateTime = bookingDateHelper.addHours(startHour).addMinutes(startMinute);
+            const endDateTime = startDateTime.addMinutes(booking.duration * 15);
+            
+            const startDate = startDateTime.toDate();
+            const endDate = endDateTime.toDate();
             
             const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
             const studentName = booking.student?.name || 'Student';
