@@ -141,8 +141,8 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should show attendance controls for past bookings', async () => {
-        // Mock current time to be after the lessons
-        const mockDate = new Date(`${todayStr}T15:00:00Z`)
+        // Mock current time to be after the lessons (4 PM today)
+        const mockDate = new Date(`${todayStr}T16:00:00Z`)
         vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
@@ -156,6 +156,9 @@ describe('Attendance Tracking Frontend', () => {
           plugins: [pinia]
         }
       })
+
+      // Wait for component to mount and process
+      await wrapper.vm.$nextTick()
 
       // Should show attendance dropdown for past lessons
       const attendanceSelects = wrapper.findAll('.attendance-select')
@@ -197,7 +200,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should emit attendance-changed event when dropdown changes', async () => {
-      const mockDate = new Date(`${todayStr}T15:00:00Z`)
+      const mockDate = new Date(`${todayStr}T16:00:00Z`) // 4 PM today
       vi.setSystemTime(mockDate)
 
       const wrapper = mount(BookingList, {
@@ -211,6 +214,9 @@ describe('Attendance Tracking Frontend', () => {
           plugins: [pinia]
         }
       })
+
+      // Wait for component to mount and process
+      await wrapper.vm.$nextTick()
 
       const attendanceSelect = wrapper.find('.attendance-select')
       expect(attendanceSelect.exists()).toBe(true)
@@ -595,10 +601,11 @@ describe('Attendance Tracking Frontend', () => {
 
   describe('Time Validation', () => {
     it('should correctly determine if lesson has started', () => {
-      // Use fake timers and set current time to 11:00 AM
+      // Use fake timers and set current time to 11:00 AM local time
       vi.useFakeTimers()
-      const mockDate = new Date(`${todayStr}T11:00:00Z`)
-      vi.setSystemTime(mockDate)
+      // Create a date that's definitely after 10:00 AM in the same timezone
+      const todayAt11AM = new Date(todayStr + 'T11:00:00')
+      vi.setSystemTime(todayAt11AM)
 
       const wrapper = mount(BookingList, {
         props: {

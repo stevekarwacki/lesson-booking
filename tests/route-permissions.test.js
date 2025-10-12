@@ -99,12 +99,22 @@ describe('Route Permission Tests - CASL Integration', () => {
         test('should enforce 24-hour policy for students', () => {
             const studentUser = { id: 3, role: 'student' };
             
-            // Mock booking within 24 hours (tomorrow)
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            // Mock booking within 24 hours
+            const now = new Date();
+            const targetTime = new Date();
+            if (now.getHours() < 14) {
+                // If it's before 2 PM today, book for 2 PM today (definitely within 24 hours)
+                targetTime.setHours(14, 0, 0, 0);
+            } else {
+                // If it's after 2 PM today, book for 10 AM tomorrow (definitely within 24 hours)
+                targetTime.setDate(targetTime.getDate() + 1);
+                targetTime.setHours(10, 0, 0, 0);
+            }
+            
             const nearBooking = { 
                 student_id: 3, 
-                date: tomorrow.toISOString().split('T')[0], 
+                date: targetTime.toISOString().split('T')[0], 
+                start_slot: (targetTime.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
                 status: 'booked' 
             };
             
@@ -128,12 +138,22 @@ describe('Route Permission Tests - CASL Integration', () => {
             const instructorAbility = defineAbilitiesFor(instructorUser);
             
             // Mock booking within 24 hours
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            const now = new Date();
+            const targetTime = new Date();
+            if (now.getHours() < 14) {
+                // If it's before 2 PM today, book for 2 PM today (definitely within 24 hours)
+                targetTime.setHours(14, 0, 0, 0);
+            } else {
+                // If it's after 2 PM today, book for 10 AM tomorrow (definitely within 24 hours)
+                targetTime.setDate(targetTime.getDate() + 1);
+                targetTime.setHours(10, 0, 0, 0);
+            }
+            
             const nearBooking = { 
                 instructor_id: 2,
                 student_id: 3, 
-                date: tomorrow.toISOString().split('T')[0], 
+                date: targetTime.toISOString().split('T')[0], 
+                start_slot: (targetTime.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
                 status: 'booked' 
             };
             

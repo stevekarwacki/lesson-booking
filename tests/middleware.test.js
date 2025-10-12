@@ -175,6 +175,7 @@ describe('Permission Middleware Tests', () => {
         student_id: 3,
         instructor_id: 10,
         date: nearDate,
+        start_slot: 32, // 2:00 PM
         status: 'booked'
       });
 

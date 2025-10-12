@@ -27,11 +27,24 @@ describe('CASL Permissions Infrastructure Tests', () => {
     status: 'completed'
   };
 
+  // Create a booking that's definitely within 24 hours (today at 2 PM if before 2 PM, or tomorrow at 10 AM if after 2 PM)
+  const now = new Date();
+  const targetTime = new Date();
+  if (now.getHours() < 14) {
+    // If it's before 2 PM today, book for 2 PM today (definitely within 24 hours)
+    targetTime.setHours(14, 0, 0, 0);
+  } else {
+    // If it's after 2 PM today, book for 10 AM tomorrow (definitely within 24 hours)
+    targetTime.setDate(targetTime.getDate() + 1);
+    targetTime.setHours(10, 0, 0, 0);
+  }
+  
   const nearFutureBooking = {
     id: 3,
     student_id: 3,
     instructor_id: 10,
-    date: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString().split('T')[0], // 12 hours from now
+    date: targetTime.toISOString().split('T')[0],
+    start_slot: (targetTime.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
     status: 'booked'
   };
 
@@ -156,13 +169,15 @@ describe('CASL Permissions Infrastructure Tests', () => {
       const booking25Hours = {
         ...studentBooking,
         student_id: 3,
-        date: farFuture.toISOString().split('T')[0]
+        date: farFuture.toISOString().split('T')[0],
+        start_slot: 32 // 2:00 PM
       };
       
       const booking23Hours = {
         ...studentBooking,
         student_id: 3,
-        date: nearFuture.toISOString().split('T')[0]
+        date: nearFuture.toISOString().split('T')[0],
+        start_slot: 32 // 2:00 PM
       };
 
       assert.strictEqual(canBookingAction(studentUser, booking25Hours, 'update'), true);
@@ -175,7 +190,8 @@ describe('CASL Permissions Infrastructure Tests', () => {
       const booking1Hour = {
         ...studentBooking,
         instructor_id: 10,
-        date: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString().split('T')[0]
+        date: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start_slot: 32 // 2:00 PM
       };
 
       assert.strictEqual(canBookingAction(instructorUser, booking1Hour, 'update'), true);
@@ -215,7 +231,8 @@ describe('CASL Permissions Infrastructure Tests', () => {
       const recentBooking = {
         ...studentBooking,
         student_id: 3,
-        date: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString().split('T')[0] // 1 hour from now
+        date: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 hour from now
+        start_slot: 32 // 2:00 PM
       };
 
       // Student should be blocked by time restriction
