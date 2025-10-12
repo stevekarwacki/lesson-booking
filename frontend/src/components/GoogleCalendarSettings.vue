@@ -102,6 +102,26 @@
                         ✅ Your Google Calendar is connected and will automatically block busy times.
                     </p>
                     
+                    <!-- All-Day Event Handling Setting -->
+                    <div class="setting-group">
+                        <div class="form-group">
+                            <label for="all-day-handling">All-Day Event Handling</label>
+                            <select 
+                                id="all-day-handling"
+                                v-model="allDayEventHandling"
+                                class="form-input"
+                                :disabled="isLoading"
+                                @change="updateAllDayEventHandling"
+                            >
+                                <option value="ignore">Ignore all-day events</option>
+                                <option value="block">Block entire day for all-day events</option>
+                            </select>
+                            <small class="form-help">
+                                Choose how all-day events in your Google Calendar should affect lesson booking availability
+                            </small>
+                        </div>
+                    </div>
+                    
                     <div class="connected-actions">
                         <button 
                             class="btn btn-secondary"
@@ -227,6 +247,9 @@ const calendarForm = ref({
     calendar_type: 'personal'
 })
 
+// All-day event handling setting
+const allDayEventHandling = ref('ignore')
+
 // Computed properties
 const getStatusText = () => {
     if (isLoading.value) return 'Checking connection...'
@@ -278,6 +301,11 @@ const checkConnectionStatus = async () => {
         
         const response = await axios.get(`/api/auth/calendar/config/${props.instructorId}`)
         connectionStatus.value = response.data
+        
+        // Load the all-day event handling setting
+        if (response.data.config?.all_day_event_handling) {
+            allDayEventHandling.value = response.data.config.all_day_event_handling
+        }
         
     } catch (err) {
         handleError(err, 'Failed to check calendar connection status')
@@ -357,6 +385,9 @@ const disconnectCalendar = async () => {
         showDisconnectConfirm.value = false
         testResults.value = null
         
+        // Reset all-day event handling to default
+        allDayEventHandling.value = 'ignore'
+        
         // Refresh the connection status
         await checkConnectionStatus()
         
@@ -365,6 +396,25 @@ const disconnectCalendar = async () => {
         handleError(err, 'Failed to disconnect calendar')
     } finally {
         isLoading.value = false
+    }
+}
+
+const updateAllDayEventHandling = async () => {
+    if (!props.instructorId) return
+    
+    try {
+        clearMessages()
+        
+        await axios.patch(`/api/auth/calendar/config/${props.instructorId}`, {
+            all_day_event_handling: allDayEventHandling.value
+        })
+        
+        success.value = 'All-day event handling updated successfully'
+        
+    } catch (err) {
+        handleError(err, 'Failed to update all-day event handling')
+        // Revert the change on error
+        await checkConnectionStatus()
     }
 }
 
@@ -485,6 +535,14 @@ onMounted(() => {
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+}
+
+.setting-group {
+    background-color: #f9fafb;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e5e7eb;
 }
 
 .btn {

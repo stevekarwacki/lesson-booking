@@ -78,7 +78,6 @@ class GoogleCalendarService {
             // Get calendar configuration for instructor
             const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
             if (!config) {
-
                 return [];
             }
             
@@ -96,7 +95,7 @@ class GoogleCalendarService {
             });
             const googleEvents = response.data.items || [];
             
-            const convertedEvents = this.convertToSlots(googleEvents);
+            const convertedEvents = this.convertToSlots(googleEvents, config.all_day_event_handling);
             
             // Cache the results
             this.cache.set(cacheKey, { 
@@ -193,9 +192,10 @@ class GoogleCalendarService {
     /**
      * Convert Google Calendar events to internal slot format
      * @param {Array} googleEvents - Google Calendar events
+     * @param {string} allDayHandling - How to handle all-day events ('ignore', 'block')
      * @returns {Array} Converted events
      */
-    convertToSlots(googleEvents) {
+    convertToSlots(googleEvents, allDayHandling = 'ignore') {
         if (!Array.isArray(googleEvents)) {
             return [];
         }
@@ -203,10 +203,18 @@ class GoogleCalendarService {
         return googleEvents
             .filter(event => event && event.start && event.end)
             .map(event => {
-                const startTime = new Date(event.start.dateTime || event.start.date);
-                const endTime = new Date(event.end.dateTime || event.end.date);
+                const isAllDayEvent = !event.start.dateTime; // All-day events only have 'date', not 'dateTime'
                 
-                return {
+                // Handle all-day events based on configuration
+                if (isAllDayEvent) {
+                    return this.handleAllDayEvent(event, allDayHandling);
+                }
+                
+                // Handle regular timed events
+                const startTime = new Date(event.start.dateTime);
+                const endTime = new Date(event.end.dateTime);
+                
+                return [{
                     id: `google_${event.id}`,
                     date: this.getLocalDateString(startTime),
                     start_slot: this.timeToSlot(startTime),
@@ -223,8 +231,60 @@ class GoogleCalendarService {
                         email: 'Google Calendar'
                     },
                     is_google_calendar: true
-                };
-            });
+                }];
+            })
+            .flat() // Flatten arrays from all-day events
+            .filter(event => event !== null); // Remove null entries (ignored all-day events)
+    }
+    
+    /**
+     * Handle all-day events based on configuration
+     * @param {Object} event - Google Calendar event
+     * @param {string} allDayHandling - How to handle all-day events ('ignore', 'block')
+     * @returns {Array} Array of converted events (empty array if ignored)
+     */
+    handleAllDayEvent(event, allDayHandling) {
+        const eventDate = event.start.date; // All-day events use 'date' not 'dateTime'
+        
+        switch (allDayHandling) {
+            case 'ignore':
+                return []; // Return empty array
+                
+            case 'block':
+                // Create events for the entire day (all 96 slots)
+                return this.createAllDayBlockingEvents(event, eventDate);
+                
+            default:
+                return []; // Default to ignore
+        }
+    }
+    
+    /**
+     * Create blocking events for the entire day
+     * @param {Object} event - Google Calendar event
+     * @param {string} eventDate - Date string (YYYY-MM-DD)
+     * @returns {Array} Array with single blocking event covering the entire day
+     */
+    createAllDayBlockingEvents(event, eventDate) {
+        // Create one large blocking event for the entire day (slots 0-95)
+        return [{
+            id: `google_allday_${event.id}`,
+            date: eventDate,
+            start_slot: 0,
+            duration: 96, // All 96 slots (24 hours)
+            type: 'booked',
+            status: 'google_calendar_all_day',
+            summary: `🗓️ All Day: ${event.summary || 'Busy'}`,
+            source: 'google_calendar',
+            google_event_id: event.id,
+            student: {
+                id: null,
+                name: `🗓️ All Day: ${event.summary || 'Busy'}`,
+                email: 'Google Calendar'
+            },
+            is_google_calendar: true,
+            is_all_day: true
+        }];
     }
     
     /**

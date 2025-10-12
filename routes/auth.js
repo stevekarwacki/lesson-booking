@@ -13,11 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 router.post('/signup', async (req, res) => {
     const { name, email, password } = req.body;
     
-    // Add logging to debug
-    console.log('Received signup request:', { name, email });
-    
     if (!name || !email || !password) {
-        console.log('Missing required fields');
         return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
@@ -29,8 +25,6 @@ router.post('/signup', async (req, res) => {
             password: hashedPassword,
             role: 'student'
         });
-
-        console.log('User created successfully:', user.id);
         
         // Create token for new user
         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
@@ -150,6 +144,7 @@ router.get('/calendar/config/:instructorId', authMiddleware, instructorAuth, asy
                 calendar_id: config.calendar_id,
                 calendar_name: config.calendar_name,
                 calendar_type: config.calendar_type,
+                all_day_event_handling: config.all_day_event_handling,
                 is_active: config.is_active,
                 last_tested_at: config.last_tested_at,
                 last_test_status: config.last_test_status
@@ -288,6 +283,63 @@ router.delete('/calendar/config/:instructorId', authMiddleware, instructorAuth, 
         res.status(500).json({ 
             error: 'Failed to disconnect calendar',
             details: error.message 
+        });
+    }
+});
+
+/**
+ * Update calendar configuration settings for instructor
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.patch('/calendar/config/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+        const { all_day_event_handling } = req.body;
+        
+        // Validate all_day_event_handling value
+        if (all_day_event_handling && !['ignore', 'block'].includes(all_day_event_handling)) {
+            return res.status(400).json({
+                error: 'Invalid all_day_event_handling value',
+                message: 'Must be either "ignore" or "block"'
+            });
+        }
+        
+        // Find existing configuration
+        const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
+        
+        if (!config) {
+            return res.status(404).json({
+                error: 'No calendar configuration found',
+                message: 'This instructor does not have a calendar configured'
+            });
+        }
+        
+        // Update the configuration
+        const updateData = {};
+        if (all_day_event_handling !== undefined) {
+            updateData.all_day_event_handling = all_day_event_handling;
+        }
+        
+        await config.update(updateData);
+        
+        res.json({
+            success: true,
+            message: 'Calendar configuration updated successfully',
+            config: {
+                id: config.id,
+                calendar_id: config.calendar_id,
+                calendar_name: config.calendar_name,
+                calendar_type: config.calendar_type,
+                all_day_event_handling: config.all_day_event_handling,
+                last_test_status: config.last_test_status
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating calendar configuration:', error);
+        res.status(500).json({
+            error: 'Failed to update calendar configuration',
+            details: error.message
         });
     }
 });
