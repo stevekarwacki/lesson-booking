@@ -337,30 +337,18 @@ export default {
     // Student permission helpers
     const canStudentReschedule = (booking) => {
       // Students can reschedule up to 24 hours before the lesson
-      // Parse date correctly to avoid timezone issues
-      const dateParts = booking.date.split('-')
-      const lessonTime = new Date(
-        parseInt(dateParts[0]), // year
-        parseInt(dateParts[1]) - 1, // month (0-indexed)
-        parseInt(dateParts[2]) // day
-      )
-      const now = new Date()
-      const hoursUntilLesson = (lessonTime - now) / (1000 * 60 * 60)
-      return hoursUntilLesson >= 24
+      const bookingHelper = fromString(booking.date);
+      const nowHelper = today();
+      const hoursUntilLesson = nowHelper.diffInHours(bookingHelper);
+      return hoursUntilLesson >= 24;
     }
 
     const canStudentCancel = (booking) => {
       // Students can cancel up to 24 hours before the lesson
-      // Parse date correctly to avoid timezone issues
-      const dateParts = booking.date.split('-')
-      const lessonTime = new Date(
-        parseInt(dateParts[0]), // year
-        parseInt(dateParts[1]) - 1, // month (0-indexed)
-        parseInt(dateParts[2]) // day
-      )
-      const now = new Date()
-      const hoursUntilLesson = (lessonTime - now) / (1000 * 60 * 60)
-      return hoursUntilLesson >= 24
+      const bookingHelper = fromString(booking.date);
+      const nowHelper = today();
+      const hoursUntilLesson = nowHelper.diffInHours(bookingHelper);
+      return hoursUntilLesson >= 24;
     }
 
     // Event handlers

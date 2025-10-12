@@ -64,6 +64,18 @@ function createDateHelper(date = null, timezone = null) {
                 day: 'numeric'
             });
         },
+        
+        // Advanced Comparison Functions
+        diffInHours: (other) => {
+            const otherTimestamp = typeof other === 'object' && other.toTimestamp ? other.toTimestamp() : other;
+            return Math.floor((otherTimestamp - timestamp) / (60 * 60 * 1000));
+        },
+        
+        isBetween: (start, end) => {
+            const startTimestamp = typeof start === 'object' && start.toTimestamp ? start.toTimestamp() : start;
+            const endTimestamp = typeof end === 'object' && end.toTimestamp ? end.toTimestamp() : end;
+            return timestamp >= startTimestamp && timestamp <= endTimestamp;
+        },
         addMilliseconds: (ms) => createDateHelper(new Date(timestamp + ms), tz),
         startOfDay: () => startOfDay({ timestamp, timezone: tz }),
         endOfDay: () => endOfDay({ timestamp, timezone: tz }),

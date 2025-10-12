@@ -1,4 +1,5 @@
 import { defineAbility, subject } from '@casl/ability';
+import { fromString, today } from './dateHelpers.js';
 
 /**
  * Define abilities for a user based on their role and context
@@ -152,9 +153,9 @@ export const canBookingAction = (user, booking, action) => {
   
   // Apply time-based restrictions for students
   if (user.role === 'student' && (action === 'update' || action === 'cancel')) {
-    const bookingDate = new Date(booking.date);
-    const now = new Date();
-    const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
+    const bookingHelper = fromString(booking.date);
+    const nowHelper = today();
+    const hoursUntil = nowHelper.diffInHours(bookingHelper);
     
     // Students cannot modify bookings within 24 hours
     if (hoursUntil < 24) {

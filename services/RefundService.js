@@ -4,6 +4,7 @@ const { UserCredits, CreditUsage } = require('../models/Credits');
 const { Refund } = require('../models/Refund');
 const { sequelize } = require('../db/index');
 const { stripe } = require('../config/stripe');
+const { fromString, createDateHelper } = require('../utils/dateHelpers');
 
 /**
  * RefundService - Handles refund processing for both Stripe and credit refunds
@@ -209,8 +210,9 @@ class RefundService {
             bookingDate.setUTCHours(hours, minutes, 0, 0);
         }
         
-        const now = new Date();
-        const hoursUntil = (bookingDate - now) / (1000 * 60 * 60);
+        const bookingHelper = fromString(booking.date);
+        const nowHelper = createDateHelper();
+        const hoursUntil = nowHelper.diffInHours(bookingHelper);
         
         // Eligible if booking is more than 24 hours away
         return hoursUntil > 24;
