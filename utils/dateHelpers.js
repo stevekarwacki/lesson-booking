@@ -36,6 +36,8 @@ function createDateHelper(date = null, timezone = null) {
         
         // Manipulation methods
         addDays: (days) => createDateHelper(new Date(timestamp + (days * 24 * 60 * 60 * 1000)), tz),
+        addHours: (hours) => createDateHelper(new Date(timestamp + (hours * 60 * 60 * 1000)), tz),
+        addMinutes: (minutes) => createDateHelper(new Date(timestamp + (minutes * 60 * 1000)), tz),
         addMilliseconds: (ms) => createDateHelper(new Date(timestamp + ms), tz),
         startOfDay: () => startOfDay({ timestamp, timezone: tz }),
         endOfDay: () => endOfDay({ timestamp, timezone: tz }),

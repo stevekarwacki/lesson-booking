@@ -4,6 +4,7 @@ const {
     timeToSlotUTC, 
     calculateDurationInSlots 
 } = require('../utils/timeUtils');
+const { today, fromTimestamp } = require('../utils/dateHelpers');
 
 class GoogleCalendarService {
     constructor(options = {}) {
@@ -140,14 +141,13 @@ class GoogleCalendarService {
             }
             
             // Try to fetch a small number of events from today
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+            const todayHelper = today()
+            const tomorrowHelper = todayHelper.addDays(1)
             
             const response = await this.calendar.events.list({
                 calendarId: config.calendar_id,
-                timeMin: today.toISOString(),
-                timeMax: tomorrow.toISOString(),
+                timeMin: todayHelper.toDate().toISOString(),
+                timeMax: tomorrowHelper.toDate().toISOString(),
                 maxResults: 5
             });
             
@@ -233,10 +233,7 @@ class GoogleCalendarService {
      * @returns {string} Date string in YYYY-MM-DD format
      */
     getLocalDateString(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return fromTimestamp(date.getTime()).toDateString()
     }
     
     /**
