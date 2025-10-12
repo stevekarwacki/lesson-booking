@@ -55,6 +55,8 @@ npm run test business-info.test.js
 
 ### Frontend
 - `business-info.test.js` - Business Information components
+- `attendance.test.js` - Attendance tracking features
+- `logo.test.js` - Logo upload functionality
 - `router-permissions.test.js` - Frontend route permissions
 
 ## Test Coverage Goals
@@ -127,11 +129,35 @@ describe('ComponentName', () => {
 - Clean up test data after each run
 - Use transactions for isolation
 
+### Date and Time Testing
+- **Use Date Helpers**: Always use `createDateHelper()`, `today()`, etc. instead of `new Date()`
+- **Mock Time Consistently**: Use local time, not UTC, in test mocks
+- **Timezone Awareness**: Ensure both mock time and application logic use same timezone reference
+
+```javascript
+// Good: Consistent timezone handling
+vi.useFakeTimers()
+const mockTime = new Date('2025-10-12T11:00:00') // Local time
+vi.setSystemTime(mockTime)
+const helper = createDateHelper() // Uses mocked time
+
+// Bad: Mixed timezone references
+const mockTime = new Date('2025-10-12T11:00:00Z') // UTC time
+vi.setSystemTime(mockTime)
+const helper = fromString('2025-10-12') // Local time calculation
+```
+
 ### Mocking
 - Mock external API calls
 - Mock authentication for unit tests
 - Use real auth for integration tests
+- Mock system time for date-dependent tests
 
 ---
 
 For detailed test examples, see the existing test files in the codebase.
+
+## Related Documentation
+
+- [Date Helpers System](DATE_HELPERS_SYSTEM.md) - Comprehensive guide to date handling in tests
+- [Attendance Tracking Feature](ATTENDANCE_TRACKING_FEATURE.md) - Example of date helper usage in tests
