@@ -11,18 +11,36 @@
 </p>
 {{/if}}
 
-<div class="social-links">
+<div class="social-links" style="text-align: center; margin: 20px 0;">
     {{#if socialLinks.website}}
-    <a href="{{socialLinks.website}}" title="Visit our website">🌐</a>
-    {{/if}}
-    {{#if socialLinks.twitter}}
-    <a href="{{socialLinks.twitter}}" title="Follow us on Twitter">🐦</a>
+    <a href="{{socialLinks.website}}" title="Visit our website" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #3b82f6; font-weight: bold;">
+        🌐
+    </a>
     {{/if}}
     {{#if socialLinks.facebook}}
-    <a href="{{socialLinks.facebook}}" title="Like us on Facebook">📘</a>
+    <a href="{{socialLinks.facebook}}" title="Follow us on Facebook" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #1877f2; font-weight: bold;">
+        📘
+    </a>
+    {{/if}}
+    {{#if socialLinks.twitter}}
+    <a href="{{socialLinks.twitter}}" title="Follow us on Twitter" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #1da1f2; font-weight: bold;">
+        🐦
+    </a>
     {{/if}}
     {{#if socialLinks.instagram}}
-    <a href="{{socialLinks.instagram}}" title="Follow us on Instagram">📷</a>
+    <a href="{{socialLinks.instagram}}" title="Follow us on Instagram" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #e4405f; font-weight: bold;">
+        📷
+    </a>
+    {{/if}}
+    {{#if socialLinks.linkedin}}
+    <a href="{{socialLinks.linkedin}}" title="Connect with us on LinkedIn" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #0077b5; font-weight: bold;">
+        💼
+    </a>
+    {{/if}}
+    {{#if socialLinks.youtube}}
+    <a href="{{socialLinks.youtube}}" title="Subscribe to our YouTube channel" style="display: inline-block; margin: 0 8px; text-decoration: none; color: #ff0000; font-weight: bold;">
+        📺
+    </a>
     {{/if}}
 </div>
 
