@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useUserStore } from '../stores/userStore';
+import { fromString, createDateHelper } from '../utils/dateHelpers.js';
 
 const LAST_UPDATE_KEY = 'subscription_periods_last_update';
 const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
@@ -8,26 +9,27 @@ export function useSubscriptionUpdate() {
     const userStore = useUserStore();
 
     const shouldUpdate = () => {
-        // First check if subscription period has ended
+        // First check if subscription period has ended using date helpers
         const subscription = userStore.user?.subscription;
         if (subscription) {
-            const periodEnd = new Date(subscription.current_period_end);
-            const now = new Date();
-            const isPeriodEnded = periodEnd <= now;
-            if (isPeriodEnded) {
+            const periodEndHelper = fromString(subscription.current_period_end);
+            const nowHelper = createDateHelper();
+            
+            // Use business logic helper for subscription status check
+            if (!nowHelper.isSubscriptionActive(periodEndHelper)) {
                 return true;
             }
         }
 
-        // Then check localStorage
+        // Then check localStorage using date helpers
         const nextUpdate = localStorage.getItem(LAST_UPDATE_KEY);
         if (!nextUpdate) {
             return true;
         }
         
         const nextUpdateTime = parseInt(nextUpdate);
-        const now = Date.now();
-        return now >= nextUpdateTime;
+        const nowHelper = createDateHelper();
+        return nowHelper.toTimestamp() >= nextUpdateTime;
     };
 
     const updateSubscriptionPeriods = async () => {
@@ -48,7 +50,8 @@ export function useSubscriptionUpdate() {
             });
 
             if (response.data.success && response.data.updated) {
-                const nextUpdate = Date.now() + UPDATE_INTERVAL;
+                const nowHelper = createDateHelper();
+                const nextUpdate = nowHelper.addDays(1).toTimestamp(); // Add 24 hours using date helper
                 localStorage.setItem(LAST_UPDATE_KEY, nextUpdate.toString());
                 await userStore.fetchUser();
             }

@@ -39,6 +39,31 @@ function createDateHelper(date = null, timezone = null) {
         addDays: (days) => createDateHelper(new Date(timestamp + (days * 24 * 60 * 60 * 1000)), tz),
         addHours: (hours) => createDateHelper(new Date(timestamp + (hours * 60 * 60 * 1000)), tz),
         addMinutes: (minutes) => createDateHelper(new Date(timestamp + (minutes * 60 * 1000)), tz),
+        addWeeks: (weeks) => createDateHelper(new Date(timestamp + (weeks * 7 * 24 * 60 * 60 * 1000)), tz),
+        addMonths: (months) => {
+            const date = new Date(timestamp);
+            date.setMonth(date.getMonth() + months);
+            return createDateHelper(date, tz);
+        },
+        
+        // Business Logic Helpers
+        isWithinCancellationWindow: (hours = 24) => {
+            const now = Date.now();
+            return (timestamp - now) < (hours * 60 * 60 * 1000);
+        },
+        
+        isSubscriptionActive: (periodEndHelper) => {
+            return timestamp < periodEndHelper.toTimestamp();
+        },
+        
+        formatForEmail: (locale = 'en-US') => {
+            return new Date(timestamp).toLocaleDateString(locale, {
+                weekday: 'long',
+                year: 'numeric', 
+                month: 'long',
+                day: 'numeric'
+            });
+        },
         addMilliseconds: (ms) => createDateHelper(new Date(timestamp + ms), tz),
         startOfDay: () => startOfDay({ timestamp, timezone: tz }),
         endOfDay: () => endOfDay({ timestamp, timezone: tz }),

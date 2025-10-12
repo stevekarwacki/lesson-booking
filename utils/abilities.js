@@ -18,12 +18,8 @@ function isWithin24Hours(booking) {
     const minutes = (booking.start_slot % 4) * 15;
     const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
     
-    const nowHelper = createDateHelper();
-    const timeDiff = bookingDateTime.toTimestamp() - nowHelper.toTimestamp();
-    const hoursDiff = timeDiff / (1000 * 60 * 60);
-    
-    // Only restrict if booking is in the future AND within 24 hours
-    return hoursDiff > 0 && hoursDiff <= 24;
+    // Use the new business logic helper
+    return bookingDateTime.isWithinCancellationWindow(24);
   }
   
   return false;
@@ -231,11 +227,8 @@ const canBookingAction = (user, booking, action) => {
       const minutes = (booking.start_slot % 4) * 15;
       const bookingDateTime = bookingHelper.addHours(hours).addMinutes(minutes);
       
-      const nowHelper = createDateHelper();
-      const hoursUntil = (bookingDateTime.toTimestamp() - nowHelper.toTimestamp()) / (1000 * 60 * 60);
-      
-      // Students cannot modify bookings within 24 hours
-      if (hoursUntil < 24) {
+      // Students cannot modify bookings within 24 hours using business logic helper
+      if (bookingDateTime.isWithinCancellationWindow(24)) {
         return false;
       }
     }

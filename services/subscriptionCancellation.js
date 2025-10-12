@@ -4,6 +4,7 @@ const { SubscriptionEvent } = require('../models/SubscriptionEvent');
 const { UserCredits } = require('../models/Credits');
 const { RecurringBooking } = require('../models/RecurringBooking');
 const { stripe, cancelSubscription } = require('../config/stripe');
+const { createDateHelper, fromTimestamp } = require('../utils/dateHelpers');
 
 /**
  * Common subscription cancellation service
@@ -61,10 +62,14 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
             // Cleaned up recurring booking for sync
         }
         
-        // Update local database to match Stripe
+        // Update local database to match Stripe using date helpers
+        const canceledAtHelper = stripeSubscription.canceled_at 
+            ? fromTimestamp(stripeSubscription.canceled_at * 1000)
+            : createDateHelper();
+            
         await subscription.update({
             status: 'canceled',
-            canceled_at: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : new Date()
+            canceled_at: canceledAtHelper.toDate()
         });
         // Updated subscription status to canceled
         
@@ -89,7 +94,9 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
                 subscriptionId: subscription.id,
                 userId: subscription.user_id,
                 userName: subscription.User?.name,
-                canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : new Date(),
+                canceledAt: stripeSubscription.canceled_at 
+                    ? fromTimestamp(stripeSubscription.canceled_at * 1000).toDate()
+                    : createDateHelper().toDate(),
                 stripeStatus: stripeSubscription.status,
                 wasSyncIssue: true,
                 ...(isAdminAction && { canceledByAdmin: requestingUser.name })
@@ -120,10 +127,10 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
     // Cancel subscription in Stripe
     stripeSubscription = await cancelSubscription(subscription.stripe_subscription_id);
     
-    // Update subscription in database - immediate cancellation
+    // Update subscription in database - immediate cancellation using date helpers
     await subscription.update({
         status: 'canceled',
-        canceled_at: new Date()
+        canceled_at: createDateHelper().toDate()
     });
     
     // Record subscription event with appropriate info
@@ -158,7 +165,7 @@ async function cancelSubscriptionService({ subscriptionId, requestingUser, isAdm
             subscriptionId: subscription.id,
             userId: subscription.user_id,
             userName: subscription.User?.name,
-            canceledAt: new Date(),
+            canceledAt: createDateHelper().toDate(),
             stripeStatus: stripeSubscription.status,
             ...(isAdminAction && { canceledByAdmin: requestingUser.name })
         },

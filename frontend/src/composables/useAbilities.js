@@ -103,9 +103,9 @@ export function useAbilities() {
     if (userStore.user.role === 'student' && (action === 'update' || action === 'cancel')) {
       const bookingHelper = fromString(booking.date);
       const nowHelper = today();
-      const hoursUntil = (bookingHelper.toTimestamp() - nowHelper.toTimestamp()) / (1000 * 60 * 60);
-
-      if (hoursUntil < 24) {
+      
+      // Use business logic helper for consistent cancellation window logic
+      if (bookingHelper.isWithinCancellationWindow(24)) {
         return { 
           disabled: true, 
           reason: 'Cannot modify booking within 24 hours' 
