@@ -3,6 +3,50 @@ const assert = require('node:assert');
 const { AppSettings } = require('../models/AppSettings');
 
 describe('AppSettings Validation', () => {
+    describe('Business Setting Validation', () => {
+        it('should validate social media URLs', () => {
+            // Test valid URLs
+            assert.strictEqual(
+                AppSettings.validateBusinessSetting('social_media_facebook', 'https://facebook.com/company'),
+                'https://facebook.com/company'
+            );
+            assert.strictEqual(
+                AppSettings.validateBusinessSetting('social_media_youtube', 'https://youtube.com/channel'),
+                'https://youtube.com/channel'
+            );
+            
+            // Test empty values (should be allowed)
+            assert.strictEqual(
+                AppSettings.validateBusinessSetting('social_media_twitter', ''),
+                null
+            );
+        });
+
+        it('should reject invalid social media URLs', () => {
+            // Test invalid URL format
+            assert.throws(() => {
+                AppSettings.validateBusinessSetting('social_media_facebook', 'not-a-url');
+            }, /Please enter a valid URL/);
+
+            // Test non-http protocol - this will be caught by the URL constructor first
+            assert.throws(() => {
+                AppSettings.validateBusinessSetting('social_media_instagram', 'ftp://instagram.com');
+            }, /Social media URL must use http or https/);
+        });
+
+        it('should validate existing business fields', () => {
+            // Test company name validation
+            assert.throws(() => {
+                AppSettings.validateBusinessSetting('company_name', '');
+            }, /Company name is required/);
+
+            // Test email validation
+            assert.throws(() => {
+                AppSettings.validateBusinessSetting('contact_email', 'invalid-email');
+            }, /Please enter a valid email address/);
+        });
+    });
+
     describe('In-Person Payment Setting Validation', () => {
         it('should validate boolean in-person payment setting', () => {
             // Test valid boolean values
