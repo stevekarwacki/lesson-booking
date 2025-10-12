@@ -45,10 +45,13 @@ const handleLogout = () => {
 
 .container {
     flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .main-content {
-    min-height: calc(100vh - 70px - 200px); /* Adjust based on navbar and footer height */
+    flex: 1;
+    margin-bottom: var(--spacing-xl, 2rem); /* Add margin between main content and footer */
 }
 
 .auth-forms {
@@ -66,7 +69,7 @@ const handleLogout = () => {
     }
     
     .main-content {
-        min-height: calc(100vh - 70px - 300px); /* More space for mobile footer */
+        margin-bottom: var(--spacing-lg, 1.5rem); /* Reduce margin on mobile */
     }
 }
 </style>

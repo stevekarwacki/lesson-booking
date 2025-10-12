@@ -172,7 +172,6 @@ export default {
   background: var(--background-light, #f8f9fa);
   color: var(--text-primary, #374151);
   border-top: 1px solid var(--border-color, #e5e7eb);
-  margin-top: auto;
 }
 
 .footer-content {
