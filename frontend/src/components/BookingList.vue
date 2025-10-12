@@ -179,6 +179,7 @@ import FilterTabs from './FilterTabs.vue'
 import { filterPresets } from '../composables/useFiltering.js'
 import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
 import { useUserStore } from '../stores/userStore'
+import { fromString, filterToday, filterPast, filterFuture } from '../utils/dateHelpers.js'
 
 export default {
   name: 'BookingList',
@@ -254,51 +255,37 @@ export default {
 
     // Filter bookings based on active filter
     const filteredBookings = computed(() => {
-      const now = new Date()
-      now.setHours(0, 0, 0, 0) // Start of today for fair comparison
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
+      let filtered = []
       
-      const filtered = props.bookings.filter(booking => {
-        // Parse date correctly to avoid timezone issues
-        const dateParts = booking.date.split('-') // ['2025', '08', '26']
-        const bookingDate = new Date(
-          parseInt(dateParts[0]), // year
-          parseInt(dateParts[1]) - 1, // month (0-indexed)
-          parseInt(dateParts[2]) // day
-        )
+      switch (activeFilter.value) {
+        case 'today':
+          filtered = filterToday(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
+          break
+        case 'upcoming':
+          filtered = filterFuture(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
+          break
+        case 'past':
+          filtered = filterPast(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
+          break
+        case 'cancelled':
+          filtered = props.bookings.filter(booking => booking.status === 'cancelled')
+          break
+        default:
+          filtered = props.bookings
+      }
+      
+      // Sort bookings by date
+      return filtered.sort((a, b) => {
+        const dateA = fromString(a.date).toTimestamp()
+        const dateB = fromString(b.date).toTimestamp()
         
-        switch (activeFilter.value) {
-          case 'today':
-            return booking.status !== 'cancelled' && bookingDate >= now && bookingDate < tomorrow
-          case 'upcoming':
-            return booking.status !== 'cancelled' && bookingDate >= now
-          case 'past':
-            return booking.status !== 'cancelled' && bookingDate < now
-          case 'cancelled':
-            return booking.status === 'cancelled'
-          default:
-            return true
-        }
-      }).sort((a, b) => {
         // Sort upcoming by date ascending, past by date descending
-        // Parse dates correctly to avoid timezone issues
-        const parseDate = (dateStr) => {
-          const parts = dateStr.split('-')
-          return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
-        }
-        
-        const dateA = parseDate(a.date)
-        const dateB = parseDate(b.date)
-        
         if (activeFilter.value === 'upcoming') {
           return dateA - dateB
         } else {
           return dateB - dateA
         }
       })
-      
-      return filtered
     })
 
     // Pagination
@@ -321,16 +308,8 @@ export default {
     })
 
     // Helper functions
-    const formatDate = (date) => {
-      // Parse date correctly to avoid timezone issues
-      const dateParts = date.split('-')
-      const parsedDate = new Date(
-        parseInt(dateParts[0]), // year
-        parseInt(dateParts[1]) - 1, // month (0-indexed)
-        parseInt(dateParts[2]) // day
-      )
-      
-      return parsedDate.toLocaleDateString(undefined, {
+    const formatDate = (dateStr) => {
+      return fromString(dateStr).toDate().toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -352,18 +331,7 @@ export default {
     }
 
     const isPastBooking = (booking) => {
-      // Parse date correctly to avoid timezone issues
-      const dateParts = booking.date.split('-')
-      const bookingDate = new Date(
-        parseInt(dateParts[0]), // year
-        parseInt(dateParts[1]) - 1, // month (0-indexed)
-        parseInt(dateParts[2]) // day
-      )
-      
-      const now = new Date()
-      now.setHours(0, 0, 0, 0) // Start of today for fair comparison
-      
-      return bookingDate < now
+      return fromString(booking.date).isPast()
     }
 
     // Student permission helpers
