@@ -170,6 +170,20 @@
               :disabled="loading"
             />
           </div>
+          
+          <div class="form-group">
+            <label for="youtube" class="form-label">
+              YouTube
+            </label>
+            <input
+              id="youtube"
+              v-model="formData.socialMedia.youtube"
+              type="url"
+              class="form-input"
+              placeholder="https://youtube.com/yourchannel"
+              :disabled="loading"
+            />
+          </div>
         </div>
       </div>
       
@@ -273,7 +287,8 @@ export default {
         facebook: '',
         twitter: '',
         instagram: '',
-        linkedin: ''
+        linkedin: '',
+        youtube: ''
       },
       businessHours: {
         monday: { isOpen: true, open: '09:00', close: '17:00' },
