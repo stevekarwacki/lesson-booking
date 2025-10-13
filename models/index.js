@@ -12,6 +12,7 @@ const { AppSettings } = require('./AppSettings');
 const { Attendance } = require('./Attendance');
 const { Calendar } = require('./Calendar');
 const { Refund } = require('./Refund');
+const { EmailTemplate, setupAssociations: setupEmailTemplateAssociations } = require('./EmailTemplate');
 const runSeeds = require('../seeds');
 
 // Define associations
@@ -62,12 +63,14 @@ const models = {
     AppSettings,
     Attendance,
     Calendar,
-    Refund
+    Refund,
+    EmailTemplate
 };
 
 setupUserAssociations(models);
 setupSubscriptionAssociations(models);
 setupRecurringBookingAssociations(models);
+setupEmailTemplateAssociations(models);
 
 // Initialize all models
 const initModels = async () => {
@@ -104,5 +107,6 @@ module.exports = {
     AppSettings,
     Attendance,
     Calendar,
-    Refund
-}; 
+    Refund,
+    EmailTemplate
+};
