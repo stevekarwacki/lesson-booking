@@ -53,8 +53,6 @@ const settingsTabs = computed(() => [
     id: 'email',
     label: 'Email Templates',
     component: EmailTemplatesSection,
-    badge: 'Future',
-    disabled: true, // Enable when WYSIWYG is implemented
     props: {
       initialData: settingsData.value.email || {},
       loading: loading.value

@@ -3,191 +3,181 @@
     <div class="section-header">
       <h2>Email Templates</h2>
       <p class="section-description">
-        Manage and customize email templates used throughout the application.
-        <strong>WYSIWYG editing coming soon!</strong>
+        Customize email templates sent to students and instructors. All templates support Handlebars variables for dynamic content.
       </p>
     </div>
     
-    <!-- Future Implementation Notice -->
-    <div class="future-notice">
-      <div class="notice-content">
-        <h3>Under Development</h3>
-        <p>
-          This section is currently under development. We're planning to integrate 
-          <strong>Tiptap WYSIWYG editor</strong> to provide rich text editing capabilities 
-          for email templates.
-        </p>
-        
-        <div class="planned-features">
-          <h4>Planned Features:</h4>
-          <ul>
-            <li>Rich text editing with Tiptap</li>
-            <li>Email template management</li>
-            <li>Template customization with your branding</li>
-            <li>Live email preview</li>
-            <li>Mobile-responsive email design</li>
-            <li>Variable substitution ({{name}}, {{date}}, etc.)</li>
-          </ul>
-        </div>
-        
-        <div class="current-templates">
-          <h4>Current Email Templates:</h4>
-          <div class="template-list">
-            <div class="template-item">
-              <span class="template-name">Welcome Email</span>
-              <span class="template-status">Handlebars Template</span>
+    <!-- Loading State -->
+    <div v-if="loading && !templates.length" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>Loading email templates...</p>
+    </div>
+    
+    <!-- Error State -->
+    <div v-if="error" class="error-banner">
+      <span class="error-text">{{ error }}</span>
+      <button class="error-close" @click="error = ''" aria-label="Close error">&times;</button>
+    </div>
+    
+    <!-- Success State -->
+    <div v-if="success" class="success-banner">
+      <span class="success-text">{{ success }}</span>
+      <button class="success-close" @click="success = ''" aria-label="Close success">&times;</button>
+    </div>
+    
+    <!-- Template List -->
+    <div v-if="templates.length > 0" class="templates-container">
+      <!-- No active editor: Show template grid -->
+      <div v-if="!activeTemplate" class="templates-grid">
+        <div 
+          v-for="template in templates" 
+          :key="template.template_key"
+          class="template-card"
+          :class="{ modified: isModified(template) }"
+        >
+          <div class="template-header">
+            <h3 class="template-name">{{ template.name }}</h3>
+            <div class="template-badges">
+              <span v-if="isModified(template)" class="badge modified">Modified</span>
+              <span class="badge category">{{ template.category }}</span>
             </div>
-            <div class="template-item">
-              <span class="template-name">Booking Confirmation</span>
-              <span class="template-status">Handlebars Template</span>
+          </div>
+          
+          <p class="template-description">{{ template.description }}</p>
+          
+          <div class="template-stats">
+            <div class="stat-item">
+              <span class="stat-label">Variables:</span>
+              <span class="stat-value">{{ getVariableCount(template) }}</span>
             </div>
-            <div class="template-item">
-              <span class="template-name">Password Reset</span>
-              <span class="template-status">Handlebars Template</span>
+            <div class="stat-item">
+              <span class="stat-label">Last updated:</span>
+              <span class="stat-value">{{ formatDate(template.updated_at) }}</span>
             </div>
-            <div class="template-item">
-              <span class="template-name">Low Balance Alert</span>
-              <span class="template-status">Handlebars Template</span>
-            </div>
+          </div>
+          
+          <div class="template-actions">
+            <button 
+              @click="editTemplate(template)" 
+              class="btn primary"
+              :disabled="loading"
+            >
+              Edit Template
+            </button>
+            <button 
+              @click="testTemplate(template)" 
+              class="btn secondary"
+              :disabled="loading || testingTemplate === template.template_key"
+            >
+              <span v-if="testingTemplate === template.template_key" class="loading-spinner small"></span>
+              {{ testingTemplate === template.template_key ? 'Sending...' : 'Test Send' }}
+            </button>
+            <button 
+              v-if="isModified(template)"
+              @click="resetTemplate(template)" 
+              class="btn warning"
+              :disabled="loading"
+            >
+              Reset
+            </button>
           </div>
         </div>
       </div>
-    </div>
-    
-    <!-- Temporary Configuration -->
-    <div class="temp-config">
-      <h3>Basic Email Settings</h3>
-      <p>Configure basic email settings while we develop the full template editor.</p>
       
-      <form @submit.prevent="saveEmailSettings" class="email-form">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="fromName" class="form-label">
-              From Name
-            </label>
-            <input
-              id="fromName"
-              v-model="emailSettings.fromName"
-              type="text"
-              class="form-input"
-              placeholder="Your Company Name"
-              :disabled="loading"
-            />
-            <span class="form-help">
-              This name will appear as the sender in emails
-            </span>
+      <!-- Active editor: Show template editor -->
+      <div v-else class="template-editor">
+        <div class="editor-header">
+          <h3>
+            <button @click="closeEditor" class="back-button" aria-label="Back to list">
+              ← Back
+            </button>
+            Editing: {{ activeTemplate.name }}
+          </h3>
+          <div class="editor-actions">
+            <button 
+              @click="testTemplate(activeTemplate)" 
+              class="btn secondary"
+              :disabled="loading || testingTemplate === activeTemplate.template_key"
+            >
+              <span v-if="testingTemplate === activeTemplate.template_key" class="loading-spinner small"></span>
+              {{ testingTemplate === activeTemplate.template_key ? 'Sending...' : 'Test Send' }}
+            </button>
+            <button 
+              @click="saveTemplate" 
+              class="btn primary"
+              :disabled="loading || !hasUnsavedChanges"
+            >
+              <span v-if="saving" class="loading-spinner small"></span>
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
+        
+        <div class="editor-content">
+          <div class="editor-main">
+            <!-- Subject Line Editor -->
+            <div class="form-group">
+              <label for="subject-editor" class="form-label">
+                Subject Line
+                <button 
+                  @click="showVariables = !showVariables" 
+                  class="variables-toggle"
+                  type="button"
+                  aria-label="Toggle variables list"
+                >
+                  {{ showVariables ? '▼' : '▶' }} Variables
+                </button>
+              </label>
+              <textarea
+                id="subject-editor"
+                v-model="editingSubject"
+                class="form-textarea subject-editor"
+                placeholder="Email subject line (supports {{variable}} syntax)"
+                rows="2"
+                :disabled="loading"
+              ></textarea>
+            </div>
+            
+            <!-- Body Content Editor -->
+            <div class="form-group">
+              <label for="body-editor" class="form-label">
+                Email Body Content
+              </label>
+              <textarea
+                id="body-editor"
+                v-model="editingBody"
+                class="form-textarea body-editor"
+                placeholder="Email body content (supports {{variable}} syntax and HTML)"
+                rows="20"
+                :disabled="loading"
+              ></textarea>
+            </div>
           </div>
           
-          <div class="form-group">
-            <label for="fromEmail" class="form-label">
-              From Email
-            </label>
-            <input
-              id="fromEmail"
-              v-model="emailSettings.fromEmail"
-              type="email"
-              class="form-input"
-              placeholder="noreply@yourcompany.com"
-              :disabled="loading"
-            />
-            <span class="form-help">
-              This email will be used as the sender address
-            </span>
-          </div>
-          
-          <div class="form-group">
-            <label for="replyTo" class="form-label">
-              Reply-To Email
-            </label>
-            <input
-              id="replyTo"
-              v-model="emailSettings.replyTo"
-              type="email"
-              class="form-input"
-              placeholder="support@yourcompany.com"
-              :disabled="loading"
-            />
-            <span class="form-help">
-              Where replies to automated emails should go
-            </span>
-          </div>
-          
-          <div class="form-group">
-            <label for="footerText" class="form-label">
-              Email Footer Text
-            </label>
-            <textarea
-              id="footerText"
-              v-model="emailSettings.footerText"
-              class="form-textarea"
-              placeholder="© 2024 Your Company Name. All rights reserved."
-              rows="3"
-              :disabled="loading"
-            ></textarea>
-            <span class="form-help">
-              Text that appears at the bottom of all emails
-            </span>
-          </div>
-        </div>
-        
-        <div class="section-actions">
-          <button 
-            type="button"
-            @click="resetEmailSettings" 
-            class="btn secondary"
-            :disabled="loading"
-          >
-            Reset
-          </button>
-          <button 
-            type="submit"
-            class="btn primary"
-            :disabled="loading || !hasEmailChanges"
-          >
-            <span v-if="loading" class="loading-spinner"></span>
-            {{ loading ? 'Saving...' : 'Save Email Settings' }}
-          </button>
-        </div>
-      </form>
-    </div>
-    
-    <!-- Development Timeline -->
-    <div class="timeline-section">
-      <h3>Development Timeline</h3>
-      <div class="timeline">
-        <div class="timeline-item completed">
-          <div class="timeline-marker"></div>
-          <div class="timeline-content">
-            <h4>Phase 1: Planning & Architecture</h4>
-            <p>Design email template system architecture</p>
-            <span class="timeline-status">Completed</span>
-          </div>
-        </div>
-        
-        <div class="timeline-item current">
-          <div class="timeline-marker"></div>
-          <div class="timeline-content">
-            <h4>Phase 2: Tiptap Integration</h4>
-            <p>Integrate Tiptap WYSIWYG editor with Vue 3</p>
-            <span class="timeline-status">In Progress</span>
-          </div>
-        </div>
-        
-        <div class="timeline-item pending">
-          <div class="timeline-marker"></div>
-          <div class="timeline-content">
-            <h4>Phase 3: Template Management</h4>
-            <p>Build template CRUD operations and preview system</p>
-            <span class="timeline-status">Pending</span>
-          </div>
-        </div>
-        
-        <div class="timeline-item pending">
-          <div class="timeline-marker"></div>
-          <div class="timeline-content">
-            <h4>Phase 4: Advanced Features</h4>
-            <p>Variable substitution, mobile preview, A/B testing</p>
-            <span class="timeline-status">Pending</span>
+          <!-- Variables Sidebar -->
+          <div v-if="showVariables" class="variables-sidebar">
+            <h4>Available Variables</h4>
+            <div class="variables-content">
+              <div 
+                v-for="(categoryVars, category) in getTemplateVariables(activeTemplate)" 
+                :key="category"
+                class="variable-category"
+              >
+                <h5 class="category-name">{{ category }}</h5>
+                <div class="variable-list">
+                  <button
+                    v-for="variable in categoryVars"
+                    :key="variable.name"
+                    @click="insertVariable(variable.name)"
+                    class="variable-item"
+                    type="button"
+                  >
+                    <span class="variable-name">{{ variable.name }}</span>
+                    <span class="variable-description">{{ variable.description }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -196,7 +186,8 @@
 </template>
 
 <script>
-import { ref, computed, watch, reactive } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useUserStore } from '../../stores/userStore'
 
 export default {
   name: 'EmailTemplatesSection',
@@ -214,51 +205,288 @@ export default {
   emits: ['change'],
   
   setup(props, { emit }) {
-    // Email settings form
-    const emailSettings = reactive({
-      fromName: 'Lesson Booking App',
-      fromEmail: 'noreply@lessonbooking.com',
-      replyTo: 'support@lessonbooking.com',
-      footerText: '© 2024 Lesson Booking App. All rights reserved.'
-    })
+    const userStore = useUserStore()
     
-    const originalEmailSettings = ref({})
+    // State
+    const templates = ref([])
+    const activeTemplate = ref(null)
+    const editingSubject = ref('')
+    const editingBody = ref('')
+    const originalSubject = ref('')
+    const originalBody = ref('')
+    const showVariables = ref(false)
+    const error = ref('')
+    const success = ref('')
+    const loading = ref(false)
+    const saving = ref(false)
+    const testingTemplate = ref(null)
     
-    // Computed properties
-    const hasEmailChanges = computed(() => {
-      return JSON.stringify(emailSettings) !== JSON.stringify(originalEmailSettings.value)
+    // Computed
+    const hasUnsavedChanges = computed(() => {
+      if (!activeTemplate.value) return false
+      return editingSubject.value !== originalSubject.value || 
+             editingBody.value !== originalBody.value
     })
     
     // Methods
-    const saveEmailSettings = () => {
-      emit('change', {
-        action: 'save_email_settings',
-        payload: { ...emailSettings }
-      })
-    }
-    
-    const resetEmailSettings = () => {
-      Object.assign(emailSettings, originalEmailSettings.value)
-    }
-    
-    const loadInitialData = (data) => {
-      if (data && data.emailSettings) {
-        Object.assign(emailSettings, data.emailSettings)
-        originalEmailSettings.value = { ...data.emailSettings }
-      } else {
-        // Set default values
-        originalEmailSettings.value = { ...emailSettings }
+    const loadTemplates = async () => {
+      try {
+        loading.value = true
+        error.value = ''
+        
+        const response = await fetch('/api/admin/email-templates', {
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Failed to load email templates: ${response.status} ${errorText}`)
+        }
+        
+        const data = await response.json()
+        // Check if data is an array directly or has templates property
+        templates.value = Array.isArray(data) ? data : (data.templates || [])
+        
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        loading.value = false
       }
     }
     
-    // Watch for prop changes
-    watch(() => props.initialData, loadInitialData, { immediate: true })
+    const editTemplate = (template) => {
+      activeTemplate.value = template
+      editingSubject.value = template.subject_template || ''
+      editingBody.value = template.body_template || ''
+      originalSubject.value = template.subject_template || ''
+      originalBody.value = template.body_template || ''
+      showVariables.value = false
+    }
+    
+    const closeEditor = () => {
+      if (hasUnsavedChanges.value) {
+        if (!confirm('You have unsaved changes. Are you sure you want to close the editor?')) {
+          return
+        }
+      }
+      activeTemplate.value = null
+      editingSubject.value = ''
+      editingBody.value = ''
+      originalSubject.value = ''
+      originalBody.value = ''
+      showVariables.value = false
+    }
+    
+    const saveTemplate = async () => {
+      if (!activeTemplate.value) return
+      
+      try {
+        saving.value = true
+        error.value = ''
+        
+        const response = await fetch(`/api/admin/email-templates/${activeTemplate.value.template_key}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            subject_template: editingSubject.value,
+            body_template: editingBody.value
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Failed to save template')
+        }
+        
+        const result = await response.json()
+        
+        // Update the template in our list
+        const templateIndex = templates.value.findIndex(t => t.template_key === activeTemplate.value.template_key)
+        if (templateIndex !== -1) {
+          templates.value[templateIndex] = result.template
+        }
+        
+        // Update the active template and reset original values
+        activeTemplate.value = result.template
+        originalSubject.value = result.template.subject_template
+        originalBody.value = result.template.body_template
+        
+        success.value = 'Template saved successfully'
+        setTimeout(() => { success.value = '' }, 3000)
+        
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        saving.value = false
+      }
+    }
+    
+    const testTemplate = async (template) => {
+      try {
+        testingTemplate.value = template.template_key
+        error.value = ''
+        
+        const response = await fetch(`/api/admin/email-templates/${template.template_key}/test`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            recipientEmail: userStore.user.email
+          })
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Failed to send test email')
+        }
+        
+        success.value = `Test email sent to ${userStore.user.email}`
+        setTimeout(() => { success.value = '' }, 3000)
+        
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        testingTemplate.value = null
+      }
+    }
+    
+    const resetTemplate = async (template) => {
+      if (!confirm(`Are you sure you want to reset "${template.name}" to the default template? This will lose all custom changes.`)) {
+        return
+      }
+      
+      try {
+        loading.value = true
+        error.value = ''
+        
+        const response = await fetch(`/api/admin/email-templates/${template.template_key}/reset`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${userStore.token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.message || 'Failed to reset template')
+        }
+        
+        const result = await response.json()
+        
+        // Update the template in our list
+        const templateIndex = templates.value.findIndex(t => t.template_key === template.template_key)
+        if (templateIndex !== -1) {
+          templates.value[templateIndex] = result.template
+        }
+        
+        // If this template is currently being edited, update the editor
+        if (activeTemplate.value && activeTemplate.value.template_key === template.template_key) {
+          editTemplate(result.template)
+        }
+        
+        success.value = 'Template reset to default successfully'
+        setTimeout(() => { success.value = '' }, 3000)
+        
+      } catch (err) {
+        error.value = err.message
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const insertVariable = (variableName) => {
+      const textarea = document.getElementById('body-editor')
+      if (textarea) {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const text = textarea.value
+        const before = text.substring(0, start)
+        const after = text.substring(end, text.length)
+        const variableText = `{{${variableName}}}`
+        
+        editingBody.value = before + variableText + after
+        
+        // Set cursor position after the inserted variable
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(start + variableText.length, start + variableText.length)
+        }, 0)
+      }
+    }
+    
+    // Helper functions
+    const isModified = (template) => {
+      return template.is_modified || false
+    }
+    
+    const getVariableCount = (template) => {
+      try {
+        const variables = typeof template.available_variables === 'string' 
+          ? JSON.parse(template.available_variables) 
+          : template.available_variables || {}
+        return Object.values(variables).reduce((count, categoryVars) => count + categoryVars.length, 0)
+      } catch (e) {
+        return 0
+      }
+    }
+    
+    const getTemplateVariables = (template) => {
+      try {
+        return typeof template.available_variables === 'string' 
+          ? JSON.parse(template.available_variables) 
+          : template.available_variables || {}
+      } catch (e) {
+        return {}
+      }
+    }
+    
+    const formatDate = (dateString) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+    
+    // Lifecycle
+    onMounted(() => {
+      loadTemplates()
+    })
     
     return {
-      emailSettings,
-      hasEmailChanges,
-      saveEmailSettings,
-      resetEmailSettings
+      templates,
+      activeTemplate,
+      editingSubject,
+      editingBody,
+      showVariables,
+      error,
+      success,
+      loading,
+      saving,
+      testingTemplate,
+      hasUnsavedChanges,
+      loadTemplates,
+      editTemplate,
+      closeEditor,
+      saveTemplate,
+      testTemplate,
+      resetTemplate,
+      insertVariable,
+      isModified,
+      getVariableCount,
+      getTemplateVariables,
+      formatDate
     }
   }
 }
@@ -267,6 +495,7 @@ export default {
 <style scoped>
 .email-templates-section {
   max-width: 100%;
+  padding: var(--spacing-lg);
 }
 
 .section-header {
@@ -291,284 +520,395 @@ export default {
   margin-right: auto;
 }
 
-/* Future Implementation Notice */
-.future-notice {
+/* Loading State */
+.loading-container {
+  text-align: center;
   padding: var(--spacing-xl);
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 2px dashed var(--border-color);
-  border-radius: var(--border-radius-lg);
-  margin-bottom: var(--spacing-xl);
-}
-
-.notice-content h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-xl);
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 600;
-}
-
-.notice-content p {
   color: var(--text-secondary);
-  line-height: 1.6;
-  margin: 0 0 var(--spacing-lg) 0;
 }
 
-.planned-features,
-.current-templates {
-  margin-bottom: var(--spacing-lg);
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--spacing-md);
 }
 
-.planned-features h4,
-.current-templates h4 {
-  color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  margin: 0 0 var(--spacing-md) 0;
-  font-weight: 500;
-}
-
-.planned-features ul {
-  list-style: none;
-  padding: 0;
+.loading-spinner.small {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
   margin: 0;
 }
 
-.planned-features li {
-  padding: var(--spacing-xs) 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-base);
-}
-
-.template-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-sm);
-}
-
-.template-item {
+/* Messages */
+.error-banner, .success-banner {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: white;
-  border: 1px solid var(--border-color);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
-}
-
-.template-name {
+  margin-bottom: var(--spacing-lg);
   font-weight: 500;
-  color: var(--text-primary);
 }
 
-.template-status {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  background: var(--background-hover);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius-sm);
+.error-banner {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
-/* Temporary Configuration */
-.temp-config {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
+.success-banner {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
 }
 
-.temp-config h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-xl);
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 600;
+.error-text, .success-text {
+  flex: 1;
 }
 
-.temp-config > p {
-  color: var(--text-secondary);
-  margin: 0 0 var(--spacing-lg) 0;
-  line-height: 1.6;
+.error-close, .success-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  opacity: 0.7;
 }
 
-.email-form {
-  max-width: 600px;
+.error-close:hover, .success-close:hover {
+  opacity: 1;
 }
 
-.form-grid {
+/* Templates Grid */
+.templates-container {
+  max-width: 100%;
+}
+
+.templates-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+.template-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-normal);
 }
 
-.form-label {
-  font-weight: 500;
+.template-card.modified {
+  border-left: 4px solid var(--warning-color);
+}
+
+.template-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-sm);
+}
+
+.template-name {
   color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+}
+
+.template-badges {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.modified {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge.category {
+  background: var(--background-hover);
+  color: var(--text-secondary);
+}
+
+.template-description {
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.5;
+}
+
+.template-stats {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
   font-size: var(--font-size-sm);
 }
 
-.form-input,
+.stat-item {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-value {
+  color: var(--text-primary);
+}
+
+.template-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* Template Editor */
+.template-editor {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background: var(--background-light);
+  border-bottom: 1px solid var(--border-color);
+  gap: var(--spacing-md);
+}
+
+.editor-header h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  transition: background var(--transition-normal);
+}
+
+.back-button:hover {
+  background: var(--background-hover);
+}
+
+.editor-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.editor-content {
+  display: flex;
+  min-height: 600px;
+}
+
+.editor-main {
+  flex: 1;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.variables-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  transition: all var(--transition-normal);
+}
+
+.variables-toggle:hover {
+  background: var(--background-hover);
+  color: var(--text-primary);
+}
+
 .form-textarea {
+  width: 100%;
   padding: var(--spacing-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
   font-size: var(--font-size-base);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   transition: border-color var(--transition-normal);
-  font-family: var(--font-family);
+  resize: vertical;
+  background: white;
 }
 
-.form-input:focus,
 .form-textarea:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
 }
 
-.form-input:disabled,
 .form-textarea:disabled {
   background: var(--background-hover);
   opacity: 0.6;
 }
 
-.form-textarea {
-  resize: vertical;
-  min-height: 80px;
+.subject-editor {
+  min-height: 60px;
+  font-family: var(--font-family);
 }
 
-.form-help {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-  font-style: italic;
+.body-editor {
+  min-height: 400px;
+  line-height: 1.4;
 }
 
-/* Timeline Section */
-.timeline-section {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
+/* Variables Sidebar */
+.variables-sidebar {
+  width: 300px;
+  background: var(--background-light);
+  border-left: 1px solid var(--border-color);
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
-.timeline-section h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-xl);
-  margin: 0 0 var(--spacing-lg) 0;
-  font-weight: 600;
-  text-align: center;
-}
-
-.timeline {
-  position: relative;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: 20px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--border-color);
-}
-
-.timeline-item {
-  position: relative;
-  padding-left: 60px;
-  margin-bottom: var(--spacing-xl);
-}
-
-.timeline-item:last-child {
-  margin-bottom: 0;
-}
-
-.timeline-marker {
-  position: absolute;
-  left: 12px;
-  top: 0;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 3px solid var(--background-light);
-  background: var(--border-color);
-}
-
-.timeline-item.completed .timeline-marker {
-  background: var(--success-color);
-}
-
-.timeline-item.current .timeline-marker {
-  background: var(--primary-color);
-  animation: pulse 2s infinite;
-}
-
-.timeline-item.pending .timeline-marker {
-  background: var(--text-secondary);
-}
-
-.timeline-content h4 {
+.variables-sidebar h4 {
   color: var(--text-primary);
   font-size: var(--font-size-base);
-  margin: 0 0 var(--spacing-xs) 0;
-  font-weight: 500;
+  font-weight: 600;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
-.timeline-content p {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  margin: 0 0 var(--spacing-xs) 0;
-  line-height: 1.5;
-}
-
-.timeline-status {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius-sm);
-  display: inline-block;
-}
-
-.timeline-item.completed .timeline-status {
-  background: #d4edda;
-  color: #155724;
-}
-
-.timeline-item.current .timeline-status {
-  background: #d1ecf1;
-  color: #0c5460;
-}
-
-.timeline-item.pending .timeline-status {
-  background: var(--background-hover);
-  color: var(--text-secondary);
-}
-
-/* Action Buttons */
-.section-actions {
+.variables-content {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: var(--spacing-md);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
 }
 
+.variable-category {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--spacing-md);
+}
+
+.variable-category:last-child {
+  border-bottom: none;
+}
+
+.category-name {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin: 0 0 var(--spacing-sm) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.variable-item {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.variable-item:hover {
+  border-color: var(--primary-color);
+  background: var(--primary-light, #f8f9fa);
+}
+
+.variable-name {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: var(--font-size-xs);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.variable-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+/* Buttons */
 .btn {
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
   border: none;
   border-radius: var(--border-radius-sm);
   cursor: pointer;
   font-weight: 500;
   transition: all var(--transition-normal);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--spacing-xs);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  font-family: var(--font-family);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn.primary {
@@ -577,7 +917,7 @@ export default {
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--primary-dark);
+  background: var(--primary-dark, #218838);
 }
 
 .btn.secondary {
@@ -590,78 +930,109 @@ export default {
   background: var(--border-color);
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn.warning {
+  background: var(--warning-color, #ffc107);
+  color: var(--text-primary);
 }
 
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.btn.warning:hover:not(:disabled) {
+  background: #e0a800;
 }
 
+/* Animations */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .editor-content {
+    flex-direction: column;
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  
+  .variables-sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    max-height: 300px;
   }
-  100% {
-    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+  
+  .editor-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: stretch;
+  }
+  
+  .editor-actions {
+    justify-content: flex-end;
   }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .future-notice {
-    text-align: center;
+  .email-templates-section {
+    padding: var(--spacing-md);
   }
   
-  .template-list {
+  .templates-grid {
     grid-template-columns: 1fr;
+    gap: var(--spacing-md);
   }
   
-  .timeline::before {
-    left: 15px;
-  }
-  
-  .timeline-item {
-    padding-left: 50px;
-  }
-  
-  .timeline-marker {
-    left: 7px;
-  }
-  
-  .section-actions {
+  .template-header {
     flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+  
+  .template-stats {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .template-actions {
+    flex-direction: column;
+  }
+  
+  .editor-header h3 {
+    font-size: var(--font-size-base);
+  }
+  
+  .editor-actions {
+    flex-direction: column;
+  }
+  
+  .variables-sidebar {
+    padding: var(--spacing-md);
   }
 }
 
 @media (max-width: 480px) {
-  .temp-config,
-  .timeline-section {
+  .editor-main {
     padding: var(--spacing-md);
+  }
+  
+  .body-editor {
+    min-height: 300px;
+  }
+  
+  .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
   }
 }
 
 /* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-  .timeline-marker {
+  .loading-spinner {
     animation: none;
   }
   
-  .loading-spinner {
-    animation: none;
+  .template-card {
+    transition: none;
+  }
+  
+  .btn {
+    transition: none;
   }
 }
 </style>
