@@ -38,8 +38,6 @@ class EmailQueueService {
             this.queue.push(emailJob);
         }
 
-        console.log(`Email queued: ${emailType} (ID: ${emailJob.id})`);
-
         // Start processing if not already running
         if (!this.processing) {
             this.processQueue();
@@ -57,7 +55,6 @@ class EmailQueueService {
         }
 
         this.processing = true;
-        console.log(`Starting email queue processing. Queue size: ${this.queue.length}`);
 
         while (this.queue.length > 0) {
             const job = this.queue.shift();
@@ -75,7 +72,6 @@ class EmailQueueService {
         }
 
         this.processing = false;
-        console.log('Email queue processing completed');
     }
 
     /**
@@ -132,7 +128,6 @@ class EmailQueueService {
 
             if (result.success) {
                 job.status = 'completed';
-                console.log(`Email job ${job.id} completed successfully`);
             } else {
                 throw new Error(result.error);
             }
@@ -143,7 +138,6 @@ class EmailQueueService {
             // Retry logic
             if (job.attempts < this.retryAttempts) {
                 job.status = 'retrying';
-                console.log(`Retrying email job ${job.id} in ${this.retryDelay}ms`);
                 
                 // Add back to queue for retry after delay
                 setTimeout(() => {
@@ -274,7 +268,6 @@ class EmailQueueService {
         const clearedCount = this.queue.length;
         this.queue = [];
         this.processing = false;
-        console.log(`Cleared ${clearedCount} emails from queue`);
         return clearedCount;
     }
 }

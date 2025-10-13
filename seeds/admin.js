@@ -7,10 +7,6 @@ const createAdminUser = async (models) => {
             where: { role: 'admin' }
         });
 
-        if (existingAdmin) {
-            console.log('An admin user already exists');
-            return;
-        }
 
         // Create default admin user
         const hashedPassword = await bcrypt.hash(
@@ -26,7 +22,6 @@ const createAdminUser = async (models) => {
             credits: 0
         });
 
-        console.log('Default admin user created successfully');
     } catch (error) {
         console.error('Error creating admin user:', error);
         throw error;

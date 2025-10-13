@@ -67,7 +67,7 @@ class Logger {
                     break;
                 default:
                     // eslint-disable-next-line no-console
-                    console.log(formattedMessage);
+                    // console.log(formattedMessage);
             }
         }
     }

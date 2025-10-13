@@ -49,7 +49,6 @@ const InstructorAvailability = sequelize.define('InstructorAvailability', {
 const createAvailabilityTables = async () => {
     try {
         await InstructorAvailability.sync();
-        console.log('Availability table created successfully');
     } catch (error) {
         console.error('Error creating availability table:', error);
         throw error;

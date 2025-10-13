@@ -945,6 +945,298 @@ router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, r
 });
 
 // =============================================================================
+// EMAIL TEMPLATE MANAGEMENT ENDPOINTS - Admin interface for managing email templates
+// =============================================================================
+
+const { EmailTemplate } = require('../models/EmailTemplate');
+const emailService = require('../services/EmailService');
+
+// Get all email templates
+router.get('/email-templates', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const templates = await EmailTemplate.getAllActive();
+        
+        // Add metadata about modifications
+        const templatesWithStatus = templates.map(template => {
+            const availableVars = template.available_variables || {};
+            const variableCount = Object.keys(availableVars).reduce((count, category) => {
+                return count + Object.keys(availableVars[category] || {}).length;
+            }, 0);
+            
+            return {
+                ...template.toJSON(),
+                isModified: EmailTemplate.isModified(template),
+                variableCount
+            };
+        });
+        
+        res.json(templatesWithStatus);
+    } catch (error) {
+        console.error('Error fetching email templates:', error);
+        res.status(500).json({ error: 'Error fetching email templates' });
+    }
+});
+
+// Get specific email template by key
+router.get('/email-templates/:templateKey', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const { templateKey } = req.params;
+        const template = await EmailTemplate.findByKey(templateKey);
+        
+        if (!template) {
+            return res.status(404).json({ error: 'Email template not found' });
+        }
+        
+        res.json({
+            ...template.toJSON(),
+            isModified: EmailTemplate.isModified(template),
+            available_variables: template.available_variables || {}
+        });
+    } catch (error) {
+        console.error('Error fetching email template:', error);
+        res.status(500).json({ error: 'Error fetching email template' });
+    }
+});
+
+// Update email template
+router.put('/email-templates/:templateKey', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const { templateKey } = req.params;
+        const { subject_template, body_template } = req.body;
+        
+        if (!subject_template && !body_template) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                details: 'Either subject_template or body_template must be provided'
+            });
+        }
+        
+        // Validate template syntax if provided
+        if (body_template) {
+            const validation = EmailTemplate.validateTemplate(subject_template || '', body_template);
+            if (!validation.isValid) {
+                return res.status(400).json({
+                    error: 'Invalid template syntax',
+                    details: validation.errors
+                });
+            }
+        }
+        
+        const updates = {};
+        if (subject_template !== undefined) updates.subject_template = subject_template;
+        if (body_template !== undefined) updates.body_template = body_template;
+        
+        const updatedTemplate = await EmailTemplate.updateTemplate(templateKey, updates, req.user.id);
+        
+        if (!updatedTemplate) {
+            return res.status(404).json({ error: 'Email template not found' });
+        }
+        
+        // Clear template from cache so changes take effect immediately
+        emailService.clearTemplateFromCache(templateKey);
+        
+        res.json({
+            success: true,
+            message: 'Email template updated successfully',
+            template: {
+                ...updatedTemplate.toJSON(),
+                isModified: EmailTemplate.isModified(updatedTemplate),
+                available_variables: updatedTemplate.available_variables || {}
+            }
+        });
+    } catch (error) {
+        console.error('Error updating email template:', error);
+        res.status(500).json({ error: 'Error updating email template' });
+    }
+});
+
+// Reset email template to default
+router.post('/email-templates/:templateKey/reset', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const { templateKey } = req.params;
+        
+        const resetTemplate = await EmailTemplate.resetToDefault(templateKey, req.user.id);
+        
+        if (!resetTemplate) {
+            return res.status(404).json({ error: 'Email template not found' });
+        }
+        
+        // Clear template from cache so changes take effect immediately
+        emailService.clearTemplateFromCache(templateKey);
+        
+        res.json({
+            success: true,
+            message: 'Email template reset to default successfully',
+            template: {
+                ...resetTemplate.toJSON(),
+                isModified: false,
+                available_variables: resetTemplate.available_variables || {}
+            }
+        });
+    } catch (error) {
+        console.error('Error resetting email template:', error);
+        res.status(500).json({ error: 'Error resetting email template' });
+    }
+});
+
+// Send test email
+router.post('/email-templates/:templateKey/test', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const { templateKey } = req.params;
+        const { test_email, subject_template, body_template, use_sample_data = true } = req.body;
+        
+        if (!test_email) {
+            return res.status(400).json({
+                error: 'Missing required field',
+                details: 'test_email is required'
+            });
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(test_email)) {
+            return res.status(400).json({
+                error: 'Invalid email address',
+                details: 'Please provide a valid email address'
+            });
+        }
+        
+        const template = await EmailTemplate.findByKey(templateKey);
+        if (!template) {
+            return res.status(404).json({ error: 'Email template not found' });
+        }
+        
+        // Use provided templates or fall back to database templates
+        const subjectToRender = subject_template || template.subject_template;
+        const bodyToRender = body_template || template.body_template;
+        
+        // Validate template syntax
+        const validation = EmailTemplate.validateTemplate(subjectToRender, bodyToRender);
+        if (!validation.isValid) {
+            return res.status(400).json({
+                error: 'Invalid template syntax',
+                details: validation.errors
+            });
+        }
+        
+        let sampleData = {};
+        if (use_sample_data) {
+            // Generate sample data based on available variables
+            const availableVars = template.available_variables || {};
+            
+            for (const [category, variables] of Object.entries(availableVars)) {
+                sampleData[category] = {};
+                for (const [varName, varInfo] of Object.entries(variables)) {
+                    sampleData[category][varName] = varInfo.example || `[${varName}]`;
+                }
+            }
+            
+            // Add common template data
+            sampleData.emailTitle = subjectToRender;
+            sampleData.headerTitle = '🧪 Test Email';
+            sampleData.headerSubtitle = `Test email for template: ${template.name}`;
+            sampleData.companyName = 'Sample Company';
+            sampleData.currentYear = new Date().getFullYear();
+            sampleData.recipientEmail = test_email;
+        }
+        
+        try {
+            // Compile and render the templates
+            const handlebars = require('handlebars');
+            
+            const compiledSubject = handlebars.compile(subjectToRender);
+            const renderedSubject = `[TEST] ${compiledSubject(sampleData)}`;
+            
+            const compiledBody = handlebars.compile(bodyToRender);
+            const renderedBody = compiledBody(sampleData);
+            
+            // Use the email service's base template for proper styling
+            const finalHtml = await emailService.loadBaseTemplate(
+                () => renderedBody,
+                { ...sampleData, headerTitle: '🧪 Test Email', headerSubtitle: `Test email for template: ${template.name}` }
+            );
+            
+            // Send the test email
+            const emailResult = await emailService.sendEmail(test_email, renderedSubject, finalHtml);
+            
+            if (emailResult.success) {
+                res.json({
+                    success: true,
+                    message: 'Test email sent successfully',
+                    details: {
+                        recipient: test_email,
+                        subject: renderedSubject,
+                        messageId: emailResult.messageId,
+                        templateUsed: template.name
+                    }
+                });
+            } else {
+                res.status(500).json({
+                    error: 'Failed to send test email',
+                    details: emailResult.error
+                });
+            }
+        } catch (renderError) {
+            res.status(400).json({
+                error: 'Template rendering failed',
+                details: renderError.message
+            });
+        }
+    } catch (error) {
+        console.error('Error sending test email:', error);
+        res.status(500).json({ error: 'Error sending test email' });
+    }
+});
+
+// Get email template categories and variables
+router.get('/email-templates/meta/variables', authorize('manage', 'all'), async (req, res) => {
+    try {
+        const templates = await EmailTemplate.getAllActive();
+        
+        // Aggregate all unique variable categories and variables
+        const variablesByCategory = {};
+        const templatesByCategory = {};
+        
+        templates.forEach(template => {
+            const availableVars = template.available_variables || {};
+            
+            // Group templates by category
+            if (!templatesByCategory[template.category]) {
+                templatesByCategory[template.category] = [];
+            }
+            templatesByCategory[template.category].push({
+                key: template.template_key,
+                name: template.name,
+                description: template.description
+            });
+            
+            // Collect variables by category
+            for (const [varCategory, variables] of Object.entries(availableVars)) {
+                if (!variablesByCategory[varCategory]) {
+                    variablesByCategory[varCategory] = {};
+                }
+                
+                for (const [varName, varInfo] of Object.entries(variables)) {
+                    if (!variablesByCategory[varCategory][varName]) {
+                        variablesByCategory[varCategory][varName] = varInfo;
+                    }
+                }
+            }
+        });
+        
+        res.json({
+            variablesByCategory,
+            templatesByCategory,
+            totalTemplates: templates.length,
+            categories: Object.keys(templatesByCategory)
+        });
+    } catch (error) {
+        console.error('Error fetching template variables:', error);
+        res.status(500).json({ error: 'Error fetching template variables' });
+    }
+});
+
+// =============================================================================
 // SETTINGS ENDPOINTS - Placeholder implementation for theming and branding
 // =============================================================================
 

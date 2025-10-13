@@ -148,8 +148,22 @@ class EmailService {
         }
 
         try {
-            const templatePath = path.join(__dirname, '..', 'email-templates', 'contents', `${templateName}.html`);
-            const templateContent = await fs.readFile(templatePath, 'utf8');
+            // First try to load from database
+            const { EmailTemplate } = require('../models/EmailTemplate');
+            const dbTemplate = await EmailTemplate.findByKey(templateName);
+            
+            let templateContent;
+            if (dbTemplate && dbTemplate.is_active) {
+                // Use database template
+                templateContent = dbTemplate.body_template;
+                logger.email(`Loaded template from database: ${templateName}`);
+            } else {
+                // Fallback to file system
+                const templatePath = path.join(__dirname, '..', 'email-templates', 'contents', `${templateName}.html`);
+                templateContent = await fs.readFile(templatePath, 'utf8');
+                logger.email(`Loaded template from file: ${templateName}`);
+            }
+            
             const compiledTemplate = handlebars.compile(templateContent);
             
             // Cache the compiled template
@@ -317,7 +331,8 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            const subject = 'Purchase Confirmation - Lesson Credits';
+            // Get subject from database template, fallback to default
+            const subject = await this.getTemplateSubject('purchase-confirmation', 'Purchase Confirmation - Lesson Credits');
             const htmlContent = await this.generatePurchaseConfirmationHTML(user, planDetails, transactionDetails);
 
             return await this.sendEmail(user.email, subject, htmlContent);
@@ -382,7 +397,7 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            const subject = 'Lesson Credits Running Low';
+            const subject = await this.getTemplateSubject('low-balance-warning', 'Lesson Credits Running Low');
             const htmlContent = await this.generateLowBalanceHTML(user, creditsRemaining);
 
             return await this.sendEmail(user.email, subject, htmlContent);
@@ -406,7 +421,9 @@ class EmailService {
                 throw new Error(`${recipientType} email not found in booking data`);
             }
 
-            const subject = `Lesson Rescheduled - ${isForStudent ? 'Updated' : 'Student Updated'} Booking`;
+            const templateKey = isForStudent ? 'rescheduling-student' : 'rescheduling-instructor';
+            const defaultSubject = `Lesson Rescheduled - ${isForStudent ? 'Updated' : 'Student Updated'} Booking`;
+            const subject = await this.getTemplateSubject(templateKey, defaultSubject);
             const htmlContent = await this.generateReschedulingHTML(oldBooking, newBooking, recipientType);
             
             // Generate updated calendar attachment
@@ -472,7 +489,7 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            const subject = 'All Lesson Credits Used - Time to Restock!';
+            const subject = await this.getTemplateSubject('credits-exhausted', 'All Lesson Credits Used - Time to Restock!');
             const htmlContent = await this.generateCreditsExhaustedHTML(user, totalLessonsCompleted);
 
             return await this.sendEmail(user.email, subject, htmlContent);
@@ -548,15 +565,15 @@ class EmailService {
                 throw new Error('Student email not found in booking data');
             }
 
-            const subject = 'Lesson Booking Confirmed';
+            const subject = await this.getTemplateSubject('booking-confirmation', 'Lesson Booking Confirmed');
             const htmlContent = await this.generateBookingConfirmationHTML(bookingData, paymentMethod);
             
             // Generate calendar attachment
             const calendarAttachment = this.generateCalendarAttachment(bookingData);
 
             return await this.sendEmailWithAttachment(
-                bookingData.student.email, 
-                subject, 
+                bookingData.student.email,
+                subject,
                 htmlContent,
                 calendarAttachment
             );
@@ -733,7 +750,7 @@ class EmailService {
                 throw new Error('Student email not found in booking data');
             }
 
-            const subject = 'Lesson Update - Book Your Next Session';
+            const subject = await this.getTemplateSubject('absence-notification', 'Lesson Update - Book Your Next Session');
             const htmlContent = await this.generateAbsenceNotificationHTML(bookingData, attendanceNotes);
 
             return await this.sendEmail(bookingData.student.email, subject, htmlContent);
@@ -878,6 +895,45 @@ class EmailService {
             console.error('Error generating calendar attachment:', error);
             return null; // Return null if calendar generation fails
         }
+    }
+
+    // Helper method to get template subject from database with fallback
+    async getTemplateSubject(templateKey, defaultSubject) {
+        try {
+            const { EmailTemplate } = require('../models/EmailTemplate');
+            const dbTemplate = await EmailTemplate.findByKey(templateKey);
+            
+            if (dbTemplate && dbTemplate.is_active && dbTemplate.subject_template) {
+                return dbTemplate.subject_template;
+            }
+            
+            return defaultSubject;
+        } catch (error) {
+            console.error(`Failed to get template subject for ${templateKey}:`, error);
+            return defaultSubject;
+        }
+    }
+
+    // Clear template cache (useful for when templates are updated)
+    clearTemplateCache() {
+        this.templateCache.clear();
+        logger.email('Template cache cleared');
+    }
+
+    // Clear specific template from cache
+    clearTemplateFromCache(templateKey) {
+        const keysToRemove = [];
+        for (const [key] of this.templateCache) {
+            if (key.includes(templateKey)) {
+                keysToRemove.push(key);
+            }
+        }
+        
+        keysToRemove.forEach(key => {
+            this.templateCache.delete(key);
+        });
+        
+        logger.email(`Template cache cleared for: ${templateKey}`);
     }
 }
 

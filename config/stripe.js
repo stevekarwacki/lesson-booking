@@ -61,7 +61,6 @@ async function cancelSubscription(subscriptionId) {
         
         // If already canceled, return it as-is
         if (currentSubscription.status === 'canceled') {
-            console.log('Subscription already canceled in Stripe:', subscriptionId);
             return currentSubscription;
         }
         
