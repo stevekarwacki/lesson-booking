@@ -190,7 +190,6 @@ module.exports = {
           updated_at: new Date()
         });
         
-        console.log(`✓ Loaded template: ${templateDef.template_key}`);
       } catch (error) {
         console.error(`✗ Failed to load template ${templateDef.template_key}:`, error.message);
         // Continue with other templates even if one fails
@@ -199,15 +198,11 @@ module.exports = {
 
     if (templateRecords.length > 0) {
       await queryInterface.bulkInsert('email_templates', templateRecords);
-      console.log(`✓ Successfully seeded ${templateRecords.length} email templates`);
-    } else {
-      console.log('✗ No templates were loaded - check file paths and permissions');
     }
   },
 
   async down(queryInterface, Sequelize) {
     // Remove all seeded templates
     await queryInterface.bulkDelete('email_templates', null, {});
-    console.log('✓ Removed all email templates');
   }
 };
