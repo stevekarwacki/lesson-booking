@@ -1,21 +1,21 @@
-<div style="margin: 25px 0;">
-    <h3>{{title}}</h3>
+<div style="margin: 28px 0;">
+    <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 20px 0; font-weight: 600;">{{title}}</h3>
     
     {{#if description}}
-    <p>{{description}}</p>
+    <p style="color: #6c757d; margin: 0 0 20px 0; font-size: 14px; line-height: 1.5;">{{description}}</p>
     {{/if}}
     
-    <ul style="list-style: none; padding: 0;">
+    <div style="background-color: #f5f7fa; border-radius: 10px; padding: 20px; border: 1px solid #e0e0e0;">
         {{#each steps}}
-        <li style="margin: 12px 0; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">
-            <span class="icon">{{icon}}</span>
-            <strong>{{title}}:</strong> {{description}}
-        </li>
+        <div style="margin: 16px 0; padding: 16px; background-color: #ffffff; border-left: 3px solid #42b883; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+            <div style="font-weight: 600; color: #2c3e50; margin-bottom: 6px; font-size: 15px;">{{title}}</div>
+            <div style="color: #6c757d; font-size: 14px; line-height: 1.4;">{{description}}</div>
+        </div>
         {{/each}}
-    </ul>
+    </div>
     
     {{#if footerNote}}
-    <p style="font-style: italic; color: #6c757d; margin-top: 20px;">
+    <p style="font-style: italic; color: #6c757d; margin-top: 20px; font-size: 13px; text-align: center;">
         {{footerNote}}
     </p>
     {{/if}}

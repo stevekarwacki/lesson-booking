@@ -184,18 +184,41 @@ class EmailService {
         const { AppSettings } = require('../models/AppSettings');
         const businessSettings = await AppSettings.getSettingsByCategory('business');
         
+        // Get logo URL from branding settings
+        const logoPath = await AppSettings.getSetting('branding', 'logo_url');
+        
+        // Convert relative logo path to absolute URL for emails
+        let logoUrl = null;
+        if (logoPath) {
+            // If logoPath is already absolute (starts with http), use as-is
+            if (logoPath.startsWith('http')) {
+                logoUrl = logoPath;
+            } else {
+                // Construct absolute URL using base_url from business settings
+                const baseUrl = businessSettings.base_url || process.env.WEBSITE_URL || process.env.FRONTEND_URL;
+                if (baseUrl) {
+                    // Ensure logoPath starts with / for proper URL construction
+                    const cleanLogoPath = logoPath.startsWith('/') ? logoPath : `/${logoPath}`;
+                    logoUrl = `${baseUrl.replace(/\/$/, '')}${cleanLogoPath}`;
+                }
+            }
+        }
+        
         // Then render the base template with the content
         const baseData = {
             ...templateData,
             content: contentHtml,
-            companyName: process.env.COMPANY_NAME || 'Lesson Booking',
+            companyName: businessSettings.company_name || 'Lesson Booking',
+            logoUrl: logoUrl,
+            contactEmail: businessSettings.contact_email || null,
+            phoneNumber: businessSettings.phone_number || null,
             recipientEmail: templateData.recipientEmail || templateData.studentEmail || templateData.userEmail,
             currentYear: createDateHelper().toDate().getFullYear(),
             supportUrl: process.env.SUPPORT_URL || '#',
             unsubscribeUrl: templateData.unsubscribeUrl || '#',
             preferencesUrl: templateData.preferencesUrl || '#',
             socialLinks: {
-                website: process.env.WEBSITE_URL || businessSettings.base_url,
+                website: businessSettings.base_url || process.env.WEBSITE_URL,
                 twitter: businessSettings.social_media_twitter || process.env.TWITTER_URL,
                 facebook: businessSettings.social_media_facebook || process.env.FACEBOOK_URL,
                 instagram: businessSettings.social_media_instagram || process.env.INSTAGRAM_URL,
@@ -305,6 +328,10 @@ class EmailService {
     }
 
     async generatePurchaseConfirmationHTML(user, planDetails, transactionDetails) {
+        // Get business settings for URLs
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
         // Load the content template
         const contentTemplate = await this.loadContentTemplate('purchase-confirmation');
         
@@ -314,6 +341,9 @@ class EmailService {
             emailTitle: 'Purchase Confirmation - Lesson Credits',
             headerTitle: '🎉 Purchase Successful!',
             headerSubtitle: 'Your lesson credits have been added',
+            
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
             
             // Recipient info
             userName: user.name,
@@ -327,33 +357,14 @@ class EmailService {
             transactionDate: createDateHelper().toDate().toLocaleDateString(),
             transactionId: transactionDetails.payment_intent_id,
             
-            // Next steps
-            nextSteps: [
-                {
-                    icon: '🎯',
-                    title: 'Browse Instructors',
-                    description: 'Find the perfect instructor for your learning goals and schedule'
-                },
-                {
-                    icon: '📅',
-                    title: 'Book Your First Lesson',
-                    description: 'Use your new credits to schedule a lesson at your convenience'
-                },
-                {
-                    icon: '🚀',
-                    title: 'Start Learning',
-                    description: 'Join your lesson and begin your educational journey'
-                }
-            ],
-            
             // CTA buttons
             dashboardButton: {
-                url: process.env.FRONTEND_URL || '#',
-                text: 'View Dashboard',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/book-lesson` : '#',
+                text: 'Manage Lessons',
                 style: 'primary'
             },
             bookingButton: {
-                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/instructors` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/instructors` : '#',
                 text: 'Book a Lesson',
                 style: 'success'
             }
@@ -414,6 +425,10 @@ class EmailService {
     }
 
     async generateLowBalanceHTML(user, creditsRemaining) {
+        // Get business settings for URLs
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
         // Load the content template
         const contentTemplate = await this.loadContentTemplate('low-balance-warning');
         
@@ -424,39 +439,23 @@ class EmailService {
             headerTitle: '⚠️ Credits Running Low',
             headerSubtitle: 'Time to restock your lesson credits',
             
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
+            
             // Recipient info
             userName: user.name,
             userEmail: user.email,
             creditsRemaining: creditsRemaining,
             
-            // Next steps
-            nextSteps: [
-                {
-                    icon: '💳',
-                    title: 'Choose Your Package',
-                    description: 'Select from our flexible lesson packages to suit your learning needs'
-                },
-                {
-                    icon: '⚡',
-                    title: 'Instant Credit Add',
-                    description: 'Credits are added immediately after purchase - no waiting time'
-                },
-                {
-                    icon: '📚',
-                    title: 'Continue Learning',
-                    description: 'Keep your learning momentum going without interruption'
-                }
-            ],
-            
             // CTA buttons
             purchaseButton: {
-                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/plans` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/plans` : '#',
                 text: 'Purchase Credits',
                 style: 'warning'
             },
             dashboardButton: {
-                url: process.env.FRONTEND_URL || '#',
-                text: 'View Dashboard',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/book-lesson` : '#',
+                text: 'Manage Lessons',
                 style: 'secondary'
             }
         };
@@ -484,6 +483,10 @@ class EmailService {
     }
 
     async generateCreditsExhaustedHTML(user, totalLessonsCompleted) {
+        // Get business settings for URLs
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
         // Load the content template
         const contentTemplate = await this.loadContentTemplate('credits-exhausted');
         
@@ -493,6 +496,9 @@ class EmailService {
             emailTitle: 'Credits Exhausted - Get More Lessons',
             headerTitle: '🎯 All Credits Used!',
             headerSubtitle: 'Great progress - time to get more lessons',
+            
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
             
             // Recipient info
             studentName: user.name,
@@ -520,7 +526,7 @@ class EmailService {
             
             // CTA buttons
             purchaseButton: {
-                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/plans` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/plans` : '#',
                 text: 'Purchase Credits',
                 style: 'primary'
             },
@@ -586,6 +592,10 @@ class EmailService {
         const paymentDisplay = paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card';
         const instructorName = booking.Instructor?.User?.name || 'Your Instructor';
 
+        // Get business settings for phone number
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+
         // Load the content template
         const contentTemplate = await this.loadContentTemplate('booking-confirmation');
         
@@ -595,6 +605,9 @@ class EmailService {
             emailTitle: 'Lesson Booking Confirmed',
             headerTitle: '✅ Lesson Booked Successfully!',
             headerSubtitle: 'Your lesson has been confirmed',
+            
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
             
             // Recipient info
             studentName: booking.student.name,
@@ -609,34 +622,15 @@ class EmailService {
             paymentDisplay: paymentDisplay,
             bookingId: booking.id,
             
-            // Next steps
-            nextSteps: [
-                {
-                    icon: '📅',
-                    title: 'Add to Calendar',
-                    description: 'Click the attached calendar file (.ics) to automatically add this lesson to your calendar'
-                },
-                {
-                    icon: '📝',
-                    title: 'Prepare Materials',
-                    description: 'Gather any materials you\'d like to work on during your lesson'
-                },
-                {
-                    icon: '💬',
-                    title: 'Contact Instructor',
-                    description: 'Reach out if you have any questions or special requests'
-                }
-            ],
-            
             // CTA buttons
             primaryButton: {
-                url: process.env.FRONTEND_URL || '#',
-                text: 'View Dashboard',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/book-lesson` : '#',
+                text: 'Manage Lessons',
                 style: 'primary'
             },
             secondaryButton: {
-                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/bookings` : '#',
-                text: 'Manage Bookings',
+                url: businessSettings.phone_number ? `tel:${businessSettings.phone_number}` : '#',
+                text: businessSettings.phone_number ? `📞 ${businessSettings.phone_number}` : 'Contact Support',
                 style: 'secondary'
             }
         };
@@ -680,6 +674,10 @@ class EmailService {
         const otherPartyName = isForStudent ? newBooking.Instructor?.User?.name : newBooking.student?.name;
         const otherPartyRole = isForStudent ? 'instructor' : 'student';
 
+        // Get business settings for phone number
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+
         // Load appropriate template based on recipient type
         const templateName = isForStudent ? 'rescheduling-student' : 'rescheduling-instructor';
         const contentTemplate = await this.loadContentTemplate(templateName);
@@ -690,6 +688,9 @@ class EmailService {
             emailTitle: 'Lesson Rescheduled',
             headerTitle: '📅 Lesson Rescheduled',
             headerSubtitle: isForStudent ? 'Your lesson has been moved to a new time' : `${newBooking.student?.name} has rescheduled their lesson`,
+            
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
             
             // Recipient info
             studentName: newBooking.student?.name,
@@ -708,34 +709,15 @@ class EmailService {
             newDuration: newBooking.duration * 15,
             bookingId: newBooking.id,
             
-            // Next steps
-            nextSteps: [
-                {
-                    icon: '📅',
-                    title: 'Update Your Calendar',
-                    description: 'Click the attached calendar file (.ics) to update this lesson in your calendar'
-                },
-                {
-                    icon: '📝',
-                    title: 'Review Materials',
-                    description: 'Review any materials you\'ve prepared for the lesson'
-                },
-                {
-                    icon: '💬',
-                    title: `Contact Your ${isForStudent ? 'Instructor' : 'Student'}`,
-                    description: `Reach out if you have any questions about the change`
-                }
-            ],
-            
             // CTA buttons
             dashboardButton: {
-                url: process.env.FRONTEND_URL || '#',
-                text: 'View Dashboard',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/book-lesson` : '#',
+                text: 'Manage Lessons',
                 style: 'primary'
             },
             contactButton: {
-                url: process.env.SUPPORT_URL || '#',
-                text: 'Contact Support',
+                url: businessSettings.phone_number ? `tel:${businessSettings.phone_number}` : '#',
+                text: businessSettings.phone_number ? `📞 ${businessSettings.phone_number}` : 'Contact Support',
                 style: 'secondary'
             }
         };
@@ -762,6 +744,10 @@ class EmailService {
     }
 
     async generateAbsenceNotificationHTML(booking, attendanceNotes) {
+        // Get business settings for URLs
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
         // Convert slot to readable time using UTC slots (0 = 00:00 UTC)
         const startHour = Math.floor(booking.start_slot / 4);
         const startMinute = (booking.start_slot % 4) * 15;
@@ -796,6 +782,9 @@ class EmailService {
             headerTitle: '📅 Lesson Update',
             headerSubtitle: 'Your lesson status and next steps',
             
+            // Company info
+            companyName: businessSettings.company_name || 'Lesson Booking',
+            
             // Recipient info
             studentName: booking.student.name,
             studentEmail: booking.student.email,
@@ -811,7 +800,7 @@ class EmailService {
             
             // CTA buttons
             primaryButton: {
-                url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/book-lesson` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/book-lesson` : '#',
                 text: 'Book New Lesson',
                 style: 'primary'
             },

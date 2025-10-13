@@ -1,29 +1,31 @@
-<div style="margin: 30px 0; text-align: center;">
+<div style="margin: 32px 0; text-align: center; background-color: #f5f7fa; padding: 28px; border-radius: 12px; border: 1px solid #e0e0e0;">
     {{#if title}}
-    <h3>{{title}}</h3>
+    <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 12px 0; font-weight: 600;">{{title}}</h3>
     {{/if}}
     
     {{#if description}}
-    <p>{{description}}</p>
+    <p style="color: #6c757d; margin: 0 0 24px 0; font-size: 14px; line-height: 1.5;">{{description}}</p>
     {{/if}}
     
-    {{#if primaryButton}}
-    <a href="{{primaryButton.url}}" class="btn btn-{{primaryButton.style}}" style="margin: 10px;">
-        {{primaryButton.text}}
-    </a>
-    {{/if}}
-    
-    {{#if secondaryButton}}
-    <a href="{{secondaryButton.url}}" class="btn btn-{{secondaryButton.style}}" style="margin: 10px;">
-        {{secondaryButton.text}}
-    </a>
-    {{/if}}
-    
-    {{#if buttons}}
-    {{#each buttons}}
-    <a href="{{url}}" class="btn btn-{{style}}" style="margin: 10px;">
-        {{text}}
-    </a>
-    {{/each}}
-    {{/if}}
+    <div style="margin: 20px 0;">
+        {{#if primaryButton}}
+        <a href="{{primaryButton.url}}" class="btn btn-{{primaryButton.style}}" style="margin: 8px;">
+            {{primaryButton.text}}
+        </a>
+        {{/if}}
+        
+        {{#if secondaryButton}}
+        <a href="{{secondaryButton.url}}" class="btn btn-{{secondaryButton.style}}" style="margin: 8px;">
+            {{secondaryButton.text}}
+        </a>
+        {{/if}}
+        
+        {{#if buttons}}
+        {{#each buttons}}
+        <a href="{{url}}" class="btn btn-{{style}}" style="margin: 8px;">
+            {{text}}
+        </a>
+        {{/each}}
+        {{/if}}
+    </div>
 </div>

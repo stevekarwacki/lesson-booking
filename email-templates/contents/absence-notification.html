@@ -1,10 +1,9 @@
-<p>Hello {{studentName}},</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{studentName}},</p>
 
-<p>We noticed you weren't able to make it to your scheduled lesson today. No worries - we understand that things come up!</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">We wanted to follow up on your recent lesson and provide you with some important information about your booking.</p>
 
-{{> lesson-details 
-    sectionTitle="📅 Missed Lesson"
-    boxStyle="warning"
+{{> lesson-details
+    sectionTitle="Lesson Information"
     lessonDate=lessonDate
     startTime=startTime
     endTime=endTime
@@ -12,23 +11,24 @@
     instructorName=instructorName
     instructorLabel="Instructor"
     bookingId=bookingId
-    location="Online Lesson"
 }}
 
 {{#if attendanceNotes}}
-<div class="detail-box">
-    <h3>📝 Instructor Notes</h3>
-    <p style="font-style: italic; color: #6c757d;">{{attendanceNotes}}</p>
+<div class="detail-box" style="margin: 28px 0;">
+    <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 16px 0; font-weight: 600;">Lesson Notes</h3>
+    <p style="color: #6c757d; font-size: 15px; line-height: 1.5; margin: 0; padding: 16px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0;">{{attendanceNotes}}</p>
 </div>
 {{/if}}
 
-<p>When you're ready, you can book your next lesson with {{instructorName}} using the link below.</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Don't let this pause your learning momentum! Schedule your next lesson and continue making progress toward your goals.</p>
 
 {{> cta-section
+    title="Ready for Your Next Lesson?"
+    description="Book another session with your instructor or explore lessons with other teachers."
     primaryButton=primaryButton
     secondaryButton=secondaryButton
 }}
 
-<p>If you experienced any technical issues or need assistance, feel free to reach out - we're here to help!</p>
+<p style="font-size: 15px; line-height: 1.6; margin: 28px 0 0 0; color: #6c757d;">If you have any questions about this lesson or need assistance with booking, our support team is here to help.</p>
 
-<p>Best regards,<br>{{companyName}}</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{companyName}}</span></p>

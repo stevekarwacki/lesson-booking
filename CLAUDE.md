@@ -146,8 +146,8 @@ cd frontend && npm run test -- booking-modal.test.js
 - Booking validation checks instructor availability and conflicts
 
 **Credit System**:
-- 30-minute lessons deduct 1 credit
-- 60-minute lessons deduct 2 credits (proportional pricing)
+- 30-minute lessons deduct 1 30-minute credit
+- 60-minute lessons deduct 1 60-minute credit
 - Credits stored in `Credits` model per student
 - Validation in `creditValidation.js` before booking
 - Restoration on cancellation/refund via `RefundService.js`

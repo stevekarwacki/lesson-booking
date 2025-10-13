@@ -43,42 +43,42 @@
     {{else}}
     <!-- Standard Lesson Details Layout -->
     <div class="detail-row">
-        <span class="detail-label">📅 Date:</span>
+        <span class="detail-label">Date:</span>
         <span class="detail-value">{{lessonDate}}</span>
     </div>
     
     <div class="detail-row">
-        <span class="detail-label">🕐 Time:</span>
-        <span class="detail-value" style="font-size: 18px; font-weight: bold; color: #28a745;">
+        <span class="detail-label">Time:</span>
+        <span class="detail-value" style="font-size: 16px; font-weight: 600; color: #42b883;">
             {{startTime}} - {{endTime}}
         </span>
     </div>
     
     <div class="detail-row">
-        <span class="detail-label">⏱️ Duration:</span>
+        <span class="detail-label">Duration:</span>
         <span class="detail-value">{{duration}} minutes</span>
     </div>
     {{/if}}
     
     {{#if instructorName}}
     <div class="detail-row">
-        <span class="detail-label">👨‍🏫 {{instructorLabel}}:</span>
+        <span class="detail-label">{{instructorLabel}}:</span>
         <span class="detail-value">{{instructorName}}</span>
     </div>
     {{/if}}
     
     {{#if studentName}}
     <div class="detail-row">
-        <span class="detail-label">👨‍🎓 {{studentLabel}}:</span>
+        <span class="detail-label">{{studentLabel}}:</span>
         <span class="detail-value">{{studentName}}</span>
     </div>
     {{/if}}
     
     {{#if paymentMethod}}
     <div class="detail-row">
-        <span class="detail-label">💳 Payment:</span>
+        <span class="detail-label">Payment:</span>
         <span class="detail-value">
-            <span style="background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-size: 14px;">
+            <span style="background-color: #f5f7fa; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #2c3e50; border: 1px solid #e0e0e0;">
                 {{paymentMethod}}
             </span>
         </span>
@@ -87,14 +87,16 @@
     
     {{#if bookingId}}
     <div class="detail-row">
-        <span class="detail-label">🔖 Booking ID:</span>
-        <span class="detail-value"><code>#{{bookingId}}</code></span>
+        <span class="detail-label">Booking ID:</span>
+        <span class="detail-value">
+            <code style="background-color: #f5f7fa; padding: 2px 6px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #42b883; border: 1px solid #e0e0e0;">#{{bookingId}}</code>
+        </span>
     </div>
     {{/if}}
     
     {{#if location}}
     <div class="detail-row">
-        <span class="detail-label">📍 Location:</span>
+        <span class="detail-label">Location:</span>
         <span class="detail-value">{{location}}</span>
     </div>
     {{/if}}

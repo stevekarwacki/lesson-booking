@@ -1,10 +1,9 @@
-<p>Hello {{studentName}},</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{studentName}},</p>
 
-<p>Great news! Your lesson has been confirmed. Here are the details:</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Great news! Your lesson has been confirmed and we're excited to help you on your learning journey.</p>
 
-{{> lesson-details 
-    sectionTitle="📚 Lesson Details"
-    boxStyle="success"
+{{> lesson-details
+    sectionTitle="Lesson Details"
     lessonDate=lessonDate
     startTime=startTime
     endTime=endTime
@@ -16,17 +15,11 @@
     location="Online Lesson"
 }}
 
-{{> next-steps 
-    title="What's Next?"
-    steps=nextSteps
-    footerNote="We're excited for your upcoming lesson!"
-}}
-
 {{> cta-section
     primaryButton=primaryButton
     secondaryButton=secondaryButton
 }}
 
-<p>If you have any questions before your lesson, don't hesitate to reach out to your instructor or our support team.</p>
+<p style="font-size: 15px; line-height: 1.6; margin: 28px 0 0 0; color: #6c757d;">If you have any questions or need to make changes to your booking, please don't hesitate to contact your instructor or our support team.</p>
 
-<p>Best regards,<br>The Lesson Booking Team</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{companyName}}</span></p>

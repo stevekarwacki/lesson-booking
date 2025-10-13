@@ -1,10 +1,9 @@
-<p>Hello {{instructorName}},</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{instructorName}},</p>
 
-<p>Your student {{studentName}} has rescheduled their lesson. Here are the updated details:</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">{{studentName}} has rescheduled their lesson with you. Here are the updated details:</p>
 
-{{> lesson-details 
-    sectionTitle="📋 Lesson Changes"
-    boxStyle="primary"
+{{> lesson-details
+    sectionTitle="Updated Lesson Details"
     showComparison=true
     oldDate=oldDate
     oldStartTime=oldStartTime
@@ -19,17 +18,13 @@
     bookingId=bookingId
 }}
 
-{{> next-steps 
-    title="What's Next?"
-    steps=nextSteps
-    footerNote="Thank you for your flexibility!"
-}}
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">The lesson has been automatically updated in the system.</p>
 
 {{> cta-section
     primaryButton=dashboardButton
     secondaryButton=contactButton
 }}
 
-<p>If you have any questions about the rescheduled lesson, please reach out to the student or our support team.</p>
+<p style="font-size: 15px; line-height: 1.6; margin: 28px 0 0 0; color: #6c757d;">If you have any questions about this rescheduled lesson or need to make further adjustments, please reach out to the student or our support team.</p>
 
-<p>Best regards,<br>The Lesson Booking Team</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{companyName}}</span></p>
