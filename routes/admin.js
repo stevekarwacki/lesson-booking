@@ -1256,6 +1256,7 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
             phoneNumber: businessSettings.phone_number || '',
             website: businessSettings.base_url || '',
             address: businessSettings.address || '',
+            timezone: businessSettings.timezone || '',
             // Social media links from database
             socialMedia: {
                 facebook: businessSettings.social_media_facebook || '',
@@ -1319,7 +1320,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 contact_email: settingsData.contactEmail,
                 phone_number: settingsData.phoneNumber,
                 base_url: settingsData.website,
-                address: settingsData.address
+                address: settingsData.address,
+                timezone: settingsData.timezone
             };
             
             // Handle social media fields if they exist
@@ -1364,6 +1366,7 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 phoneNumber: validatedFields.phone_number || '',
                 website: validatedFields.base_url || '',
                 address: validatedFields.address || '',
+                timezone: validatedFields.timezone || '',
                 socialMedia: {
                     facebook: validatedFields.social_media_facebook || '',
                     twitter: validatedFields.social_media_twitter || '',
