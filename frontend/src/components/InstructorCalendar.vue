@@ -446,7 +446,7 @@ const fetchWeeklySchedule = async () => {
             for (let i = 0; i < eventDuration; i += 2) {
                 const currentSlot = slotStart + i
                 
-                // Make sure the slot exists in the schedule before accessing it
+                // Only show booked events (including Google Calendar) if they overlap with instructor availability
                 if (formattedSchedule[currentSlot] && formattedSchedule[currentSlot][dayIndex] !== undefined) {
                     const slotData = formatSlot(event, eventDate)
                     
@@ -458,25 +458,6 @@ const fetchWeeklySchedule = async () => {
                         slotData.bookingId = event.id // To group related slots
                     }
                     
-                    formattedSchedule[currentSlot][dayIndex] = slotData
-                } else if (event.is_google_calendar) {
-                    // Google Calendar events should show even if instructor doesn't have availability
-                    // Create the slot structure if it doesn't exist
-                    if (!formattedSchedule[currentSlot]) {
-                        formattedSchedule[currentSlot] = {}
-                    }
-                    if (formattedSchedule[currentSlot][dayIndex] === undefined) {
-                        // Create a basic slot structure for this time
-                        const slotDate = new Date(eventDate)
-                        formattedSchedule[currentSlot][dayIndex] = {
-                            type: 'unavailable', // This will be overwritten
-                            date: slotDate,
-                            start_slot: currentSlot,
-                            duration: 2
-                        }
-                    }
-                    
-                    const slotData = formatSlot(event, eventDate)
                     formattedSchedule[currentSlot][dayIndex] = slotData
                 }
             }
