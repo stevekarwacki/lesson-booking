@@ -370,6 +370,7 @@ const handleSlotClick = (slot) => {
   height: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   width: 100%;
 }
 

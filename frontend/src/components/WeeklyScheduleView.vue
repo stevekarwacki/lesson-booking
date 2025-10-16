@@ -247,7 +247,6 @@ const handleSlotSelected = (slotData) => {
     z-index: 1;
 }
 
-
 @media (max-width: 768px) {
     .schedule-header {
         grid-template-columns: 60px repeat(7, 1fr);
