@@ -229,17 +229,16 @@ describe('CASL Permissions Infrastructure Tests', () => {
 
     test('canBookingAction() includes time validation', () => {
       // Create a booking that's definitely within 24 hours
-      // Use tomorrow at 10:00 AM to ensure it's always in the future
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(10, 0, 0, 0); // 10:00 AM tomorrow
+      // Use 12 hours from now to ensure it's within the 24-hour window
+      const nearFuture = new Date();
+      nearFuture.setHours(nearFuture.getHours() + 12); // 12 hours from now
       
       // Slot 16 = 10:00 AM (6 AM is slot 0, so 10 AM is slot 16)
       const recentBooking = {
         ...studentBooking,
         student_id: 3,
-        date: tomorrow.toISOString().split('T')[0],
-        start_slot: 16 // 10:00 AM
+        date: nearFuture.toISOString().split('T')[0],
+        start_slot: Math.floor((nearFuture.getHours() - 6) * 4) // Convert to slot number
       };
 
       // Student should be blocked by time restriction (within 24 hours)
