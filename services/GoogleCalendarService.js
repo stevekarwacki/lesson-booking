@@ -96,12 +96,12 @@ class GoogleCalendarService {
             });
             const googleEvents = response.data.items || [];
             
-            const convertedEvents = this.convertToSlots(googleEvents, config.all_day_event_handling);
+            const convertedEvents = await this.convertToSlots(googleEvents, config.all_day_event_handling);
             
             // Cache the results
-            this.cache.set(cacheKey, { 
-                data: convertedEvents, 
-                timestamp: Date.now() 
+            this.cache.set(cacheKey, {
+                data: convertedEvents,
+                timestamp: Date.now()
             });
             
             return convertedEvents;
@@ -196,46 +196,54 @@ class GoogleCalendarService {
      * @param {string} allDayHandling - How to handle all-day events ('ignore', 'block')
      * @returns {Array} Converted events
      */
-    convertToSlots(googleEvents, allDayHandling = 'ignore') {
+    async convertToSlots(googleEvents, allDayHandling = 'ignore') {
         if (!Array.isArray(googleEvents)) {
             return [];
         }
         
-        return googleEvents
-            .filter(event => event && event.start && event.end)
-            .map(event => {
-                const isAllDayEvent = !event.start.dateTime; // All-day events only have 'date', not 'dateTime'
-                
-                // Handle all-day events based on configuration
-                if (isAllDayEvent) {
-                    return this.handleAllDayEvent(event, allDayHandling);
-                }
-                
-                // Handle regular timed events
-                const startTime = new Date(event.start.dateTime);
-                const endTime = new Date(event.end.dateTime);
-                
-                return [{
-                    id: `google_${event.id}`,
-                    date: this.getLocalDateString(startTime),
-                    start_slot: this.timeToSlot(startTime),
-                    duration: this.calculateDuration(startTime, endTime),
-                    type: 'booked', // Frontend expects 'type' field, not 'status'
-                    status: 'google_calendar_busy', // Keep for backend identification
-                    summary: event.summary || 'Busy',
-                    source: 'google_calendar',
-                    google_event_id: event.id,
-                    // Normalize student data to nested structure  
-                    student: {
-                        id: null,
-                        name: '🗓️ ' + (event.summary || 'Busy'),
-                        email: 'Google Calendar'
-                    },
-                    is_google_calendar: true
-                }];
-            })
-            .flat() // Flatten arrays from all-day events
-            .filter(event => event !== null); // Remove null entries (ignored all-day events)
+        const convertedEvents = [];
+        
+        for (const event of googleEvents) {
+            if (!event || !event.start || !event.end) {
+                continue;
+            }
+            
+            const isAllDayEvent = !event.start.dateTime; // All-day events only have 'date', not 'dateTime'
+            
+            // Handle all-day events based on configuration
+            if (isAllDayEvent) {
+                const allDayEvents = this.handleAllDayEvent(event, allDayHandling);
+                convertedEvents.push(...allDayEvents);
+                continue;
+            }
+            
+            // Handle regular timed events
+            const startTime = new Date(event.start.dateTime);
+            const endTime = new Date(event.end.dateTime);
+            
+            const convertedEvent = {
+                id: `google_${event.id}`,
+                date: await this.getLocalDateString(startTime),
+                start_slot: await this.timeToSlot(startTime),
+                duration: await this.calculateDuration(startTime, endTime),
+                type: 'booked', // Frontend expects 'type' field, not 'status'
+                status: 'google_calendar_busy', // Keep for backend identification
+                summary: event.summary || 'Busy',
+                source: 'google_calendar',
+                google_event_id: event.id,
+                // Normalize student data to nested structure
+                student: {
+                    id: null,
+                    name: '🗓️ ' + (event.summary || 'Busy'),
+                    email: 'Google Calendar'
+                },
+                is_google_calendar: true
+            };
+            
+            convertedEvents.push(convertedEvent);
+        }
+        
+        return convertedEvents.filter(event => event !== null); // Remove null entries (ignored all-day events)
     }
     
     /**
@@ -293,30 +301,24 @@ class GoogleCalendarService {
     }
     
     /**
-     * Get local date string without timezone shifting
+     * Get business timezone date string without timezone shifting
      * @param {Date} date - Date object
-     * @returns {string} Date string in YYYY-MM-DD format
+     * @returns {Promise<string>} Date string in YYYY-MM-DD format
      */
-    getLocalDateString(date) {
-        return fromTimestamp(date.getTime()).toDateString()
+    async getLocalDateString(date) {
+        const BusinessTimezoneService = require('../utils/businessTimezone');
+        return await BusinessTimezoneService.toBusinessDateString(date);
     }
     
     /**
-     * Convert time to slot number (30-minute increments) - Local timezone version
+     * Convert time to slot number (30-minute increments) - Business timezone version
      * @param {Date} date - Date object (with timezone info from Google Calendar)
-     * @returns {number} Slot number (0-95) in local timezone, rounded up to next 30-min increment
+     * @returns {Promise<number>} Slot number (0-95) in business timezone, rounded up to next 30-min increment
      */
-    timeToSlot(date) {
-        // Get the local timezone
-        const userTimezone = getUserTimezone();
-        
-        // Convert the date to local timezone and extract hours/minutes
-        const localTimeString = date.toLocaleString('en-US', {
-            timeZone: userTimezone,
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+    async timeToSlot(date) {
+        // Use business timezone instead of server timezone
+        const BusinessTimezoneService = require('../utils/businessTimezone');
+        const localTimeString = await BusinessTimezoneService.toBusinessTimeString(date);
         
         // Parse the local time (format: "14:30")
         const [hours, minutes] = localTimeString.split(':').map(Number);
@@ -344,30 +346,21 @@ class GoogleCalendarService {
     }
     
     /**
-     * Calculate duration between two times in slots - Local timezone version
+     * Calculate duration between two times in slots - Business timezone version
      * Rounds up to cover all 30-minute slots that the event touches
      * @param {Date} startTime - Start time
      * @param {Date} endTime - End time
-     * @returns {number} Duration in slots (30-minute increments)
+     * @returns {Promise<number>} Duration in slots (30-minute increments)
      */
-    calculateDuration(startTime, endTime) {
-        // Get the local timezone
-        const userTimezone = getUserTimezone();
+    async calculateDuration(startTime, endTime) {
+        // Use business timezone instead of server timezone
+        const BusinessTimezoneService = require('../utils/businessTimezone');
         
-        // Convert both times to local timezone
-        const startLocal = startTime.toLocaleString('en-US', {
-            timeZone: userTimezone,
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        const endLocal = endTime.toLocaleString('en-US', {
-            timeZone: userTimezone,
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        // Convert both times to business timezone
+        const [startLocal, endLocal] = await Promise.all([
+            BusinessTimezoneService.toBusinessTimeString(startTime),
+            BusinessTimezoneService.toBusinessTimeString(endTime)
+        ]);
         
         const [startHours, startMinutes] = startLocal.split(':').map(Number);
         const [endHours, endMinutes] = endLocal.split(':').map(Number);

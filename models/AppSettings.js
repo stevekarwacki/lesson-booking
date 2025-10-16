@@ -192,6 +192,18 @@ AppSettings.validateBusinessSetting = function(key, value) {
             }
             break;
             
+        case 'timezone':
+            if (!trimmedValue) {
+                throw new Error('Business timezone is required');
+            }
+            // Validate timezone using Intl API
+            try {
+                Intl.DateTimeFormat(undefined, { timeZone: trimmedValue });
+            } catch (error) {
+                throw new Error('Invalid timezone identifier. Please select a valid timezone.');
+            }
+            break;
+            
         default:
             // Allow other keys without specific validation
             if (trimmedValue.length > 1000) {

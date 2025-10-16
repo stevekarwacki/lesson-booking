@@ -105,6 +105,37 @@
             {{ errors.address }}
           </span>
         </div>
+        
+        <!-- Business Timezone -->
+        <div class="form-group">
+          <label for="timezone" class="form-label">
+            Business Timezone <span class="required">*</span>
+          </label>
+          <select
+            id="timezone"
+            v-model="formData.timezone"
+            class="form-input"
+            :class="{ error: errors.timezone }"
+            required
+            :disabled="loading"
+          >
+            <option value="">Select timezone...</option>
+            <option
+              v-for="tz in timezoneOptions"
+              :key="tz.value"
+              :value="tz.value"
+            >
+              {{ tz.label }}
+            </option>
+          </select>
+          <span v-if="errors.timezone" class="error-message">
+            {{ errors.timezone }}
+          </span>
+          <p class="field-help">
+            This timezone will be used for all lesson scheduling and Google Calendar integration.
+            Choose the timezone where your business operates.
+          </p>
+        </div>
       </div>
       
       <!-- Social Media Links -->
@@ -283,6 +314,7 @@ export default {
       website: '',
       phoneNumber: '',
       address: '',
+      timezone: '',
       socialMedia: {
         facebook: '',
         twitter: '',
@@ -300,6 +332,28 @@ export default {
         sunday: { isOpen: false, open: '09:00', close: '17:00' }
       }
     })
+    
+    // Timezone options
+    const timezoneOptions = [
+      { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
+      { value: 'America/New_York', label: 'America/New_York (Eastern Time)' },
+      { value: 'America/Chicago', label: 'America/Chicago (Central Time)' },
+      { value: 'America/Denver', label: 'America/Denver (Mountain Time)' },
+      { value: 'America/Los_Angeles', label: 'America/Los_Angeles (Pacific Time)' },
+      { value: 'America/Toronto', label: 'America/Toronto (Eastern Time Canada)' },
+      { value: 'America/Vancouver', label: 'America/Vancouver (Pacific Time Canada)' },
+      { value: 'Europe/London', label: 'Europe/London (GMT/BST)' },
+      { value: 'Europe/Paris', label: 'Europe/Paris (CET/CEST)' },
+      { value: 'Europe/Berlin', label: 'Europe/Berlin (CET/CEST)' },
+      { value: 'Europe/Rome', label: 'Europe/Rome (CET/CEST)' },
+      { value: 'Europe/Madrid', label: 'Europe/Madrid (CET/CEST)' },
+      { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST)' },
+      { value: 'Asia/Shanghai', label: 'Asia/Shanghai (CST)' },
+      { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
+      { value: 'Australia/Sydney', label: 'Australia/Sydney (AEST/AEDT)' },
+      { value: 'Australia/Melbourne', label: 'Australia/Melbourne (AEST/AEDT)' },
+      { value: 'Pacific/Auckland', label: 'Pacific/Auckland (NZST/NZDT)' }
+    ]
     
     // Original data for change tracking
     const originalData = ref({})
@@ -324,8 +378,9 @@ export default {
     })
     
     const isFormValid = computed(() => {
-      return formData.companyName.trim() && 
-             formData.contactEmail.trim() && 
+      return formData.companyName.trim() &&
+             formData.contactEmail.trim() &&
+             formData.timezone.trim() &&
              isValidEmail(formData.contactEmail) &&
              Object.keys(errors).length === 0
     })
@@ -356,6 +411,12 @@ export default {
         case 'website':
           if (value && !isValidUrl(value)) {
             errors[field] = 'Please enter a valid website URL'
+          }
+          break
+          
+        case 'timezone':
+          if (!value || value.trim().length === 0) {
+            errors[field] = 'Business timezone is required'
           }
           break
       }
@@ -391,10 +452,11 @@ export default {
       validateField('contactEmail', formData.contactEmail)
       validateField('phoneNumber', formData.phoneNumber)
       validateField('website', formData.website)
+      validateField('timezone', formData.timezone)
       
       // Double-check if form is valid after validation
       const hasErrors = Object.keys(errors).length > 0
-      const hasRequiredFields = formData.companyName.trim() && formData.contactEmail.trim()
+      const hasRequiredFields = formData.companyName.trim() && formData.contactEmail.trim() && formData.timezone.trim()
       
       if (!hasErrors && hasRequiredFields && isValidEmail(formData.contactEmail)) {
         emit('change', {
@@ -419,6 +481,7 @@ export default {
           phoneNumber: '',
           website: '',
           address: '',
+          timezone: '',
           socialMedia: {
             facebook: '',
             twitter: '',
@@ -458,11 +521,13 @@ export default {
     watch(() => formData.contactEmail, (value) => validateField('contactEmail', value))
     watch(() => formData.phoneNumber, (value) => validateField('phoneNumber', value))
     watch(() => formData.website, (value) => validateField('website', value))
+    watch(() => formData.timezone, (value) => validateField('timezone', value))
     
     return {
       formData,
       errors,
       businessDays,
+      timezoneOptions,
       hasChanges,
       isFormValid,
       saveBusinessInfo,
@@ -579,6 +644,13 @@ export default {
   color: var(--error-color);
   font-size: var(--font-size-sm);
   margin-top: var(--spacing-xs);
+}
+
+.field-help {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-xs);
+  line-height: 1.4;
 }
 
 /* Social Media Section */

@@ -204,6 +204,20 @@ function getUserTimezone() {
     }
 }
 
+/**
+ * Get business timezone with fallback to user timezone
+ * @returns {Promise<string>} Business timezone identifier
+ */
+async function getBusinessTimezone() {
+    try {
+        const BusinessTimezoneService = require('./businessTimezone');
+        return await BusinessTimezoneService.getTimezone();
+    } catch (error) {
+        console.error('Error getting business timezone, falling back to user timezone:', error);
+        return getUserTimezone();
+    }
+}
+
 // ============================================================================
 // INSTRUCTOR AVAILABILITY FUNCTIONS
 // ============================================================================
@@ -438,6 +452,7 @@ module.exports = {
     localTimeToUTCSlot,
     utcSlotToLocalTime,
     getUserTimezone,
+    getBusinessTimezone,
     
     // Instructor availability
     timeToLocalSlot,
