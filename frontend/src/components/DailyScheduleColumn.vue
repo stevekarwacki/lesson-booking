@@ -29,7 +29,7 @@
           :class="{ 'show-details': props.isInstructor }"
         >
           <span v-if="props.isInstructor" class="student-name">
-            {{ slot.student?.name }}
+            <span class="student-name-text">{{ slot.student?.name }}</span>
           </span>
           
           <!-- Tooltip for instructors -->
@@ -240,6 +240,7 @@ const handleSlotClick = (slot) => {
   flex-direction: column;
   flex: 1;
   min-height: 100%;
+  min-width: 0;
 }
 
 .day-header {
@@ -369,14 +370,17 @@ const handleSlotClick = (slot) => {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
   width: 100%;
 }
 
 .student-name {
+  overflow: hidden;
+}
+
+.student-name-text {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
-  text-wrap-mode: nowrap;
+  white-space: nowrap;
 }
 
 .tooltip {
