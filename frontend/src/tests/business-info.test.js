@@ -59,6 +59,7 @@ describe('BusinessInfoSection Component', () => {
     expect(wrapper.find('#phoneNumber').exists()).toBe(true)
     expect(wrapper.find('#website').exists()).toBe(true)
     expect(wrapper.find('#address').exists()).toBe(true)
+    expect(wrapper.find('#timezone').exists()).toBe(true)
     
     // Check social media fields
     expect(wrapper.find('#facebook').exists()).toBe(true)
@@ -70,6 +71,7 @@ describe('BusinessInfoSection Component', () => {
     // Check required field indicators
     expect(wrapper.text()).toContain('Company Name *')
     expect(wrapper.text()).toContain('Contact Email *')
+    expect(wrapper.text()).toContain('Business Timezone *')
     
     // Check social media section
     expect(wrapper.text()).toContain('Social Media Links')
@@ -85,6 +87,7 @@ describe('BusinessInfoSection Component', () => {
       phoneNumber: '555-0123',
       website: 'https://test.com',
       address: '123 Test St',
+      timezone: 'America/Los_Angeles',
       socialMedia: {
         facebook: 'https://facebook.com/testcompany',
         twitter: 'https://twitter.com/testcompany',
@@ -102,6 +105,7 @@ describe('BusinessInfoSection Component', () => {
     expect(wrapper.find('#phoneNumber').element.value).toBe('555-0123')
     expect(wrapper.find('#website').element.value).toBe('https://test.com')
     expect(wrapper.find('#address').element.value).toBe('123 Test St')
+    expect(wrapper.find('#timezone').element.value).toBe('America/Los_Angeles')
     
     // Check social media fields
     expect(wrapper.find('#facebook').element.value).toBe('https://facebook.com/testcompany')
@@ -121,6 +125,7 @@ describe('BusinessInfoSection Component', () => {
     await nextTick()
     expect(wrapper.text()).toContain('Company name must be at least 2 characters')
     expect(wrapper.text()).toContain('Please enter a valid email address')
+    expect(wrapper.text()).toContain('Business timezone is required')
   })
 
   test('validates email format', async () => {
@@ -159,6 +164,20 @@ describe('BusinessInfoSection Component', () => {
     // They're validated on the backend
   })
 
+  test('validates timezone field', async () => {
+    wrapper = createWrapper()
+
+    // Set valid company name and email but leave timezone empty
+    await wrapper.find('#companyName').setValue('Test Company')
+    await wrapper.find('#contactEmail').setValue('test@example.com')
+    
+    // Try to submit without timezone
+    await wrapper.find('form').trigger('submit.prevent')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Business timezone is required')
+  })
+
   test('includes social media in form submission', async () => {
     wrapper = createWrapper()
 
@@ -168,6 +187,7 @@ describe('BusinessInfoSection Component', () => {
     await wrapper.find('#phoneNumber').setValue('555-0123')
     await wrapper.find('#website').setValue('https://test.com')
     await wrapper.find('#address').setValue('123 Test St')
+    await wrapper.find('#timezone').setValue('America/Los_Angeles')
     await wrapper.find('#facebook').setValue('https://facebook.com/testcompany')
     await wrapper.find('#twitter').setValue('https://twitter.com/testcompany')
     await wrapper.find('#instagram').setValue('https://instagram.com/testcompany')
@@ -190,6 +210,7 @@ describe('BusinessInfoSection Component', () => {
         phoneNumber: '555-0123',
         website: 'https://test.com',
         address: '123 Test St',
+        timezone: 'America/Los_Angeles',
         socialMedia: {
           facebook: 'https://facebook.com/testcompany',
           twitter: 'https://twitter.com/testcompany',
@@ -210,6 +231,7 @@ describe('BusinessInfoSection Component', () => {
     await wrapper.find('#phoneNumber').setValue('555-0123')
     await wrapper.find('#website').setValue('https://test.com')
     await wrapper.find('#address').setValue('123 Test St')
+    await wrapper.find('#timezone').setValue('America/Los_Angeles')
 
     // Submit form
     await wrapper.find('form').trigger('submit.prevent')
@@ -226,7 +248,8 @@ describe('BusinessInfoSection Component', () => {
         contactEmail: 'test@example.com',
         phoneNumber: '555-0123',
         website: 'https://test.com',
-        address: '123 Test St'
+        address: '123 Test St',
+        timezone: 'America/Los_Angeles'
       })
     })
   })
@@ -421,6 +444,7 @@ describe('Integration Tests', () => {
     // Fill out the form
     await businessSection.find('#companyName').setValue('Integration Test Company')
     await businessSection.find('#contactEmail').setValue('integration@test.com')
+    await businessSection.find('#timezone').setValue('America/Los_Angeles')
 
     // Submit the form
     await businessSection.find('form').trigger('submit.prevent')
