@@ -7,6 +7,9 @@ const createAdminUser = async (models) => {
             where: { role: 'admin' }
         });
 
+        if (existingAdmin) {
+            return;
+        }
 
         // Create default admin user
         const hashedPassword = await bcrypt.hash(
@@ -14,7 +17,7 @@ const createAdminUser = async (models) => {
             10
         );
 
-        await models.User.create({
+        const adminUser = await models.User.create({
             name: 'Admin',
             email: process.env.ADMIN_EMAIL || 'admin@example.com',
             password: hashedPassword,
@@ -23,6 +26,11 @@ const createAdminUser = async (models) => {
         });
 
     } catch (error) {
+        // Handle unique constraint errors gracefully
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return;
+        }
+        
         console.error('Error creating admin user:', error);
         throw error;
     }
