@@ -120,16 +120,14 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useMq } from 'vue3-mq'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import BookingList from './BookingList.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 import EditBookingModal from './EditBookingModal.vue'
-import { fromString, today } from '../utils/dateHelpers.js'
-
-const userStore = useUserStore()
-const scheduleStore = useScheduleStore()
+import { today } from '../utils/dateHelpers.js'
 
 const { instructor } = defineProps({
     instructor: {
@@ -140,7 +138,9 @@ const { instructor } = defineProps({
 
 const emit = defineEmits(['process-refund'])
 
-const SLOT_DURATION = 2
+const userStore = useUserStore()
+const scheduleStore = useScheduleStore()
+const settingsStore = useSettingsStore()
 
 const selectedDate = useMq().lgPlus ? ref('') : ref(today().toDateString())
 const weeklyScheduleData = ref([])
@@ -389,9 +389,9 @@ const fetchWeeklySchedule = async () => {
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
 
-            for (let i = 0; i < slot.duration; i += SLOT_DURATION) {
+            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
                 const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: SLOT_DURATION });
+                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
 
                 if (!(slotStart in formattedSchedule)) {
                     formattedSchedule[slotStart] = Object.assign({}, slotTemplate)
@@ -428,7 +428,7 @@ const fetchWeeklySchedule = async () => {
             const dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
-            const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
+            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
 
             // Log booking information
             const now = new Date()
@@ -443,7 +443,7 @@ const fetchWeeklySchedule = async () => {
             bookingDateUTC.setUTCHours(0, 0, 0, 0)
             
             // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += 2) {
+            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
                 const currentSlot = slotStart + i
                 
                 // Only show booked events (including Google Calendar) if they overlap with instructor availability
@@ -451,10 +451,10 @@ const fetchWeeklySchedule = async () => {
                     const slotData = formatSlot(event, eventDate)
                     
                     // Add metadata to identify multi-slot bookings
-                    if (eventDuration > 2) {
+                    if (eventDuration > settingsStore.slotDuration) {
                         slotData.isMultiSlot = true
-                        slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
+                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
+                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
                         slotData.bookingId = event.id // To group related slots
                         slotData.originalStartSlot = event.start_slot // Original booking start slot
                         slotData.originalDuration = eventDuration // Original booking duration
@@ -524,9 +524,9 @@ const fetchDailySchedule = async () => {
         const formattedSchedule = {}
 
         availabilityData.forEach(slot => {
-            for (let i = 0; i < slot.duration; i += SLOT_DURATION) {
+            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
                 const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: SLOT_DURATION });
+                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
 
                 formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
             }
@@ -546,20 +546,20 @@ const fetchDailySchedule = async () => {
                 return; // Skip normal duration processing for all-day events
             }
             
-            const eventDuration = event.duration || 2 // Default to 30 minutes if no duration
+            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
             
             // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += 2) {
+            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
                 const currentSlot = event.start_slot + i
                 
                 if (formattedSchedule[currentSlot]) {
                     const slotData = formatSlot(event, scheduleDate)
                     
                     // Add metadata to identify multi-slot bookings
-                    if (eventDuration > 2) {
+                    if (eventDuration > settingsStore.slotDuration) {
                         slotData.isMultiSlot = true
-                        slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
+                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
+                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
                         slotData.bookingId = event.id // To group related slots
                         slotData.originalStartSlot = event.start_slot // Original booking start slot
                         slotData.originalDuration = eventDuration // Original booking duration

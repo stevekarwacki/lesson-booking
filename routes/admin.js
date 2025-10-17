@@ -1307,6 +1307,24 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
     }
 });
 
+// Get lesson settings specifically (for frontend caching)
+router.get('/settings/lessons', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
+        
+        // Provide default values for missing settings
+        const settings = {
+            default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled || 'false'
+        };
+        
+        res.json(settings);
+    } catch (error) {
+        console.error('Error fetching lesson settings:', error);
+        res.status(500).json({ error: 'Error fetching lesson settings' });
+    }
+});
+
 // Update settings by category
 router.put('/settings/:category', authorize('manage', 'User'), async (req, res) => {
     try {

@@ -5,6 +5,7 @@ import './assets/main.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'
+import { useSettingsStore } from './stores/settingsStore'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -26,4 +27,10 @@ const mqConfig = {
 app.use(pinia)
 app.use(router)
 app.use(Vue3Mq, mqConfig)
+
+// Initialize app configuration on startup
+// Load once, use everywhere - simple and fast!
+const settingsStore = useSettingsStore()
+settingsStore.initialize()
+
 app.mount('#app')

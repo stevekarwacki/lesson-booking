@@ -97,6 +97,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
 
@@ -111,6 +112,7 @@ const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
+const settingsStore = useSettingsStore()
 const loading = ref(false)
 const error = ref(null)
 const selectedDate = ref('')
@@ -196,30 +198,56 @@ const handleDateChange = async () => {
         bookedEvents.forEach(event => {
             // Handle the current booking being rescheduled differently
             if (event.id === props.booking.id) {
-                // Add current booking as a special "rescheduling" type - keep original duration
-                const slotData = {
-                    ...event,
-                    duration: originalDuration,
-                    type: 'rescheduling'
+                // Add current booking as a special "rescheduling" type - handle multi-slot properly
+                const SLOT_DURATION = settingsStore.slotDuration
+                
+                if (originalDuration > SLOT_DURATION) {
+                    // Multi-slot rescheduling booking - create entries for each slot
+                    const totalSlots = originalDuration / SLOT_DURATION
+                    for (let i = 0; i < originalDuration; i += SLOT_DURATION) {
+                        const currentSlot = event.start_slot + i
+                        const slotData = {
+                            ...event,
+                            start_slot: currentSlot,
+                            duration: SLOT_DURATION,
+                            type: 'rescheduling',
+                            isMultiSlot: true,
+                            totalSlots: totalSlots,
+                            slotPosition: i / SLOT_DURATION,
+                            bookingId: event.id,
+                            originalStartSlot: event.start_slot,
+                            originalDuration: originalDuration
+                        }
+                        formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
+                    }
+                } else {
+                    // Single slot rescheduling
+                    const slotData = {
+                        ...event,
+                        duration: originalDuration,
+                        type: 'rescheduling'
+                    }
+                    const reschedulingSlot = formatSlot(slotData, scheduleDate)
+                    formattedSchedule[event.start_slot] = reschedulingSlot
                 }
-                const reschedulingSlot = formatSlot(slotData, scheduleDate)
-                formattedSchedule[event.start_slot] = reschedulingSlot
                 return
             }
             
             // Add booked event to schedule - handle multi-slot bookings properly
-            if (event.duration > 2) {
+            const SLOT_DURATION = settingsStore.slotDuration
+            
+            if (event.duration > SLOT_DURATION) {
                 // Multi-slot booking - create entries for each slot
-                const totalSlots = event.duration / 2
-                for (let i = 0; i < event.duration; i += 2) {
+                const totalSlots = event.duration / SLOT_DURATION
+                for (let i = 0; i < event.duration; i += SLOT_DURATION) {
                     const currentSlot = event.start_slot + i
                     const slotData = {
                         ...event,
                         start_slot: currentSlot,
-                        duration: 2,
+                        duration: SLOT_DURATION,
                         isMultiSlot: true,
                         totalSlots: totalSlots,
-                        slotPosition: i / 2,
+                        slotPosition: i / SLOT_DURATION,
                         bookingId: event.id,
                         originalStartSlot: event.start_slot,
                         originalDuration: event.duration
