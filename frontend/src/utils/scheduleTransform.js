@@ -88,6 +88,8 @@ function transformSlotData(slotData, timeSlot) {
     slotPosition: slotData.slotPosition || 0,
     totalSlots: slotData.totalSlots || 1,
     bookingId: slotData.bookingId,
+    originalStartSlot: slotData.originalStartSlot,
+    originalDuration: slotData.originalDuration,
     
     // Time display properties (for tooltip)
     startTime: slotData.startTime,

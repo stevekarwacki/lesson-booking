@@ -220,7 +220,9 @@ const handleDateChange = async () => {
                         isMultiSlot: true,
                         totalSlots: totalSlots,
                         slotPosition: i / 2,
-                        bookingId: event.id
+                        bookingId: event.id,
+                        originalStartSlot: event.start_slot,
+                        originalDuration: event.duration
                     }
                     formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
                 }

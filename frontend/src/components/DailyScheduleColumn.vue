@@ -39,7 +39,7 @@
               <p v-if="slot.isMultiSlot && !slot.is_google_calendar">
                 Duration: {{ slot.totalSlots * 30 }} minutes
               </p>
-              <p>Time: {{ formatTime(slotToTime(slot.startSlot)) }} - {{ formatTime(slotToTime(Math.min(slot.startSlot + slot.duration, MAX_SLOT_INDEX))) }}</p>
+              <p>Time: {{ getBookingTimeRange(slot) }}</p>
               <p>Student: {{ slot.student?.name }}</p>
             </div>
           </div>
@@ -124,6 +124,20 @@ const visibleSlots = computed(() => {
 })
 
 // Methods
+const getBookingTimeRange = (slot) => {
+  // For multi-slot bookings, use the original booking start and duration
+  if (slot.isMultiSlot && slot.originalStartSlot !== undefined && slot.originalDuration !== undefined) {
+    const startTime = formatTime(slotToTime(slot.originalStartSlot))
+    const endTime = formatTime(slotToTime(Math.min(slot.originalStartSlot + slot.originalDuration, MAX_SLOT_INDEX)))
+    return `${startTime} - ${endTime}`
+  }
+  
+  // For single slots or when original data is not available, use current slot data
+  const startTime = formatTime(slotToTime(slot.startSlot))
+  const endTime = formatTime(slotToTime(Math.min(slot.startSlot + slot.duration, MAX_SLOT_INDEX)))
+  return `${startTime} - ${endTime}`
+}
+
 const isSlotSelected = (slot) => {
   if (!props.selectedSlot) return false
   
@@ -179,9 +193,11 @@ const getSlotClasses = (slot) => {
     'rescheduling': slot.type === 'rescheduling',
     'google-calendar': slot.is_google_calendar,
     'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
-    'first-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === 0,
-    'last-slot': slot.isMultiSlot && !slot.is_google_calendar && slot.slotPosition === slot.totalSlots - 1,
-    'sixty-minute': slot.isMultiSlot && !slot.is_google_calendar && slot.totalSlots === 2,
+    'multi-slot-google-calendar': slot.isMultiSlot && slot.is_google_calendar,
+    'first-slot': slot.isMultiSlot && slot.slotPosition === 0,
+    'middle-slot': slot.isMultiSlot && slot.slotPosition > 0 && slot.slotPosition < slot.totalSlots - 1,
+    'last-slot': slot.isMultiSlot && slot.slotPosition === slot.totalSlots - 1,
+    'sixty-minute': slot.isMultiSlot && slot.totalSlots === 2,
     'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling,
     'instructor-view-booked': slot.type === 'booked' && props.isInstructor,
     'selected': isSlotSelected(slot),
@@ -429,11 +445,31 @@ const handleSlotClick = (slot) => {
   position: relative;
 }
 
-.time-slot.sixty-minute.first-slot {
+/* Remove borders between adjacent slots of the same booking */
+.time-slot.first-slot:not(.last-slot) {
   border-bottom: 0;
 }
 
-.time-slot.sixty-minute.last-slot {
+.time-slot.middle-slot {
+  border-bottom: 0;
+  border-top: 0;
+}
+
+.time-slot.last-slot:not(.first-slot) {
+  border-top: 0;
+}
+
+/* Google Calendar multi-slot events - remove borders between adjacent slots */
+.time-slot.multi-slot-google-calendar.first-slot:not(.last-slot) {
+  border-bottom: 0;
+}
+
+.time-slot.multi-slot-google-calendar.middle-slot {
+  border-bottom: 0;
+  border-top: 0;
+}
+
+.time-slot.multi-slot-google-calendar.last-slot:not(.first-slot) {
   border-top: 0;
 }
 </style>

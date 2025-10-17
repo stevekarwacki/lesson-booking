@@ -450,12 +450,14 @@ const fetchWeeklySchedule = async () => {
                 if (formattedSchedule[currentSlot] && formattedSchedule[currentSlot][dayIndex] !== undefined) {
                     const slotData = formatSlot(event, eventDate)
                     
-                    // Add metadata to identify multi-slot bookings (only for regular bookings, not Google Calendar)
-                    if (!slotData.is_google_calendar) {
-                        slotData.isMultiSlot = eventDuration > 2
+                    // Add metadata to identify multi-slot bookings
+                    if (eventDuration > 2) {
+                        slotData.isMultiSlot = true
                         slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
                         slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
                         slotData.bookingId = event.id // To group related slots
+                        slotData.originalStartSlot = event.start_slot // Original booking start slot
+                        slotData.originalDuration = eventDuration // Original booking duration
                     }
                     
                     formattedSchedule[currentSlot][dayIndex] = slotData
@@ -553,12 +555,14 @@ const fetchDailySchedule = async () => {
                 if (formattedSchedule[currentSlot]) {
                     const slotData = formatSlot(event, scheduleDate)
                     
-                    // Add metadata to identify multi-slot bookings (only for regular bookings, not Google Calendar)
-                    if (!slotData.is_google_calendar) {
-                        slotData.isMultiSlot = eventDuration > 2
+                    // Add metadata to identify multi-slot bookings
+                    if (eventDuration > 2) {
+                        slotData.isMultiSlot = true
                         slotData.slotPosition = i / 2 // 0 for first slot, 1 for second slot, etc.
                         slotData.totalSlots = eventDuration / 2 // Total number of 30-min slots
                         slotData.bookingId = event.id // To group related slots
+                        slotData.originalStartSlot = event.start_slot // Original booking start slot
+                        slotData.originalDuration = eventDuration // Original booking duration
                     }
                     
                     formattedSchedule[currentSlot] = slotData
