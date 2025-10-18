@@ -53,20 +53,22 @@ const selectedBooking = ref(null)
 
 // Transform bookings for BookingList component
 const formattedBookings = computed(() => {
-    return bookings.value.map(booking => ({
-        id: booking.id,
-        date: booking.date,
-        startTime: formatTime(slotToTime(booking.start_slot)),
-        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-        instructorName: booking.Instructor.User.name,
-        status: booking.status || 'booked',
-        isRecurring: false,
-        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
-        paymentMethod: booking.paymentMethod, // From backend
-        paymentStatus: booking.paymentStatus, // From backend
-        // Original booking data for EditBookingModal
-        originalBooking: booking
-    }))
+    return bookings.value.map(booking => {
+        return {
+            id: booking.id,
+            date: booking.date,
+            startTime: formatTime(slotToTime(booking.start_slot)),
+            endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+            instructorName: booking.Instructor.User.name,
+            status: booking.status || 'booked',
+            isRecurring: false,
+            refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
+            paymentMethod: booking.paymentMethod, // From backend
+            paymentStatus: booking.paymentStatus, // From backend
+            // Original booking data for EditBookingModal
+            originalBooking: booking
+        }
+    })
 })
 
 const fetchBookings = async () => {

@@ -234,7 +234,7 @@ class GoogleCalendarService {
                 // Normalize student data to nested structure
                 student: {
                     id: null,
-                    name: '🗓️ ' + (event.summary || 'Busy'),
+                    name: event.summary || 'Busy',
                     email: 'Google Calendar'
                 },
                 is_google_calendar: true
@@ -285,12 +285,12 @@ class GoogleCalendarService {
             duration: 0,    // Special marker for all-day events
             type: 'booked',
             status: 'google_calendar_all_day',
-            summary: `🗓️ All Day: ${event.summary || 'Busy'}`,
+            summary: `All Day: ${event.summary || 'Busy'}`,
             source: 'google_calendar',
             google_event_id: event.id,
             student: {
                 id: null,
-                name: `🗓️ All Day: ${event.summary || 'Busy'}`,
+                name: `All Day: ${event.summary || 'Busy'}`,
                 email: 'Google Calendar'
             },
             is_google_calendar: true,

@@ -55,12 +55,8 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoading = true
 
       try {
-        // Load lesson settings from API
-        const response = await fetch('/api/admin/settings/lessons', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
+        // Load all public configuration (no auth required)
+        const response = await fetch('/api/public/config')
 
         if (response.ok) {
           const data = await response.json()
@@ -68,7 +64,7 @@ export const useSettingsStore = defineStore('settings', {
           // Update config with loaded values
           this.config.defaultLessonDurationMinutes = data.default_duration_minutes || 30
           this.config.slotDuration = Math.ceil((data.default_duration_minutes || 30) / 15) // Convert minutes to slots
-          this.config.inPersonPaymentEnabled = data.in_person_payment_enabled === 'true'
+          this.config.inPersonPaymentEnabled = data.in_person_payment_enabled || false
         } else {
           console.warn('Failed to load settings, using defaults')
         }
@@ -89,6 +85,7 @@ export const useSettingsStore = defineStore('settings', {
       this.isLoaded = false
       await this.initialize()
     },
+
 
     /**
      * Update config directly (useful for admin interface)

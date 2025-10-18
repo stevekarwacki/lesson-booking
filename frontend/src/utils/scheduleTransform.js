@@ -69,6 +69,9 @@ export function transformWeeklySchedule(weeklySchedule, weekStartDate) {
  */
 function transformSlotData(slotData, timeSlot) {
   return {
+    // Preserve the original booking/event ID
+    id: slotData.id,
+    
     // Normalize property names
     startSlot: timeSlot,
     duration: slotData.duration || 2,

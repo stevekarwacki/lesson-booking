@@ -221,8 +221,8 @@ const handleSlotSelected = (slot) => {
         if ((userStore.canManageCalendar || userStore.canManageUsers) && slot.student && slot.student.id) {
             // Create a booking object that matches the EditBookingModal expected format
             // For multi-slot bookings, calculate the original start slot and total duration
-            const originalStartSlot = slot.isMultiSlot ? slot.startSlot - (slot.slotPosition * 2) : slot.startSlot
-            const totalDuration = slot.isMultiSlot ? slot.totalSlots * 2 : slot.duration
+            const originalStartSlot = slot.isMultiSlot ? slot.originalStartSlot || (slot.startSlot - (slot.slotPosition * 2)) : slot.startSlot
+            const totalDuration = slot.isMultiSlot ? slot.originalDuration || (slot.totalSlots * 2) : slot.duration
             
             const bookingObject = {
                 id: slot.id || slot.bookingId,
@@ -245,8 +245,8 @@ const handleSlotSelected = (slot) => {
         // For students viewing their own bookings, allow them to edit as well
         else if (userStore.isStudent && slot.student && slot.student.id === userStore.user.id) {
             // For multi-slot bookings, calculate the original start slot and total duration
-            const originalStartSlot = slot.isMultiSlot ? slot.startSlot - (slot.slotPosition * 2) : slot.startSlot
-            const totalDuration = slot.isMultiSlot ? slot.totalSlots * 2 : slot.duration
+            const originalStartSlot = slot.isMultiSlot ? slot.originalStartSlot || (slot.startSlot - (slot.slotPosition * 2)) : slot.startSlot
+            const totalDuration = slot.isMultiSlot ? slot.originalDuration || (slot.totalSlots * 2) : slot.duration
             
             const bookingObject = {
                 id: slot.id || slot.bookingId,
@@ -310,6 +310,7 @@ const clearSelectedDate = () => {
  */
 const formatSlot = (slot, date) => {
     const formattedSlot = {
+        id: slot.id, // Preserve the original booking/event ID
         start_slot: slot.start_slot,
         duration: slot.duration,
         date: date,

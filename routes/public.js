@@ -45,4 +45,32 @@ router.get('/business-info', async (req, res) => {
     }
 });
 
+// Public endpoint to get all UI configuration (no auth required)
+// Principle: If it affects how the UI renders, it should be public
+router.get('/config', async (req, res) => {
+    try {
+        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
+        
+        // Return all non-sensitive configuration needed for UI rendering
+        const publicConfig = {
+            // Lesson configuration
+            default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            
+            // Add other UI-affecting config here as needed
+            // max_booking_days: parseInt(lessonSettings.max_booking_days) || 30,
+            // timezone: lessonSettings.timezone || 'UTC',
+        };
+        
+        res.json(publicConfig);
+    } catch (error) {
+        console.error('Error fetching public config:', error);
+        // Return default values to prevent app breaking
+        res.json({
+            default_duration_minutes: 30,
+            in_person_payment_enabled: false
+        });
+    }
+});
+
 module.exports = router;
