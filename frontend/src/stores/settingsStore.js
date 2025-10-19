@@ -15,6 +15,11 @@ export const useSettingsStore = defineStore('settings', {
       // etc.
     },
     
+    // Branding configuration
+    branding: {
+      logoVersion: Date.now(), // Timestamp for cache busting
+    },
+    
     // Loading state
     isLoaded: false,
     isLoading: false
@@ -35,6 +40,16 @@ export const useSettingsStore = defineStore('settings', {
      * Get in-person payment enabled setting
      */
     inPersonPaymentEnabled: (state) => state.config.inPersonPaymentEnabled,
+
+    /**
+     * Get versioned logo URL for cache busting
+     * @param {string} baseUrl - Base logo URL (e.g., '/api/assets/logo')
+     * @returns {string} URL with version query parameter
+     */
+    versionedLogoUrl: (state) => (baseUrl) => {
+      if (!baseUrl) return null
+      return `${baseUrl}?v=${state.branding.logoVersion}`
+    },
 
     /**
      * Check if settings are ready to use
@@ -93,6 +108,14 @@ export const useSettingsStore = defineStore('settings', {
      */
     updateConfig(updates) {
       Object.assign(this.config, updates)
+    },
+
+    /**
+     * Bust logo cache by updating version timestamp
+     * Call this after uploading or removing a logo
+     */
+    bustLogoCache() {
+      this.branding.logoVersion = Date.now()
     }
   }
 })

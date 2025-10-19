@@ -2,15 +2,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
+import { useSettingsStore } from '../stores/settingsStore'
 
 const router = useRouter()
 const userStore = useUserStore()
+const settingsStore = useSettingsStore()
 const isMenuOpen = ref(false)
 
 // Logo state
-const logoUrl = ref('')
+const logoBaseUrl = ref('')
 const companyName = ref('')
 const logoPosition = ref('left')
+
+// Computed property for versioned logo URL
+const logoUrl = computed(() => {
+  return settingsStore.versionedLogoUrl(logoBaseUrl.value)
+})
 
 // Fetch branding information
 const fetchBrandingInfo = async () => {
@@ -19,7 +26,7 @@ const fetchBrandingInfo = async () => {
     if (response.ok) {
       const branding = await response.json()
       if (branding.logoUrl) {
-        logoUrl.value = branding.logoUrl
+        logoBaseUrl.value = branding.logoUrl
       }
       if (branding.companyName) {
         companyName.value = branding.companyName
@@ -516,4 +523,4 @@ const handleLogout = () => {
         text-align: center;
     }
 }
-</style> 
+</style>

@@ -185,6 +185,7 @@
 
 <script>
 import { ref, computed, watch } from 'vue'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 export default {
   name: 'ThemeConfigSection',
@@ -202,16 +203,22 @@ export default {
   emits: ['change'],
   
   setup(props, { emit }) {
+    const settingsStore = useSettingsStore()
     // Reactive state
     const selectedPalette = ref(null)
     const customPrimaryColor = ref('#28a745')
-    const currentLogoUrl = ref('')
+    const currentLogoBaseUrl = ref('')
     const businessName = ref('Lesson Booking App')
     const contrastWarning = ref(false)
     const isCustomColorValid = ref(true)
     const originalData = ref({})
     const logoConfig = ref(null)
     const selectedLogoPosition = ref('left')
+    
+    // Computed property for versioned logo URL
+    const currentLogoUrl = computed(() => {
+      return settingsStore.versionedLogoUrl(currentLogoBaseUrl.value)
+    })
     
     // Curated color palettes
     const curatedPalettes = [
@@ -292,8 +299,11 @@ export default {
           throw new Error(result.details || result.error || 'Upload failed')
         }
         
-        // Update logo URL
-        currentLogoUrl.value = result.logoUrl
+        // Update logo base URL
+        currentLogoBaseUrl.value = result.logoUrl
+        
+        // Bust logo cache to force browser to reload new image
+        settingsStore.bustLogoCache()
         
         // Emit success event with upload info
         emitChange('logo_uploaded', { 
@@ -327,8 +337,11 @@ export default {
           throw new Error(result.error || 'Failed to remove logo')
         }
         
-        // Clear logo URL
-        currentLogoUrl.value = ''
+        // Clear logo base URL
+        currentLogoBaseUrl.value = ''
+        
+        // Bust logo cache
+        settingsStore.bustLogoCache()
         
         // Emit success event
         emitChange('logo_removed', { message: result.message })
@@ -457,7 +470,7 @@ export default {
         if (brandingResponse.ok) {
           const branding = await brandingResponse.json()
           if (branding.logoUrl) {
-            currentLogoUrl.value = branding.logoUrl
+            currentLogoBaseUrl.value = branding.logoUrl
           }
           if (branding.logoConfig) {
             logoConfig.value = branding.logoConfig
@@ -476,7 +489,7 @@ export default {
       if (newData && Object.keys(newData).length > 0) {
         originalData.value = { ...newData }
         customPrimaryColor.value = newData.primaryColor || '#28a745'
-        currentLogoUrl.value = newData.logoUrl || ''
+        currentLogoBaseUrl.value = newData.logoUrl || ''
         
         // Try to match with a curated palette
         const matchingPalette = curatedPalettes.find(p => p.primary === newData.primaryColor)
