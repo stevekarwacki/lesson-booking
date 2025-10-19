@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 
 // Mock fetch globally
@@ -10,6 +11,9 @@ describe('Logo Upload Feature', () => {
   let wrapper
 
   beforeEach(() => {
+    // Set up Pinia for each test
+    setActivePinia(createPinia())
+    
     // Reset fetch mock
     global.fetch.mockReset()
     

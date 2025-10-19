@@ -198,23 +198,17 @@ class EmailService {
         const { AppSettings } = require('../models/AppSettings');
         const businessSettings = await AppSettings.getSettingsByCategory('business');
         
-        // Get logo URL from branding settings
-        const logoPath = await AppSettings.getSetting('branding', 'logo_url');
+        // Get logo filename from branding settings
+        const logoFilename = await AppSettings.getSetting('branding', 'logo_url');
         
-        // Convert relative logo path to absolute URL for emails
+        // Convert logo filename to absolute URL for emails
         let logoUrl = null;
-        if (logoPath) {
-            // If logoPath is already absolute (starts with http), use as-is
-            if (logoPath.startsWith('http')) {
-                logoUrl = logoPath;
-            } else {
-                // Construct absolute URL using base_url from business settings
-                const baseUrl = businessSettings.base_url || process.env.WEBSITE_URL || process.env.FRONTEND_URL;
-                if (baseUrl) {
-                    // Ensure logoPath starts with / for proper URL construction
-                    const cleanLogoPath = logoPath.startsWith('/') ? logoPath : `/${logoPath}`;
-                    logoUrl = `${baseUrl.replace(/\/$/, '')}${cleanLogoPath}`;
-                }
+        if (logoFilename) {
+            // Construct absolute URL to the logo asset endpoint
+            const baseUrl = businessSettings.base_url || process.env.WEBSITE_URL || process.env.FRONTEND_URL;
+            if (baseUrl) {
+                // Use the new /api/assets/logo endpoint
+                logoUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/logo`;
             }
         }
         
