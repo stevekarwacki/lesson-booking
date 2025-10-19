@@ -12,8 +12,10 @@ The Logo Upload feature allows administrators to upload, manage, and configure c
 - **Image Processing**: Automatic resizing, format conversion, and validation
 - **Logo Positioning**: Configure logo placement (left or center) in the navigation header
 - **Responsive Design**: Different layouts for desktop and mobile devices
-- **Security**: File type validation, size limits, and secure file serving
+- **Security**: File type validation, size limits, and controller-based asset serving
+- **Cache Busting**: Automatic cache invalidation for immediate logo updates
 - **Database Integration**: Logo settings stored in the application settings system
+- **Email Integration**: Logos automatically included in email templates
 
 ## Architecture
 
@@ -29,13 +31,16 @@ The Logo Upload feature allows administrators to upload, manage, and configure c
 - **`/api/admin/settings/logo`** (Protected): Logo removal endpoint  
 - **`/api/branding`** (Public): Branding information including logo config
 - **`/api/admin/settings/logo/position`** (Protected): Logo position configuration
+- **`/api/assets/logo`** (Public): Controller-based logo serving endpoint
 
 #### Utilities
 - **`utils/logoOperations.js`**: Core business logic for logo processing
 - **`utils/imageProcessing.js`**: Image manipulation using Sharp
 - **`utils/fileOperations.js`**: File system operations
 - **`middleware/uploadMiddleware.js`**: Multer configuration for file uploads
-- **`middleware/staticFiles.js`**: Secure static file serving
+
+#### Services
+- **`services/EmailService.js`**: Email template integration with logo assets
 
 #### Constants
 - **`constants/logoConfig.js`**: Logo specifications and configuration options
@@ -69,12 +74,15 @@ The Logo Upload feature allows administrators to upload, manage, and configure c
 ### Public Endpoints
 
 #### GET `/api/branding`
-Returns public branding information including logo URL, position, company name, and logo configuration options.
+Returns public branding information including logo URL (`/api/assets/logo`), position, company name, and logo configuration options.
+
+#### GET `/api/assets/logo`
+Serves the current logo file with proper caching headers. Returns 404 if no logo is configured. Supports query parameters for cache busting (e.g., `?v=timestamp`).
 
 ### Protected Endpoints (Admin Only)
 
 #### POST `/api/admin/settings/logo/upload`
-Upload a new logo image via `multipart/form-data` with `logo` field. Returns success status, logo URL, and processing information.
+Upload a new logo image via `multipart/form-data` with `logo` field. Returns success status, logo URL (`/api/assets/logo`), and processing information.
 
 #### DELETE `/api/admin/settings/logo`
 Remove the current logo from both filesystem and database.
@@ -146,6 +154,8 @@ Update logo position. Accepts `position` field with values "left" or "center".
 - **Upload**: Send `FormData` with logo file to upload endpoint
 - **Position**: Send JSON with position value to position endpoint
 - **Authentication**: Include Bearer token in Authorization header
+- **Logo Display**: Use `/api/assets/logo` endpoint for displaying logos
+- **Cache Busting**: Append `?v=timestamp` query parameter to force cache refresh
 
 ## File Structure
 
@@ -154,13 +164,15 @@ Update logo position. Accepts `position` field with values "left" or "center".
 │   ├── constants/
 │   │   └── logoConfig.js              # Logo specifications
 │   ├── middleware/
-│   │   ├── uploadMiddleware.js        # Multer configuration
-│   │   └── staticFiles.js             # Secure file serving
+│   │   └── uploadMiddleware.js        # Multer configuration
 │   ├── models/
 │   │   └── AppSettings.js             # Settings storage
 │   ├── routes/
 │   │   ├── admin.js                   # Logo management endpoints
+│   │   ├── assets.js                  # Controller-based asset serving
 │   │   └── branding.js                # Public branding API
+│   ├── services/
+│   │   └── EmailService.js            # Email template integration
 │   ├── utils/
 │   │   ├── logoOperations.js          # Logo business logic
 │   │   ├── imageProcessing.js         # Image manipulation
@@ -169,10 +181,12 @@ Update logo position. Accepts `position` field with values "left" or "center".
 │       └── logos/                     # Logo storage directory
 └── frontend/
     ├── components/
-    │   ├── NavBar.vue                 # Navigation with logo display
+    │   ├── NavBar.vue                 # Navigation with versioned logo URLs
     │   └── admin/
-    │       ├── ThemeConfigSection.vue # Logo upload interface
+    │       ├── ThemeConfigSection.vue # Logo upload with cache busting
     │       └── AdminSettingsPage.vue  # Settings management
+    ├── stores/
+    │   └── settingsStore.js           # Logo version tracking
     └── views/
         └── AdminSettingsPage.vue      # Admin settings page
 ```
@@ -180,10 +194,37 @@ Update logo position. Accepts `position` field with values "left" or "center".
 ## Database Schema
 
 Logo settings are stored in the `app_settings` table with category `branding`:
-- `logo_url`: Path to uploaded logo file
+- `logo_url`: Filename of uploaded logo file (not full path)
 - `logo_position`: "left" or "center"
 
 **AppSettings Model**: This app uses a flexible key-value settings system where settings are categorized (e.g., "branding", "business") and stored as key-value pairs with user tracking and timestamps.
+
+## Cache Busting System
+
+The application implements client-side cache busting for immediate logo updates:
+
+### Frontend State Management
+- **Logo Version Tracking**: Pinia store maintains `logoVersion` timestamp
+- **Versioned URLs**: Computed property appends `?v=timestamp` to logo URLs
+- **Cache Invalidation**: `bustLogoCache()` action updates timestamp after upload/removal
+
+### Implementation Details
+```javascript
+// settingsStore.js
+const logoUrl = computed(() => {
+  return settingsStore.versionedLogoUrl('/api/assets/logo')
+  // Returns: /api/assets/logo?v=1703123456789
+})
+
+// After logo upload/removal
+settingsStore.bustLogoCache()
+```
+
+### Benefits
+- **Immediate Updates**: Logo changes visible instantly without browser refresh
+- **No Database Storage**: Version tracking only in client state
+- **SEO Friendly**: Maintains clean URLs with meaningful endpoints
+- **Email Compatible**: Works with absolute URLs in email templates
 
 ## Error Handling
 
@@ -235,20 +276,32 @@ Errors return JSON with `error` and `details` fields for user-friendly error mes
 
 1. **Logo not displaying**:
    - Check file permissions on uploads directory
-   - Verify logo URL in database
-   - Confirm static file middleware is configured
+   - Verify logo filename in database (stored as filename only)
+   - Confirm `/api/assets/logo` endpoint is accessible
+   - Check browser cache - append `?v=timestamp` to force refresh
 
 2. **Upload failing**:
    - Check file size limits
    - Verify image format is supported
    - Ensure uploads directory exists and is writable
+   - Verify admin authentication token
 
 3. **Position not updating**:
    - Verify admin permissions
    - Check database connection
    - Confirm frontend is fetching latest branding data
 
-4. **Mobile layout issues**:
+4. **Cache not updating**:
+   - Verify `settingsStore.bustLogoCache()` is called after upload/removal
+   - Check browser developer tools for updated query parameters
+   - Clear browser cache if needed
+
+5. **Email logos not showing**:
+   - Verify `WEBSITE_URL` or `FRONTEND_URL` environment variable
+   - Check email template absolute URL construction
+   - Confirm logo accessible via `/api/assets/logo` endpoint
+
+6. **Mobile layout issues**:
    - Clear browser cache
    - Check responsive CSS breakpoints
    - Verify mobile auth section visibility
