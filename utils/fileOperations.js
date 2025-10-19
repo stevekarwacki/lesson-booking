@@ -65,7 +65,7 @@ const deleteFileIfExists = async (filePath) => {
  * @param {Buffer} buffer - File buffer
  * @param {string} originalName - Original filename
  * @param {string} baseDirectory - Base directory (e.g., 'uploads/logos')
- * @returns {Promise<{filePath: string, webUrl: string}>}
+ * @returns {Promise<{filePath: string, webUrl: string, filename: string}>}
  */
 const saveFileWithUrl = async (buffer, originalName, baseDirectory) => {
     const filename = generateUniqueFilename(originalName);
@@ -74,7 +74,7 @@ const saveFileWithUrl = async (buffer, originalName, baseDirectory) => {
     const filePath = await saveBufferToFile(buffer, fullDirectory, filename);
     const webUrl = `/${baseDirectory}/${filename}`;
     
-    return { filePath, webUrl };
+    return { filePath, webUrl, filename };
 };
 
 module.exports = {

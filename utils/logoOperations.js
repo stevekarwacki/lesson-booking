@@ -26,13 +26,13 @@ const processLogoUpload = async (buffer, originalname, userId) => {
     });
 
     // Save the processed logo
-    const { webUrl } = await saveFileWithUrl(processed.buffer, originalname, LOGO_CONFIG.UPLOAD_DIRECTORY);
+    const { filename } = await saveFileWithUrl(processed.buffer, originalname, LOGO_CONFIG.UPLOAD_DIRECTORY);
 
-    // Store logo URL in settings
-    await AppSettings.setSetting('branding', 'logo_url', webUrl, userId);
+    // Store only the filename in settings (not the full path)
+    await AppSettings.setSetting('branding', 'logo_url', filename, userId);
 
     return {
-        logoUrl: webUrl,
+        logoUrl: filename,
         info: {
             originalDimensions: processed.originalDimensions,
             finalDimensions: processed.dimensions,
@@ -47,14 +47,14 @@ const processLogoUpload = async (buffer, originalname, userId) => {
  * @returns {Promise<boolean>} True if logo was removed, false if no logo existed
  */
 const removeLogo = async () => {
-    const logoUrl = await AppSettings.getSetting('branding', 'logo_url');
+    const logoFilename = await AppSettings.getSetting('branding', 'logo_url');
     
-    if (!logoUrl) {
+    if (!logoFilename) {
         return false;
     }
     
     // Remove file from filesystem
-    const filePath = path.join(__dirname, '..', logoUrl);
+    const filePath = path.join(__dirname, '..', 'uploads', 'logos', logoFilename);
     const deleted = await deleteFileIfExists(filePath);
     
     if (!deleted) {

@@ -7,14 +7,17 @@ const LOGO_CONFIG = require('../constants/logoConfig');
 router.get('/', async (req, res) => {
     try {
         // Fetch public branding info
-        const logoUrl = await AppSettings.getSetting('branding', 'logo_url');
+        const logoFilename = await AppSettings.getSetting('branding', 'logo_url');
         const logoPosition = await AppSettings.getSetting('branding', 'logo_position');
         const companyName = await AppSettings.getSetting('business', 'company_name');
         
         const defaultPosition = LOGO_CONFIG.POSITION_OPTIONS.find(opt => opt.default)?.value || 'left';
         
+        // Convert filename to API endpoint path
+        const logoUrl = logoFilename ? '/api/assets/logo' : null;
+        
         res.json({ 
-            logoUrl: logoUrl || null,
+            logoUrl,
             logoPosition: logoPosition || defaultPosition,
             companyName: companyName || '',
             logoConfig: {

@@ -1489,7 +1489,7 @@ router.post('/settings/logo/upload', authorize('manage', 'User'), logoUpload, as
         const response = {
             success: true,
             message: 'Logo uploaded successfully',
-            logoUrl: result.logoUrl,
+            logoUrl: '/api/assets/logo',
             info: result.info
         };
 
@@ -1630,4 +1630,4 @@ router.put('/transactions/:id/payment-status', authorize('manage', 'Transaction'
     }
 });
 
-module.exports = router; 
+module.exports = router;
