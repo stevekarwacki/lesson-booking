@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { THEME_DEFAULTS, getThemeDefaults } from '@/constants/themeDefaults'
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
@@ -54,7 +55,27 @@ export const useSettingsStore = defineStore('settings', {
     /**
      * Check if settings are ready to use
      */
-    isReady: (state) => state.isLoaded
+    isReady: (state) => state.isLoaded,
+
+    /**
+     * Get current theme settings for UI consumption
+     */
+    theme: (state) => state.config.theme || THEME_DEFAULTS,
+
+    /**
+     * Get primary color for UI components
+     */
+    primaryColor: (state) => state.config.theme?.primary_color || THEME_DEFAULTS.primary_color,
+
+    /**
+     * Get secondary color for UI components
+     */
+    secondaryColor: (state) => state.config.theme?.secondary_color || THEME_DEFAULTS.secondary_color,
+
+    /**
+     * Get palette name for admin interface
+     */
+    paletteName: (state) => state.config.theme?.palette_name || THEME_DEFAULTS.palette_name
   },
 
   actions: {
@@ -80,6 +101,9 @@ export const useSettingsStore = defineStore('settings', {
           this.config.defaultLessonDurationMinutes = data.default_duration_minutes || 30
           this.config.slotDuration = Math.ceil((data.default_duration_minutes || 30) / 15) // Convert minutes to slots
           this.config.inPersonPaymentEnabled = data.in_person_payment_enabled || false
+          
+          // Update theme config (single source of truth)
+          this.config.theme = getThemeDefaults(data.theme)
         } else {
           console.warn('Failed to load settings, using defaults')
         }
@@ -116,6 +140,55 @@ export const useSettingsStore = defineStore('settings', {
      */
     bustLogoCache() {
       this.branding.logoVersion = Date.now()
+    },
+
+    /**
+     * Save theme settings to backend and update local config
+     * @param {Object} themeConfig - Theme configuration to save
+     * @returns {Promise<Object>} Save result
+     */
+    async saveThemeSettings(themeConfig) {
+      try {
+        const response = await fetch('/api/admin/settings/theme', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(themeConfig)
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.details || result.error || 'Failed to save theme settings')
+        }
+
+        // Update local config immediately (optimistic update)
+        if (result.data) {
+          this.config.theme = getThemeDefaults({
+            primary_color: result.data.primaryColor,
+            secondary_color: result.data.secondaryColor,
+            palette_name: result.data.palette
+          })
+        }
+
+        return { success: true, message: result.message, data: result.data }
+      } catch (error) {
+        console.error('Error saving theme settings:', error)
+        return { success: false, error: error.message }
+      }
+    },
+
+    /**
+     * Update theme temporarily for preview (without saving)
+     * @param {Object} themeUpdates - Theme updates to apply
+     */
+    updateThemePreview(themeUpdates) {
+      this.config.theme = getThemeDefaults({
+        ...this.config.theme,
+        ...themeUpdates
+      })
     }
   }
 })

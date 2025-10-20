@@ -50,12 +50,20 @@ router.get('/business-info', async (req, res) => {
 router.get('/config', async (req, res) => {
     try {
         const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
+        const themeSettings = await AppSettings.getSettingsByCategory('theme');
         
         // Return all non-sensitive configuration needed for UI rendering
         const publicConfig = {
             // Lesson configuration
             default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
             in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            
+            // Theme configuration for UI styling
+            theme: {
+                primary_color: themeSettings.primary_color || '#28a745',
+                secondary_color: themeSettings.secondary_color || '#20c997',
+                palette_name: themeSettings.palette_name || 'Forest Green'
+            },
             
             // Add other UI-affecting config here as needed
             // max_booking_days: parseInt(lessonSettings.max_booking_days) || 30,

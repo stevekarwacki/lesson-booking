@@ -1249,6 +1249,9 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         // Get lesson settings from database
         const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
         
+        // Get theme settings from database
+        const themeSettings = await AppSettings.getSettingsByCategory('theme');
+        
         // Provide default values for missing settings
         const business = {
             companyName: businessSettings.company_name || '',
@@ -1285,11 +1288,11 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         const settings = {
             business,
             lessons,
-            // Placeholder for theme and email settings
+            // Theme settings from database with defaults
             theme: {
-                primaryColor: '#28a745',
-                secondaryColor: '#20c997',
-                palette: 'Forest Green',
+                primaryColor: themeSettings.primary_color || '#28a745',
+                secondaryColor: themeSettings.secondary_color || '#20c997',
+                palette: themeSettings.palette_name || 'Forest Green',
                 logoUrl: null
             },
             email: {
@@ -1453,8 +1456,70 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 }
             });
             
+        } else if (category === 'theme') {
+            // Handle theme settings
+            const themeFields = {
+                primary_color: settingsData.primaryColor,
+                secondary_color: settingsData.secondaryColor,
+                palette_name: settingsData.palette
+            };
+            
+            // Validate theme settings
+            const validatedFields = {};
+            const errors = {};
+            
+            // Validate primary color (required)
+            if (themeFields.primary_color) {
+                const hexRegex = /^#[0-9A-Fa-f]{6}$/;
+                if (!hexRegex.test(themeFields.primary_color)) {
+                    errors.primary_color = 'Primary color must be a valid hex color (e.g., #28a745)';
+                } else {
+                    validatedFields.primary_color = themeFields.primary_color;
+                }
+            }
+            
+            // Validate secondary color (optional)
+            if (themeFields.secondary_color) {
+                const hexRegex = /^#[0-9A-Fa-f]{6}$/;
+                if (!hexRegex.test(themeFields.secondary_color)) {
+                    errors.secondary_color = 'Secondary color must be a valid hex color (e.g., #20c997)';
+                } else {
+                    validatedFields.secondary_color = themeFields.secondary_color;
+                }
+            }
+            
+            // Validate palette name (optional)
+            if (themeFields.palette_name) {
+                if (typeof themeFields.palette_name === 'string' && themeFields.palette_name.trim().length > 0) {
+                    validatedFields.palette_name = themeFields.palette_name.trim();
+                }
+            }
+            
+            // If there are validation errors, return them
+            if (Object.keys(errors).length > 0) {
+                return res.status(400).json({
+                    error: 'Validation failed',
+                    details: errors
+                });
+            }
+            
+            // Save validated settings to database
+            if (Object.keys(validatedFields).length > 0) {
+                await AppSettings.setMultipleSettings('theme', validatedFields, req.user.id);
+            }
+            
+            res.json({
+                success: true,
+                message: 'Theme settings updated successfully',
+                data: {
+                    primaryColor: validatedFields.primary_color,
+                    secondaryColor: validatedFields.secondary_color,
+                    palette: validatedFields.palette_name
+                }
+            });
+            
         } else {
-            // Handle other categories (theme, email) - placeholder for now
+            // Handle other categories (email) - placeholder for now
             res.json({
                 success: true,
                 message: `${category} settings updated successfully`,

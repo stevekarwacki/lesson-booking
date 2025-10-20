@@ -186,6 +186,7 @@
 <script>
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { CURATED_PALETTES } from '@/constants/themeDefaults'
 
 export default {
   name: 'ThemeConfigSection',
@@ -220,14 +221,8 @@ export default {
       return settingsStore.versionedLogoUrl(currentLogoBaseUrl.value)
     })
     
-    // Curated color palettes
-    const curatedPalettes = [
-      { name: 'Forest Green', primary: '#28a745', secondary: '#20c997' },
-      { name: 'Ocean Blue', primary: '#007bff', secondary: '#17a2b8' },
-      { name: 'Sunset Orange', primary: '#fd7e14', secondary: '#ffc107' },
-      { name: 'Royal Purple', primary: '#6f42c1', secondary: '#e83e8c' },
-      { name: 'Charcoal', primary: '#495057', secondary: '#6c757d' }
-    ]
+    // Use imported curated palettes
+    const curatedPalettes = CURATED_PALETTES
     
     // Computed properties
     const hasChanges = computed(() => {
@@ -352,9 +347,36 @@ export default {
       }
     }
     
-    const saveThemeConfig = () => {
-      const config = getCurrentConfig()
-      emitChange('save_theme', config)
+    const saveThemeConfig = async () => {
+      try {
+        const config = getCurrentConfig()
+        
+        // Emit loading start
+        emitChange('save_start', { config })
+        
+        // Save using the settingsStore
+        const result = await settingsStore.saveThemeSettings({
+          primaryColor: config.primaryColor,
+          secondaryColor: config.secondaryColor,
+          palette: config.palette
+        })
+        
+        if (result.success) {
+          // Update original data to reflect saved state
+          originalData.value = { ...config }
+          
+          // Emit success event
+          emitChange('theme_saved', { 
+            message: result.message,
+            config: config
+          })
+        } else {
+          throw new Error(result.error)
+        }
+      } catch (error) {
+        // Emit error event
+        emitChange('save_error', { error: error.message })
+      }
     }
     
     const resetToDefaults = () => {
