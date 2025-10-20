@@ -293,4 +293,59 @@ AppSettings.validateLessonSetting = function(key, value) {
     }
 };
 
+// Validation helper for storage settings
+AppSettings.validateStorageSetting = function(key, value) {
+    // Convert value to string and handle null/undefined
+    const stringValue = value == null ? '' : String(value).trim();
+    
+    switch (key) {
+        case 'storage_type':
+            const validTypes = ['local', 'spaces'];
+            if (!validTypes.includes(stringValue)) {
+                throw new Error(`Storage type must be one of: ${validTypes.join(', ')}`);
+            }
+            return stringValue;
+            
+        case 'storage_endpoint':
+            if (stringValue.length > 0) {
+                // Basic validation that it looks like a domain
+                if (!/^[\w.-]+\.[\w]{2,}$/.test(stringValue)) {
+                    throw new Error('Storage endpoint must be a valid domain (e.g., nyc3.digitaloceanspaces.com)');
+                }
+            }
+            return stringValue || null;
+            
+        case 'storage_region':
+            if (stringValue.length > 0) {
+                // Basic validation - allow alphanumeric and hyphens
+                if (!/^[a-z0-9-]+$/.test(stringValue)) {
+                    throw new Error('Storage region must contain only lowercase letters, numbers, and hyphens');
+                }
+            }
+            return stringValue || null;
+            
+        case 'storage_bucket':
+            if (stringValue.length > 0) {
+                // Bucket name validation - S3/Spaces compatible
+                if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(stringValue) || stringValue.length > 63) {
+                    throw new Error('Bucket name must be 3-63 lowercase characters, starting/ending with alphanumeric, with hyphens allowed');
+                }
+            }
+            return stringValue || null;
+            
+        case 'storage_cdn_url':
+            if (stringValue.length > 0) {
+                try {
+                    new URL(stringValue);
+                } catch {
+                    throw new Error('Storage CDN URL must be a valid URL (e.g., https://cdn.example.com)');
+                }
+            }
+            return stringValue || null;
+            
+        default:
+            throw new Error(`Unknown storage setting: ${key}`);
+    }
+};
+
 module.exports = { AppSettings };

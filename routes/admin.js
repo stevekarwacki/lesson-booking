@@ -1695,4 +1695,203 @@ router.put('/transactions/:id/payment-status', authorize('manage', 'Transaction'
     }
 });
 
+// Storage Configuration Endpoints
+
+/**
+ * GET /api/admin/settings/storage
+ * Get current storage configuration
+ */
+router.get('/settings/storage', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const config = await AppSettings.getSettingsByCategory('storage');
+        
+        // Don't expose credentials, just confirm if they're configured
+        const credentialsConfigured = !!(
+            process.env.STORAGE_ACCESS_KEY_ID && 
+            process.env.STORAGE_SECRET_ACCESS_KEY
+        );
+        
+        res.json({
+            ...config,
+            credentialsConfigured,
+            availableTypes: ['local', 'spaces']
+        });
+    } catch (error) {
+        console.error('Error fetching storage configuration:', error);
+        res.status(500).json({ error: 'Error fetching storage configuration' });
+    }
+});
+
+/**
+ * POST /api/admin/settings/storage
+ * Update storage configuration with validation
+ */
+router.post('/settings/storage', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { storage_type, storage_endpoint, storage_region, storage_bucket, storage_cdn_url } = req.body;
+        
+        // Validate storage type
+        if (!storage_type) {
+            return res.status(400).json({ 
+                error: 'Storage type is required',
+                details: 'Must specify storage_type: "local" or "spaces"'
+            });
+        }
+        
+        const validatedSettings = {};
+        
+        // Validate each setting
+        try {
+            validatedSettings.storage_type = AppSettings.validateStorageSetting('storage_type', storage_type);
+        } catch (e) {
+            return res.status(400).json({ error: e.message });
+        }
+        
+        // For Spaces, validate required configuration
+        if (storage_type === 'spaces') {
+            try {
+                if (storage_endpoint) {
+                    validatedSettings.storage_endpoint = AppSettings.validateStorageSetting('storage_endpoint', storage_endpoint);
+                }
+                if (storage_region) {
+                    validatedSettings.storage_region = AppSettings.validateStorageSetting('storage_region', storage_region);
+                }
+                if (storage_bucket) {
+                    validatedSettings.storage_bucket = AppSettings.validateStorageSetting('storage_bucket', storage_bucket);
+                }
+                if (storage_cdn_url) {
+                    validatedSettings.storage_cdn_url = AppSettings.validateStorageSetting('storage_cdn_url', storage_cdn_url);
+                }
+                
+                // Check that required fields are provided for Spaces
+                if (!validatedSettings.storage_endpoint || !validatedSettings.storage_region || !validatedSettings.storage_bucket) {
+                    return res.status(400).json({
+                        error: 'Spaces storage requires endpoint, region, and bucket',
+                        details: 'All three fields must be configured to use DigitalOcean Spaces'
+                    });
+                }
+                
+                // Check that credentials are available
+                if (!process.env.STORAGE_ACCESS_KEY_ID || !process.env.STORAGE_SECRET_ACCESS_KEY) {
+                    return res.status(400).json({
+                        error: 'Spaces credentials not configured',
+                        details: 'Set STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY environment variables'
+                    });
+                }
+            } catch (e) {
+                return res.status(400).json({ error: e.message });
+            }
+        }
+        
+        // Save validated settings
+        await AppSettings.setMultipleSettings('storage', validatedSettings, req.user.id);
+        
+        // Reinitialize storage with new configuration
+        const { initializeStorage, resetStorage } = require('../storage/index');
+        resetStorage();
+        await initializeStorage({ appSettings: AppSettings });
+        
+        res.json({
+            success: true,
+            message: 'Storage configuration updated successfully',
+            config: validatedSettings
+        });
+    } catch (error) {
+        console.error('Error updating storage configuration:', error);
+        res.status(500).json({ 
+            error: 'Error updating storage configuration',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/storage/test-connection
+ * Test storage connection before saving configuration
+ */
+router.post('/settings/storage/test-connection', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { storage_type, storage_endpoint, storage_region, storage_bucket } = req.body;
+        
+        if (!storage_type) {
+            return res.status(400).json({ error: 'storage_type is required' });
+        }
+        
+        if (storage_type === 'local') {
+            // Local storage always works
+            return res.json({
+                success: true,
+                message: 'Local storage is always available'
+            });
+        }
+        
+        if (storage_type === 'spaces') {
+            // Validate required fields
+            if (!storage_endpoint || !storage_region || !storage_bucket) {
+                return res.status(400).json({
+                    error: 'Missing required configuration',
+                    details: 'endpoint, region, and bucket are required for Spaces'
+                });
+            }
+            
+            // Check credentials
+            if (!process.env.STORAGE_ACCESS_KEY_ID || !process.env.STORAGE_SECRET_ACCESS_KEY) {
+                return res.status(400).json({
+                    error: 'Spaces credentials not configured',
+                    details: 'Set STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY environment variables'
+                });
+            }
+            
+            // Try to create a test storage instance
+            const createSpacesStorage = require('../storage/spaces');
+            const testStorage = createSpacesStorage({
+                endpoint: storage_endpoint,
+                region: storage_region,
+                bucket: storage_bucket,
+                accessKeyId: process.env.STORAGE_ACCESS_KEY_ID,
+                secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY
+            });
+            
+            if (!testStorage) {
+                return res.status(400).json({
+                    error: 'Failed to initialize Spaces storage',
+                    details: 'AWS SDK v3 may not be installed. Run: npm install @aws-sdk/client-s3'
+                });
+            }
+            
+            // Try to check if bucket exists by testing a simple operation
+            try {
+                const testKey = '.test-connection';
+                await testStorage.exists(testKey);
+                
+                return res.json({
+                    success: true,
+                    message: 'Successfully connected to DigitalOcean Spaces',
+                    config: {
+                        endpoint: storage_endpoint,
+                        region: storage_region,
+                        bucket: storage_bucket
+                    }
+                });
+            } catch (error) {
+                return res.status(400).json({
+                    error: 'Failed to connect to Spaces',
+                    details: error.message
+                });
+            }
+        }
+        
+        res.status(400).json({
+            error: 'Unknown storage type',
+            details: `'${storage_type}' is not a supported storage type`
+        });
+    } catch (error) {
+        console.error('Error testing storage connection:', error);
+        res.status(500).json({ 
+            error: 'Error testing storage connection',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;
