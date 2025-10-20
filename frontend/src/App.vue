@@ -5,12 +5,22 @@ import LoginForm from './components/LoginForm.vue'
 import NavBar from './components/NavBar.vue'
 import AppFooter from './components/AppFooter.vue'
 import { useUserStore } from './stores/userStore'
+import { useSettingsStore } from './stores/settingsStore'
+import { useTheme } from './composables/useTheme'
 import SubscriptionPeriodUpdater from './components/SubscriptionPeriodUpdater.vue'
 
 const userStore = useUserStore()
+const settingsStore = useSettingsStore()
 
-onMounted(() => {
-    userStore.initialize()
+// Initialize theme system (will apply theme automatically via watcher)
+useTheme()
+
+onMounted(async () => {
+    // Initialize stores in parallel for faster startup
+    await Promise.all([
+        userStore.initialize(),
+        settingsStore.initialize()
+    ])
 })
 
 const handleLogout = () => {

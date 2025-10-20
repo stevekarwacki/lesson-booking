@@ -247,6 +247,13 @@ export default {
       customPrimaryColor.value = palette.primary
       contrastWarning.value = false
       isCustomColorValid.value = true
+      
+      // Apply live preview when palette is selected
+      settingsStore.updateThemePreview({
+        primary_color: palette.primary,
+        secondary_color: palette.secondary,
+        palette_name: palette.name
+      })
     }
     
     const validateAndPreviewCustomColor = () => {
@@ -260,6 +267,13 @@ export default {
       if (isCustomColorValid.value) {
         // Check contrast
         contrastWarning.value = !validateContrast(customPrimaryColor.value)
+        
+        // Apply live preview for custom color
+        settingsStore.updateThemePreview({
+          primary_color: customPrimaryColor.value,
+          secondary_color: generateSecondaryColor(customPrimaryColor.value),
+          palette_name: 'custom'
+        })
       }
     }
     
