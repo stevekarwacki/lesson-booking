@@ -1,11 +1,10 @@
-const path = require('path');
 const { AppSettings } = require('../models/AppSettings');
 const { validateImageDimensions, validateFileType, processImage } = require('./imageProcessing');
-const { saveFileWithUrl, deleteFileIfExists } = require('./fileOperations');
+const { getStorage } = require('../storage/index');
 const LOGO_CONFIG = require('../constants/logoConfig');
 
 /**
- * Process and save uploaded logo
+ * Process and save uploaded logo using configured storage
  * @param {Buffer} buffer - Image file buffer
  * @param {string} originalname - Original filename
  * @param {number} userId - User ID for database record
@@ -25,14 +24,19 @@ const processLogoUpload = async (buffer, originalname, userId) => {
         format: LOGO_CONFIG.OUTPUT_FORMAT
     });
 
-    // Save the processed logo
-    const { filename } = await saveFileWithUrl(processed.buffer, originalname, LOGO_CONFIG.UPLOAD_DIRECTORY);
+    // Save the processed logo using storage abstraction
+    const storage = getStorage();
+    const { url, filename } = await storage.save(
+        processed.buffer,
+        originalname,
+        'logos'
+    );
 
-    // Store only the filename in settings (not the full path)
+    // Store only the filename in settings (not the full path/URL)
     await AppSettings.setSetting('branding', 'logo_url', filename, userId);
 
     return {
-        logoUrl: filename,
+        logoUrl: url,
         info: {
             originalDimensions: processed.originalDimensions,
             finalDimensions: processed.dimensions,
@@ -43,7 +47,7 @@ const processLogoUpload = async (buffer, originalname, userId) => {
 };
 
 /**
- * Remove logo from filesystem and database
+ * Remove logo from storage and database
  * @returns {Promise<boolean>} True if logo was removed, false if no logo existed
  */
 const removeLogo = async () => {
@@ -53,12 +57,13 @@ const removeLogo = async () => {
         return false;
     }
     
-    // Remove file from filesystem
-    const filePath = path.join(__dirname, '..', 'uploads', 'logos', logoFilename);
-    const deleted = await deleteFileIfExists(filePath);
+    // Remove file from storage
+    const storage = getStorage();
+    const deleted = await storage.delete(`logos/${logoFilename}`);
     
     if (!deleted) {
-        console.warn('Logo file not found on filesystem:', filePath);
+        // Log but don't fail - logo file might have been manually deleted
+        console.warn('Logo file not found in storage:', logoFilename);
     }
     
     // Remove from database

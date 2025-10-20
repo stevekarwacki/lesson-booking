@@ -1,13 +1,12 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs').promises;
 const { AppSettings } = require('../models/AppSettings');
+const { getStorage } = require('../storage/index');
 
 const router = express.Router();
 
 /**
  * GET /api/assets/logo
- * Serve the company logo file
+ * Serve the company logo file from configured storage
  * Public endpoint with aggressive caching
  */
 router.get('/logo', async (req, res) => {
@@ -19,25 +18,9 @@ router.get('/logo', async (req, res) => {
             return res.status(404).json({ error: 'No logo configured' });
         }
 
-        // Security: ensure filename doesn't contain path traversal attempts
-        const safeFilename = path.basename(logoFilename);
-        
-        // Construct absolute file path
-        const uploadsDir = path.join(__dirname, '..', 'uploads', 'logos');
-        const filePath = path.join(uploadsDir, safeFilename);
-        
-        // Verify file exists and is within the uploads directory
-        try {
-            await fs.access(filePath);
-            const realPath = await fs.realpath(filePath);
-            const realUploadsDir = await fs.realpath(uploadsDir);
-            
-            if (!realPath.startsWith(realUploadsDir)) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
-        } catch (err) {
-            return res.status(404).json({ error: 'Logo file not found' });
-        }
+        // Retrieve file from storage
+        const storage = getStorage();
+        const buffer = await storage.get(`logos/${logoFilename}`);
 
         // Set caching and security headers
         res.set({
@@ -46,9 +29,14 @@ router.get('/logo', async (req, res) => {
             'X-Content-Type-Options': 'nosniff'
         });
 
-        // Stream the file
-        res.sendFile(filePath);
+        // Send file buffer
+        res.send(buffer);
     } catch (error) {
+        // Check if it's a file not found error
+        if (error.message && (error.message.includes('not found') || error.message.includes('ENOENT'))) {
+            return res.status(404).json({ error: 'Logo file not found' });
+        }
+        
         console.error('Error serving logo:', error);
         res.status(500).json({ error: 'Failed to serve logo' });
     }

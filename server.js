@@ -1,6 +1,8 @@
 require('dotenv').config();
 const { app } = require('./app');
 const { initModels } = require('./models');
+const { AppSettings } = require('./models/AppSettings');
+const { initializeStorage } = require('./storage/index');
 const cronJobService = require('./services/CronJobService');
 const logger = require('./utils/logger');
 
@@ -10,6 +12,9 @@ const port = process.env.PORT || 3000;
 const startServer = async () => {
     try {
         await initModels();
+        
+        // Initialize storage system with AppSettings for configuration
+        await initializeStorage({ appSettings: AppSettings });
         
         // Initialize scheduled email jobs
         await cronJobService.initialize();
