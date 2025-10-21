@@ -7,7 +7,7 @@ import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
 import EmailTemplatesSection from '../components/admin/EmailTemplatesSection.vue'
 import LessonsSection from '../components/admin/LessonsSection.vue'
-import StorageConfigSection from '../components/admin/StorageConfigSection.vue'
+import AdvancedSettingsSection from '../components/admin/AdvancedSettingsSection.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -41,12 +41,6 @@ const settingsTabs = computed(() => [
     }
   },
   {
-    id: 'storage',
-    label: 'Storage',
-    component: StorageConfigSection,
-    props: {}
-  },
-  {
     id: 'lessons',
     label: 'Lesson Settings',
     component: LessonsSection,
@@ -64,6 +58,12 @@ const settingsTabs = computed(() => [
       initialData: settingsData.value.email || {},
       loading: loading.value
     }
+  },
+  {
+    id: 'advanced',
+    label: 'Advanced Settings',
+    component: AdvancedSettingsSection,
+    props: {}
   }
 ])
 

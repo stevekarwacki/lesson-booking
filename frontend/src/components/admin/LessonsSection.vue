@@ -239,25 +239,22 @@ export default {
 </script>
 
 <style scoped>
-.lessons-section {
-  max-width: 800px;
-}
-
 .section-header {
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl, 2rem);
+  text-align: center;
 }
 
 .section-header h2 {
-  margin: 0 0 0.5rem 0;
-  color: var(--color-text);
-  font-size: 1.5rem;
+  color: var(--text-primary, var(--color-text, #333));
+  font-size: var(--font-size-2xl, 1.5rem, 24px);
+  margin: 0 0 var(--spacing-sm, 0.5rem, 8px) 0;
   font-weight: 600;
 }
 
 .section-description {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
+  color: var(--text-secondary, var(--color-text-muted, #666));
+  font-size: var(--font-size-base, 0.9rem, 14px);
   line-height: 1.5;
 }
 

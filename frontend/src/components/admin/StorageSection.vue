@@ -1,5 +1,5 @@
 <template>
-  <div class="storage-config-section">
+  <div class="storage-section">
     <div class="section-header">
       <h2>Storage Configuration</h2>
       <p class="section-description">
@@ -292,23 +292,26 @@ const testAndSaveConfiguration = async () => {
 </script>
 
 <style scoped>
-.storage-config-section {
+.storage-section {
   padding: 20px;
 }
 
 .section-header {
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-xl, 30px);
+  text-align: center;
 }
 
 .section-header h2 {
-  font-size: 24px;
-  margin-bottom: 10px;
-  color: #333;
+  color: var(--text-primary, #333);
+  font-size: var(--font-size-2xl, 24px);
+  margin: 0 0 var(--spacing-sm, 8px) 0;
+  font-weight: 600;
 }
 
 .section-description {
-  color: #666;
-  font-size: 14px;
+  color: var(--text-secondary, #666);
+  font-size: var(--font-size-base, 14px);
+  margin-top: 4px;
   line-height: 1.5;
 }
 
