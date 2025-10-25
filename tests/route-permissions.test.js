@@ -99,23 +99,15 @@ describe('Route Permission Tests - CASL Integration', () => {
         test('should enforce 24-hour policy for students', () => {
             const studentUser = { id: 3, role: 'student' };
             
-            // Mock booking within 24 hours
+            // Mock booking within 24 hours (6 hours from now)
             const now = new Date();
-            const targetTime = new Date();
-            if (now.getHours() < 14) {
-                // If it's before 2 PM today, book for 2 PM today (definitely within 24 hours)
-                targetTime.setHours(14, 0, 0, 0);
-            } else {
-                // If it's after 2 PM today, book for 10 AM tomorrow (definitely within 24 hours)
-                targetTime.setDate(targetTime.getDate() + 1);
-                targetTime.setHours(10, 0, 0, 0);
-            }
+            const sixHoursLater = new Date(now.getTime() + (6 * 60 * 60 * 1000));
             
-            const nearBooking = { 
-                student_id: 3, 
-                date: targetTime.toISOString().split('T')[0], 
-                start_slot: (targetTime.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
-                status: 'booked' 
+            const nearBooking = {
+                student_id: 3,
+                date: sixHoursLater.toISOString().split('T')[0],
+                start_slot: (sixHoursLater.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
+                status: 'booked'
             };
             
             // 24-hour policy is enforced in middleware via canBookingAction
@@ -137,24 +129,16 @@ describe('Route Permission Tests - CASL Integration', () => {
             const adminAbility = defineAbilitiesFor(adminUser);
             const instructorAbility = defineAbilitiesFor(instructorUser);
             
-            // Mock booking within 24 hours
+            // Mock booking within 24 hours (6 hours from now)
             const now = new Date();
-            const targetTime = new Date();
-            if (now.getHours() < 14) {
-                // If it's before 2 PM today, book for 2 PM today (definitely within 24 hours)
-                targetTime.setHours(14, 0, 0, 0);
-            } else {
-                // If it's after 2 PM today, book for 10 AM tomorrow (definitely within 24 hours)
-                targetTime.setDate(targetTime.getDate() + 1);
-                targetTime.setHours(10, 0, 0, 0);
-            }
+            const sixHoursLater = new Date(now.getTime() + (6 * 60 * 60 * 1000));
             
-            const nearBooking = { 
+            const nearBooking = {
                 instructor_id: 2,
-                student_id: 3, 
-                date: targetTime.toISOString().split('T')[0], 
-                start_slot: (targetTime.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
-                status: 'booked' 
+                student_id: 3,
+                date: sixHoursLater.toISOString().split('T')[0],
+                start_slot: (sixHoursLater.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
+                status: 'booked'
             };
             
             // Admin and instructor can bypass 24-hour policy
