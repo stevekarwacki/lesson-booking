@@ -438,4 +438,106 @@ router.post('/google/authorize/:instructorId', authMiddleware, instructorAuth, a
     }
 });
 
-module.exports = router; 
+/**
+ * Handle OAuth callback from Google
+ * This endpoint receives the authorization code and exchanges it for tokens
+ */
+router.post('/google/callback', authMiddleware, async (req, res) => {
+    try {
+        const { code, instructorId } = req.body;
+
+        if (!code) {
+            return res.status(400).json({
+                error: 'Authorization code required',
+                message: 'No authorization code provided'
+            });
+        }
+
+        if (!instructorId) {
+            return res.status(400).json({
+                error: 'Instructor ID required',
+                message: 'No instructor ID provided'
+            });
+        }
+
+        // Exchange code for tokens
+        const tokens = await googleOAuthService.exchangeCodeForTokens(code);
+
+        // Store tokens in database
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const { token, created } = await InstructorGoogleToken.createOrUpdate(
+            instructorId,
+            {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expiry_date: tokens.expiry_date,
+                scope: tokens.scope
+            }
+        );
+
+        res.json({
+            success: true,
+            message: created ? 'Google account connected successfully' : 'Google account tokens updated',
+            connectedAt: token.created_at || token.updated_at
+        });
+
+    } catch (error) {
+        console.error('OAuth callback error:', error);
+        
+        if (error.message?.includes('invalid_grant')) {
+            return res.status(400).json({
+                error: 'Invalid authorization code',
+                message: 'The authorization code has expired or is invalid. Please try connecting again.'
+            });
+        }
+
+        res.status(500).json({
+            error: 'Failed to complete OAuth authorization',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * Get OAuth connection status for instructor
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.get('/google/status/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const token = await InstructorGoogleToken.findByInstructorId(instructorId);
+
+        if (!token) {
+            return res.json({
+                connected: false,
+                message: 'Google account not connected'
+            });
+        }
+
+        // Check if token is expired
+        const isExpired = token.isExpired();
+        const hasRefreshToken = !!token.refresh_token;
+
+        res.json({
+            connected: true,
+            isExpired: isExpired,
+            canRefresh: hasRefreshToken,
+            scope: token.scope,
+            connectedAt: token.created_at,
+            lastUpdated: token.updated_at,
+            expiresAt: token.token_expiry,
+            message: 'Google account connected'
+        });
+
+    } catch (error) {
+        console.error('Error checking OAuth status:', error);
+        res.status(500).json({
+            error: 'Failed to check OAuth status',
+            details: error.message
+        });
+    }
+});
+
+module.exports = router;
