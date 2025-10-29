@@ -401,4 +401,41 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
     }
 });
 
+// =====================================================
+// GOOGLE OAUTH ROUTES
+// =====================================================
+
+const googleOAuthService = require('../config/googleOAuth');
+
+/**
+ * Generate OAuth authorization URL
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.post('/google/authorize/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        if (!googleOAuthService.isConfigured()) {
+            return res.status(503).json({
+                error: 'OAuth not configured',
+                message: 'Google OAuth is not configured on the server. Please contact your administrator.'
+            });
+        }
+
+        const authUrl = googleOAuthService.generateAuthUrl(instructorId);
+
+        res.json({
+            success: true,
+            url: authUrl,
+            message: 'Authorization URL generated. Redirect user to this URL.'
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to generate authorization URL',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router; 
