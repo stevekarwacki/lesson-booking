@@ -540,4 +540,38 @@ router.get('/google/status/:instructorId', authMiddleware, instructorAuth, async
     }
 });
 
+/**
+ * Disconnect Google OAuth for instructor
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.delete('/google/disconnect/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const deletedCount = await InstructorGoogleToken.removeByInstructorId(instructorId);
+
+        if (deletedCount === 0) {
+            return res.status(404).json({
+                error: 'No Google connection found',
+                message: 'This instructor does not have a Google account connected'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Google account disconnected successfully',
+            instructorId,
+            disconnectedAt: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Error disconnecting Google OAuth:', error);
+        res.status(500).json({
+            error: 'Failed to disconnect Google account',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
