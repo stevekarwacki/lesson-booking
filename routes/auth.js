@@ -229,10 +229,19 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
  */
 router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
+        const instructorId = parseInt(req.params.instructorId, 10);
         const service = new GoogleCalendarService();
         const serviceAccountEmail = service.getServiceAccountSignal();
         
+        // Check if OAuth is available
+        const oauthConfigured = googleOAuthService.isConfigured();
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const oauthStatus = oauthConfigured
+            ? await InstructorGoogleToken.findByInstructorId(instructorId)
+            : null;
+
         res.json({
+            // Existing service account info
             serviceAccountEmail,
             instructions: {
                 step1: 'Go to Google Calendar (calendar.google.com)',
@@ -242,14 +251,25 @@ router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth,
                 step5: `Add "${serviceAccountEmail}" to "Share with specific people"`,
                 step6: 'Give "See all event details" permission',
                 step7: 'Copy your calendar ID (usually your email) and paste it in the form above'
+            },
+            
+            // NEW: OAuth info
+            oauth: {
+                available: oauthConfigured,
+                connected: !!oauthStatus,
+                connectedAt: oauthStatus?.created_at || null,
+                scopes: oauthStatus?.scope || null,
+                message: oauthConfigured
+                    ? 'OAuth is available. You can connect via OAuth for easier setup.'
+                    : 'OAuth not configured on server.'
             }
         });
         
     } catch (error) {
         console.error('Error getting setup info:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to get setup information',
-            details: error.message 
+            details: error.message
         });
     }
 });

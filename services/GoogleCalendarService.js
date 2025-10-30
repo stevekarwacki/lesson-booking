@@ -23,6 +23,31 @@ class GoogleCalendarService {
         
         this.initializeServiceAccount();
     }
+
+    /**
+     * Get authentication client (OAuth or service account based on feature flag)
+     * @param {number} instructorId - Instructor ID
+     * @returns {Promise<Auth>} Google Auth client
+     */
+    async getAuthClient(instructorId) {
+        // Check feature flag
+        const useOAuth = process.env.USE_OAUTH_CALENDAR === 'true';
+        
+        if (useOAuth) {
+            // Try OAuth first
+            const googleOAuthService = require('../config/googleOAuth');
+            const oauth2Client = await googleOAuthService.getAuthenticatedClient(instructorId);
+            
+            if (oauth2Client) {
+                return oauth2Client;
+            }
+            
+            console.warn(`OAuth not configured for instructor ${instructorId}, falling back to service account`);
+        }
+        
+        // Fallback to service account
+        return this.auth;
+    }
     
     initializeServiceAccount() {
          // Check if we have service account credentials
@@ -82,12 +107,19 @@ class GoogleCalendarService {
                 return [];
             }
             
-            if (!this.calendar) {
+            // Get authenticated client (OAuth or service account)
+            const authClient = await this.getAuthClient(instructorId);
+
+            if (!authClient) {
+                console.warn(`No authentication available for instructor ${instructorId}`);
                 return [];
             }
-            
-            const response = await this.calendar.events.list({
-                calendarId: config.calendar_id,
+
+            // Create calendar API instance with authenticated client
+            const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+            const response = await calendar.events.list({
+                calendarId: config.calendar_id || 'primary', // Use 'primary' for OAuth user's main calendar
                 timeMin: startDate.toISOString(),
                 timeMax: endDate.toISOString(),
                 singleEvents: true,
