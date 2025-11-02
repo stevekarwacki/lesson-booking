@@ -1,222 +1,161 @@
 <template>
-    <div class="calendar-settings">
-        <div v-if="error" class="error-message">{{ error }}</div>
-        <div v-if="success" class="success-message">{{ success }}</div>
-
-        <!-- Calendar Integration Section -->
-        <div class="calendar-section card">
-            <div class="card-header">
-                <h3>Google Calendar Integration</h3>
-            </div>
-            <div class="card-body">
-                <!-- Connection Status -->
-                <div class="connection-status">
-                    <div class="status-indicator">
-                        <span 
-                            class="status-dot" 
-                            :class="{ 
-                                'connected': connectionStatus.connected,
-                                'disconnected': !connectionStatus.connected,
-                                'loading': isLoading
-                            }"
-                        ></span>
-                        <span class="status-text">
-                            {{ getStatusText() }}
-                        </span>
-                    </div>
-                    
-                    <div v-if="connectionStatus.connected && connectionStatus.config" class="connection-details">
-                        <p class="text-sm">
-                            Calendar: {{ connectionStatus.config.calendar_name || connectionStatus.config.calendar_id }}
-                        </p>
-                        <p class="text-sm">
-                            Connected: {{ formatDate(connectionStatus.connectedAt) }}
-                        </p>
-                        <p v-if="connectionStatus.config.last_test_status === 'failed'" class="text-sm error-text">
-                            ⚠️ Last connection test failed. Please check your calendar sharing settings.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Connection Form (Not Connected State) -->
-                <div v-if="!connectionStatus.connected" class="connect-section">
-                    <p class="help-text">
-                        Connect your Google Calendar to automatically block out busy times from your lesson scheduling.
-                    </p>
-                    
-                    <div class="calendar-form">
-                        <div class="form-group">
-                            <label for="calendar-id">Google Calendar ID *</label>
-                            <input 
-                                id="calendar-id"
-                                v-model="calendarForm.calendar_id"
-                                type="email"
-                                placeholder="your-email@gmail.com"
-                                class="form-input"
-                                :disabled="isLoading"
-                                @keyup.enter="connectCalendar"
-                            />
-                            <small class="form-help">Usually your email address or a Google Calendar ID</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="calendar-name">Display Name (optional)</label>
-                            <input 
-                                id="calendar-name"
-                                v-model="calendarForm.calendar_name"
-                                type="text"
-                                placeholder="My Calendar"
-                                class="form-input"
-                                :disabled="isLoading"
-                            />
-                            <small class="form-help">Friendly name for this calendar</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="calendar-type">Calendar Type</label>
-                            <select 
-                                id="calendar-type"
-                                v-model="calendarForm.calendar_type"
-                                class="form-input"
-                                :disabled="isLoading"
-                            >
-                                <option value="personal">Personal Calendar</option>
-                                <option value="shared">Shared Calendar</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <button 
-                        class="btn btn-primary"
-                        @click="connectCalendar"
-                        :disabled="isLoading || !calendarForm.calendar_id"
-                    >
-                        <span v-if="isLoading">Connecting...</span>
-                        <span v-else>Connect Calendar</span>
-                    </button>
-                </div>
-
-                <!-- Connected State -->
-                <div v-else class="connected-section">
-                    <p class="help-text success-text">
-                        ✅ Your Google Calendar is connected and will automatically block busy times.
-                    </p>
-                    
-                    <!-- All-Day Event Handling Setting -->
-                    <div class="setting-group">
-                        <div class="form-group">
-                            <label for="all-day-handling">All-Day Event Handling</label>
-                            <select 
-                                id="all-day-handling"
-                                v-model="allDayEventHandling"
-                                class="form-input"
-                                :disabled="isLoading"
-                                @change="updateAllDayEventHandling"
-                            >
-                                <option value="ignore">Ignore all-day events</option>
-                                <option value="block">Block entire day for all-day events</option>
-                            </select>
-                            <small class="form-help">
-                                Choose how all-day events in your Google Calendar should affect lesson booking availability
-                            </small>
-                        </div>
-                    </div>
-                    
-                    <div class="connected-actions">
-                        <button 
-                            class="btn btn-secondary"
-                            @click="testConnection"
-                            :disabled="isLoading || isTesting"
-                        >
-                            <span v-if="isTesting">Testing...</span>
-                            <span v-else>Test Connection</span>
-                        </button>
-                        
-                        <button 
-                            class="btn btn-outline"
-                            @click="showDisconnectConfirm = true"
-                            :disabled="isLoading"
-                        >
-                            Disconnect
-                        </button>
-                    </div>
-
-                    <!-- Test Results -->
-                    <div v-if="testResults" class="test-results">
-                        <h4>Connection Test Results:</h4>
-                        <div v-if="testResults.working" class="test-success">
-                            ✅ Connection is working properly
-                            <p class="text-sm">
-                                Found {{ testResults.testResults?.eventsFound || 0 }} events for today
-                            </p>
-                            <p class="text-sm">
-                                Calendar: {{ testResults.testResults?.calendarName || testResults.testResults?.calendarId }}
-                            </p>
-                        </div>
-                        <div v-else class="test-error">
-                            ❌ Connection test failed
-                            <p class="text-sm">{{ testResults.error }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Disconnect Confirmation Modal -->
-                <div v-if="showDisconnectConfirm" class="modal-overlay" @click="showDisconnectConfirm = false">
-                    <div class="modal-content" @click.stop>
-                        <h3>Disconnect Calendar?</h3>
-                        <p>
-                            This will remove the connection between your instructor account and Google Calendar. 
-                            Your Google Calendar events will no longer automatically block lesson booking times.
-                        </p>
-                        <div class="modal-actions">
-                            <button 
-                                class="btn btn-outline"
-                                @click="showDisconnectConfirm = false"
-                                :disabled="isLoading"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                class="btn btn-danger"
-                                @click="disconnectCalendar"
-                                :disabled="isLoading"
-                            >
-                                <span v-if="isLoading">Disconnecting...</span>
-                                <span v-else>Disconnect</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Setup Instructions -->
-                <div class="setup-info">
-                    <details>
-                        <summary>How to set up calendar sharing</summary>
-                        <div class="info-content" v-if="setupInfo">
-                            <p><strong>Service Account Email:</strong> <code>{{ setupInfo.serviceAccountEmail }}</code></p>
-                            <ol>
-                                <li v-for="(instruction, key) in setupInfo.instructions" :key="key">
-                                    {{ instruction }}
-                                </li>
-                            </ol>
-                            <p class="note">
-                                <strong>Note:</strong> This approach uses a service account, so you don't need to go through OAuth authorization. 
-                                Just share your calendar with the service account email above.
-                            </p>
-                        </div>
-                        <div v-else class="info-loading">
-                            Loading setup instructions...
-                        </div>
-                    </details>
-                </div>
-            </div>
-        </div>
+  <div class="calendar-settings">
+    <h3>Google Calendar Integration</h3>
+    
+    <!-- Loading State -->
+    <div v-if="loading" class="loading">
+      <p>Loading calendar settings...</p>
     </div>
+    
+    <!-- Error State -->
+    <div v-if="error" class="error">
+      <p>{{ error }}</p>
+      <button @click="loadSettings" class="btn btn-secondary">Retry</button>
+    </div>
+    
+    <!-- Settings Form -->
+    <div v-if="!loading && !error" class="settings-form">
+      
+      <!-- OAuth Section (if available) -->
+      <div v-if="setupInfo?.oauth?.available" class="oauth-section">
+        <h4> Easy Setup with OAuth</h4>
+        <p class="oauth-description">
+          Connect your Google Calendar with just a few clicks - no manual sharing required!
+        </p>
+        
+        <div v-if="setupInfo.oauth.connected" class="oauth-connected">
+          <div class="status-badge success">
+            <i class="icon-check"></i>
+            Connected via OAuth
+          </div>
+          <p>
+            <strong>Connected:</strong> {{ formatDate(setupInfo.oauth.connectedAt) }}
+          </p>
+          <p v-if="setupInfo.oauth.scopes">
+            <strong>Permissions:</strong> {{ formatScopesDisplay(setupInfo.oauth.scopes) }}
+          </p>
+          
+          <div class="oauth-actions">
+            <button @click="disconnectOAuth" :disabled="disconnecting" class="btn btn-danger">
+              {{ disconnecting ? 'Disconnecting...' : 'Disconnect OAuth' }}
+            </button>
+            <button @click="testConnection" :disabled="testing" class="btn btn-secondary">
+              {{ testing ? 'Testing...' : 'Test Connection' }}
+            </button>
+          </div>
+        </div>
+        
+        <div v-else class="oauth-disconnected">
+          <div class="status-badge warning">
+            <i class="icon-warning"></i>
+            Not Connected
+          </div>
+          <p>{{ setupInfo.oauth.message }}</p>
+          
+          <div class="oauth-actions">
+            <button @click="connectOAuth" :disabled="connecting" class="btn btn-success">
+              {{ connecting ? 'Connecting...' : 'Connect with Google' }}
+            </button>
+          </div>
+        </div>
+        
+        <!-- Divider if service account option also available -->
+        <div v-if="setupInfo.serviceAccountEmail" class="method-divider">
+          <span>OR</span>
+        </div>
+      </div>
+      
+      <!-- Service Account Section -->
+      <div v-if="setupInfo?.serviceAccountEmail" class="service-account-section">
+        <h4 v-if="setupInfo?.oauth?.available">🔧 Manual Setup (Advanced)</h4>
+        <h4 v-else>🔧 Service Account Setup</h4>
+        
+        <!-- Calendar Selection -->
+        <div class="form-group">
+          <label for="calendar-id">Calendar ID:</label>
+          <input
+            id="calendar-id"
+            v-model="calendarId"
+            type="text"
+            class="form-control"
+            placeholder="Enter your Google Calendar ID"
+            :disabled="saving || setupInfo?.oauth?.connected"
+          />
+          <small class="form-text">
+            Usually your email address or a specific calendar ID
+          </small>
+        </div>
+        
+        <!-- Setup Instructions -->
+        <div class="setup-instructions">
+          <h5>Setup Instructions</h5>
+          <div class="instructions">
+            <ol>
+              <li v-for="(instruction, key) in setupInfo.instructions" :key="key">
+                {{ instruction }}
+              </li>
+            </ol>
+            <div class="service-account-email">
+              <strong>Service Account Email:</strong>
+              <code>{{ setupInfo.serviceAccountEmail }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- All-day Event Handling -->
+      <div class="form-group">
+        <label for="all-day-handling">All-day Event Handling:</label>
+        <select
+          id="all-day-handling"
+          v-model="allDayHandling"
+          class="form-control"
+          :disabled="saving"
+        >
+          <option value="ignore">Ignore all-day events</option>
+          <option value="block">Block entire day for all-day events</option>
+        </select>
+        <small class="form-text">
+          How to handle all-day events from your calendar
+        </small>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="button-group">
+        <button
+          @click="saveSettings"
+          :disabled="saving || (!calendarId && !setupInfo?.oauth?.connected)"
+          class="btn btn-primary"
+        >
+          {{ saving ? 'Saving...' : 'Save Settings' }}
+        </button>
+        
+        <button
+          v-if="!setupInfo?.oauth?.connected"
+          @click="testConnection"
+          :disabled="testing || !calendarId"
+          class="btn btn-secondary"
+        >
+          {{ testing ? 'Testing...' : 'Test Connection' }}
+        </button>
+      </div>
+      
+      <!-- Test Results -->
+      <div v-if="testResult" class="test-result" :class="testResult.success ? 'success' : 'error'">
+        <h4>{{ testResult.success ? 'Success!' : 'Test Failed' }}</h4>
+        <p>{{ testResult.message }}</p>
+        <div v-if="testResult.eventsFound !== undefined">
+          <p>Events found for today: {{ testResult.eventsFound }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import axios from 'axios'
+import { ref, onMounted } from 'vue'
+import { useUserStore } from '../stores/userStore'
+import { useOAuth } from '../composables/useOAuth'
 
 const props = defineProps({
     instructorId: {
@@ -225,213 +164,192 @@ const props = defineProps({
     }
 })
 
-// Reactive state
-const error = ref('')
-const success = ref('')
-const isLoading = ref(false)
-const isTesting = ref(false)
-const showDisconnectConfirm = ref(false)
-const connectionStatus = ref({
-    connected: false,
-    config: null,
-    connectedAt: null,
-    message: 'Not connected'
-})
-const testResults = ref(null)
+const userStore = useUserStore()
+
+// OAuth composable
+const oauth = useOAuth(ref(props.instructorId))
+
+// Reactive data
+const loading = ref(false)
+const saving = ref(false)
+const testing = ref(false)
+const error = ref(null)
+const calendarId = ref('')
+const allDayHandling = ref('ignore')
+const testResult = ref(null)
 const setupInfo = ref(null)
 
-// Form data for connecting calendar
-const calendarForm = ref({
-    calendar_id: '',
-    calendar_name: '',
-    calendar_type: 'personal'
-})
+// Alias for template compatibility
+const connecting = oauth.connecting
+const disconnecting = oauth.disconnecting
 
-// All-day event handling setting
-const allDayEventHandling = ref('ignore')
-
-// Computed properties
-const getStatusText = () => {
-    if (isLoading.value) return 'Checking connection...'
-    if (connectionStatus.value.connected) return 'Connected to Google Calendar'
-    return 'Not connected to Google Calendar'
-}
-
-// Helper functions
-const clearMessages = () => {
-    error.value = ''
-    success.value = ''
-    testResults.value = null
-}
-
-const resetForm = () => {
-    calendarForm.value = {
-        calendar_id: '',
-        calendar_name: '',
-        calendar_type: 'personal'
-    }
-}
-
-const formatDate = (dateString) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleString()
-}
-
-const handleError = (err, defaultMessage = 'An error occurred') => {
-    console.error('Calendar Settings Error:', err)
-    
-    if (err.response?.data?.message) {
-        error.value = err.response.data.message
-    } else if (err.response?.data?.error) {
-        error.value = err.response.data.error
-    } else if (err.message) {
-        error.value = err.message
-    } else {
-        error.value = defaultMessage
-    }
-}
-
-// API functions
-const checkConnectionStatus = async () => {
-    if (!props.instructorId) return
+// Load current settings
+const loadSettings = async () => {
+    loading.value = true
+    error.value = null
     
     try {
-        clearMessages()
-        isLoading.value = true
-        
-        const response = await axios.get(`/api/auth/calendar/config/${props.instructorId}`)
-        connectionStatus.value = response.data
-        
-        // Load the all-day event handling setting
-        if (response.data.config?.all_day_event_handling) {
-            allDayEventHandling.value = response.data.config.all_day_event_handling
-        }
-        
-    } catch (err) {
-        handleError(err, 'Failed to check calendar connection status')
-    } finally {
-        isLoading.value = false
-    }
-}
-
-const loadSetupInfo = async () => {
-    if (!props.instructorId) return
-    
-    try {
-        const response = await axios.get(`/api/auth/calendar/setup-info/${props.instructorId}`)
-        setupInfo.value = response.data
-    } catch (err) {
-        console.error('Failed to load setup info:', err)
-    }
-}
-
-const connectCalendar = async () => {
-    if (!props.instructorId || !calendarForm.value.calendar_id) return
-    
-    try {
-        clearMessages()
-        isLoading.value = true
-        
-        const response = await axios.post(`/api/auth/calendar/config/${props.instructorId}`, calendarForm.value)
-        
-        success.value = response.data.message
-        resetForm()
-        
-        // Refresh the connection status
-        await checkConnectionStatus()
-        
-    } catch (err) {
-        handleError(err, 'Failed to connect calendar')
-    } finally {
-        isLoading.value = false
-    }
-}
-
-const testConnection = async () => {
-    if (!props.instructorId) return
-    
-    try {
-        clearMessages()
-        isTesting.value = true
-        
-        const response = await axios.get(`/api/auth/calendar/test/${props.instructorId}`)
-        testResults.value = response.data
-        
-        if (response.data.working) {
-            success.value = 'Calendar connection test successful!'
-        }
-        
-    } catch (err) {
-        testResults.value = {
-            working: false,
-            error: err.response?.data?.error || 'Connection test failed'
-        }
-        handleError(err, 'Failed to test calendar connection')
-    } finally {
-        isTesting.value = false
-    }
-}
-
-const disconnectCalendar = async () => {
-    if (!props.instructorId) return
-    
-    try {
-        clearMessages()
-        isLoading.value = true
-        
-        await axios.delete(`/api/auth/calendar/config/${props.instructorId}`)
-        
-        success.value = 'Calendar disconnected successfully'
-        showDisconnectConfirm.value = false
-        testResults.value = null
-        
-        // Reset all-day event handling to default
-        allDayEventHandling.value = 'ignore'
-        
-        // Refresh the connection status
-        await checkConnectionStatus()
-        
-    } catch (err) {
-        showDisconnectConfirm.value = false
-        handleError(err, 'Failed to disconnect calendar')
-    } finally {
-        isLoading.value = false
-    }
-}
-
-const updateAllDayEventHandling = async () => {
-    if (!props.instructorId) return
-    
-    try {
-        clearMessages()
-        
-        await axios.patch(`/api/auth/calendar/config/${props.instructorId}`, {
-            all_day_event_handling: allDayEventHandling.value
+        // Load calendar config
+        const configResponse = await fetch(`/api/auth/calendar/config/${props.instructorId}`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
         })
         
-        success.value = 'All-day event handling updated successfully'
+        if (configResponse.ok) {
+            const config = await configResponse.json()
+            calendarId.value = config.calendar_id || ''
+            allDayHandling.value = config.all_day_event_handling || 'ignore'
+        }
+        
+        // Load setup info (including OAuth status)
+        const setupResponse = await fetch(`/api/auth/calendar/setup-info/${props.instructorId}`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (setupResponse.ok) {
+            setupInfo.value = await setupResponse.json()
+        }
+        
+        // Check OAuth status
+        await oauth.checkStatus()
         
     } catch (err) {
-        handleError(err, 'Failed to update all-day event handling')
-        // Revert the change on error
-        await checkConnectionStatus()
+        console.error('Failed to load calendar settings:', err)
+        error.value = 'Failed to load calendar settings. Please try again.'
+    } finally {
+        loading.value = false
     }
 }
 
-// Watchers
-watch(() => props.instructorId, (newId) => {
-    if (newId) {
-        checkConnectionStatus()
-        loadSetupInfo()
+// Save settings
+const saveSettings = async () => {
+    saving.value = true
+    error.value = null
+    testResult.value = null
+    
+    try {
+        const response = await fetch(`/api/auth/calendar/config/${props.instructorId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
+            },
+            body: JSON.stringify({
+                calendar_id: calendarId.value || null,
+                all_day_event_handling: allDayHandling.value
+            })
+        })
+        
+        if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to save settings')
+        }
+        
+        // Show success message
+        testResult.value = {
+            success: true,
+            message: 'Calendar settings saved successfully!'
+        }
+        
+        // Reload setup info to reflect changes
+        await loadSettings()
+        
+    } catch (err) {
+        console.error('Failed to save calendar settings:', err)
+        error.value = err.message || 'Failed to save calendar settings. Please try again.'
+    } finally {
+        saving.value = false
     }
-}, { immediate: true })
+}
 
-// Lifecycle
-onMounted(() => {
-    if (props.instructorId) {
-        checkConnectionStatus()
-        loadSetupInfo()
+// Test connection
+const testConnection = async () => {
+    testing.value = true
+    testResult.value = null
+    
+    try {
+        const response = await fetch(`/api/auth/calendar/test/${props.instructorId}`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        const result = await response.json()
+        testResult.value = result
+        
+    } catch (err) {
+        console.error('Failed to test calendar connection:', err)
+        testResult.value = {
+            success: false,
+            message: 'Failed to test connection. Please try again.'
+        }
+    } finally {
+        testing.value = false
     }
+}
+
+// OAuth connection methods
+const connectOAuth = async () => {
+    try {
+        await oauth.connect()
+        await loadSettings() // Refresh settings after connection
+    } catch (err) {
+        error.value = err.message || 'Failed to connect OAuth'
+    }
+}
+
+const disconnectOAuth = async () => {
+    if (!confirm('Are you sure you want to disconnect your Google account?')) {
+        return
+    }
+    
+    try {
+        await oauth.disconnect()
+        await loadSettings() // Refresh settings after disconnection
+        testResult.value = {
+            success: true,
+            message: 'Google account disconnected successfully!'
+        }
+    } catch (err) {
+        error.value = err.message || 'Failed to disconnect OAuth'
+    }
+}
+
+// Format date helper
+const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown'
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
+// Format scopes for display
+const formatScopesDisplay = (scopes) => {
+    if (!scopes) return 'None'
+    if (typeof scopes === 'string') {
+        // Parse the scope string and make it human-readable
+        return scopes.split(' ')
+            .map(scope => {
+                if (scope.includes('calendar')) return 'Calendar'
+                if (scope.includes('gmail')) return 'Gmail'
+                return scope
+            })
+            .join(', ')
+    }
+    // If it's already an array
+    return scopes.join(', ')
+}
+
+// Initialize
+onMounted(() => {
+    loadSettings()
 })
 </script>
 
@@ -765,4 +683,265 @@ onMounted(() => {
     color: #6b7280;
     font-style: italic;
 }
-</style> 
+.info-loading {
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* OAuth Section Styles */
+.oauth-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.oauth-section h4 {
+    color: white;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.oauth-description {
+    margin-bottom: 1rem;
+    opacity: 0.9;
+    line-height: 1.5;
+}
+
+.oauth-connected,
+.oauth-disconnected {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.oauth-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.oauth-actions .btn {
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.oauth-actions .btn-success {
+    background: rgba(34, 197, 94, 0.8);
+    color: white;
+}
+
+.oauth-actions .btn-danger {
+    background: rgba(239, 68, 68, 0.8);
+    color: white;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.status-badge.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.method-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.method-divider::before,
+.method-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.method-divider span {
+    padding: 0 1rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.service-account-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.service-account-section h4 {
+    color: #374151;
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.setup-instructions {
+    margin-top: 1rem;
+    background: white;
+    border-radius: 6px;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+}
+
+.setup-instructions h5 {
+    margin: 0 0 0.75rem 0;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.instructions ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.instructions li {
+    margin-bottom: 0.5rem;
+}
+
+.service-account-email {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: #f1f5f9;
+    border-radius: 4px;
+    border-left: 3px solid #3b82f6;
+}
+
+.service-account-email code {
+    background: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: #1e40af;
+}
+
+.settings-form {
+    max-width: none;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+}
+
+.error {
+    text-align: center;
+    padding: 1.5rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #dc2626;
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #374151;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-control:disabled {
+    background-color: #f3f4f6;
+    cursor: not-allowed;
+    color: #9ca3af;
+}
+
+.form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.button-group {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.test-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 1px solid;
+}
+
+.test-result.success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+}
+
+.test-result.error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+
+.test-result h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.btn-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background-color: #059669;
+}
+</style>

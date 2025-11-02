@@ -73,7 +73,7 @@ const processAuthCallback = async () => {
                 const stateData = JSON.parse(atob(state))
                 instructorId = stateData.instructorId
             } catch (e) {
-                console.warn('Could not parse state parameter:', e)
+                // Could not parse state parameter
             }
         }
         
@@ -81,7 +81,6 @@ const processAuthCallback = async () => {
         if (!instructorId && userStore.user) {
             if (userStore.canManageCalendar && !userStore.canManageUsers) {
                 // For instructors, we need to get their instructor ID
-                // This would require an API call to get instructor details
                 const instructorResponse = await axios.get('/api/instructors/me')
                 instructorId = instructorResponse.data.id
             } else if (userStore.canManageUsers) {
@@ -104,6 +103,14 @@ const processAuthCallback = async () => {
         if (response.data.success) {
             success.value = true
             
+            // Notify parent window of success
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: 'oauth-success',
+                    message: 'Google account connected successfully'
+                }, window.location.origin)
+            }
+            
             // Auto-close the window after a short delay
             setTimeout(() => {
                 closeWindow()
@@ -115,14 +122,25 @@ const processAuthCallback = async () => {
     } catch (err) {
         console.error('Google Auth Callback Error:', err)
         
+        let errorMessage
         if (err.response?.data?.message) {
-            error.value = err.response.data.message
+            errorMessage = err.response.data.message
         } else if (err.response?.data?.error) {
-            error.value = err.response.data.error
+            errorMessage = err.response.data.error
         } else if (err.message) {
-            error.value = err.message
+            errorMessage = err.message
         } else {
-            error.value = 'An unexpected error occurred while connecting Google Calendar'
+            errorMessage = 'An unexpected error occurred while connecting Google Calendar'
+        }
+        
+        error.value = errorMessage
+        
+        // Notify parent window of error
+        if (window.opener) {
+            window.opener.postMessage({
+                type: 'oauth-error',
+                error: errorMessage
+            }, window.location.origin)
         }
     } finally {
         isProcessing.value = false

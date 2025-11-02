@@ -428,6 +428,31 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
 const googleOAuthService = require('../config/googleOAuth');
 
 /**
+ * Debug endpoint to check OAuth configuration
+ * Protected route - requires valid JWT token
+ */
+router.get('/google/debug-config', authMiddleware, async (req, res) => {
+    try {
+        const config = {
+            isConfigured: googleOAuthService.isConfigured(),
+            clientId: googleOAuthService.clientId,
+            redirectUri: googleOAuthService.redirectUri,
+            scopes: googleOAuthService.scopes,
+            envRedirectUri: process.env.GOOGLE_REDIRECT_URI,
+            envClientId: process.env.GOOGLE_CLIENT_ID,
+            envFrontendUrl: process.env.FRONTEND_URL
+        };
+        
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to get OAuth config',
+            details: error.message
+        });
+    }
+});
+
+/**
  * Generate OAuth authorization URL
  * Protected route - requires valid JWT token and instructor permission
  */
@@ -502,8 +527,6 @@ router.post('/google/callback', authMiddleware, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('OAuth callback error:', error);
-        
         if (error.message?.includes('invalid_grant')) {
             return res.status(400).json({
                 error: 'Invalid authorization code',
@@ -513,7 +536,8 @@ router.post('/google/callback', authMiddleware, async (req, res) => {
 
         res.status(500).json({
             error: 'Failed to complete OAuth authorization',
-            details: error.message
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

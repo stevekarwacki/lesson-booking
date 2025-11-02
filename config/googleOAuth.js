@@ -5,7 +5,8 @@ class GoogleOAuthService {
     constructor() {
         this.clientId = process.env.GOOGLE_CLIENT_ID;
         this.clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-        this.redirectUri = process.env.GOOGLE_REDIRECT_URI;
+        // Fixed fallback URI - should match frontend callback route
+        this.redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/google/callback`;
         this.scopes = process.env.GOOGLE_OAUTH_SCOPES?.split(' ') || [
             'https://www.googleapis.com/auth/calendar.readonly',
             'https://www.googleapis.com/auth/gmail.send'
@@ -16,7 +17,7 @@ class GoogleOAuthService {
      * Check if OAuth is configured
      */
     isConfigured() {
-        return !!(this.clientId && this.clientSecret && this.redirectUri);
+        return !!(this.clientId && this.clientSecret);
     }
 
     /**
@@ -24,7 +25,7 @@ class GoogleOAuthService {
      */
     createOAuth2Client() {
         if (!this.isConfigured()) {
-            throw new Error('Google OAuth not configured. Please set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI');
+            throw new Error('Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
         }
 
         return new google.auth.OAuth2(
