@@ -42,7 +42,7 @@ class GoogleCalendarService {
                 return oauth2Client;
             }
             
-            console.warn(`OAuth not configured for instructor ${instructorId}, falling back to service account`);
+            // OAuth not configured for instructor, falling back to service account
         }
         
         // Fallback to service account
@@ -111,7 +111,7 @@ class GoogleCalendarService {
             const authClient = await this.getAuthClient(instructorId);
 
             if (!authClient) {
-                console.warn(`No authentication available for instructor ${instructorId}`);
+                // No authentication available for instructor
                 return [];
             }
 
@@ -165,19 +165,25 @@ class GoogleCalendarService {
                 };
             }
             
-            if (!this.calendar) {
+            // Get authenticated client
+            const authClient = await this.getAuthClient(instructorId);
+
+            if (!authClient) {
                 return {
                     success: false,
-                    message: 'Google Calendar service not initialized. Please check server configuration.'
+                    message: 'No authentication configured. Please connect via OAuth or configure service account.',
+                    error: 'NO_AUTH'
                 };
             }
+
+            const calendar = google.calendar({ version: 'v3', auth: authClient });
             
             // Try to fetch a small number of events from today
             const todayHelper = today()
             const tomorrowHelper = todayHelper.addDays(1)
             
-            const response = await this.calendar.events.list({
-                calendarId: config.calendar_id,
+            const response = await calendar.events.list({
+                calendarId: config.calendar_id || 'primary',
                 timeMin: todayHelper.toDate().toISOString(),
                 timeMax: tomorrowHelper.toDate().toISOString(),
                 maxResults: 5
