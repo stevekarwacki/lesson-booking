@@ -21,7 +21,11 @@ class GoogleCalendarService {
         this.cache = new Map();
         this.cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
         
-        this.initializeServiceAccount();
+        // Only initialize service account if OAuth is not enabled
+        const useOAuth = process.env.USE_OAUTH_CALENDAR === 'true';
+        if (!useOAuth) {
+            this.initializeServiceAccount();
+        }
     }
 
     /**
@@ -42,10 +46,14 @@ class GoogleCalendarService {
                 return oauth2Client;
             }
             
-            // OAuth not configured for instructor, falling back to service account
+            // OAuth not configured for instructor, try service account fallback
+            if (!this.auth) {
+                // Initialize service account on-demand if not already done
+                this.initializeServiceAccount();
+            }
         }
         
-        // Fallback to service account
+        // Fallback to service account (or null if not configured)
         return this.auth;
     }
     
