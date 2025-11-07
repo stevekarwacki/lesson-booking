@@ -1,22 +1,22 @@
-<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{studentName}},</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{student.name}},</p>
 
 <p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">We wanted to follow up on your recent lesson and provide you with some important information about your booking.</p>
 
 {{> lesson-details
     sectionTitle="Lesson Information"
-    lessonDate=lessonDate
-    startTime=startTime
-    endTime=endTime
-    duration=duration
-    instructorName=instructorName
+    lessonDate=booking.date
+    startTime=booking.startTime
+    endTime=booking.endTime
+    duration=booking.duration
+    instructorName=instructor.name
     instructorLabel="Instructor"
-    bookingId=bookingId
+    bookingId=booking.id
 }}
 
-{{#if attendanceNotes}}
+{{#if attendance.notes}}
 <div class="detail-box" style="margin: 28px 0;">
     <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 16px 0; font-weight: 600;">Lesson Notes</h3>
-    <p style="color: #6c757d; font-size: 15px; line-height: 1.5; margin: 0; padding: 16px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0;">{{attendanceNotes}}</p>
+    <p style="color: #6c757d; font-size: 15px; line-height: 1.5; margin: 0; padding: 16px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0;">{{attendance.notes}}</p>
 </div>
 {{/if}}
 
@@ -25,10 +25,10 @@
 {{> cta-section
     title="Ready for Your Next Lesson?"
     description="Book another session with your instructor or explore lessons with other teachers."
-    primaryButton=primaryButton
-    secondaryButton=secondaryButton
+    primaryButton=buttons.primary
+    secondaryButton=buttons.secondary
 }}
 
 <p style="font-size: 15px; line-height: 1.6; margin: 28px 0 0 0; color: #6c757d;">If you have any questions about this lesson or need assistance with booking, our support team is here to help.</p>
 
-<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{companyName}}</span></p>
+<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{business.name}}</span></p>
