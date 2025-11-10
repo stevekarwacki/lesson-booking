@@ -359,22 +359,22 @@
             <!-- Business Header Section -->
             <div class="business-header">
                 <div class="business-header-left">
-                    {{#if logoUrl}}
-                    <img src="{{logoUrl}}" alt="{{companyName}}" class="business-logo">
+                    {{#if business.logo_url}}
+                    <img src="{{business.logo_url}}" alt="{{business.name}}" class="business-logo">
                     {{/if}}
                 </div>
                 <div class="business-header-center">
-                    <h2 class="business-name">{{companyName}}</h2>
+                    <h2 class="business-name">{{business.name}}</h2>
                 </div>
                 <div class="business-header-right">
-                    {{#if contactEmail}}
+                    {{#if business.contact_email}}
                     <div class="business-contact-item">
-                        <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>
+                        <a href="mailto:{{business.contact_email}}">{{business.contact_email}}</a>
                     </div>
                     {{/if}}
-                    {{#if phoneNumber}}
+                    {{#if business.phone_number}}
                     <div class="business-contact-item">
-                        <a href="tel:{{phoneNumber}}">📞 {{phoneNumber}}</a>
+                        <a href="tel:{{business.phone_number}}">📞 {{business.phone_number}}</a>
                     </div>
                     {{/if}}
                 </div>

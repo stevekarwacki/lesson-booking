@@ -133,6 +133,31 @@ class EmailService {
     // Business logic methods using the new provider system
 
     /**
+     * Helper method to get business settings with logo URL
+     * @private
+     */
+    async getBusinessSettingsWithLogo() {
+        const { AppSettings } = require('../models/AppSettings');
+        const businessSettings = await AppSettings.getSettingsByCategory('business');
+        
+        // Get logo from branding category
+        const logoFilename = await AppSettings.getSetting('branding', 'logo_url');
+        
+        // Construct absolute URL for logo using base_url from business settings
+        let logoUrl = null;
+        if (logoFilename && businessSettings.base_url) {
+            // Remove trailing slash from base_url if present
+            const baseUrl = businessSettings.base_url.replace(/\/$/, '');
+            logoUrl = `${baseUrl}/api/assets/logo`;
+        }
+        
+        // Add logo URL to business settings
+        businessSettings.logo_url = logoUrl;
+        
+        return businessSettings;
+    }
+
+    /**
      * Send purchase confirmation email (system email - always uses nodemailer)
      */
     async sendPurchaseConfirmation(userId, planDetails, transactionDetails) {
@@ -142,9 +167,8 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const subject = await getTemplateSubject('purchase-confirmation', 'Purchase Confirmation - Lesson Credits');
             const htmlContent = await generatePurchaseConfirmationHTML(user, planDetails, transactionDetails, businessSettings);
@@ -167,9 +191,8 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const subject = await getTemplateSubject('low-balance-warning', 'Lesson Credits Running Low');
             const htmlContent = await generateLowBalanceHTML(user, creditsRemaining, businessSettings);
@@ -198,9 +221,8 @@ class EmailService {
                 throw new Error(`${recipientType} email not found in booking data`);
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const templateKey = isForStudent ? 'rescheduling-student' : 'rescheduling-instructor';
             const defaultSubject = `Lesson Rescheduled - ${isForStudent ? 'Updated' : 'Student Updated'} Booking`;
@@ -236,9 +258,8 @@ class EmailService {
                 throw new Error('User not found');
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const subject = await getTemplateSubject('credits-exhausted', 'All Lesson Credits Used - Time to Restock!');
             const htmlContent = await generateCreditsExhaustedHTML(user, totalLessonsCompleted, businessSettings);
@@ -260,9 +281,8 @@ class EmailService {
                 throw new Error('Student email not found in booking data');
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const subject = await getTemplateSubject('booking-confirmation', 'Lesson Booking Confirmed');
             const htmlContent = await generateBookingConfirmationHTML(bookingData, paymentMethod, businessSettings);
@@ -295,9 +315,8 @@ class EmailService {
                 throw new Error('Student email not found in booking data');
             }
 
-            // Get business settings
-            const { AppSettings } = require('../models/AppSettings');
-            const businessSettings = await AppSettings.getSettingsByCategory('business');
+            // Get business settings with logo
+            const businessSettings = await this.getBusinessSettingsWithLogo();
             
             const subject = await getTemplateSubject('absence-notification', 'Lesson Update - Book Your Next Session');
             const htmlContent = await generateAbsenceNotificationHTML(bookingData, attendanceNotes, businessSettings);

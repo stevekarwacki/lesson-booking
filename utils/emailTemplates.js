@@ -221,10 +221,15 @@ async function generatePurchaseConfirmationHTML(user, planDetails, transactionDe
             paymentMethod: transactionDetails.paymentMethod || 'Credit Card'
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            support_email: businessSettings.support_email || process.env.EMAIL_USER
-        }
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            support_email: businessSettings.contact_email || process.env.EMAIL_USER
+        },
+        headerTitle: 'Purchase Confirmed',
+        headerSubtitle: 'Your lesson credits are ready to use'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
@@ -248,10 +253,15 @@ async function generateLowBalanceHTML(user, creditsRemaining, businessSettings) 
             total: (creditsRemaining.credits_30min || 0) + (creditsRemaining.credits_60min || 0)
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            purchase_url: businessSettings.website_url ? `${businessSettings.website_url}/credits` : '#'
-        }
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            purchase_url: businessSettings.base_url ? `${businessSettings.base_url}/credits` : '#'
+        },
+        headerTitle: 'Low Credit Balance',
+        headerSubtitle: 'Time to restock your lesson credits'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
@@ -273,10 +283,15 @@ async function generateCreditsExhaustedHTML(user, totalLessonsCompleted, busines
             totalLessonsCompleted: totalLessonsCompleted || 0
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            purchase_url: businessSettings.website_url ? `${businessSettings.website_url}/credits` : '#'
-        }
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            purchase_url: businessSettings.base_url ? `${businessSettings.base_url}/credits` : '#'
+        },
+        headerTitle: 'Credits Exhausted',
+        headerSubtitle: 'Purchase more credits to continue booking lessons'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
@@ -307,13 +322,16 @@ async function generateBookingConfirmationHTML(booking, paymentMethod, businessS
             paymentMethod: paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card'
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            support_email: businessSettings.support_email || process.env.EMAIL_USER
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            support_email: businessSettings.contact_email || process.env.EMAIL_USER
         },
         buttons: {
             primary: {
-                url: businessSettings.website_url ? `${businessSettings.website_url}/bookings` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/bookings` : '#',
                 text: 'View My Bookings',
                 style: 'primary'
             },
@@ -322,7 +340,9 @@ async function generateBookingConfirmationHTML(booking, paymentMethod, businessS
                 text: businessSettings.phone_number ? `Call ${businessSettings.phone_number}` : 'Contact Support',
                 style: 'secondary'
             }
-        }
+        },
+        headerTitle: 'Booking Confirmed',
+        headerSubtitle: 'Your lesson has been scheduled'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
@@ -360,13 +380,16 @@ async function generateReschedulingHTML(oldBooking, newBooking, recipientType, b
             duration: newBooking.duration * 15
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            support_email: businessSettings.support_email || process.env.EMAIL_USER
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            support_email: businessSettings.contact_email || process.env.EMAIL_USER
         },
         buttons: {
             primary: {
-                url: businessSettings.website_url ? `${businessSettings.website_url}/bookings` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/bookings` : '#',
                 text: 'Manage Lessons',
                 style: 'primary'
             },
@@ -375,7 +398,9 @@ async function generateReschedulingHTML(oldBooking, newBooking, recipientType, b
                 text: businessSettings.phone_number ? `Call ${businessSettings.phone_number}` : 'Contact Support',
                 style: 'secondary'
             }
-        }
+        },
+        headerTitle: 'Lesson Rescheduled',
+        headerSubtitle: 'Your booking has been updated'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
@@ -408,22 +433,27 @@ async function generateAbsenceNotificationHTML(booking, attendanceNotes, busines
             notes: attendanceNotes || 'No additional notes provided.'
         },
         business: {
-            name: businessSettings.business_name || 'Lesson Booking',
-            website: businessSettings.website_url || '#',
-            support_email: businessSettings.support_email || process.env.EMAIL_USER
+            name: businessSettings.company_name || 'Lesson Booking',
+            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+            phone_number: businessSettings.phone_number || '',
+            logo_url: businessSettings.logo_url || '',
+            website: businessSettings.base_url || '#',
+            support_email: businessSettings.contact_email || process.env.EMAIL_USER
         },
         buttons: {
             primary: {
-                url: businessSettings.website_url ? `${businessSettings.website_url}/booking` : '#',
+                url: businessSettings.base_url ? `${businessSettings.base_url}/booking` : '#',
                 text: 'Book New Lesson',
                 style: 'primary'
             },
             secondary: {
-                url: businessSettings.support_email ? `mailto:${businessSettings.support_email}` : '#',
+                url: businessSettings.contact_email ? `mailto:${businessSettings.contact_email}` : '#',
                 text: 'Contact Support',
                 style: 'secondary'
             }
-        }
+        },
+        headerTitle: 'Lesson Absence Noted',
+        headerSubtitle: 'Book your next session when ready'
     };
     
     return await loadBaseTemplate(contentTemplate, templateData);
