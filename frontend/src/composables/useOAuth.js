@@ -41,6 +41,12 @@ export function useOAuth(instructorId) {
     return new Date(oauthStatus.value.expiresAt) <= new Date()
   })
 
+  // Helper to extract instructor ID from ref or value
+  const getInstructorId = () => {
+    if (!instructorId?.value && !instructorId) return null
+    return instructorId?.value || instructorId
+  }
+
   // Format scopes for display
   const formatScopes = (scopes) => {
     if (!scopes) return []
@@ -58,9 +64,8 @@ export function useOAuth(instructorId) {
 
   // Check OAuth status
   const checkStatus = async () => {
-    if (!instructorId?.value && !instructorId) return
-
-    const id = instructorId?.value || instructorId
+    const id = getInstructorId()
+    if (!id) return
     
     try {
       loading.value = true
@@ -97,9 +102,8 @@ export function useOAuth(instructorId) {
 
   // Connect via OAuth
   const connect = async () => {
-    if (!instructorId?.value && !instructorId) return
-
-    const id = instructorId?.value || instructorId
+    const id = getInstructorId()
+    if (!id) return
 
     try {
       connecting.value = true
@@ -180,9 +184,8 @@ export function useOAuth(instructorId) {
 
   // Disconnect OAuth
   const disconnect = async () => {
-    if (!instructorId?.value && !instructorId) return
-
-    const id = instructorId?.value || instructorId
+    const id = getInstructorId()
+    if (!id) return
 
     try {
       disconnecting.value = true
