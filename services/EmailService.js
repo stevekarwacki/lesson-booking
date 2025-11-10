@@ -1,8 +1,8 @@
-const nodemailer = require('nodemailer');
 const { default: ical } = require('ical-generator');
 const { User } = require('../models/User');
 const logger = require('../utils/logger');
 const { fromString, createDateHelper } = require('../utils/dateHelpers');
+const { selectProvider } = require('./email/emailConfig');
 const {
     generatePurchaseConfirmationHTML,
     generateLowBalanceHTML,
@@ -15,133 +15,126 @@ const {
 
 class EmailService {
     constructor() {
-        this.transporter = null;
-        this.isConfigured = false;
-        this.initializeTransporter();
+        // Initialize and check provider configurations
+        this.initializeProviders();
     }
 
-    initializeTransporter() {
-        try {
-            // Check if email configuration is available
-            if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-                console.warn('Email service not configured. EMAIL_USER and EMAIL_APP_PASSWORD environment variables are required.');
-                return;
+    /**
+     * Initialize providers and handle centralized logging
+     */
+    async initializeProviders() {
+        const nodemailerProvider = require('./email/nodemailerProvider');
+        const gmailProvider = require('./email/gmailProvider');
+        
+        // Give Gmail provider time to initialize (it's async)
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const nodemailerStatus = nodemailerProvider.getConfigurationStatus();
+        const gmailStatus = gmailProvider.getConfigurationStatus();
+        
+        const configuredProviders = [];
+        const failedProviders = [];
+        
+        if (nodemailerStatus.configured) {
+            configuredProviders.push('Nodemailer');
+        } else {
+            failedProviders.push(`Nodemailer: ${nodemailerStatus.message}`);
+        }
+        
+        if (gmailStatus.configured) {
+            configuredProviders.push('Gmail API');
+        } else {
+            failedProviders.push(`Gmail: ${gmailStatus.message}`);
+        }
+        
+        // Log results
+        if (configuredProviders.length > 0) {
+            logger.email(`Email service initialized with providers: ${configuredProviders.join(', ')}`);
+            
+            if (failedProviders.length > 0) {
+                logger.email(`Additional providers not configured: ${failedProviders.join('; ')}`);
             }
+        } else {
+            console.warn('Email service not configured. No email providers are available.');
+            console.warn(`Configuration issues: ${failedProviders.join('; ')}`);
+        }
+    }
 
-            this.transporter = nodemailer.createTransport({
-                host: 'smtp.gmail.com',
-                port: 465,
-                secure: true, // use SSL
-                auth: {
-                    user: process.env.EMAIL_USER,
-                    pass: process.env.EMAIL_APP_PASSWORD
-                }
+    /**
+     * Core send method using provider selection
+     * @param {string} to - Recipient email
+     * @param {string} subject - Email subject
+     * @param {string} htmlContent - HTML email body
+     * @param {Object} options - Options including instructorId for provider selection
+     * @returns {Promise<Object>} Send result
+     */
+    async sendEmail(to, subject, htmlContent, options = {}) {
+        const provider = selectProvider(options);
+        const result = await provider.send(to, subject, htmlContent, options);
+        
+        if (result.success) {
+            logger.email(`Email sent successfully via ${result.provider}`, { 
+                to, 
+                messageId: result.messageId 
             });
-
-            this.isConfigured = true;
-            logger.email('Email service initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize email service:', error);
-            this.isConfigured = false;
+        } else {
+            logger.email(`Email failed via ${result.provider}`, { 
+                to, 
+                error: result.error 
+            });
         }
+        
+        return result;
     }
 
+    /**
+     * Core send method with attachment using provider selection
+     * @param {string} to - Recipient email
+     * @param {string} subject - Email subject
+     * @param {string} htmlContent - HTML email body
+     * @param {Object} attachment - Attachment object
+     * @param {Object} options - Options including instructorId for provider selection
+     * @returns {Promise<Object>} Send result
+     */
+    async sendEmailWithAttachment(to, subject, htmlContent, attachment, options = {}) {
+        const provider = selectProvider(options);
+        const result = await provider.sendWithAttachment(to, subject, htmlContent, attachment, options);
+        
+        if (result.success) {
+            logger.email(`Email with attachment sent successfully via ${result.provider}`, { 
+                to, 
+                messageId: result.messageId 
+            });
+        } else {
+            logger.email(`Email with attachment failed via ${result.provider}`, { 
+                to, 
+                error: result.error 
+            });
+        }
+        
+        return result;
+    }
+
+    /**
+     * Check if email service is available (any provider)
+     * Used by CronJobService to determine if scheduled emails can be sent
+     */
     async verifyConnection() {
-        if (!this.isConfigured) {
-            return false;
-        }
-
-        try {
-            await this.transporter.verify();
-            logger.email('Email service connection verified');
-            return true;
-        } catch (error) {
-            console.error('Email service connection failed:', error);
-            return false;
-        }
+        const nodemailerProvider = require('./email/nodemailerProvider');
+        const gmailProvider = require('./email/gmailProvider');
+        
+        // Check if either provider is properly configured
+        const nodemailerAvailable = nodemailerProvider.isAvailable();
+        const gmailAvailable = gmailProvider.isAvailable();
+        
+        return nodemailerAvailable || gmailAvailable;
     }
 
-    async sendEmail(to, subject, htmlContent, textContent = null) {
-        if (!this.isConfigured) {
-            console.warn('Email service not configured. Skipping email send.');
-            return { success: false, error: 'Email service not configured' };
-        }
+    // Business logic methods using the new provider system
 
-        try {
-            const mailOptions = {
-                from: `"${process.env.EMAIL_FROM_NAME || 'Lesson Booking'}" <${process.env.EMAIL_USER}>`,
-                to: to,
-                subject: subject,
-                html: htmlContent,
-                text: textContent || this.htmlToText(htmlContent)
-            };
-
-            const info = await this.transporter.sendMail(mailOptions);
-            logger.email('Email sent successfully', { messageId: info.messageId });
-            
-            return { 
-                success: true, 
-                messageId: info.messageId,
-                response: info.response 
-            };
-        } catch (error) {
-            console.error('Failed to send email:', error);
-            return { 
-                success: false, 
-                error: error.message 
-            };
-        }
-    }
-
-    async sendEmailWithAttachment(to, subject, htmlContent, attachment = null, textContent = null) {
-        if (!this.isConfigured) {
-            console.warn('Email service not configured. Skipping email send.');
-            return { success: false, error: 'Email service not configured' };
-        }
-
-        try {
-            const mailOptions = {
-                from: `"${process.env.EMAIL_FROM_NAME || 'Lesson Booking'}" <${process.env.EMAIL_USER}>`,
-                to: to,
-                subject: subject,
-                html: htmlContent,
-                text: textContent || this.htmlToText(htmlContent)
-            };
-
-            // Add attachment if provided
-            if (attachment) {
-                mailOptions.attachments = [attachment];
-            }
-
-            const info = await this.transporter.sendMail(mailOptions);
-            logger.email('Email with attachment sent successfully', { messageId: info.messageId });
-            
-            return { 
-                success: true, 
-                messageId: info.messageId,
-                response: info.response 
-            };
-        } catch (error) {
-            console.error('Failed to send email with attachment:', error);
-            return { 
-                success: false, 
-                error: error.message 
-            };
-        }
-    }
-
-    // Convert HTML to basic text (simple fallback)
-    htmlToText(html) {
-        return html
-            .replace(/<[^>]*>/g, '') // Remove HTML tags
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .trim();
-    }
-
-    // Purchase confirmation email
+    /**
+     * Send purchase confirmation email (system email - always uses nodemailer)
+     */
     async sendPurchaseConfirmation(userId, planDetails, transactionDetails) {
         try {
             const user = await User.findById(userId);
@@ -153,10 +146,10 @@ class EmailService {
             const { AppSettings } = require('../models/AppSettings');
             const businessSettings = await AppSettings.getSettingsByCategory('business');
             
-            // Get subject from database template, fallback to default
             const subject = await getTemplateSubject('purchase-confirmation', 'Purchase Confirmation - Lesson Credits');
             const htmlContent = await generatePurchaseConfirmationHTML(user, planDetails, transactionDetails, businessSettings);
 
+            // No instructorId = uses nodemailer provider (system email)
             return await this.sendEmail(user.email, subject, htmlContent);
         } catch (error) {
             console.error('Failed to send purchase confirmation:', error);
@@ -164,8 +157,9 @@ class EmailService {
         }
     }
 
-
-    // Low balance warning email (for future use with cron jobs)
+    /**
+     * Send low balance warning email (system email - always uses nodemailer)
+     */
     async sendLowBalanceWarning(userId, creditsRemaining) {
         try {
             const user = await User.findById(userId);
@@ -180,6 +174,7 @@ class EmailService {
             const subject = await getTemplateSubject('low-balance-warning', 'Lesson Credits Running Low');
             const htmlContent = await generateLowBalanceHTML(user, creditsRemaining, businessSettings);
 
+            // No instructorId = uses nodemailer provider (system email)
             return await this.sendEmail(user.email, subject, htmlContent);
         } catch (error) {
             console.error('Failed to send low balance warning:', error);
@@ -187,7 +182,9 @@ class EmailService {
         }
     }
 
-    // Lesson rescheduling confirmation emails
+    /**
+     * Send rescheduling confirmation email (instructor email - uses provider selection)
+     */
     async sendReschedulingConfirmation(oldBooking, newBooking, recipientType = 'student') {
         try {
             if (!oldBooking || !newBooking) {
@@ -213,16 +210,15 @@ class EmailService {
             // Generate updated calendar attachment
             const calendarAttachment = this.generateCalendarAttachment(newBooking);
 
+            // Get instructor ID for provider selection (Gmail API if available)
             const instructorId = newBooking.Instructor?.id || newBooking.instructor_id;
 
-            return await this.sendEmailSmart(
+            return await this.sendEmailWithAttachment(
                 recipient.email,
                 subject,
                 htmlContent,
-                {
-                    instructorId: instructorId,  // Enable Gmail API if available
-                    attachment: calendarAttachment
-                }
+                calendarAttachment,
+                { instructorId }
             );
         } catch (error) {
             console.error('Failed to send rescheduling confirmation:', error);
@@ -230,8 +226,9 @@ class EmailService {
         }
     }
 
-
-    // Credits exhausted email
+    /**
+     * Send credits exhausted email (system email - always uses nodemailer)
+     */
     async sendCreditsExhausted(userId, totalLessonsCompleted = 0) {
         try {
             const user = await User.findById(userId);
@@ -246,6 +243,7 @@ class EmailService {
             const subject = await getTemplateSubject('credits-exhausted', 'All Lesson Credits Used - Time to Restock!');
             const htmlContent = await generateCreditsExhaustedHTML(user, totalLessonsCompleted, businessSettings);
 
+            // No instructorId = uses nodemailer provider (system email)
             return await this.sendEmail(user.email, subject, htmlContent);
         } catch (error) {
             console.error('Failed to send credits exhausted email:', error);
@@ -253,8 +251,9 @@ class EmailService {
         }
     }
 
-
-    // Lesson booking confirmation email
+    /**
+     * Send booking confirmation email (instructor email - uses provider selection)
+     */
     async sendBookingConfirmation(bookingData, paymentMethod = 'credits') {
         try {
             if (!bookingData.student || !bookingData.student.email) {
@@ -271,17 +270,15 @@ class EmailService {
             // Generate calendar attachment
             const calendarAttachment = this.generateCalendarAttachment(bookingData);
 
-            // Get instructor ID for Gmail API
+            // Get instructor ID for provider selection (Gmail API if available)
             const instructorId = bookingData.Instructor?.id || bookingData.instructor_id;
 
-            return await this.sendEmailSmart(
+            return await this.sendEmailWithAttachment(
                 bookingData.student.email,
                 subject,
                 htmlContent,
-                {
-                    instructorId: instructorId,  // Enable Gmail API if available
-                    attachment: calendarAttachment
-                }
+                calendarAttachment,
+                { instructorId }
             );
         } catch (error) {
             console.error('Failed to send booking confirmation:', error);
@@ -289,9 +286,9 @@ class EmailService {
         }
     }
 
-
-
-    // Absence notification email
+    /**
+     * Send absence notification email (system email - always uses nodemailer)
+     */
     async sendAbsenceNotification(bookingData, attendanceNotes = '') {
         try {
             if (!bookingData.student || !bookingData.student.email) {
@@ -305,6 +302,7 @@ class EmailService {
             const subject = await getTemplateSubject('absence-notification', 'Lesson Update - Book Your Next Session');
             const htmlContent = await generateAbsenceNotificationHTML(bookingData, attendanceNotes, businessSettings);
 
+            // No instructorId = uses nodemailer provider (system email)
             return await this.sendEmail(bookingData.student.email, subject, htmlContent);
         } catch (error) {
             console.error('Failed to send absence notification:', error);
@@ -312,8 +310,10 @@ class EmailService {
         }
     }
 
-
-    // Generate calendar attachment for booking
+    /**
+     * Generate calendar attachment for booking
+     * Utility method kept from original EmailService
+     */
     generateCalendarAttachment(booking) {
         try {
             // Convert slot to actual datetime using date helpers
@@ -365,7 +365,7 @@ class EmailService {
                 lastModified: new Date()
             });
 
-            // Return attachment object for nodemailer
+            // Return attachment object for providers
             return {
                 filename: `lesson-${booking.id}.ics`,
                 content: calendar.toString(),
@@ -376,8 +376,6 @@ class EmailService {
             return null; // Return null if calendar generation fails
         }
     }
-
-
 }
 
 // Export singleton instance

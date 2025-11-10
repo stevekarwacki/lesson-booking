@@ -32,8 +32,16 @@
             <strong>Connected:</strong> {{ formatDate(setupInfo.oauth.connectedAt) }}
           </p>
           <p v-if="setupInfo.oauth.scopes">
-            <strong>Permissions:</strong> {{ formatScopesDisplay(setupInfo.oauth.scopes) }}
+            <strong>Active Services:</strong>
           </p>
+          <ul v-if="setupInfo.oauth.scopes" class="scope-list">
+            <li v-if="setupInfo.oauth.scopes.includes('calendar')">
+              📅 Calendar - Automatic blocking enabled
+            </li>
+            <li v-if="setupInfo.oauth.scopes.includes('gmail')">
+              📧 Gmail - Emails sent from your account
+            </li>
+          </ul>
           
           <div class="oauth-actions">
             <button @click="disconnectOAuth" :disabled="disconnecting" class="btn btn-danger">
@@ -943,5 +951,17 @@ onMounted(() => {
 
 .btn-success:hover:not(:disabled) {
     background-color: #059669;
+}
+
+.scope-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0.5rem 0;
+}
+
+.scope-list li {
+    padding: 0.25rem 0;
+    font-size: 0.875rem;
+    color: #374151;
 }
 </style>
