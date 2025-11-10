@@ -86,10 +86,8 @@ async function initializeHandlebars() {
             });
         });
 
-        handlebars.registerHelper('formatTime', function(timeString) {
-            if (!timeString) return DEFAULTS.DATE_NOT_SPECIFIED;
-            return timeString;
-        });
+        // Note: Time formatting is handled in JavaScript via formatTimeFromSlot()
+        // before passing data to templates, so no formatTime helper is needed here
 
         handlebarsInitialized = true;
         logger.email('Handlebars initialized successfully with partials and helpers');
