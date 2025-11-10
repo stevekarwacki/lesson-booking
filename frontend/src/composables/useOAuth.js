@@ -1,5 +1,12 @@
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import { 
+  OAUTH_ERRORS, 
+  OAUTH_TIMEOUTS, 
+  OAUTH_POPUP_CONFIG, 
+  OAUTH_MESSAGE_TYPES 
+} from '../constants/oauthConstants'
+import { extractErrorMessage } from '../utils/errorHelpers'
 
 /**
  * OAuth Status Composable
@@ -81,7 +88,7 @@ export function useOAuth(instructorId) {
       
       // Don't set error for 404/503 - just means OAuth not configured
       if (err.response?.status !== 404 && err.response?.status !== 503) {
-        error.value = err.response?.data?.message || 'Failed to check OAuth status'
+        error.value = extractErrorMessage(err, OAUTH_ERRORS.STATUS_CHECK_FAILED)
       }
     } finally {
       loading.value = false
@@ -105,12 +112,12 @@ export function useOAuth(instructorId) {
       // Open OAuth popup
       const popup = window.open(
         authUrl,
-        'google-oauth',
-        'width=600,height=700,scrollbars=yes,resizable=yes'
+        OAUTH_POPUP_CONFIG.NAME,
+        OAUTH_POPUP_CONFIG.FEATURES
       )
 
       if (!popup) {
-        throw new Error('Popup blocked. Please allow popups and try again.')
+        throw new Error(OAUTH_ERRORS.POPUP_BLOCKED)
       }
 
       // Use message passing exclusively to avoid COOP issues
@@ -125,7 +132,7 @@ export function useOAuth(instructorId) {
             return
           }
 
-          if (event.data?.type === 'oauth-success') {
+          if (event.data?.type === OAUTH_MESSAGE_TYPES.SUCCESS) {
             messageReceived = true
             window.removeEventListener('message', handleMessage)
             if (timeoutId) clearTimeout(timeoutId)
@@ -135,38 +142,38 @@ export function useOAuth(instructorId) {
               await checkStatus()
               connecting.value = false
               resolve(oauthStatus.value.connected)
-            }, 1000)
-          } else if (event.data?.type === 'oauth-error') {
+            }, OAUTH_TIMEOUTS.BACKEND_SETTLE_MS)
+          } else if (event.data?.type === OAUTH_MESSAGE_TYPES.ERROR) {
             messageReceived = true
             window.removeEventListener('message', handleMessage)
             if (timeoutId) clearTimeout(timeoutId)
             connecting.value = false
-            reject(new Error(event.data.error || 'OAuth failed'))
-          } else if (event.data?.type === 'oauth-cancelled') {
+            reject(new Error(event.data.error || OAUTH_ERRORS.OAUTH_FAILED))
+          } else if (event.data?.type === OAUTH_MESSAGE_TYPES.CANCELLED) {
             messageReceived = true
             window.removeEventListener('message', handleMessage)
             if (timeoutId) clearTimeout(timeoutId)
             connecting.value = false
-            reject(new Error('OAuth cancelled by user'))
+            reject(new Error(OAUTH_ERRORS.OAUTH_CANCELLED))
           }
         }
 
         window.addEventListener('message', handleMessage)
 
-        // Timeout after 5 minutes
+        // Timeout after configured duration
         timeoutId = setTimeout(() => {
           window.removeEventListener('message', handleMessage)
           
           if (!messageReceived) {
             connecting.value = false
-            reject(new Error('OAuth timeout - please try again'))
+            reject(new Error(OAUTH_ERRORS.OAUTH_TIMEOUT))
           }
-        }, 5 * 60 * 1000)
+        }, OAUTH_TIMEOUTS.OAUTH_TIMEOUT_MS)
       })
 
     } catch (err) {
       connecting.value = false
-      error.value = err.message || 'Failed to start OAuth connection'
+      error.value = extractErrorMessage(err, OAUTH_ERRORS.CONNECTION_FAILED)
       throw err
     }
   }
@@ -193,7 +200,7 @@ export function useOAuth(instructorId) {
       await checkStatus()
 
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to disconnect OAuth'
+      error.value = extractErrorMessage(err, OAUTH_ERRORS.DISCONNECT_FAILED)
       throw err
     } finally {
       disconnecting.value = false

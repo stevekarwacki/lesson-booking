@@ -32,6 +32,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import axios from 'axios'
+import { OAUTH_ERRORS, OAUTH_MESSAGE_TYPES } from '../constants/oauthConstants'
+import { extractErrorMessage } from '../utils/errorHelpers'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -106,7 +108,7 @@ const processAuthCallback = async () => {
             // Notify parent window of success
             if (window.opener) {
                 window.opener.postMessage({
-                    type: 'oauth-success',
+                    type: OAUTH_MESSAGE_TYPES.SUCCESS,
                     message: 'Google account connected successfully'
                 }, window.location.origin)
             }
@@ -116,29 +118,19 @@ const processAuthCallback = async () => {
                 closeWindow()
             }, 3000)
         } else {
-            throw new Error(response.data.message || 'Failed to connect Google Calendar')
+            throw new Error(response.data.message || OAUTH_ERRORS.CALLBACK_FAILED)
         }
         
     } catch (err) {
         console.error('Google Auth Callback Error:', err)
         
-        let errorMessage
-        if (err.response?.data?.message) {
-            errorMessage = err.response.data.message
-        } else if (err.response?.data?.error) {
-            errorMessage = err.response.data.error
-        } else if (err.message) {
-            errorMessage = err.message
-        } else {
-            errorMessage = 'An unexpected error occurred while connecting Google Calendar'
-        }
-        
+        const errorMessage = extractErrorMessage(err, OAUTH_ERRORS.UNEXPECTED_ERROR)
         error.value = errorMessage
         
         // Notify parent window of error
         if (window.opener) {
             window.opener.postMessage({
-                type: 'oauth-error',
+                type: OAUTH_MESSAGE_TYPES.ERROR,
                 error: errorMessage
             }, window.location.origin)
         }
