@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const logger = require('./logger');
 const { fromString, createDateHelper } = require('./dateHelpers');
+const { DEFAULTS, BUTTON_TEXT, URL_PATHS } = require('./emailConstants');
 
 /**
  * Consistent time formatting helper
@@ -20,6 +21,24 @@ function formatTimeFromSlot(slot) {
         minute: '2-digit',
         hour12: true 
     });
+}
+
+/**
+ * Build business context object from settings
+ * Centralizes the business settings mapping with fallbacks
+ * @param {Object} businessSettings - Business settings from database
+ * @returns {Object} Standardized business context for templates
+ */
+function buildBusinessContext(businessSettings) {
+    return {
+        name: businessSettings.company_name || DEFAULTS.BUSINESS_NAME,
+        contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+        phone_number: businessSettings.phone_number || DEFAULTS.PLACEHOLDER_EMPTY,
+        logo_url: businessSettings.logo_url || DEFAULTS.PLACEHOLDER_EMPTY,
+        website: businessSettings.base_url || DEFAULTS.PLACEHOLDER_URL,
+        support_email: businessSettings.contact_email || process.env.EMAIL_USER,
+        purchase_url: businessSettings.base_url ? `${businessSettings.base_url}${URL_PATHS.CREDITS}` : DEFAULTS.PLACEHOLDER_URL
+    };
 }
 
 // Template cache and initialization state
@@ -57,7 +76,7 @@ async function initializeHandlebars() {
         });
 
         handlebars.registerHelper('formatDate', function(dateString) {
-            if (!dateString) return 'Not specified';
+            if (!dateString) return DEFAULTS.DATE_NOT_SPECIFIED;
             const date = new Date(dateString);
             return date.toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -68,7 +87,7 @@ async function initializeHandlebars() {
         });
 
         handlebars.registerHelper('formatTime', function(timeString) {
-            if (!timeString) return 'Not specified';
+            if (!timeString) return DEFAULTS.DATE_NOT_SPECIFIED;
             return timeString;
         });
 
@@ -218,16 +237,9 @@ async function generatePurchaseConfirmationHTML(user, planDetails, transactionDe
             id: transactionDetails.id,
             amount: transactionDetails.amount,
             date: new Date().toLocaleDateString(),
-            paymentMethod: transactionDetails.paymentMethod || 'Credit Card'
+            paymentMethod: transactionDetails.paymentMethod || DEFAULTS.PAYMENT_METHOD_CARD
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            support_email: businessSettings.contact_email || process.env.EMAIL_USER
-        },
+        business: buildBusinessContext(businessSettings),
         headerTitle: 'Purchase Confirmed',
         headerSubtitle: 'Your lesson credits are ready to use'
     };
@@ -252,14 +264,7 @@ async function generateLowBalanceHTML(user, creditsRemaining, businessSettings) 
             remaining_60min: creditsRemaining.credits_60min || 0,
             total: (creditsRemaining.credits_30min || 0) + (creditsRemaining.credits_60min || 0)
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            purchase_url: businessSettings.base_url ? `${businessSettings.base_url}/credits` : '#'
-        },
+        business: buildBusinessContext(businessSettings),
         headerTitle: 'Low Credit Balance',
         headerSubtitle: 'Time to restock your lesson credits'
     };
@@ -282,14 +287,7 @@ async function generateCreditsExhaustedHTML(user, totalLessonsCompleted, busines
         stats: {
             totalLessonsCompleted: totalLessonsCompleted || 0
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            purchase_url: businessSettings.base_url ? `${businessSettings.base_url}/credits` : '#'
-        },
+        business: buildBusinessContext(businessSettings),
         headerTitle: 'Credits Exhausted',
         headerSubtitle: 'Purchase more credits to continue booking lessons'
     };
@@ -304,13 +302,15 @@ async function generateBookingConfirmationHTML(booking, paymentMethod, businessS
     // Load the content template
     const contentTemplate = await loadContentTemplate('booking-confirmation');
     
+    const business = buildBusinessContext(businessSettings);
+    
     const templateData = {
         student: {
-            name: booking.student?.name || booking.Student?.name || 'Student',
+            name: booking.student?.name || booking.Student?.name || DEFAULTS.USER_LABEL_STUDENT,
             email: booking.student?.email || booking.Student?.email
         },
         instructor: {
-            name: booking.Instructor?.User?.name || booking.instructor?.name || 'Instructor',
+            name: booking.Instructor?.User?.name || booking.instructor?.name || DEFAULTS.USER_LABEL_INSTRUCTOR,
             email: booking.Instructor?.User?.email || booking.instructor?.email
         },
         booking: {
@@ -319,25 +319,18 @@ async function generateBookingConfirmationHTML(booking, paymentMethod, businessS
             startTime: formatTimeFromSlot(booking.start_slot),
             endTime: formatTimeFromSlot(booking.start_slot + booking.duration),
             duration: booking.duration * 15, // Convert slots to minutes
-            paymentMethod: paymentMethod === 'credits' ? 'Lesson Credits' : 'Credit Card'
+            paymentMethod: paymentMethod === 'credits' ? DEFAULTS.PAYMENT_METHOD_CREDITS : DEFAULTS.PAYMENT_METHOD_CARD
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            support_email: businessSettings.contact_email || process.env.EMAIL_USER
-        },
+        business,
         buttons: {
             primary: {
-                url: businessSettings.base_url ? `${businessSettings.base_url}/bookings` : '#',
-                text: 'View My Bookings',
+                url: businessSettings.base_url ? `${businessSettings.base_url}${URL_PATHS.BOOKINGS}` : DEFAULTS.PLACEHOLDER_URL,
+                text: BUTTON_TEXT.VIEW_BOOKINGS,
                 style: 'primary'
             },
             secondary: {
-                url: businessSettings.phone_number ? `tel:${businessSettings.phone_number}` : '#',
-                text: businessSettings.phone_number ? `Call ${businessSettings.phone_number}` : 'Contact Support',
+                url: business.phone_number ? `tel:${business.phone_number}` : DEFAULTS.PLACEHOLDER_URL,
+                text: business.phone_number ? `${BUTTON_TEXT.CALL_PREFIX}${business.phone_number}` : BUTTON_TEXT.CONTACT_SUPPORT,
                 style: 'secondary'
             }
         },
@@ -356,13 +349,15 @@ async function generateReschedulingHTML(oldBooking, newBooking, recipientType, b
     const templateKey = recipientType === 'student' ? 'rescheduling-student' : 'rescheduling-instructor';
     const contentTemplate = await loadContentTemplate(templateKey);
     
+    const business = buildBusinessContext(businessSettings);
+    
     const templateData = {
         student: {
-            name: newBooking.student?.name || newBooking.Student?.name || 'Student',
+            name: newBooking.student?.name || newBooking.Student?.name || DEFAULTS.USER_LABEL_STUDENT,
             email: newBooking.student?.email || newBooking.Student?.email
         },
         instructor: {
-            name: newBooking.Instructor?.User?.name || newBooking.instructor?.name || 'Instructor',
+            name: newBooking.Instructor?.User?.name || newBooking.instructor?.name || DEFAULTS.USER_LABEL_INSTRUCTOR,
             email: newBooking.Instructor?.User?.email || newBooking.instructor?.email
         },
         oldBooking: {
@@ -379,23 +374,16 @@ async function generateReschedulingHTML(oldBooking, newBooking, recipientType, b
             endTime: formatTimeFromSlot(newBooking.start_slot + newBooking.duration),
             duration: newBooking.duration * 15
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            support_email: businessSettings.contact_email || process.env.EMAIL_USER
-        },
+        business,
         buttons: {
             primary: {
-                url: businessSettings.base_url ? `${businessSettings.base_url}/bookings` : '#',
-                text: 'Manage Lessons',
+                url: businessSettings.base_url ? `${businessSettings.base_url}${URL_PATHS.BOOKINGS}` : DEFAULTS.PLACEHOLDER_URL,
+                text: BUTTON_TEXT.MANAGE_LESSONS,
                 style: 'primary'
             },
             secondary: {
-                url: businessSettings.phone_number ? `tel:${businessSettings.phone_number}` : '#',
-                text: businessSettings.phone_number ? `Call ${businessSettings.phone_number}` : 'Contact Support',
+                url: business.phone_number ? `tel:${business.phone_number}` : DEFAULTS.PLACEHOLDER_URL,
+                text: business.phone_number ? `${BUTTON_TEXT.CALL_PREFIX}${business.phone_number}` : BUTTON_TEXT.CONTACT_SUPPORT,
                 style: 'secondary'
             }
         },
@@ -413,13 +401,15 @@ async function generateAbsenceNotificationHTML(booking, attendanceNotes, busines
     // Load the content template
     const contentTemplate = await loadContentTemplate('absence-notification');
     
+    const business = buildBusinessContext(businessSettings);
+    
     const templateData = {
         student: {
-            name: booking.student?.name || booking.Student?.name || 'Student',
+            name: booking.student?.name || booking.Student?.name || DEFAULTS.USER_LABEL_STUDENT,
             email: booking.student?.email || booking.Student?.email
         },
         instructor: {
-            name: booking.Instructor?.User?.name || booking.instructor?.name || 'Instructor',
+            name: booking.Instructor?.User?.name || booking.instructor?.name || DEFAULTS.USER_LABEL_INSTRUCTOR,
             email: booking.Instructor?.User?.email || booking.instructor?.email
         },
         booking: {
@@ -432,23 +422,16 @@ async function generateAbsenceNotificationHTML(booking, attendanceNotes, busines
         attendance: {
             notes: attendanceNotes || 'No additional notes provided.'
         },
-        business: {
-            name: businessSettings.company_name || 'Lesson Booking',
-            contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
-            phone_number: businessSettings.phone_number || '',
-            logo_url: businessSettings.logo_url || '',
-            website: businessSettings.base_url || '#',
-            support_email: businessSettings.contact_email || process.env.EMAIL_USER
-        },
+        business,
         buttons: {
             primary: {
-                url: businessSettings.base_url ? `${businessSettings.base_url}/booking` : '#',
-                text: 'Book New Lesson',
+                url: businessSettings.base_url ? `${businessSettings.base_url}${URL_PATHS.BOOKING}` : DEFAULTS.PLACEHOLDER_URL,
+                text: BUTTON_TEXT.BOOK_NEW_LESSON,
                 style: 'primary'
             },
             secondary: {
-                url: businessSettings.contact_email ? `mailto:${businessSettings.contact_email}` : '#',
-                text: 'Contact Support',
+                url: business.contact_email ? `mailto:${business.contact_email}` : DEFAULTS.PLACEHOLDER_URL,
+                text: BUTTON_TEXT.CONTACT_SUPPORT,
                 style: 'secondary'
             }
         },
