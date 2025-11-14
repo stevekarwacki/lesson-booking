@@ -788,8 +788,7 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
         
         try {
             // Check if eligible for automatic refund (>24 hours in advance)
-            const refundService = new RefundService();
-            const automaticRefund = await refundService.processAutomaticRefund(bookingId, studentId);
+            const automaticRefund = await RefundService.processAutomaticRefund(bookingId, studentId);
             
             // If no automatic refund was processed, handle manual credit refund for existing logic
             if (!automaticRefund && creditUsage) {

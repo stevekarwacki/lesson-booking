@@ -345,8 +345,8 @@ class GoogleCalendarService {
      * @returns {Promise<string>} Date string in YYYY-MM-DD format
      */
     async getLocalDateString(date) {
-        const BusinessTimezoneService = require('../utils/businessTimezone');
-        return await BusinessTimezoneService.toBusinessDateString(date);
+        const { toBusinessDateString } = require('../utils/businessTimezone');
+        return await toBusinessDateString(date);
     }
     
     /**
@@ -356,8 +356,8 @@ class GoogleCalendarService {
      */
     async timeToSlot(date) {
         // Use business timezone instead of server timezone
-        const BusinessTimezoneService = require('../utils/businessTimezone');
-        const localTimeString = await BusinessTimezoneService.toBusinessTimeString(date);
+        const { toBusinessTimeString } = require('../utils/businessTimezone');
+        const localTimeString = await toBusinessTimeString(date);
         
         // Parse the local time (format: "14:30")
         const [hours, minutes] = localTimeString.split(':').map(Number);
@@ -393,12 +393,12 @@ class GoogleCalendarService {
      */
     async calculateDuration(startTime, endTime) {
         // Use business timezone instead of server timezone
-        const BusinessTimezoneService = require('../utils/businessTimezone');
+        const { toBusinessTimeString } = require('../utils/businessTimezone');
         
         // Convert both times to business timezone
         const [startLocal, endLocal] = await Promise.all([
-            BusinessTimezoneService.toBusinessTimeString(startTime),
-            BusinessTimezoneService.toBusinessTimeString(endTime)
+            toBusinessTimeString(startTime),
+            toBusinessTimeString(endTime)
         ]);
         
         const [startHours, startMinutes] = startLocal.split(':').map(Number);

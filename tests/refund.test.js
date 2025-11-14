@@ -25,11 +25,9 @@ console.log('🧪 Running Refund System test suite');
 console.log('Testing refund processing, Stripe integration, and business logic');
 
 describe.skip('Refund System Tests', () => {
-    let refundService;
     let testUser, testInstructor, testStudent, testBooking, testTransaction, testInstructorRecord;
 
     beforeEach(async () => {
-        refundService = new RefundService();
         
         // Create unique test data using timestamp + random number + process ID
         const timestamp = `${Date.now()}_${Math.floor(Math.random() * 100000)}_${process.pid}`;
@@ -92,7 +90,7 @@ describe.skip('Refund System Tests', () => {
 
     describe('RefundService.getRefundInfo()', () => {
         test('should return refund info for a valid booking', async () => {
-            const refundInfo = await refundService.getRefundInfo(testBooking.id);
+            const refundInfo = await RefundService.getRefundInfo(testBooking.id);
             
             assert.strictEqual(refundInfo.booking.id, testBooking.id);
             assert.strictEqual(refundInfo.booking.student_id, testStudent.id);
@@ -103,7 +101,7 @@ describe.skip('Refund System Tests', () => {
 
         test('should throw error for non-existent booking', async () => {
             await assert.rejects(
-                async () => await refundService.getRefundInfo(99999),
+                async () => await RefundService.getRefundInfo(99999),
                 { message: 'Booking not found' }
             );
         });
@@ -117,7 +115,7 @@ describe.skip('Refund System Tests', () => {
                 duration_minutes: 30
             });
 
-            const refundInfo = await refundService.getRefundInfo(testBooking.id);
+            const refundInfo = await RefundService.getRefundInfo(testBooking.id);
             
             assert.strictEqual(refundInfo.paidWithCredits, true);
             assert.strictEqual(refundInfo.paidWithStripe, false);
@@ -134,7 +132,7 @@ describe.skip('Refund System Tests', () => {
             });
 
             await assert.rejects(
-                async () => await refundService.getRefundInfo(testBooking.id),
+                async () => await RefundService.getRefundInfo(testBooking.id),
                 { message: 'Booking has already been refunded' }
             );
         });
@@ -150,7 +148,7 @@ describe.skip('Refund System Tests', () => {
                 start_slot: 40 // 10:00 AM
             };
 
-            const isEligible = refundService.isEligibleForAutomaticRefund(booking);
+            const isEligible = RefundService.isEligibleForAutomaticRefund(booking);
             assert.strictEqual(isEligible, true);
         });
 
@@ -163,7 +161,7 @@ describe.skip('Refund System Tests', () => {
                 start_slot: 40
             };
 
-            const isEligible = refundService.isEligibleForAutomaticRefund(booking);
+            const isEligible = RefundService.isEligibleForAutomaticRefund(booking);
             assert.strictEqual(isEligible, false);
         });
 
@@ -176,14 +174,14 @@ describe.skip('Refund System Tests', () => {
                 start_slot: 40
             };
 
-            const isEligible = refundService.isEligibleForAutomaticRefund(booking);
+            const isEligible = RefundService.isEligibleForAutomaticRefund(booking);
             assert.strictEqual(isEligible, false);
         });
 
         test('should handle invalid booking data gracefully', () => {
-            assert.strictEqual(refundService.isEligibleForAutomaticRefund(null), false);
-            assert.strictEqual(refundService.isEligibleForAutomaticRefund({}), false);
-            assert.strictEqual(refundService.isEligibleForAutomaticRefund({ date: null }), false);
+            assert.strictEqual(RefundService.isEligibleForAutomaticRefund(null), false);
+            assert.strictEqual(RefundService.isEligibleForAutomaticRefund({}), false);
+            assert.strictEqual(RefundService.isEligibleForAutomaticRefund({ date: null }), false);
         });
     });
 
@@ -202,7 +200,7 @@ describe.skip('Refund System Tests', () => {
         });
 
         test('should process credit refund successfully', async () => {
-            const result = await refundService.processRefund(
+            const result = await RefundService.processRefund(
                 testBooking.id,
                 'credit',
                 testInstructor.id,
@@ -236,7 +234,7 @@ describe.skip('Refund System Tests', () => {
             try {
                 const initialCredits = await UserCredits.getUserCredits(testStudent.id);
                 
-                await refundService.processRefund(
+                await RefundService.processRefund(
                     testBooking.id,
                     'credit',
                     testInstructor.id
@@ -262,7 +260,7 @@ describe.skip('Refund System Tests', () => {
             });
 
             await assert.rejects(
-                async () => await refundService.processRefund(
+                async () => await RefundService.processRefund(
                     testBooking.id,
                     'stripe',
                     testInstructor.id
@@ -276,7 +274,7 @@ describe.skip('Refund System Tests', () => {
             await testTransaction.update({ payment_intent_id: null });
 
             await assert.rejects(
-                async () => await refundService.processRefund(
+                async () => await RefundService.processRefund(
                     testBooking.id,
                     'stripe',
                     testInstructor.id
@@ -292,7 +290,7 @@ describe.skip('Refund System Tests', () => {
 
             try {
                 await assert.rejects(
-                    async () => await refundService.processRefund(
+                    async () => await RefundService.processRefund(
                         testBooking.id,
                         'stripe',
                         testInstructor.id
@@ -309,8 +307,8 @@ describe.skip('Refund System Tests', () => {
     describe('RefundService.processAutomaticRefund()', () => {
         test('should process automatic refund for eligible Stripe booking', async () => {
             // Mock the Stripe refunds.create method to avoid API calls
-            const originalStripe = refundService.stripe;
-            refundService.stripe = {
+            const originalStripe = RefundService.stripe;
+            RefundService.stripe = {
                 refunds: {
                     create: async () => ({
                         id: 're_mock_refund_id',
@@ -328,7 +326,7 @@ describe.skip('Refund System Tests', () => {
                     date: futureDate.toISOString().split('T')[0] 
                 });
 
-                const result = await refundService.processAutomaticRefund(
+                const result = await RefundService.processAutomaticRefund(
                     testBooking.id,
                     testStudent.id
                 );
@@ -338,7 +336,7 @@ describe.skip('Refund System Tests', () => {
                 assert.strictEqual(result.amount, 50.00);
             } finally {
                 // Restore original Stripe instance
-                refundService.stripe = originalStripe;
+                RefundService.stripe = originalStripe;
             }
         });
 
@@ -358,7 +356,7 @@ describe.skip('Refund System Tests', () => {
                 date: futureDate.toISOString().split('T')[0] 
             });
 
-            const result = await refundService.processAutomaticRefund(
+            const result = await RefundService.processAutomaticRefund(
                 testBooking.id,
                 testStudent.id
             );
@@ -375,7 +373,7 @@ describe.skip('Refund System Tests', () => {
                 date: nearDate.toISOString().split('T')[0] 
             });
 
-            const result = await refundService.processAutomaticRefund(
+            const result = await RefundService.processAutomaticRefund(
                 testBooking.id,
                 testStudent.id
             );
@@ -408,8 +406,8 @@ describe.skip('Refund System Tests', () => {
     describe('Error Handling and Edge Cases', () => {
         test('should handle concurrent refund attempts', async () => {
             // Mock the Stripe refunds.create method to avoid API calls
-            const originalStripe = refundService.stripe;
-            refundService.stripe = {
+            const originalStripe = RefundService.stripe;
+            RefundService.stripe = {
                 refunds: {
                     create: async () => ({
                         id: 're_mock_refund_id',
@@ -421,7 +419,7 @@ describe.skip('Refund System Tests', () => {
 
             try {
                 // First refund should succeed
-                await refundService.processRefund(
+                await RefundService.processRefund(
                     testBooking.id,
                     'stripe',
                     testInstructor.id
@@ -429,7 +427,7 @@ describe.skip('Refund System Tests', () => {
 
                 // Second refund attempt should fail because booking is already refunded
                 await assert.rejects(
-                    async () => await refundService.processRefund(
+                    async () => await RefundService.processRefund(
                         testBooking.id,
                         'stripe',
                         testInstructor.id
@@ -438,14 +436,14 @@ describe.skip('Refund System Tests', () => {
                 );
             } finally {
                 // Restore original Stripe instance
-                refundService.stripe = originalStripe;
+                RefundService.stripe = originalStripe;
             }
         });
 
         test('should handle cancelled bookings', async () => {
             await testBooking.update({ status: 'cancelled' });
             
-            const refundInfo = await refundService.getRefundInfo(testBooking.id);
+            const refundInfo = await RefundService.getRefundInfo(testBooking.id);
             assert.strictEqual(refundInfo.canRefund, false);
         });
     });
