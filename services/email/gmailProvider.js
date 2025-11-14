@@ -1,13 +1,14 @@
 const { google } = require('googleapis');
 const googleOAuthService = require('../../config/googleOAuth');
 const logger = require('../../utils/logger');
+const config = require('../../config');
 
 let isConfigured = false;
 
 const checkConfiguration = async () => {
     try {
         // Check if Gmail OAuth is enabled
-        if (process.env.USE_OAUTH_EMAIL !== 'true') {
+        if (!config.features.oauthEmail) {
             return false;
         }
         
@@ -50,7 +51,7 @@ const getConfigurationStatus = () => {
         return { configured: true, message: 'Gmail provider configured successfully' };
     }
     
-    if (process.env.USE_OAUTH_EMAIL !== 'true') {
+    if (!config.features.oauthEmail) {
         return { 
             configured: false, 
             message: 'USE_OAUTH_EMAIL must be set to true to enable Gmail provider' 
@@ -219,8 +220,8 @@ const sendWithAttachment = async (to, subject, htmlContent, attachment, options 
     }
 };
 
-// Initialize configuration check on module load
-(async () => {
+// Initialize configuration check on module load and export promise
+const initializationPromise = (async () => {
     isConfigured = await checkConfiguration();
 })();
 
@@ -230,5 +231,6 @@ module.exports = {
     isAvailable,
     isInstructorAvailable,
     getConfigurationStatus,
+    initializationPromise,
     name: 'gmail'
 };

@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const logger = require('../../utils/logger');
+const config = require('../../config');
 
 let transporter = null;
 let isConfigured = false;
@@ -7,7 +8,7 @@ let isConfigured = false;
 const initializeTransporter = () => {
     try {
         // Check if email configuration is available
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+        if (!config.email.user || !config.email.password) {
             return;
         }
 
@@ -16,8 +17,8 @@ const initializeTransporter = () => {
             port: 465,
             secure: true, // use SSL
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_APP_PASSWORD
+                user: config.email.user,
+                pass: config.email.password
             }
         });
 
@@ -51,7 +52,7 @@ const send = async (to, subject, htmlContent, options = {}) => {
         const { textContent } = options;
         
         const mailOptions = {
-            from: `"${process.env.EMAIL_FROM_NAME || 'Lesson Booking'}" <${process.env.EMAIL_USER}>`,
+            from: config.email.from || `"Lesson Booking" <${config.email.user}>`,
             to: to,
             subject: subject,
             html: htmlContent,
@@ -90,7 +91,7 @@ const sendWithAttachment = async (to, subject, htmlContent, attachment, options 
         const { textContent } = options;
         
         const mailOptions = {
-            from: `"${process.env.EMAIL_FROM_NAME || 'Lesson Booking'}" <${process.env.EMAIL_USER}>`,
+            from: config.email.from || `"Lesson Booking" <${config.email.user}>`,
             to: to,
             subject: subject,
             html: htmlContent,

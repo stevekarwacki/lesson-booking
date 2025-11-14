@@ -1,15 +1,13 @@
 const { google } = require('googleapis');
 const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+const config = require('./index');
 
-// Configuration loaded from environment
-const clientId = process.env.GOOGLE_CLIENT_ID;
-const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+// Configuration loaded from centralized config
+const clientId = config.googleOAuth.clientId;
+const clientSecret = config.googleOAuth.clientSecret;
 // Fixed fallback URI - should match frontend callback route
-const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/google/callback`;
-const scopes = process.env.GOOGLE_OAUTH_SCOPES?.split(' ') || [
-    'https://www.googleapis.com/auth/calendar.readonly',
-    'https://www.googleapis.com/auth/gmail.send'
-];
+const redirectUri = config.googleOAuth.redirectUri || `${config.server.frontendUrl}/auth/google/callback`;
+const scopes = config.googleOAuth.scopes;
 
 /**
  * Check if OAuth is configured

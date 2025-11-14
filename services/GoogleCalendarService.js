@@ -1,18 +1,14 @@
 const { google } = require('googleapis');
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
-const { 
-    timeToSlotUTC, 
-    calculateDurationInSlots,
-    getUserTimezone
-} = require('../utils/timeUtils');
-const { today, fromTimestamp } = require('../utils/dateHelpers');
+const { today } = require('../utils/dateHelpers');
+const config = require('../config');
 
 class GoogleCalendarService {
     constructor(options = {}) {
         // Service account configuration
-        this.serviceAccountEmail = options.serviceAccountEmail || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-        this.serviceAccountKey = options.serviceAccountKey || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-        this.serviceAccountKeyFile = options.serviceAccountKeyFile || process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE;
+        this.serviceAccountEmail = options.serviceAccountEmail || config.googleServiceAccount.email;
+        this.serviceAccountKey = options.serviceAccountKey || config.googleServiceAccount.privateKey;
+        this.serviceAccountKeyFile = options.serviceAccountKeyFile || config.googleServiceAccount.keyFile;
         
         this.auth = null;
         this.calendar = null;
@@ -22,8 +18,7 @@ class GoogleCalendarService {
         this.cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
         
         // Only initialize service account if OAuth is not enabled
-        const useOAuth = process.env.USE_OAUTH_CALENDAR === 'true';
-        if (!useOAuth) {
+        if (!config.features.oauthCalendar) {
             this.initializeServiceAccount();
         }
     }
@@ -35,9 +30,7 @@ class GoogleCalendarService {
      */
     async getAuthClient(instructorId) {
         // Check feature flag
-        const useOAuth = process.env.USE_OAUTH_CALENDAR === 'true';
-        
-        if (useOAuth) {
+        if (config.features.oauthCalendar) {
             // Try OAuth first
             const googleOAuthService = require('../config/googleOAuth');
             const oauth2Client = await googleOAuthService.getAuthenticatedClient(instructorId);

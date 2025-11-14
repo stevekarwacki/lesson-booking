@@ -2,8 +2,8 @@ const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('./logger');
-const { fromString, createDateHelper } = require('./dateHelpers');
 const { DEFAULTS, BUTTON_TEXT, URL_PATHS } = require('./emailConstants');
+const config = require('../config');
 
 /**
  * Consistent time formatting helper
@@ -32,11 +32,11 @@ function formatTimeFromSlot(slot) {
 function buildBusinessContext(businessSettings) {
     return {
         name: businessSettings.company_name || DEFAULTS.BUSINESS_NAME,
-        contact_email: businessSettings.contact_email || process.env.EMAIL_USER,
+        contact_email: businessSettings.contact_email || config.email.user,
         phone_number: businessSettings.phone_number || DEFAULTS.PLACEHOLDER_EMPTY,
         logo_url: businessSettings.logo_url || DEFAULTS.PLACEHOLDER_EMPTY,
         website: businessSettings.base_url || DEFAULTS.PLACEHOLDER_URL,
-        support_email: businessSettings.contact_email || process.env.EMAIL_USER,
+        support_email: businessSettings.contact_email || config.email.user,
         purchase_url: businessSettings.base_url ? `${businessSettings.base_url}${URL_PATHS.CREDITS}` : DEFAULTS.PLACEHOLDER_URL
     };
 }

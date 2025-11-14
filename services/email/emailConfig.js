@@ -1,10 +1,11 @@
 const nodemailerProvider = require('./nodemailerProvider');
 const gmailProvider = require('./gmailProvider');
+const config = require('../../config');
 
 const PROVIDER_RULES = [
     {
         name: 'gmail_for_instructors',
-        test: (ctx) => ctx.instructorId && process.env.USE_OAUTH_EMAIL === 'true',
+        test: (ctx) => ctx.instructorId && config.features.oauthEmail,
         provider: gmailProvider
     },
     {

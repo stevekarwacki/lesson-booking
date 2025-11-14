@@ -1,8 +1,9 @@
 const { default: ical } = require('ical-generator');
 const { User } = require('../models/User');
 const logger = require('../utils/logger');
-const { fromString, createDateHelper } = require('../utils/dateHelpers');
+const { fromString } = require('../utils/dateHelpers');
 const { selectProvider } = require('./email/emailConfig');
+const config = require('../config');
 const {
     generatePurchaseConfirmationHTML,
     generateLowBalanceHTML,
@@ -26,8 +27,11 @@ class EmailService {
         const nodemailerProvider = require('./email/nodemailerProvider');
         const gmailProvider = require('./email/gmailProvider');
         
-        // Give Gmail provider time to initialize (it's async)
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Only wait for async providers if they might be configured
+        // Gmail requires async initialization to check API availability
+        if (config.features.oauthEmail) {
+            await gmailProvider.initializationPromise;
+        }
         
         const nodemailerStatus = nodemailerProvider.getConfigurationStatus();
         const gmailStatus = gmailProvider.getConfigurationStatus();
