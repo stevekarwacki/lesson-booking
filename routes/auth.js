@@ -230,8 +230,8 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
 router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-        const service = new GoogleCalendarService();
-        const serviceAccountEmail = service.getServiceAccountSignal();
+        const service = GoogleCalendarService();
+        const serviceAccountEmail = service.getServiceAccountEmail();
         
         // Check if OAuth is available
         const oauthConfigured = googleOAuthService.isConfigured();
@@ -373,7 +373,7 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
         
-        const service = new GoogleCalendarService();
+        const service = GoogleCalendarService();
         
         // Check availability first
         const isAvailable = await service.isAvailableForInstructor(instructorId);
@@ -391,21 +391,21 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
         
         if (testResult.success) {
             res.json({
+                success: true,
                 connected: true,
                 working: true,
                 message: testResult.message,
-                testResults: {
-                    eventsFound: testResult.eventsFound,
-                    calendarId: testResult.calendarId,
-                    calendarName: testResult.calendarName
-                }
+                eventsFound: testResult.eventsFound,
+                calendarId: testResult.calendarId,
+                calendarName: testResult.calendarName
             });
         } else {
             res.status(400).json({
+                success: false,
                 connected: false,
                 working: false,
-                error: testResult.message,
-                details: testResult.error
+                message: testResult.message,
+                error: testResult.error
             });
         }
         

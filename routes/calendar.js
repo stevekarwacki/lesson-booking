@@ -398,7 +398,7 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
             // Try to create service instance - this might fail synchronously
             let googleCalendarService;
             try {
-                googleCalendarService = new GoogleCalendarService();
+                googleCalendarService = GoogleCalendarService();
 
             } catch (serviceError) {
 
@@ -488,7 +488,7 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
             // Try to create service instance - this might fail synchronously
             let googleCalendarService;
             try {
-                googleCalendarService = new GoogleCalendarService();
+                googleCalendarService = GoogleCalendarService();
 
             } catch (serviceError) {
 

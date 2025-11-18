@@ -3,56 +3,27 @@ const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig
 const { today } = require('../utils/dateHelpers');
 const config = require('../config');
 
-class GoogleCalendarService {
-    constructor(options = {}) {
-        // Service account configuration
-        this.serviceAccountEmail = options.serviceAccountEmail || config.googleServiceAccount.email;
-        this.serviceAccountKey = options.serviceAccountKey || config.googleServiceAccount.privateKey;
-        this.serviceAccountKeyFile = options.serviceAccountKeyFile || config.googleServiceAccount.keyFile;
-        
-        this.auth = null;
-        this.calendar = null;
-        
-        // Cache for performance
-        this.cache = new Map();
-        this.cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
-        
-        // Only initialize service account if OAuth is not enabled
-        if (!config.features.oauthCalendar) {
-            this.initializeServiceAccount();
-        }
-    }
-
-    /**
-     * Get authentication client (OAuth or service account based on feature flag)
-     * @param {number} instructorId - Instructor ID
-     * @returns {Promise<Auth>} Google Auth client
-     */
-    async getAuthClient(instructorId) {
-        // Check feature flag
-        if (config.features.oauthCalendar) {
-            // Try OAuth first
-            const googleOAuthService = require('../config/googleOAuth');
-            const oauth2Client = await googleOAuthService.getAuthenticatedClient(instructorId);
-            
-            if (oauth2Client) {
-                return oauth2Client;
-            }
-            
-            // OAuth not configured for instructor, try service account fallback
-            if (!this.auth) {
-                // Initialize service account on-demand if not already done
-                this.initializeServiceAccount();
-            }
-        }
-        
-        // Fallback to service account (or null if not configured)
-        return this.auth;
-    }
+/**
+ * Create a new GoogleCalendarService instance
+ * @param {Object} options - Configuration options
+ * @returns {Object} Service instance with methods
+ */
+const createGoogleCalendarService = (options = {}) => {
+    // Service account configuration
+    const serviceAccountEmail = options.serviceAccountEmail || config.googleServiceAccount.email;
+    const serviceAccountKey = options.serviceAccountKey || config.googleServiceAccount.privateKey;
+    const serviceAccountKeyFile = options.serviceAccountKeyFile || config.googleServiceAccount.keyFile;
     
-    initializeServiceAccount() {
-         // Check if we have service account credentials
-        if (!this.serviceAccountEmail && !this.serviceAccountKeyFile && !this.serviceAccountKey) {
+    let auth = null;
+    let calendar = null;
+    
+    // Cache for performance
+    const cache = new Map();
+    const cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
+
+    const initializeServiceAccount = () => {
+        // Check if we have service account credentials
+        if (!serviceAccountEmail && !serviceAccountKeyFile && !serviceAccountKey) {
             console.warn('Google Calendar: Missing service account credentials, service will be disabled');
             return;
         }
@@ -64,25 +35,57 @@ class GoogleCalendarService {
             };
             
             // Use key file if provided, otherwise use inline credentials
-            if (this.serviceAccountKeyFile) {
-                authOptions.keyFile = this.serviceAccountKeyFile;
-            } else if (this.serviceAccountEmail && this.serviceAccountKey) {
+            if (serviceAccountKeyFile) {
+                authOptions.keyFile = serviceAccountKeyFile;
+            } else if (serviceAccountEmail && serviceAccountKey) {
                 authOptions.credentials = {
-                    client_email: this.serviceAccountEmail,
-                    private_key: this.serviceAccountKey.replace(/\\n/g, '\n')
+                    client_email: serviceAccountEmail,
+                    private_key: serviceAccountKey.replace(/\\n/g, '\n')
                 };
             } else {
                 throw new Error('Invalid service account configuration');
             }
             
-            this.auth = new google.auth.GoogleAuth(authOptions);
-            this.calendar = google.calendar({ version: 'v3', auth: this.auth });
+            auth = new google.auth.GoogleAuth(authOptions);
+            calendar = google.calendar({ version: 'v3', auth });
             
         } catch (error) {
             console.error('Failed to initialize Google service account:', error);
-            this.auth = null;
-            this.calendar = null;
+            auth = null;
+            calendar = null;
         }
+    };
+    
+    /**
+     * Get authentication client (OAuth or service account based on feature flag)
+     * @param {number} instructorId - Instructor ID
+     * @returns {Promise<Auth>} Google Auth client
+     */
+    const getAuthClient = async (instructorId) => {
+        // Check feature flag
+        if (config.features.oauthCalendar) {
+            // Try OAuth first
+            const googleOAuthService = require('../config/googleOAuth');
+            const oauth2Client = await googleOAuthService.getAuthenticatedClient(instructorId);
+            
+            if (oauth2Client) {
+                return oauth2Client;
+            }
+            
+            // OAuth not configured for instructor, try service account fallback
+            if (!auth) {
+                // Initialize service account on-demand if not already done
+                initializeServiceAccount();
+            }
+        }
+        
+        // Fallback to service account (or null if not configured)
+        return auth;
+    };
+    
+    // Only initialize service account if OAuth is not enabled
+    if (!config.features.oauthCalendar) {
+        initializeServiceAccount();
     }
     
     /**
@@ -92,24 +95,24 @@ class GoogleCalendarService {
      * @param {Date} endDate - End date
      * @returns {Array} Array of calendar events in internal format
      */
-    async getEvents(instructorId, startDate, endDate) {
+    const getEvents = async (instructorId, startDate, endDate) => {
         const cacheKey = `${instructorId}-${startDate.toISOString()}-${endDate.toISOString()}`;
         
         // Check cache first
-        const cached = this.cache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+        const cached = cache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < cacheTimeout) {
             return cached.data;
         }
         
         try {
             // Get calendar configuration for instructor
-            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
-            if (!config) {
+            const calendarConfig = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (!calendarConfig) {
                 return [];
             }
             
             // Get authenticated client (OAuth or service account)
-            const authClient = await this.getAuthClient(instructorId);
+            const authClient = await getAuthClient(instructorId);
 
             if (!authClient) {
                 // No authentication available for instructor
@@ -117,10 +120,10 @@ class GoogleCalendarService {
             }
 
             // Create calendar API instance with authenticated client
-            const calendar = google.calendar({ version: 'v3', auth: authClient });
+            const calendarApi = google.calendar({ version: 'v3', auth: authClient });
 
-            const response = await calendar.events.list({
-                calendarId: config.calendar_id || 'primary', // Use 'primary' for OAuth user's main calendar
+            const response = await calendarApi.events.list({
+                calendarId: calendarConfig.calendar_id || 'primary', // Use 'primary' for OAuth user's main calendar
                 timeMin: startDate.toISOString(),
                 timeMax: endDate.toISOString(),
                 singleEvents: true,
@@ -129,10 +132,10 @@ class GoogleCalendarService {
             });
             const googleEvents = response.data.items || [];
             
-            const convertedEvents = await this.convertToSlots(googleEvents, config.all_day_event_handling);
+            const convertedEvents = await convertToSlots(googleEvents, calendarConfig.all_day_event_handling);
             
             // Cache the results
-            this.cache.set(cacheKey, {
+            cache.set(cacheKey, {
                 data: convertedEvents,
                 timestamp: Date.now()
             });
@@ -149,17 +152,17 @@ class GoogleCalendarService {
             
             return []; // Fail gracefully
         }
-    }
+    };
     
     /**
      * Test calendar access for instructor
      * @param {number} instructorId - Instructor ID
      * @returns {Object} Test results
      */
-    async testCalendarAccess(instructorId) {
+    const testCalendarAccess = async (instructorId) => {
         try {
-            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
-            if (!config) {
+            const calendarConfig = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (!calendarConfig) {
                 return {
                     success: false,
                     message: 'No calendar configuration found for this instructor'
@@ -167,7 +170,7 @@ class GoogleCalendarService {
             }
             
             // Get authenticated client
-            const authClient = await this.getAuthClient(instructorId);
+            const authClient = await getAuthClient(instructorId);
 
             if (!authClient) {
                 return {
@@ -177,14 +180,14 @@ class GoogleCalendarService {
                 };
             }
 
-            const calendar = google.calendar({ version: 'v3', auth: authClient });
+            const calendarApi = google.calendar({ version: 'v3', auth: authClient });
             
             // Try to fetch a small number of events from today
-            const todayHelper = today()
-            const tomorrowHelper = todayHelper.addDays(1)
+            const todayHelper = today();
+            const tomorrowHelper = todayHelper.addDays(1);
             
-            const response = await calendar.events.list({
-                calendarId: config.calendar_id || 'primary',
+            const response = await calendarApi.events.list({
+                calendarId: calendarConfig.calendar_id || 'primary',
                 timeMin: todayHelper.toDate().toISOString(),
                 timeMax: tomorrowHelper.toDate().toISOString(),
                 maxResults: 5
@@ -193,23 +196,23 @@ class GoogleCalendarService {
             const events = response.data.items || [];
             
             // Update test status in config
-            await config.updateTestStatus('success');
+            await calendarConfig.updateTestStatus('success');
             
             return {
                 success: true,
                 message: 'Calendar connection working properly',
                 eventsFound: events.length,
-                calendarId: config.calendar_id,
-                calendarName: config.calendar_name || config.calendar_id
+                calendarId: calendarConfig.calendar_id,
+                calendarName: calendarConfig.calendar_name || calendarConfig.calendar_id
             };
             
         } catch (error) {
             console.error(`Calendar test failed for instructor ${instructorId}:`, error);
             
             // Update test status in config
-            const config = await InstructorCalendarConfig.findByInstructorId(instructorId);
-            if (config) {
-                await config.updateTestStatus('failed');
+            const calendarConfig = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            if (calendarConfig) {
+                await calendarConfig.updateTestStatus('failed');
             }
             
             let errorMessage = 'Unknown error occurred';
@@ -227,7 +230,7 @@ class GoogleCalendarService {
                 error: error.code || 'UNKNOWN_ERROR'
             };
         }
-    }
+    };
     
     /**
      * Convert Google Calendar events to internal slot format
@@ -235,7 +238,7 @@ class GoogleCalendarService {
      * @param {string} allDayHandling - How to handle all-day events ('ignore', 'block')
      * @returns {Array} Converted events
      */
-    async convertToSlots(googleEvents, allDayHandling = 'ignore') {
+    const convertToSlots = async (googleEvents, allDayHandling = 'ignore') => {
         if (!Array.isArray(googleEvents)) {
             return [];
         }
@@ -251,7 +254,7 @@ class GoogleCalendarService {
             
             // Handle all-day events based on configuration
             if (isAllDayEvent) {
-                const allDayEvents = this.handleAllDayEvent(event, allDayHandling);
+                const allDayEvents = handleAllDayEvent(event, allDayHandling);
                 convertedEvents.push(...allDayEvents);
                 continue;
             }
@@ -262,9 +265,9 @@ class GoogleCalendarService {
             
             const convertedEvent = {
                 id: `google_${event.id}`,
-                date: await this.getLocalDateString(startTime),
-                start_slot: await this.timeToSlot(startTime),
-                duration: await this.calculateDuration(startTime, endTime),
+                date: await getLocalDateString(startTime),
+                start_slot: await timeToSlot(startTime),
+                duration: await calculateDuration(startTime, endTime),
                 type: 'booked', // Frontend expects 'type' field, not 'status'
                 status: 'google_calendar_busy', // Keep for backend identification
                 summary: event.summary || 'Busy',
@@ -283,7 +286,7 @@ class GoogleCalendarService {
         }
         
         return convertedEvents.filter(event => event !== null); // Remove null entries (ignored all-day events)
-    }
+    };
     
     /**
      * Handle all-day events based on configuration
@@ -291,7 +294,7 @@ class GoogleCalendarService {
      * @param {string} allDayHandling - How to handle all-day events ('ignore', 'block')
      * @returns {Array} Array of converted events (empty array if ignored)
      */
-    handleAllDayEvent(event, allDayHandling) {
+    const handleAllDayEvent = (event, allDayHandling) => {
         const eventDate = event.start.date; // All-day events use 'date' not 'dateTime'
         
         switch (allDayHandling) {
@@ -300,12 +303,12 @@ class GoogleCalendarService {
                 
             case 'block':
                 // Create events for the entire day (all 96 slots)
-                return this.createAllDayBlockingEvents(event, eventDate);
+                return createAllDayBlockingEvents(event, eventDate);
                 
             default:
                 return []; // Default to ignore
         }
-    }
+    };
     
     /**
      * Create blocking events for the entire day
@@ -313,7 +316,7 @@ class GoogleCalendarService {
      * @param {string} eventDate - Date string (YYYY-MM-DD)
      * @returns {Array} Array with single blocking event covering available hours
      */
-    createAllDayBlockingEvents(event, eventDate) {
+    const createAllDayBlockingEvents = (event, eventDate) => {
         // Create a special all-day blocking event that the frontend can handle appropriately
         // Instead of blocking all 96 slots, let the frontend determine which slots to block
         // based on the instructor's actual availability for that day
@@ -337,24 +340,24 @@ class GoogleCalendarService {
             // Special flag to indicate this should block all available slots for the day
             blocks_all_available_slots: true
         }];
-    }
+    };
     
     /**
      * Get business timezone date string without timezone shifting
      * @param {Date} date - Date object
      * @returns {Promise<string>} Date string in YYYY-MM-DD format
      */
-    async getLocalDateString(date) {
+    const getLocalDateString = async (date) => {
         const { toBusinessDateString } = require('../utils/businessTimezone');
         return await toBusinessDateString(date);
-    }
+    };
     
     /**
      * Convert time to slot number (30-minute increments) - Business timezone version
      * @param {Date} date - Date object (with timezone info from Google Calendar)
      * @returns {Promise<number>} Slot number (0-95) in business timezone, rounded up to next 30-min increment
      */
-    async timeToSlot(date) {
+    const timeToSlot = async (date) => {
         // Use business timezone instead of server timezone
         const { toBusinessTimeString } = require('../utils/businessTimezone');
         const localTimeString = await toBusinessTimeString(date);
@@ -382,7 +385,7 @@ class GoogleCalendarService {
         
         // Ensure slot is within valid range
         return Math.max(0, Math.min(slot, MAX_SLOT_INDEX));
-    }
+    };
     
     /**
      * Calculate duration between two times in slots - Business timezone version
@@ -391,7 +394,7 @@ class GoogleCalendarService {
      * @param {Date} endTime - End time
      * @returns {Promise<number>} Duration in slots (30-minute increments)
      */
-    async calculateDuration(startTime, endTime) {
+    const calculateDuration = async (startTime, endTime) => {
         // Use business timezone instead of server timezone
         const { toBusinessTimeString } = require('../utils/businessTimezone');
         
@@ -436,47 +439,56 @@ class GoogleCalendarService {
         
         // Ensure minimum duration of 1 slot (30 minutes) and convert to our slot system (duration = 2 per 30-min)
         return Math.max(2, durationSlots * 2);
-    }
+    };
     
     /**
      * Check if Google Calendar is available for instructor
      * @param {number} instructorId - Instructor ID
      * @returns {boolean} True if available
      */
-    async isAvailableForInstructor(instructorId) {
+    const isAvailableForInstructor = async (instructorId) => {
         try {
-            const config = await InstructorCalendarConfig.findByInstructorId(instructorId); 
-            return !!config && config.is_active;
+            const calendarConfig = await InstructorCalendarConfig.findByInstructorId(instructorId); 
+            return !!calendarConfig && calendarConfig.is_active;
         } catch (error) {
             return false;
         }
-    }
+    };
     
     /**
      * Get service account email for sharing instructions
      * @returns {string} Service account email
      */
-    getServiceAccountSignal() {
-        return this.serviceAccountEmail || 'Service account email not configured';
-    }
+    const getServiceAccountEmail = () => {
+        return serviceAccountEmail || 'Service account email not configured';
+    };
     
     /**
      * Clear cache for instructor
      * @param {number} instructorId - Instructor ID (optional)
      */
-    clearCache(instructorId = null) {
+    const clearCache = (instructorId = null) => {
         if (instructorId) {
             // Clear cache entries for specific instructor
-            for (const key of this.cache.keys()) {
+            for (const key of cache.keys()) {
                 if (key.startsWith(`${instructorId}-`)) {
-                    this.cache.delete(key);
+                    cache.delete(key);
                 }
             }
         } else {
             // Clear all cache
-            this.cache.clear();
+            cache.clear();
         }
-    }
-}
+    };
+    
+    // Return service instance with all methods
+    return {
+        getEvents,
+        testCalendarAccess,
+        isAvailableForInstructor,
+        getServiceAccountEmail,
+        clearCache
+    };
+};
 
-module.exports = GoogleCalendarService; 
+module.exports = createGoogleCalendarService; 
