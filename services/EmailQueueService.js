@@ -1,277 +1,281 @@
 const emailService = require('./EmailService');
 
-class EmailQueueService {
-    constructor() {
-        this.queue = [];
-        this.processing = false;
-        this.retryAttempts = 3;
-        this.retryDelay = 5000; // 5 seconds
-        this.maxQueueSize = 1000;
-        this.rateLimitDelay = 1000; // 1 second between emails
+// Module-level state
+let queue = [];
+let processing = false;
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 5000; // 5 seconds
+const MAX_QUEUE_SIZE = 1000;
+const RATE_LIMIT_DELAY = 1000; // 1 second between emails
+
+/**
+ * Utility method for delays
+ */
+const delay = (ms) => {
+    return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+/**
+ * Add an email to the queue for asynchronous processing
+ * This ensures emails don't block payment transactions
+ */
+const queueEmail = async (emailType, data, priority = 'normal') => {
+    const emailJob = {
+        id: Date.now() + Math.random(),
+        type: emailType,
+        data: data,
+        priority: priority,
+        attempts: 0,
+        createdAt: new Date(),
+        status: 'queued'
+    };
+
+    // Prevent queue overflow
+    if (queue.length >= MAX_QUEUE_SIZE) {
+        console.warn('Email queue is full. Dropping oldest emails.');
+        queue.shift();
     }
 
-    /**
-     * Add an email to the queue for asynchronous processing
-     * This ensures emails don't block payment transactions
-     */
-    async queueEmail(emailType, data, priority = 'normal') {
-        const emailJob = {
-            id: Date.now() + Math.random(),
-            type: emailType,
-            data: data,
-            priority: priority,
-            attempts: 0,
-            createdAt: new Date(),
-            status: 'queued'
-        };
-
-        // Prevent queue overflow
-        if (this.queue.length >= this.maxQueueSize) {
-            console.warn('Email queue is full. Dropping oldest emails.');
-            this.queue.shift();
-        }
-
-        // Add to queue based on priority
-        if (priority === 'high') {
-            this.queue.unshift(emailJob);
-        } else {
-            this.queue.push(emailJob);
-        }
-
-        // Start processing if not already running
-        if (!this.processing) {
-            this.processQueue();
-        }
-
-        return emailJob.id;
+    // Add to queue based on priority
+    if (priority === 'high') {
+        queue.unshift(emailJob);
+    } else {
+        queue.push(emailJob);
     }
 
-    /**
-     * Process the email queue asynchronously
-     */
-    async processQueue() {
-        if (this.processing || this.queue.length === 0) {
-            return;
-        }
-
-        this.processing = true;
-
-        while (this.queue.length > 0) {
-            const job = this.queue.shift();
-            
-            try {
-                await this.processEmailJob(job);
-                
-                // Rate limiting to respect Gmail limits
-                if (this.queue.length > 0) {
-                    await this.delay(this.rateLimitDelay);
-                }
-            } catch (error) {
-                console.error(`Failed to process email job ${job.id}:`, error);
-            }
-        }
-
-        this.processing = false;
+    // Start processing if not already running
+    if (!processing) {
+        processQueue();
     }
 
-    /**
-     * Process a single email job with retry logic
-     */
-    async processEmailJob(job) {
-        job.attempts++;
-        job.status = 'processing';
+    return emailJob.id;
+};
 
+/**
+ * Handle permanently failed emails
+ */
+const handleFailedEmail = (job, error) => {
+    // For now, just log. In the future, could:
+    // - Store in database for admin review
+    // - Send to dead letter queue
+    // - Alert administrators
+    console.error('FAILED EMAIL JOB:', {
+        id: job.id,
+        type: job.type,
+        userId: job.data.userId,
+        error: error.message,
+        attempts: job.attempts,
+        createdAt: job.createdAt
+    });
+};
+
+/**
+ * Process the email queue asynchronously
+ */
+const processQueue = async () => {
+    if (processing || queue.length === 0) {
+        return;
+    }
+
+    processing = true;
+
+    while (queue.length > 0) {
+        const job = queue.shift();
+        
         try {
-            let result;
-
-            switch (job.type) {
-                case 'purchase_confirmation':
-                    result = await emailService.sendPurchaseConfirmation(
-                        job.data.userId,
-                        job.data.planDetails,
-                        job.data.transactionDetails
-                    );
-                    break;
-
-                case 'low_balance_warning':
-                    result = await emailService.sendLowBalanceWarning(
-                        job.data.userId,
-                        job.data.creditsRemaining
-                    );
-                    break;
-
-                case 'booking_confirmation':
-                    result = await emailService.sendBookingConfirmation(
-                        job.data.bookingData,
-                        job.data.paymentMethod
-                    );
-                    break;
-
-                case 'rescheduling_confirmation':
-                    result = await emailService.sendReschedulingConfirmation(
-                        job.data.oldBooking,
-                        job.data.newBooking,
-                        job.data.recipientType
-                    );
-                    break;
-
-                case 'credits_exhausted':
-                    result = await emailService.sendCreditsExhausted(
-                        job.data.userId,
-                        job.data.totalLessonsCompleted
-                    );
-                    break;
-
-                default:
-                    throw new Error(`Unknown email type: ${job.type}`);
-            }
-
-            if (result.success) {
-                job.status = 'completed';
-            } else {
-                throw new Error(result.error);
-            }
-
-        } catch (error) {
-            console.error(`Email job ${job.id} failed (attempt ${job.attempts}):`, error.message);
+            await processEmailJob(job);
             
-            // Retry logic
-            if (job.attempts < this.retryAttempts) {
-                job.status = 'retrying';
-                
-                // Add back to queue for retry after delay
-                setTimeout(() => {
-                    this.queue.unshift(job);
-                    if (!this.processing) {
-                        this.processQueue();
-                    }
-                }, this.retryDelay);
-            } else {
-                job.status = 'failed';
-                console.error(`Email job ${job.id} permanently failed after ${job.attempts} attempts`);
-                
-                // TODO: Could store failed jobs in database for manual review
-                this.handleFailedEmail(job, error);
+            // Rate limiting to respect Gmail limits
+            if (queue.length > 0) {
+                await delay(RATE_LIMIT_DELAY);
             }
+        } catch (error) {
+            console.error(`Failed to process email job ${job.id}:`, error);
         }
     }
 
-    /**
-     * Handle permanently failed emails
-     */
-    handleFailedEmail(job, error) {
-        // For now, just log. In the future, could:
-        // - Store in database for admin review
-        // - Send to dead letter queue
-        // - Alert administrators
-        console.error('FAILED EMAIL JOB:', {
-            id: job.id,
-            type: job.type,
-            userId: job.data.userId,
-            error: error.message,
-            attempts: job.attempts,
-            createdAt: job.createdAt
-        });
-    }
+    processing = false;
+};
 
-    /**
-     * Utility method for delays
-     */
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
+/**
+ * Process a single email job with retry logic
+ */
+const processEmailJob = async (job) => {
+    job.attempts++;
+    job.status = 'processing';
 
-    /**
-     * Queue a purchase confirmation email
-     */
-    async queuePurchaseConfirmation(userId, planDetails, transactionDetails) {
-        return this.queueEmail('purchase_confirmation', {
-            userId,
-            planDetails,
-            transactionDetails
-        }, 'high'); // High priority for purchase confirmations
-    }
+    try {
+        let result;
 
-    /**
-     * Queue a low balance warning email
-     */
-    async queueLowBalanceWarning(userId, creditsRemaining) {
-        return this.queueEmail('low_balance_warning', {
-            userId,
-            creditsRemaining
-        }, 'normal');
-    }
+        switch (job.type) {
+            case 'purchase_confirmation':
+                result = await emailService.sendPurchaseConfirmation(
+                    job.data.userId,
+                    job.data.planDetails,
+                    job.data.transactionDetails
+                );
+                break;
 
-    /**
-     * Queue a credits exhausted email
-     */
-    async queueCreditsExhausted(userId, totalLessonsCompleted = 0) {
-        return this.queueEmail('credits_exhausted', {
-            userId,
-            totalLessonsCompleted
-        }, 'high'); // High priority since user can't book without credits
-    }
+            case 'low_balance_warning':
+                result = await emailService.sendLowBalanceWarning(
+                    job.data.userId,
+                    job.data.creditsRemaining
+                );
+                break;
 
-    /**
-     * Queue a booking confirmation email
-     */
-    async queueBookingConfirmation(bookingData, paymentMethod = 'credits') {
-        return this.queueEmail('booking_confirmation', {
-            bookingData,
-            paymentMethod
-        }, 'high'); // High priority for booking confirmations
-    }
+            case 'booking_confirmation':
+                result = await emailService.sendBookingConfirmation(
+                    job.data.bookingData,
+                    job.data.paymentMethod
+                );
+                break;
 
-    /**
-     * Queue rescheduling confirmation emails for both student and instructor
-     */
-    async queueReschedulingConfirmations(oldBooking, newBooking) {
-        const jobIds = [];
+            case 'rescheduling_confirmation':
+                result = await emailService.sendReschedulingConfirmation(
+                    job.data.oldBooking,
+                    job.data.newBooking,
+                    job.data.recipientType
+                );
+                break;
 
-        // Queue email for student
-        const studentJobId = await this.queueEmail('rescheduling_confirmation', {
-            oldBooking,
-            newBooking,
-            recipientType: 'student'
-        }, 'high'); // High priority for rescheduling notifications
+            case 'credits_exhausted':
+                result = await emailService.sendCreditsExhausted(
+                    job.data.userId,
+                    job.data.totalLessonsCompleted
+                );
+                break;
+
+            default:
+                throw new Error(`Unknown email type: ${job.type}`);
+        }
+
+        if (result.success) {
+            job.status = 'completed';
+        } else {
+            throw new Error(result.error);
+        }
+
+    } catch (error) {
+        console.error(`Email job ${job.id} failed (attempt ${job.attempts}):`, error.message);
         
-        jobIds.push({ recipient: 'student', jobId: studentJobId });
-
-        // Queue email for instructor
-        const instructorJobId = await this.queueEmail('rescheduling_confirmation', {
-            oldBooking,
-            newBooking,
-            recipientType: 'instructor'
-        }, 'high'); // High priority for rescheduling notifications
-        
-        jobIds.push({ recipient: 'instructor', jobId: instructorJobId });
-
-        return jobIds;
+        // Retry logic
+        if (job.attempts < RETRY_ATTEMPTS) {
+            job.status = 'retrying';
+            
+            // Add back to queue for retry after delay
+            setTimeout(() => {
+                queue.unshift(job);
+                if (!processing) {
+                    processQueue();
+                }
+            }, RETRY_DELAY);
+        } else {
+            job.status = 'failed';
+            console.error(`Email job ${job.id} permanently failed after ${job.attempts} attempts`);
+            
+            // TODO: Could store failed jobs in database for manual review
+            handleFailedEmail(job, error);
+        }
     }
+};
 
-    /**
-     * Get queue status for monitoring
-     */
-    getStatus() {
-        return {
-            queueSize: this.queue.length,
-            processing: this.processing,
-            maxQueueSize: this.maxQueueSize,
-            retryAttempts: this.retryAttempts
-        };
-    }
+/**
+ * Queue a purchase confirmation email
+ */
+const queuePurchaseConfirmation = async (userId, planDetails, transactionDetails) => {
+    return queueEmail('purchase_confirmation', {
+        userId,
+        planDetails,
+        transactionDetails
+    }, 'high'); // High priority for purchase confirmations
+};
 
-    /**
-     * Clear the queue (for shutdown or emergencies)
-     */
-    clearQueue() {
-        const clearedCount = this.queue.length;
-        this.queue = [];
-        this.processing = false;
-        return clearedCount;
-    }
-}
+/**
+ * Queue a low balance warning email
+ */
+const queueLowBalanceWarning = async (userId, creditsRemaining) => {
+    return queueEmail('low_balance_warning', {
+        userId,
+        creditsRemaining
+    }, 'normal');
+};
 
-// Export singleton instance
-const emailQueueService = new EmailQueueService();
-module.exports = emailQueueService;
+/**
+ * Queue a credits exhausted email
+ */
+const queueCreditsExhausted = async (userId, totalLessonsCompleted = 0) => {
+    return queueEmail('credits_exhausted', {
+        userId,
+        totalLessonsCompleted
+    }, 'high'); // High priority since user can't book without credits
+};
+
+/**
+ * Queue a booking confirmation email
+ */
+const queueBookingConfirmation = async (bookingData, paymentMethod = 'credits') => {
+    return queueEmail('booking_confirmation', {
+        bookingData,
+        paymentMethod
+    }, 'high'); // High priority for booking confirmations
+};
+
+/**
+ * Queue rescheduling confirmation emails for both student and instructor
+ */
+const queueReschedulingConfirmations = async (oldBooking, newBooking) => {
+    const jobIds = [];
+
+    // Queue email for student
+    const studentJobId = await queueEmail('rescheduling_confirmation', {
+        oldBooking,
+        newBooking,
+        recipientType: 'student'
+    }, 'high'); // High priority for rescheduling notifications
+    
+    jobIds.push({ recipient: 'student', jobId: studentJobId });
+
+    // Queue email for instructor
+    const instructorJobId = await queueEmail('rescheduling_confirmation', {
+        oldBooking,
+        newBooking,
+        recipientType: 'instructor'
+    }, 'high'); // High priority for rescheduling notifications
+    
+    jobIds.push({ recipient: 'instructor', jobId: instructorJobId });
+
+    return jobIds;
+};
+
+/**
+ * Get queue status for monitoring
+ */
+const getStatus = () => {
+    return {
+        queueSize: queue.length,
+        processing: processing,
+        maxQueueSize: MAX_QUEUE_SIZE,
+        retryAttempts: RETRY_ATTEMPTS
+    };
+};
+
+/**
+ * Clear the queue (for shutdown or emergencies)
+ */
+const clearQueue = () => {
+    const clearedCount = queue.length;
+    queue = [];
+    processing = false;
+    return clearedCount;
+};
+
+module.exports = {
+    queueEmail,
+    queuePurchaseConfirmation,
+    queueLowBalanceWarning,
+    queueCreditsExhausted,
+    queueBookingConfirmation,
+    queueReschedulingConfirmations,
+    getStatus,
+    clearQueue
+};

@@ -930,17 +930,6 @@ router.post('/email/clear-queue', authorize('manage', 'all'), async (req, res) =
     }
 });
 
-// Manually trigger low balance check (for testing)
-router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, res) => {
-    try {
-        await cronJobService.runLowBalanceCheck();
-        res.json({ message: 'Low balance check triggered successfully' });
-    } catch (error) {
-        console.error('Error triggering low balance check:', error);
-        res.status(500).json({ error: 'Error triggering low balance check' });
-    }
-});
-
 // =============================================================================
 // EMAIL TEMPLATE MANAGEMENT ENDPOINTS - Admin interface for managing email templates
 // =============================================================================
