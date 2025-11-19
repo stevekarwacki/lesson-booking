@@ -27,16 +27,17 @@ describe('CASL Permissions Infrastructure Tests', () => {
     status: 'completed'
   };
 
-  // Create a booking that's definitely within 24 hours (6 hours from now)
-  const now = new Date();
-  const sixHoursLater = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+  // Create a booking that's definitely within 24 hours (tomorrow at 10 AM)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(10, 0, 0, 0); // 10 AM tomorrow
   
   const nearFutureBooking = {
     id: 3,
     student_id: 3,
     instructor_id: 10,
-    date: sixHoursLater.toISOString().split('T')[0],
-    start_slot: (sixHoursLater.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
+    date: tomorrow.toISOString().split('T')[0],
+    start_slot: (10 - 6) * 4, // 10 AM = slot 16 (6 AM = slot 0)
     status: 'booked'
   };
 

@@ -5,8 +5,9 @@ const { AppSettings } = require('./models/AppSettings');
 const { initializeStorage } = require('./storage/index');
 const cronJobService = require('./services/CronJobService');
 const logger = require('./utils/logger');
+const config = require('./config');
 
-const port = process.env.PORT || 3000;
+const port = config.server.port;
 
 // Initialize models and start server
 const startServer = async () => {

@@ -210,8 +210,8 @@ function getUserTimezone() {
  */
 async function getBusinessTimezone() {
     try {
-        const BusinessTimezoneService = require('./businessTimezone');
-        return await BusinessTimezoneService.getTimezone();
+        const { getTimezone } = require('./businessTimezone');
+        return await getTimezone();
     } catch (error) {
         console.error('Error getting business timezone, falling back to user timezone:', error);
         return getUserTimezone();

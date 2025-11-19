@@ -229,10 +229,19 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
  */
 router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
-        const service = new GoogleCalendarService();
-        const serviceAccountEmail = service.getServiceAccountSignal();
+        const instructorId = parseInt(req.params.instructorId, 10);
+        const service = GoogleCalendarService();
+        const serviceAccountEmail = service.getServiceAccountEmail();
         
+        // Check if OAuth is available
+        const oauthConfigured = googleOAuthService.isConfigured();
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const oauthStatus = oauthConfigured
+            ? await InstructorGoogleToken.findByInstructorId(instructorId)
+            : null;
+
         res.json({
+            // Existing service account info
             serviceAccountEmail,
             instructions: {
                 step1: 'Go to Google Calendar (calendar.google.com)',
@@ -242,14 +251,25 @@ router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth,
                 step5: `Add "${serviceAccountEmail}" to "Share with specific people"`,
                 step6: 'Give "See all event details" permission',
                 step7: 'Copy your calendar ID (usually your email) and paste it in the form above'
+            },
+            
+            // NEW: OAuth info
+            oauth: {
+                available: oauthConfigured,
+                connected: !!oauthStatus,
+                connectedAt: oauthStatus?.created_at || null,
+                scopes: oauthStatus?.scope || null,
+                message: oauthConfigured
+                    ? 'OAuth is available. You can connect via OAuth for easier setup.'
+                    : 'OAuth not configured on server.'
             }
         });
         
     } catch (error) {
         console.error('Error getting setup info:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to get setup information',
-            details: error.message 
+            details: error.message
         });
     }
 });
@@ -353,7 +373,7 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
         
-        const service = new GoogleCalendarService();
+        const service = GoogleCalendarService();
         
         // Check availability first
         const isAvailable = await service.isAvailableForInstructor(instructorId);
@@ -371,21 +391,21 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
         
         if (testResult.success) {
             res.json({
+                success: true,
                 connected: true,
                 working: true,
                 message: testResult.message,
-                testResults: {
-                    eventsFound: testResult.eventsFound,
-                    calendarId: testResult.calendarId,
-                    calendarName: testResult.calendarName
-                }
+                eventsFound: testResult.eventsFound,
+                calendarId: testResult.calendarId,
+                calendarName: testResult.calendarName
             });
         } else {
             res.status(400).json({
+                success: false,
                 connected: false,
                 working: false,
-                error: testResult.message,
-                details: testResult.error
+                message: testResult.message,
+                error: testResult.error
             });
         }
         
@@ -401,4 +421,201 @@ router.get('/calendar/test/:instructorId', authMiddleware, instructorAuth, async
     }
 });
 
-module.exports = router; 
+// =====================================================
+// GOOGLE OAUTH ROUTES
+// =====================================================
+
+const googleOAuthService = require('../config/googleOAuth');
+
+/**
+ * Debug endpoint to check OAuth configuration
+ * Protected route - requires valid JWT token
+ */
+router.get('/google/debug-config', authMiddleware, async (req, res) => {
+    try {
+        const config = {
+            isConfigured: googleOAuthService.isConfigured(),
+            clientId: googleOAuthService.clientId,
+            redirectUri: googleOAuthService.redirectUri,
+            scopes: googleOAuthService.scopes,
+            envRedirectUri: process.env.GOOGLE_REDIRECT_URI,
+            envClientId: process.env.GOOGLE_CLIENT_ID,
+            envFrontendUrl: process.env.FRONTEND_URL
+        };
+        
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to get OAuth config',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * Generate OAuth authorization URL
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.post('/google/authorize/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        if (!googleOAuthService.isConfigured()) {
+            return res.status(503).json({
+                error: 'OAuth not configured',
+                message: 'Google OAuth is not configured on the server. Please contact your administrator.'
+            });
+        }
+
+        const authUrl = googleOAuthService.generateAuthUrl(instructorId);
+
+        res.json({
+            success: true,
+            url: authUrl,
+            message: 'Authorization URL generated. Redirect user to this URL.'
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to generate authorization URL',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * Handle OAuth callback from Google
+ * This endpoint receives the authorization code and exchanges it for tokens
+ */
+router.post('/google/callback', authMiddleware, async (req, res) => {
+    try {
+        const { code, instructorId } = req.body;
+
+        if (!code) {
+            return res.status(400).json({
+                error: 'Authorization code required',
+                message: 'No authorization code provided'
+            });
+        }
+
+        if (!instructorId) {
+            return res.status(400).json({
+                error: 'Instructor ID required',
+                message: 'No instructor ID provided'
+            });
+        }
+
+        // Exchange code for tokens
+        const tokens = await googleOAuthService.exchangeCodeForTokens(code);
+
+        // Store tokens in database
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const { token, created } = await InstructorGoogleToken.createOrUpdate(
+            instructorId,
+            {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expiry_date: tokens.expiry_date,
+                scope: tokens.scope
+            }
+        );
+
+        res.json({
+            success: true,
+            message: created ? 'Google account connected successfully' : 'Google account tokens updated',
+            connectedAt: token.created_at || token.updated_at
+        });
+
+    } catch (error) {
+        if (error.message?.includes('invalid_grant')) {
+            return res.status(400).json({
+                error: 'Invalid authorization code',
+                message: 'The authorization code has expired or is invalid. Please try connecting again.'
+            });
+        }
+
+        res.status(500).json({
+            error: 'Failed to complete OAuth authorization',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
+
+/**
+ * Get OAuth connection status for instructor
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.get('/google/status/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const token = await InstructorGoogleToken.findByInstructorId(instructorId);
+
+        if (!token) {
+            return res.json({
+                connected: false,
+                message: 'Google account not connected'
+            });
+        }
+
+        // Check if token is expired
+        const isExpired = token.isExpired();
+        const hasRefreshToken = !!token.refresh_token;
+
+        res.json({
+            connected: true,
+            isExpired: isExpired,
+            canRefresh: hasRefreshToken,
+            scope: token.scope,
+            connectedAt: token.created_at,
+            lastUpdated: token.updated_at,
+            expiresAt: token.token_expiry,
+            message: 'Google account connected'
+        });
+
+    } catch (error) {
+        console.error('Error checking OAuth status:', error);
+        res.status(500).json({
+            error: 'Failed to check OAuth status',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * Disconnect Google OAuth for instructor
+ * Protected route - requires valid JWT token and instructor permission
+ */
+router.delete('/google/disconnect/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
+    try {
+        const instructorId = parseInt(req.params.instructorId, 10);
+
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        const deletedCount = await InstructorGoogleToken.removeByInstructorId(instructorId);
+
+        if (deletedCount === 0) {
+            return res.status(404).json({
+                error: 'No Google connection found',
+                message: 'This instructor does not have a Google account connected'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Google account disconnected successfully',
+            instructorId,
+            disconnectedAt: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Error disconnecting Google OAuth:', error);
+        res.status(500).json({
+            error: 'Failed to disconnect Google account',
+            details: error.message
+        });
+    }
+});
+
+module.exports = router;

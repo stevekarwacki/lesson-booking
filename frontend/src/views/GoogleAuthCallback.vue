@@ -32,6 +32,8 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import axios from 'axios'
+import { OAUTH_ERRORS, OAUTH_MESSAGE_TYPES } from '../constants/oauthConstants'
+import { extractErrorMessage } from '../utils/errorHelpers'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -73,7 +75,7 @@ const processAuthCallback = async () => {
                 const stateData = JSON.parse(atob(state))
                 instructorId = stateData.instructorId
             } catch (e) {
-                console.warn('Could not parse state parameter:', e)
+                // Could not parse state parameter
             }
         }
         
@@ -81,7 +83,6 @@ const processAuthCallback = async () => {
         if (!instructorId && userStore.user) {
             if (userStore.canManageCalendar && !userStore.canManageUsers) {
                 // For instructors, we need to get their instructor ID
-                // This would require an API call to get instructor details
                 const instructorResponse = await axios.get('/api/instructors/me')
                 instructorId = instructorResponse.data.id
             } else if (userStore.canManageUsers) {
@@ -104,25 +105,34 @@ const processAuthCallback = async () => {
         if (response.data.success) {
             success.value = true
             
+            // Notify parent window of success
+            if (window.opener) {
+                window.opener.postMessage({
+                    type: OAUTH_MESSAGE_TYPES.SUCCESS,
+                    message: 'Google account connected successfully'
+                }, window.location.origin)
+            }
+            
             // Auto-close the window after a short delay
             setTimeout(() => {
                 closeWindow()
             }, 3000)
         } else {
-            throw new Error(response.data.message || 'Failed to connect Google Calendar')
+            throw new Error(response.data.message || OAUTH_ERRORS.CALLBACK_FAILED)
         }
         
     } catch (err) {
         console.error('Google Auth Callback Error:', err)
         
-        if (err.response?.data?.message) {
-            error.value = err.response.data.message
-        } else if (err.response?.data?.error) {
-            error.value = err.response.data.error
-        } else if (err.message) {
-            error.value = err.message
-        } else {
-            error.value = 'An unexpected error occurred while connecting Google Calendar'
+        const errorMessage = extractErrorMessage(err, OAUTH_ERRORS.UNEXPECTED_ERROR)
+        error.value = errorMessage
+        
+        // Notify parent window of error
+        if (window.opener) {
+            window.opener.postMessage({
+                type: OAUTH_MESSAGE_TYPES.ERROR,
+                error: errorMessage
+            }, window.location.origin)
         }
     } finally {
         isProcessing.value = false

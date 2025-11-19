@@ -1,16 +1,18 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const config = require('./index');
+
+const stripe = require('stripe')(config.stripe.secretKey);
 
 try {
     // Validate Stripe configuration
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!config.stripe.secretKey) {
         throw new Error('STRIPE_SECRET_KEY is not defined in environment variables');
     }
 
-    if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+    if (!config.stripe.publishableKey) {
         throw new Error('STRIPE_PUBLISHABLE_KEY is not defined in environment variables');
     }
 
-    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    if (!config.stripe.webhookSecret) {
         throw new Error('STRIPE_WEBHOOK_SECRET is not defined in environment variables');
     }
 } catch (error) {
@@ -79,7 +81,7 @@ function verifyWebhookSignature(payload, signature) {
         return stripe.webhooks.constructEvent(
             payload,
             signature,
-            process.env.STRIPE_WEBHOOK_SECRET
+            config.stripe.webhookSecret
         );
     } catch (error) {
         console.error('Webhook signature verification failed:', error);
@@ -93,5 +95,5 @@ module.exports = {
     createSubscription,
     cancelSubscription,
     verifyWebhookSignature,
-    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+    publishableKey: config.stripe.publishableKey
 }; 

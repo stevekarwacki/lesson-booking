@@ -18,8 +18,8 @@ const InstructorCalendarConfig = sequelize.define('InstructorCalendarConfig', {
     },
     calendar_id: {
         type: DataTypes.STRING,
-        allowNull: false,
-        comment: 'Google Calendar ID (usually email address)'
+        allowNull: true, // Now optional - OAuth uses 'primary' calendar
+        comment: 'Google Calendar ID (for service account) or null (for OAuth primary calendar)'
     },
     calendar_name: {
         type: DataTypes.STRING,

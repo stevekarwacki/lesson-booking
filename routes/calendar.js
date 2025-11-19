@@ -398,7 +398,7 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
             // Try to create service instance - this might fail synchronously
             let googleCalendarService;
             try {
-                googleCalendarService = new GoogleCalendarService();
+                googleCalendarService = GoogleCalendarService();
 
             } catch (serviceError) {
 
@@ -488,7 +488,7 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
             // Try to create service instance - this might fail synchronously
             let googleCalendarService;
             try {
-                googleCalendarService = new GoogleCalendarService();
+                googleCalendarService = GoogleCalendarService();
 
             } catch (serviceError) {
 
@@ -788,8 +788,7 @@ router.delete('/student/:bookingId', authorizeBooking('cancel', async (req) => {
         
         try {
             // Check if eligible for automatic refund (>24 hours in advance)
-            const refundService = new RefundService();
-            const automaticRefund = await refundService.processAutomaticRefund(bookingId, studentId);
+            const automaticRefund = await RefundService.processAutomaticRefund(bookingId, studentId);
             
             // If no automatic refund was processed, handle manual credit refund for existing logic
             if (!automaticRefund && creditUsage) {

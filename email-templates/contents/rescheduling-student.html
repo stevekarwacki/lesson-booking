@@ -1,30 +1,30 @@
-<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{studentName}},</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Hello {{student.name}},</p>
 
-<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Your lesson with {{instructorName}} has been successfully rescheduled. Here are the updated details:</p>
+<p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Your lesson with {{instructor.name}} has been successfully rescheduled. Here are the updated details:</p>
 
 {{> lesson-details
     sectionTitle="Updated Lesson Details"
     showComparison=true
-    oldDate=oldDate
-    oldStartTime=oldStartTime
-    oldEndTime=oldEndTime
-    oldDuration=oldDuration
-    newDate=newDate
-    newStartTime=newStartTime
-    newEndTime=newEndTime
-    newDuration=newDuration
-    instructorName=instructorName
+    oldDate=oldBooking.date
+    oldStartTime=oldBooking.startTime
+    oldEndTime=oldBooking.endTime
+    oldDuration=oldBooking.duration
+    newDate=newBooking.date
+    newStartTime=newBooking.startTime
+    newEndTime=newBooking.endTime
+    newDuration=newBooking.duration
+    instructorName=instructor.name
     instructorLabel="Instructor"
-    bookingId=bookingId
+    bookingId=newBooking.id
 }}
 
 <p style="font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">We've updated your booking and no action is required on your end.</p>
 
 {{> cta-section
-    primaryButton=dashboardButton
-    secondaryButton=contactButton
+    primaryButton=buttons.primary
+    secondaryButton=buttons.secondary
 }}
 
 <p style="font-size: 15px; line-height: 1.6; margin: 28px 0 0 0; color: #6c757d;">If you have any questions about the rescheduled lesson or need to make further changes, please contact your instructor or our support team.</p>
 
-<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{companyName}}</span></p>
+<p style="font-size: 16px; line-height: 1.6; margin: 20px 0 0 0; color: #2c3e50;">Your Friends at <span style="color: #42b883; font-weight: 500;">{{business.name}}</span></p>

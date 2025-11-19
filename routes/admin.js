@@ -684,10 +684,8 @@ router.post('/refunds', authorize('refund', 'Booking'), async (req, res) => {
             });
         }
         
-        const refundService = new RefundService();
-        
         // Get refund information to validate permissions
-        const refundInfo = await refundService.getRefundInfo(bookingId);
+        const refundInfo = await RefundService.getRefundInfo(bookingId);
         
         // Additional permission check for instructors
         if (req.user.role === 'instructor') {
@@ -719,7 +717,7 @@ router.post('/refunds', authorize('refund', 'Booking'), async (req, res) => {
         }
         
         // Process the refund
-        const refundResult = await refundService.processRefund(
+        const refundResult = await RefundService.processRefund(
             bookingId,
             refundType,
             req.user.id,
@@ -782,8 +780,7 @@ router.get('/refunds/:bookingId/info', authorize('refund', 'Booking'), async (re
             return res.status(400).json({ error: 'Invalid booking ID' });
         }
         
-        const refundService = new RefundService();
-        const refundInfo = await refundService.getRefundInfo(bookingId);
+        const refundInfo = await RefundService.getRefundInfo(bookingId);
         
         // Additional permission check for instructors
         if (req.user.role === 'instructor') {
@@ -930,17 +927,6 @@ router.post('/email/clear-queue', authorize('manage', 'all'), async (req, res) =
     } catch (error) {
         console.error('Error clearing email queue:', error);
         res.status(500).json({ error: 'Error clearing email queue' });
-    }
-});
-
-// Manually trigger low balance check (for testing)
-router.post('/email/test-low-balance', authorize('manage', 'all'), async (req, res) => {
-    try {
-        await cronJobService.runLowBalanceCheck();
-        res.json({ message: 'Low balance check triggered successfully' });
-    } catch (error) {
-        console.error('Error triggering low balance check:', error);
-        res.status(500).json({ error: 'Error triggering low balance check' });
     }
 });
 
