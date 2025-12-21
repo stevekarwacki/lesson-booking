@@ -108,10 +108,9 @@ InstructorCalendarConfig.findByInstructorId = async function(instructorId) {
 };
 
 InstructorCalendarConfig.removeByInstructorId = async function(instructorId) {
-    return this.update(
-        { is_active: false },
-        { where: { instructor_id: instructorId } }
-    );
+    return this.destroy({
+        where: { instructor_id: instructorId }
+    });
 };
 
 InstructorCalendarConfig.findActiveConfigs = async function() {

@@ -120,6 +120,7 @@ router.get('/me', async (req, res) => {
 // =====================================================
 
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
+const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
 
 /**
  * Get calendar configuration for instructor
@@ -172,8 +173,6 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
         const instructorId = parseInt(req.params.instructorId, 10);
         const { calendar_id, calendar_name, calendar_type } = req.body;
         
-    
-        
         if (!calendar_id) {
             return res.status(400).json({ 
                 error: 'Calendar ID is required',
@@ -190,8 +189,6 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
                 message: `"${calendar_id}" is not a valid format. Please use an email address (like user@gmail.com) or a Google Calendar ID containing 'calendar.google.com'`
             });
         }
-        
-
         
         // Create or update the configuration
         const { config, created } = await InstructorCalendarConfig.createOrUpdate(instructorId, {
@@ -235,7 +232,6 @@ router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth,
         
         // Check if OAuth is available
         const oauthConfigured = googleOAuthService.isConfigured();
-        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
         const oauthStatus = oauthConfigured
             ? await InstructorGoogleToken.findByInstructorId(instructorId)
             : null;
@@ -487,7 +483,7 @@ router.post('/google/authorize/:instructorId', authMiddleware, instructorAuth, a
  * Handle OAuth callback from Google
  * This endpoint receives the authorization code and exchanges it for tokens
  */
-router.post('/google/callback', authMiddleware, async (req, res) => {
+router.post('/google/callback', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const { code, instructorId } = req.body;
 
@@ -509,7 +505,6 @@ router.post('/google/callback', authMiddleware, async (req, res) => {
         const tokens = await googleOAuthService.exchangeCodeForTokens(code);
 
         // Store tokens in database
-        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
         const { token, created } = await InstructorGoogleToken.createOrUpdate(
             instructorId,
             {
@@ -519,6 +514,13 @@ router.post('/google/callback', authMiddleware, async (req, res) => {
                 scope: tokens.scope
             }
         );
+
+        // Also create/update InstructorCalendarConfig for OAuth users
+        // OAuth uses the user's primary calendar, so calendar_id is null
+        await InstructorCalendarConfig.createOrUpdate(instructorId, {
+            calendar_id: null,
+            calendar_type: 'personal'
+        });
 
         res.json({
             success: true,
@@ -549,8 +551,6 @@ router.post('/google/callback', authMiddleware, async (req, res) => {
 router.get('/google/status/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-
-        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
         const token = await InstructorGoogleToken.findByInstructorId(instructorId);
 
         if (!token) {
@@ -591,16 +591,9 @@ router.get('/google/status/:instructorId', authMiddleware, instructorAuth, async
 router.delete('/google/disconnect/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-
-        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
-        const deletedCount = await InstructorGoogleToken.removeByInstructorId(instructorId);
-
-        if (deletedCount === 0) {
-            return res.status(404).json({
-                error: 'No Google connection found',
-                message: 'This instructor does not have a Google account connected'
-            });
-        }
+    
+        await InstructorGoogleToken.removeByInstructorId(instructorId);
+        await InstructorCalendarConfig.removeByInstructorId(instructorId);
 
         res.json({
             success: true,

@@ -169,13 +169,16 @@ describe('Permission Middleware Tests', () => {
       const res = createMockRes();
       const next = mockNext();
 
-      const nearDate = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // Create a booking 12 hours from now with matching slot
+      const nearFuture = new Date(Date.now() + 12 * 60 * 60 * 1000);
+      const nearFutureSlot = (nearFuture.getUTCHours() - 6) * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
+      
       const getBooking = async (req) => ({
         id: 1,
         student_id: 3,
         instructor_id: 10,
-        date: nearDate,
-        start_slot: 32, // 2:00 PM
+        date: nearFuture.toISOString().split('T')[0],
+        start_slot: nearFutureSlot,
         status: 'booked'
       });
 

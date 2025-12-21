@@ -155,28 +155,31 @@ describe('CASL Permissions Infrastructure Tests', () => {
       
       // Create a booking definitely more than 24 hours away (48 hours)
       const farFuture = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      // Calculate slot from the actual hour (slots start at 6 AM = slot 0)
+      const farFutureSlot = (farFuture.getUTCHours() - 6) * 4 + Math.floor(farFuture.getUTCMinutes() / 15);
       
       // Create a booking less than 24 hours away (12 hours)
       const nearFuture = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+      const nearFutureSlot = (nearFuture.getUTCHours() - 6) * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
       
-      const booking25Hours = {
+      const booking48Hours = {
         ...studentBooking,
         student_id: 3,
         date: farFuture.toISOString().split('T')[0],
-        start_slot: 32 // 2:00 PM
+        start_slot: farFutureSlot
       };
       
-      const booking23Hours = {
+      const booking12Hours = {
         ...studentBooking,
         student_id: 3,
         date: nearFuture.toISOString().split('T')[0],
-        start_slot: 32 // 2:00 PM
+        start_slot: nearFutureSlot
       };
 
-      assert.strictEqual(canBookingAction(studentUser, booking25Hours, 'update'), true);
-      assert.strictEqual(canBookingAction(studentUser, booking23Hours, 'update'), false);
-      assert.strictEqual(canBookingAction(studentUser, booking25Hours, 'cancel'), true);
-      assert.strictEqual(canBookingAction(studentUser, booking23Hours, 'cancel'), false);
+      assert.strictEqual(canBookingAction(studentUser, booking48Hours, 'update'), true);
+      assert.strictEqual(canBookingAction(studentUser, booking12Hours, 'update'), false);
+      assert.strictEqual(canBookingAction(studentUser, booking48Hours, 'cancel'), true);
+      assert.strictEqual(canBookingAction(studentUser, booking12Hours, 'cancel'), false);
     });
 
     test('Instructors and admins are not subject to 24-hour restriction', () => {
@@ -221,17 +224,17 @@ describe('CASL Permissions Infrastructure Tests', () => {
     });
 
     test('canBookingAction() includes time validation', () => {
-      // Create a booking that's definitely within 24 hours
-      // Use 12 hours from now to ensure it's within the 24-hour window
-      const nearFuture = new Date();
-      nearFuture.setHours(nearFuture.getHours() + 12); // 12 hours from now
+      // Create a booking that's definitely within 24 hours (12 hours from now)
+      const nearFuture = new Date(Date.now() + 12 * 60 * 60 * 1000);
       
-      // Slot 16 = 10:00 AM (6 AM is slot 0, so 10 AM is slot 16)
+      // Calculate slot from UTC hours (slots start at 6 AM = slot 0)
+      const nearFutureSlot = (nearFuture.getUTCHours() - 6) * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
+      
       const recentBooking = {
         ...studentBooking,
         student_id: 3,
         date: nearFuture.toISOString().split('T')[0],
-        start_slot: Math.floor((nearFuture.getHours() - 6) * 4) // Convert to slot number
+        start_slot: nearFutureSlot
       };
 
       // Student should be blocked by time restriction (within 24 hours)

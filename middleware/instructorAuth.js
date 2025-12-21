@@ -2,13 +2,16 @@ const { Instructor } = require('../models/Instructor');
 
 /**
  * Middleware to check if the authenticated user is either the instructor or an admin
- * Expects instructorId in req.params
+ * Expects instructorId in req.params or req.body
  */
 const instructorAuth = async (req, res, next) => {
     try {
+        // Get instructorId from params or body
+        const instructorId = req.params.instructorId || req.body?.instructorId;
+        
         // Get all instructors and find the one we need
         const instructors = await Instructor.getAll();
-        const instructor = instructors.find(i => i.id === parseInt(req.params.instructorId));
+        const instructor = instructors.find(i => i.id === parseInt(instructorId));
         
         if (!instructor) {
             return res.status(404).json({ error: 'Instructor not found' });
