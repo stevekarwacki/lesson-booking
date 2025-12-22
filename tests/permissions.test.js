@@ -27,17 +27,30 @@ describe('CASL Permissions Infrastructure Tests', () => {
     status: 'completed'
   };
 
-  // Create a booking that's definitely within 24 hours (tomorrow at 10 AM)
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(10, 0, 0, 0); // 10 AM tomorrow
+  // Create a booking that's definitely within 24 hours
+  // IMPORTANT: Both date AND slot are derived from the same timestamp (12 hours from now)
+  // This prevents flaky tests caused by mixing static dates with dynamic times
+  const now = new Date();
+  const nearFutureDateTime = new Date(now.getTime() + 12 * 60 * 60 * 1000); // Exactly 12 hours from now
+  
+  // Format date as YYYY-MM-DD in local time
+  const year = nearFutureDateTime.getFullYear();
+  const month = String(nearFutureDateTime.getMonth() + 1).padStart(2, '0');
+  const day = String(nearFutureDateTime.getDate()).padStart(2, '0');
+  const hour = nearFutureDateTime.getHours();
+  const minutes = nearFutureDateTime.getMinutes();
+  
+  // Calculate slot from the actual hour and minutes
+  // Slot system: 6 AM = slot 0, each slot = 15 minutes
+  // Formula: slot = (hour - 6) * 4 + Math.floor(minutes / 15)
+  const slot = (hour - 6) * 4 + Math.floor(minutes / 15);
   
   const nearFutureBooking = {
     id: 3,
     student_id: 3,
     instructor_id: 10,
-    date: tomorrow.toISOString().split('T')[0],
-    start_slot: (10 - 6) * 4, // 10 AM = slot 16 (6 AM = slot 0)
+    date: `${year}-${month}-${day}`,
+    start_slot: Math.max(0, slot), // Ensure slot is non-negative (edge case: tests run very early morning)
     status: 'booked'
   };
 
