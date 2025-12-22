@@ -13,6 +13,7 @@ const subscriptionsRoutes = require('./routes/subscriptions');
 const recurringBookingsRoutes = require('./routes/recurringBookings');
 const assetsRoutes = require('./routes/assets');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
+const { injectThemeMiddleware } = require('./middleware/themeInjection');
 const { publishableKey } = require('./config/stripe');
 
 const app = express();
@@ -43,10 +44,8 @@ app.use('/api/availability', authMiddleware, instructorAvailabilityRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 app.use('/api/recurring-bookings', authMiddleware, recurringBookingsRoutes);
 
-// Catch all route for Vue app
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
-});
+// Catch all route for Vue app (with theme injection)
+app.get('*', injectThemeMiddleware);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
