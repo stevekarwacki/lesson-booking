@@ -1,6 +1,12 @@
 /**
  * Theme application composable
  * Handles applying theme colors to CSS custom properties
+ * 
+ * NOTE: Theme colors are injected server-side into the HTML <head> on page load
+ * (see middleware/themeInjection.js) to eliminate FOUC. This composable provides:
+ * 1. Dynamic updates when theme changes (e.g., admin updates settings)
+ * 2. Fallback for edge cases where server injection fails
+ * 3. Consistent theme application logic for both server and client
  */
 
 import { computed, watch } from 'vue'
