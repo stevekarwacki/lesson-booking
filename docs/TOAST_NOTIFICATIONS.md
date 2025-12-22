@@ -139,6 +139,14 @@ const handleSubmit = async () => {
 - **Subscription Success**: "Subscription activated successfully!"
 - **Payment Error**: "[error message]"
 
+### Google Calendar Integration
+- **Save Settings Success**: "Calendar settings saved successfully!"
+- **Save Settings Error**: "Failed to save calendar settings: [error message]"
+- **Test Connection Success**: "Connection successful! Found [X] events for today." or "Calendar connection test successful!"
+- **Test Connection Error**: "[error message]" or "Calendar connection test failed"
+- **OAuth Disconnect Success**: "Google account disconnected successfully!"
+- **OAuth Disconnect Error**: "Failed to disconnect OAuth: [error message]"
+
 ## Best Practices
 
 1. **Keep messages concise**: Toast messages should be short and actionable
