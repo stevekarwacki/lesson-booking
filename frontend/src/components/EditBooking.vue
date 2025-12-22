@@ -95,6 +95,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useToast } from 'vue-toastification'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -110,6 +111,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 
+const toast = useToast()
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
 const settingsStore = useSettingsStore()
@@ -323,9 +325,14 @@ const updateBooking = async () => {
         // Trigger schedule refresh for this instructor
         scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
 
+        // Show success toast
+        toast.success('Booking rescheduled successfully!')
+
+        // Emit event - parent will close modal and refresh booking list
         emit('booking-updated')
     } catch (err) {
         error.value = err.message
+        toast.error(`Failed to reschedule: ${err.message}`)
     } finally {
         loading.value = false
     }
@@ -357,9 +364,14 @@ const cancelBooking = async () => {
         // Trigger schedule refresh for this instructor
         scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
         
+        // Show success toast
+        toast.success('Booking cancelled successfully!')
+        
+        // Emit event - parent will close modal and refresh booking list
         emit('booking-cancelled', result)
     } catch (err) {
         error.value = err.message
+        toast.error(`Failed to cancel booking: ${err.message}`)
     } finally {
         loading.value = false
     }

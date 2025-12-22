@@ -477,22 +477,30 @@ const handleRefundProcessed = async (result) => {
 }
 
 // EditBooking event handlers
-const handleBookingUpdated = () => {
-    // Refresh bookings list and go back to main slide
+const handleBookingUpdated = (goBack) => {
+    // Refresh bookings list
     selectedBooking.value = null
     fetchUserBookings(editingUser.value.id)
-    success.value = 'Booking updated successfully'
+    
+    // Automatically navigate back to booking list
+    if (goBack) {
+        goBack()
+    }
 }
 
-const handleBookingCancelled = () => {
-    // Refresh bookings list and go back to main slide
+const handleBookingCancelled = (goBack) => {
+    // Refresh bookings list
     selectedBooking.value = null
     fetchUserBookings(editingUser.value.id)
-    success.value = 'Booking cancelled successfully'
+    
+    // Automatically navigate back to booking list
+    if (goBack) {
+        goBack()
+    }
 }
 
 const handleCloseEditBooking = () => {
-    // Go back to main slide
+    // Go back to main slide (manual close button)
     selectedBooking.value = null
 }
 
@@ -752,8 +760,8 @@ onMounted(async () => {
                                 <EditBooking
                                     :booking="selectedBooking"
                                     @close="handleCloseEditBooking"
-                                    @booking-updated="handleBookingUpdated"
-                                    @booking-cancelled="handleBookingCancelled"
+                                    @booking-updated="() => handleBookingUpdated(goBack)"
+                                    @booking-cancelled="() => handleBookingCancelled(goBack)"
                                 />
                             </div>
                         </template>

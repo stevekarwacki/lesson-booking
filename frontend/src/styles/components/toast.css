@@ -1,0 +1,28 @@
+/**
+ * Toast Notification Customizations
+ * 
+ * Custom styles and overrides for vue-toastification library
+ * See: /frontend/src/config/toast.js for configuration
+ */
+
+/* Z-Index Override */
+/* Ensure toasts appear above modals (modals use z-index: 10000) */
+.Vue-Toastification__container {
+  z-index: 10100 !important;
+}
+
+.custom-toast-container {
+  z-index: 10100 !important;
+}
+
+/* Additional customizations can be added here as needed */
+/* Examples:
+.Vue-Toastification__toast--success {
+  background-color: var(--color-success);
+}
+
+.Vue-Toastification__toast--error {
+  background-color: var(--color-error);
+}
+*/
+

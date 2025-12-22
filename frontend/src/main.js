@@ -1,11 +1,14 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { Vue3Mq } from 'vue3-mq'
+import Toast from 'vue-toastification'
+import 'vue-toastification/dist/index.css'
 import './assets/main.css'
 import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useSettingsStore } from './stores/settingsStore'
+import { toastOptions } from './config/toast'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -27,6 +30,7 @@ const mqConfig = {
 app.use(pinia)
 app.use(router)
 app.use(Vue3Mq, mqConfig)
+app.use(Toast, toastOptions)
 
 // Initialize app configuration on startup
 // Load once, use everywhere - simple and fast!
