@@ -67,8 +67,8 @@
           </div>
         </div>
         
-        <!-- Divider if service account option also available -->
-        <div v-if="setupInfo.serviceAccountEmail" class="method-divider">
+        <!-- Divider if service account option also available (only show when OAuth not connected) -->
+        <div v-if="setupInfo.serviceAccountEmail && !setupInfo?.oauth?.connected" class="method-divider">
           <span>OR</span>
         </div>
       </div>
@@ -698,15 +698,16 @@ onMounted(() => {
 
 /* OAuth Section Styles */
 .oauth-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
+    padding: 1.5rem;
     margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .oauth-section h4 {
-    color: white;
+    color: #374151;
     margin: 0 0 0.5rem 0;
     font-size: 1.125rem;
     font-weight: 600;
@@ -714,14 +715,15 @@ onMounted(() => {
 
 .oauth-description {
     margin-bottom: 1rem;
-    opacity: 0.9;
+    color: #6b7280;
     line-height: 1.5;
+    font-size: 0.875rem;
 }
 
 .oauth-connected,
 .oauth-disconnected {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
     border-radius: 6px;
     padding: 1rem;
 }
@@ -734,18 +736,29 @@ onMounted(() => {
 }
 
 .oauth-actions .btn {
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid #d1d5db;
 }
 
 .oauth-actions .btn-success {
-    background: rgba(34, 197, 94, 0.8);
+    background: #10b981;
     color: white;
+    border-color: #10b981;
+}
+
+.oauth-actions .btn-success:hover:not(:disabled) {
+    background: #059669;
+    border-color: #059669;
 }
 
 .oauth-actions .btn-danger {
-    background: rgba(239, 68, 68, 0.8);
+    background: #ef4444;
     color: white;
+    border-color: #ef4444;
+}
+
+.oauth-actions .btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+    border-color: #dc2626;
 }
 
 .status-badge {
@@ -760,15 +773,15 @@ onMounted(() => {
 }
 
 .status-badge.success {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
 }
 
 .status-badge.warning {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
 }
 
 .method-divider {
@@ -783,12 +796,12 @@ onMounted(() => {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.3);
+    background: #e5e7eb;
 }
 
 .method-divider span {
     padding: 0 1rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: #6b7280;
     font-weight: 500;
     font-size: 0.875rem;
 }
