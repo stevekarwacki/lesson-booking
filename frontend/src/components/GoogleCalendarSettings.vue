@@ -73,8 +73,8 @@
         </div>
       </div>
       
-      <!-- Service Account Section -->
-      <div v-if="setupInfo?.serviceAccountEmail" class="service-account-section">
+      <!-- Service Account Section (hidden when OAuth is connected) -->
+      <div v-if="setupInfo?.serviceAccountEmail && !setupInfo?.oauth?.connected" class="service-account-section">
         <h4 v-if="setupInfo?.oauth?.available">🔧 Manual Setup (Advanced)</h4>
         <h4 v-else>🔧 Service Account Setup</h4>
         
