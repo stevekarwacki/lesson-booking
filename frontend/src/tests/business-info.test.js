@@ -25,6 +25,17 @@ const mockMq = {
 // Mock fetch globally
 global.fetch = vi.fn()
 
+// Mock useFormFeedback composable
+const mockFormFeedback = {
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+  handleError: vi.fn()
+}
+
+vi.mock('../composables/useFormFeedback', () => ({
+  useFormFeedback: () => mockFormFeedback
+}))
+
 describe('BusinessInfoSection Component', () => {
   let wrapper
 
@@ -368,8 +379,8 @@ describe('AdminSettingsPage Component', () => {
       payload: mockPayload
     })
 
-    // Should show success message
-    expect(wrapper.text()).toContain('updated successfully')
+    // Should show success toast
+    expect(mockFormFeedback.showSuccess).toHaveBeenCalled()
   })
 
 

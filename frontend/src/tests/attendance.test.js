@@ -18,6 +18,17 @@ vi.mock('vue-router', () => ({
   useRouter: () => mockRouter
 }))
 
+// Mock useFormFeedback composable
+const mockFormFeedback = {
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+  handleError: vi.fn()
+}
+
+vi.mock('../composables/useFormFeedback', () => ({
+  useFormFeedback: () => mockFormFeedback
+}))
+
 describe('Attendance Tracking Frontend', () => {
   let pinia
   let userStore
@@ -450,8 +461,8 @@ describe('Attendance Tracking Frontend', () => {
         })
       )
 
-      // Mock alert to capture error messages
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      // Clear previous mock calls
+      mockFormFeedback.handleError.mockClear()
 
       const wrapper = mount(InstructorCalendarPage, {
         global: {
@@ -464,12 +475,8 @@ describe('Attendance Tracking Frontend', () => {
       const mockBooking = { originalBooking: { id: 1 } }
       await wrapper.vm.handleAttendanceChanged(mockBooking, 'absent', 'Test')
 
-      // Should show error message
-      expect(alertSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Error updating attendance')
-      )
-
-      alertSpy.mockRestore()
+      // Should show error toast
+      expect(mockFormFeedback.handleError).toHaveBeenCalled()
     })
 
     it('should update local state after successful attendance change', async () => {

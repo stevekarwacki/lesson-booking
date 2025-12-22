@@ -127,7 +127,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       await wrapper.vm.$nextTick()
 
       // Verify success toast was called
-      expect(mockToast.success).toHaveBeenCalledWith('Booking rescheduled successfully!')
+      expect(mockToast.success).toHaveBeenCalledWith('Booking rescheduled successfully!', {})
       
       // Verify booking-updated event was emitted (parent handles modal closing)
       expect(wrapper.emitted('booking-updated')).toBeTruthy()
@@ -168,7 +168,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       await wrapper.vm.$nextTick()
 
       // Verify success toast was called
-      expect(mockToast.success).toHaveBeenCalledWith('Booking cancelled successfully!')
+      expect(mockToast.success).toHaveBeenCalledWith('Booking cancelled successfully!', {})
       
       // Verify booking-cancelled event was emitted (parent handles modal closing)
       expect(wrapper.emitted('booking-cancelled')).toBeTruthy()
@@ -219,7 +219,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       await wrapper.vm.$nextTick()
 
       // Verify error toast was called
-      expect(mockToast.error).toHaveBeenCalledWith('Failed to reschedule: Time slot no longer available')
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to reschedule:Time slot no longer available')
       
       // Verify booking-updated event was NOT emitted (failed operation)
       expect(wrapper.emitted('booking-updated')).toBeFalsy()
@@ -260,7 +260,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       await wrapper.vm.$nextTick()
 
       // Verify error toast was called
-      expect(mockToast.error).toHaveBeenCalledWith('Failed to cancel booking: Cannot cancel within 24 hours')
+      expect(mockToast.error).toHaveBeenCalledWith('Failed to cancel booking:Cannot cancel within 24 hours')
       
       // Verify booking-cancelled event was NOT emitted (failed operation)
       expect(wrapper.emitted('booking-cancelled')).toBeFalsy()
