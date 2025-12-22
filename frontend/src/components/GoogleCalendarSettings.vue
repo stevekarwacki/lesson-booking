@@ -67,14 +67,14 @@
           </div>
         </div>
         
-        <!-- Divider if service account option also available -->
-        <div v-if="setupInfo.serviceAccountEmail" class="method-divider">
+        <!-- Divider if service account option also available (only show when OAuth not connected) -->
+        <div v-if="setupInfo.serviceAccountEmail && !setupInfo?.oauth?.connected" class="method-divider">
           <span>OR</span>
         </div>
       </div>
       
-      <!-- Service Account Section -->
-      <div v-if="setupInfo?.serviceAccountEmail" class="service-account-section">
+      <!-- Service Account Section (hidden when OAuth is connected) -->
+      <div v-if="setupInfo?.serviceAccountEmail && !setupInfo?.oauth?.connected" class="service-account-section">
         <h4 v-if="setupInfo?.oauth?.available">🔧 Manual Setup (Advanced)</h4>
         <h4 v-else>🔧 Service Account Setup</h4>
         
@@ -147,15 +147,6 @@
           {{ testing ? 'Testing...' : 'Test Connection' }}
         </button>
       </div>
-      
-      <!-- Test Results -->
-      <div v-if="testResult" class="test-result" :class="testResult.success ? 'success' : 'error'">
-        <h4>{{ testResult.success ? 'Success!' : 'Test Failed' }}</h4>
-        <p>{{ testResult.message }}</p>
-        <div v-if="testResult.eventsFound !== undefined">
-          <p>Events found for today: {{ testResult.eventsFound }}</p>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -164,6 +155,7 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useOAuth } from '../composables/useOAuth'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 const props = defineProps({
     instructorId: {
@@ -173,6 +165,7 @@ const props = defineProps({
 })
 
 const userStore = useUserStore()
+const formFeedback = useFormFeedback()
 
 // OAuth composable
 const oauth = useOAuth(ref(props.instructorId))
@@ -184,7 +177,6 @@ const testing = ref(false)
 const error = ref(null)
 const calendarId = ref('')
 const allDayHandling = ref('ignore')
-const testResult = ref(null)
 const setupInfo = ref(null)
 
 // Alias for template compatibility
@@ -236,7 +228,6 @@ const loadSettings = async () => {
 const saveSettings = async () => {
     saving.value = true
     error.value = null
-    testResult.value = null
     
     try {
         const response = await fetch(`/api/auth/calendar/config/${props.instructorId}`, {
@@ -256,18 +247,14 @@ const saveSettings = async () => {
             throw new Error(errorData.error || 'Failed to save settings')
         }
         
-        // Show success message
-        testResult.value = {
-            success: true,
-            message: 'Calendar settings saved successfully!'
-        }
+        // Show success toast
+        formFeedback.showSuccess('Calendar settings saved successfully!')
         
         // Reload setup info to reflect changes
         await loadSettings()
         
     } catch (err) {
-        console.error('Failed to save calendar settings:', err)
-        error.value = err.message || 'Failed to save calendar settings. Please try again.'
+        formFeedback.handleError(err, 'Failed to save calendar settings:')
     } finally {
         saving.value = false
     }
@@ -276,7 +263,6 @@ const saveSettings = async () => {
 // Test connection
 const testConnection = async () => {
     testing.value = true
-    testResult.value = null
     
     try {
         const response = await fetch(`/api/auth/calendar/test/${props.instructorId}`, {
@@ -286,14 +272,19 @@ const testConnection = async () => {
         })
         
         const result = await response.json()
-        testResult.value = result
+        
+        // Show toast notification based on result
+        if (result.success) {
+            const message = result.eventsFound !== undefined 
+                ? `Connection successful! Found ${result.eventsFound} events for today.`
+                : 'Calendar connection test successful!'
+            formFeedback.showSuccess(message)
+        } else {
+            formFeedback.showError(result.message || 'Calendar connection test failed')
+        }
         
     } catch (err) {
-        console.error('Failed to test calendar connection:', err)
-        testResult.value = {
-            success: false,
-            message: 'Failed to test connection. Please try again.'
-        }
+        formFeedback.handleError(err, 'Failed to test connection:')
     } finally {
         testing.value = false
     }
@@ -317,12 +308,9 @@ const disconnectOAuth = async () => {
     try {
         await oauth.disconnect()
         await loadSettings() // Refresh settings after disconnection
-        testResult.value = {
-            success: true,
-            message: 'Google account disconnected successfully!'
-        }
+        formFeedback.showSuccess('Google account disconnected successfully!')
     } catch (err) {
-        error.value = err.message || 'Failed to disconnect OAuth'
+        formFeedback.handleError(err, 'Failed to disconnect OAuth:')
     }
 }
 
@@ -526,27 +514,6 @@ onMounted(() => {
     background-color: #dc2626;
 }
 
-.test-results {
-    background-color: #f9fafb;
-    border-radius: 6px;
-    padding: 1rem;
-    margin-top: 1rem;
-}
-
-.test-results h4 {
-    margin: 0 0 0.5rem 0;
-    color: #374151;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.test-success {
-    color: #10b981;
-}
-
-.test-error {
-    color: #ef4444;
-}
 
 .modal-overlay {
     position: fixed;
@@ -698,15 +665,16 @@ onMounted(() => {
 
 /* OAuth Section Styles */
 .oauth-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
+    padding: 1.5rem;
     margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .oauth-section h4 {
-    color: white;
+    color: #374151;
     margin: 0 0 0.5rem 0;
     font-size: 1.125rem;
     font-weight: 600;
@@ -714,14 +682,15 @@ onMounted(() => {
 
 .oauth-description {
     margin-bottom: 1rem;
-    opacity: 0.9;
+    color: #6b7280;
     line-height: 1.5;
+    font-size: 0.875rem;
 }
 
 .oauth-connected,
 .oauth-disconnected {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
     border-radius: 6px;
     padding: 1rem;
 }
@@ -734,18 +703,29 @@ onMounted(() => {
 }
 
 .oauth-actions .btn {
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid #d1d5db;
 }
 
 .oauth-actions .btn-success {
-    background: rgba(34, 197, 94, 0.8);
+    background: #10b981;
     color: white;
+    border-color: #10b981;
+}
+
+.oauth-actions .btn-success:hover:not(:disabled) {
+    background: #059669;
+    border-color: #059669;
 }
 
 .oauth-actions .btn-danger {
-    background: rgba(239, 68, 68, 0.8);
+    background: #ef4444;
     color: white;
+    border-color: #ef4444;
+}
+
+.oauth-actions .btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+    border-color: #dc2626;
 }
 
 .status-badge {
@@ -760,15 +740,15 @@ onMounted(() => {
 }
 
 .status-badge.success {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
 }
 
 .status-badge.warning {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
 }
 
 .method-divider {
@@ -783,12 +763,12 @@ onMounted(() => {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.3);
+    background: #e5e7eb;
 }
 
 .method-divider span {
     padding: 0 1rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: #6b7280;
     font-weight: 500;
     font-size: 0.875rem;
 }
@@ -917,31 +897,6 @@ onMounted(() => {
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
-}
-
-.test-result {
-    margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 6px;
-    border: 1px solid;
-}
-
-.test-result.success {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #166534;
-}
-
-.test-result.error {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #dc2626;
-}
-
-.test-result h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    font-weight: 600;
 }
 
 .btn-success {
