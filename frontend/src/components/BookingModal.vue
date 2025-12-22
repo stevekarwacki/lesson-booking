@@ -135,6 +135,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { useCredits } from '../composables/useCredits'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 
@@ -149,6 +150,7 @@ const emit = defineEmits(['close', 'booking-confirmed'])
 
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
+const { showSuccess, showError } = useFormFeedback()
 
 // Use credits composable for credit state management
 const { 
@@ -443,10 +445,14 @@ const confirmBooking = async () => {
             }
         }
         
+        // Show success toast
+        showSuccess('Lesson booked successfully!')
+        
         emit('booking-confirmed', result.booking)
     } catch (err) {
         console.error('confirmBooking error:', err)
         error.value = err.message
+        showError(err.message || 'Failed to book lesson')
     } finally {
         loading.value = false
     }

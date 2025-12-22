@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import SettingsTabs from '../components/SettingsTabs.vue'
 import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
@@ -11,6 +12,7 @@ import AdvancedSettingsSection from '../components/admin/AdvancedSettingsSection
 
 const userStore = useUserStore()
 const router = useRouter()
+const { showSuccess, handleError } = useFormFeedback()
 
 // Settings state
 const currentSection = ref('business')
@@ -167,15 +169,11 @@ const handleContentChange = async (data) => {
     // Clear any component-level validation errors on successful save
     // This will trigger reactive updates in child components
     
-    success.value = `${settingsTabs.value.find(t => t.id === tabId)?.label} updated successfully`
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      success.value = ''
-    }, 3000)
+    const tabLabel = settingsTabs.value.find(t => t.id === tabId)?.label
+    showSuccess(`${tabLabel} updated successfully`)
     
   } catch (err) {
-    error.value = 'Error saving settings: ' + err.message
+    handleError(err, 'Error saving settings: ')
     console.error('Error saving settings:', err)
   } finally {
     loading.value = false

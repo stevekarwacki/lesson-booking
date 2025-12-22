@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
@@ -9,6 +10,7 @@ import EditBooking from './EditBooking.vue'
 import RefundModal from './RefundModal.vue'
 
 const userStore = useUserStore()
+const { showSuccess, showError, handleError } = useFormFeedback()
 const users = ref([])
 const error = ref('')
 const success = ref('')
@@ -55,7 +57,7 @@ const resetNewUser = () => {
 
 const addUser = async () => {
     if (!newUser.value.name || !newUser.value.email || !newUser.value.password) {
-        error.value = 'All fields are required'
+        showError('All fields are required')
         return
     }
 
@@ -74,12 +76,12 @@ const addUser = async () => {
             throw new Error(data.error || 'Failed to create user')
         }
 
-        success.value = 'User created successfully'
+        showSuccess('User created successfully')
         showAddForm.value = false
         resetNewUser()
         await fetchUsers()
     } catch (err) {
-        error.value = 'Error creating user: ' + err.message
+        handleError(err, 'Error creating user: ')
     }
 }
 
@@ -230,11 +232,11 @@ const saveUserEdit = async () => {
 
         if (!approvalResponse.ok) throw new Error('Failed to update approval status');
         
-        success.value = 'User updated successfully';
+        showSuccess('User updated successfully');
         closeEditModal();
         await fetchUsers();
     } catch (err) {
-        error.value = 'Error updating user: ' + err.message;
+        handleError(err, 'Error updating user: ');
     }
 }
 
@@ -477,22 +479,30 @@ const handleRefundProcessed = async (result) => {
 }
 
 // EditBooking event handlers
-const handleBookingUpdated = () => {
-    // Refresh bookings list and go back to main slide
+const handleBookingUpdated = (goBack) => {
+    // Refresh bookings list
     selectedBooking.value = null
     fetchUserBookings(editingUser.value.id)
-    success.value = 'Booking updated successfully'
+    
+    // Automatically navigate back to booking list
+    if (goBack) {
+        goBack()
+    }
 }
 
-const handleBookingCancelled = () => {
-    // Refresh bookings list and go back to main slide
+const handleBookingCancelled = (goBack) => {
+    // Refresh bookings list
     selectedBooking.value = null
     fetchUserBookings(editingUser.value.id)
-    success.value = 'Booking cancelled successfully'
+    
+    // Automatically navigate back to booking list
+    if (goBack) {
+        goBack()
+    }
 }
 
 const handleCloseEditBooking = () => {
-    // Go back to main slide
+    // Go back to main slide (manual close button)
     selectedBooking.value = null
 }
 
@@ -752,8 +762,8 @@ onMounted(async () => {
                                 <EditBooking
                                     :booking="selectedBooking"
                                     @close="handleCloseEditBooking"
-                                    @booking-updated="handleBookingUpdated"
-                                    @booking-cancelled="handleBookingCancelled"
+                                    @booking-updated="() => handleBookingUpdated(goBack)"
+                                    @booking-cancelled="() => handleBookingCancelled(goBack)"
                                 />
                             </div>
                         </template>

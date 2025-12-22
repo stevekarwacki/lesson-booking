@@ -2,6 +2,7 @@
 @import './styles/variables.css';
 @import './styles/components/forms.css';
 @import './styles/components/modals.css';
+@import './styles/components/toast.css';
 @import './styles/utilities.css';
 
 :root {

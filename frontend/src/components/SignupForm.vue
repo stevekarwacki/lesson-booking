@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 const userStore = useUserStore()
+const { showSuccess, showError } = useFormFeedback()
 
 const name = ref('')
 const email = ref('')
@@ -18,12 +20,12 @@ const handleSubmit = async () => {
 
     // Validate form
     if (!name.value || !email.value || !password.value) {
-        error.value = 'All fields are required'
+        showError('All fields are required')
         return
     }
 
     if (password.value !== confirmPassword.value) {
-        error.value = 'Passwords do not match'
+        showError('Passwords do not match')
         return
     }
 
@@ -35,17 +37,17 @@ const handleSubmit = async () => {
         })
 
         if (success) {
-            success.value = 'Account created successfully!'
+            showSuccess('Account created successfully!')
             // Reset form
             name.value = ''
             email.value = ''
             password.value = ''
             confirmPassword.value = ''
         } else {
-            error.value = 'Failed to create account'
+            showError('Failed to create account')
         }
     } catch (err) {
-        error.value = err.message || 'An error occurred during registration'
+        showError(err.message || 'An error occurred during registration')
     }
 }
 </script>

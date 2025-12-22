@@ -58,9 +58,11 @@ import RefundModal from '../components/RefundModal.vue'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 const userStore = useUserStore()
 const router = useRouter()
+const formFeedback = useFormFeedback()
 const instructor = ref(null)
 const error = ref(null)
 const loading = ref(false)
@@ -264,13 +266,11 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
             };
         }
         
-        // Show success message (you might want to use a toast notification)
-        // TODO: Add toast notification for attendance update success
+        // Show success toast
+        formFeedback.showSuccess(`Attendance marked as ${status}`)
         
     } catch (err) {
-        console.error('Error updating attendance:', err);
-        // Show error message (you might want to use a toast notification)
-        alert('Error updating attendance: ' + err.message);
+        formFeedback.handleError(err, 'Failed to update attendance:')
     }
 };
 
