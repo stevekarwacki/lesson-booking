@@ -39,6 +39,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useStripe } from '../composables/useStripe'
 import { useUserStore } from '../stores/userStore'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 const props = defineProps({
     amount: {
@@ -66,6 +67,7 @@ const {
 } = useStripe()
 
 const userStore = useUserStore()
+const { showSuccess, showError } = useFormFeedback()
 
 // Determine if this is a subscription payment
 const isSubscription = computed(() => !!props.planId)
@@ -158,6 +160,7 @@ const handleSubmit = async () => {
 
                 if (status === 'active') {
                     paymentSuccess.value = true
+                    showSuccess('Subscription activated successfully!')
                     emit('payment-success')
                 } else {
                     throw new Error('Subscription creation failed')
@@ -227,6 +230,7 @@ const handleSubmit = async () => {
                     }
 
                     paymentSuccess.value = true
+                    showSuccess('Payment processed successfully!')
                     emit('payment-success')
                 } else {
                     throw new Error('Payment was not successful')
@@ -279,12 +283,14 @@ const handleSubmit = async () => {
             // Check if payment was successful
             if (paymentIntent && paymentIntent.status === 'succeeded') {
                 paymentSuccess.value = true
+                showSuccess('Payment processed successfully!')
                 emit('payment-success')
             } else {
                 throw new Error('Payment was not successful')
             }
         }
     } catch (err) {
+        showError(err.message || 'Payment failed')
         console.error('Payment error:', err)
         error.value = err.message || 'Payment failed'
         emit('payment-error', err)

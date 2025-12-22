@@ -2,9 +2,11 @@
 import { ref } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 const userStore = useUserStore()
 const router = useRouter()
+const { showSuccess, showError } = useFormFeedback()
 
 const email = ref('')
 const password = ref('')
@@ -16,7 +18,7 @@ const handleSubmit = async () => {
     success.value = ''
 
     if (!email.value || !password.value) {
-        error.value = 'All fields are required'
+        showError('All fields are required')
         return
     }
 
@@ -24,7 +26,7 @@ const handleSubmit = async () => {
         const loginSuccess = await userStore.login(email.value, password.value)
         
         if (loginSuccess) {
-            success.value = 'Login successful!'
+            showSuccess('Login successful!')
             // Reset form
             email.value = ''
             password.value = ''
@@ -41,10 +43,10 @@ const handleSubmit = async () => {
                 }
             }
         } else {
-            error.value = 'Invalid email or password'
+            showError('Invalid email or password')
         }
     } catch (err) {
-        error.value = err.message || 'An error occurred during login'
+        showError(err.message || 'An error occurred during login')
     }
 }
 </script>
