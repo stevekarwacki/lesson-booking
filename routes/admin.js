@@ -138,35 +138,6 @@ router.post('/users', authorize('manage', 'all'), async (req, res) => {
 });
 
 // Update instructor
-router.patch('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
-    try {
-        const instructorId = parseInt(req.params.id, 10);
-        const { hourly_rate, specialties, bio } = req.body;
-        
-        await Instructor.updateInstructor(instructorId, { 
-            hourly_rate, 
-            specialties, 
-            bio 
-        });
-        res.json({ message: 'Instructor updated successfully' });
-    } catch (error) {
-        console.error('Error updating instructor:', error);
-        res.status(500).json({ error: 'Error updating instructor' });
-    }
-});
-
-// Delete instructor
-router.delete('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
-    try {
-        const instructorId = parseInt(req.params.id, 10);
-        await Instructor.deleteInstructor(instructorId);
-        res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting instructor:', error);
-        res.status(500).json({ error: 'Error deleting instructor' });
-    }
-});
-
 // Get all payment plans
 router.get('/packages', authorize('manage', 'all'), async (req, res) => {
     try {

@@ -571,25 +571,35 @@ const handleRefundProcessed = async (result) => {
 }
 
 // EditBooking event handlers
-const handleBookingUpdated = (goBack) => {
-    // Refresh bookings list
-    selectedBooking.value = null
-    fetchUserBookings(editingUser.value.id)
-    
-    // Automatically navigate back to booking list
+const handleBookingUpdated = async (goBack) => {
+    // Automatically navigate back to booking list first (no data changes yet = no jitter)
     if (goBack) {
         goBack()
+        // Wait for transition to complete, then refresh data and clear selection
+        setTimeout(async () => {
+            await refetchBookings()
+            selectedBooking.value = null
+        }, 350) // After the 300ms transition completes
+    } else {
+        // If no goBack function, refresh and clear immediately
+        await refetchBookings()
+        selectedBooking.value = null
     }
 }
 
-const handleBookingCancelled = (goBack) => {
-    // Refresh bookings list
-    selectedBooking.value = null
-    fetchUserBookings(editingUser.value.id)
-    
-    // Automatically navigate back to booking list
+const handleBookingCancelled = async (goBack) => {
+    // Automatically navigate back to booking list first (no data changes yet = no jitter)
     if (goBack) {
         goBack()
+        // Wait for transition to complete, then refresh data and clear selection
+        setTimeout(async () => {
+            await refetchBookings()
+            selectedBooking.value = null
+        }, 350) // After the 300ms transition completes
+    } else {
+        // If no goBack function, refresh and clear immediately
+        await refetchBookings()
+        selectedBooking.value = null
     }
 }
 
