@@ -47,7 +47,6 @@ onMounted(() => {
 
 // CASL-based permission checks
 const canManageUsers = computed(() => userStore.canManageUsers)
-const canManageInstructors = computed(() => userStore.canManageInstructors)
 const canManagePackages = computed(() => userStore.canManagePackages)
 const canManageCalendar = computed(() => userStore.canManageCalendar)
 const canManageAvailability = computed(() => userStore.canManageAvailability)
@@ -159,14 +158,6 @@ const handleLogout = () => {
                     @click="closeMenu"
                 >
                     Users
-                </router-link>
-                <router-link 
-                    v-if="canManageInstructors"
-                    to="/admin/instructors" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Instructors
                 </router-link>
                 <router-link 
                     v-if="canManagePackages"

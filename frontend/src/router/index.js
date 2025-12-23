@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ManageInstructorsPage from '../views/ManageInstructorsPage.vue'
 import ManageUsersPage from '../views/ManageUsersPage.vue'
 import ManagePackagesPage from '../views/ManagePackagesPage.vue'
 import AdminSettingsPage from '../views/AdminSettingsPage.vue'
@@ -30,15 +29,6 @@ const routes = [
         meta: { 
             requiresAuth: true,
             permission: { action: 'access', subject: 'StudentPayments' }
-        }
-    },
-    {
-        path: '/admin/instructors',
-        name: 'manage-instructors',
-        component: ManageInstructorsPage,
-        meta: { 
-            requiresAuth: true,
-            permission: { action: 'manage', subject: 'Instructor' }
         }
     },
     {

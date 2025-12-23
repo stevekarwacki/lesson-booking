@@ -11,6 +11,7 @@ import EditBooking from './EditBooking.vue'
 import RefundModal from './RefundModal.vue'
 import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
+import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
@@ -18,9 +19,17 @@ const { showSuccess, showError, handleError } = useFormFeedback()
 // Vue Query for data fetching
 const {
   users: queryUsers,
+  instructors,
   isLoadingUsers,
+  isLoadingInstructors,
   createUser: createUserMutation,
-  isCreatingUser
+  isCreatingUser,
+  updateUser: updateUserMutation,
+  isUpdatingUser,
+  createInstructor: createInstructorMutation,
+  isCreatingInstructor,
+  updateInstructor: updateInstructorMutation,
+  isUpdatingInstructor
 } = useUserManagement()
 
 // Local state
@@ -126,6 +135,28 @@ const editingUser = ref(null)
 const userSubscription = ref(null)
 const subscriptionLoading = ref(false)
 const showCreateSubscriptionModal = ref(false)
+
+// Instructor profile state
+const instructorProfile = ref(null)
+const instructorFormData = ref({
+  bio: '',
+  specialties: '',
+  hourly_rate: ''
+})
+const isEditingInstructor = ref(false)
+const pendingRoleChange = ref(null) // Track unsaved role changes
+
+// Computed: Check if current editing user is an instructor
+const isUserInstructor = computed(() => editingUser.value?.role === 'instructor')
+
+// Computed: Check if current editing user is an admin
+const isUserAdmin = computed(() => editingUser.value?.role === 'admin')
+
+// Computed: Get instructor profile for current user
+const currentInstructorProfile = computed(() => {
+  if (!editingUser.value || !instructors.value) return null
+  return instructors.value.find(inst => inst.user_id === editingUser.value.id)
+})
 const availablePlans = ref([])
 const selectedPlan = ref('')
 const adminNote = ref('')
@@ -258,8 +289,22 @@ const fetchUserSubscription = async (userId) => {
 const openEditModal = (user) => {
     editingUser.value = { ...user }
     showEditModal.value = true
-    fetchUserSubscription(user.id)
-    fetchUserBookings(user.id)
+    pendingRoleChange.value = user.role // Initialize with current role
+    
+    // Only fetch subscription and bookings for students
+    if (user.role === 'student') {
+        fetchUserSubscription(user.id)
+        fetchUserBookings(user.id)
+    } else {
+        // Clear subscription and bookings for non-students
+        userSubscription.value = null
+        userBookings.value = []
+    }
+    
+    // Load instructor profile if user is an instructor
+    if (user.role === 'instructor') {
+        loadInstructorProfile(user.id)
+    }
 }
 
 const closeEditModal = () => {
@@ -267,7 +312,22 @@ const closeEditModal = () => {
     userSubscription.value = null
     userBookings.value = []
     selectedBooking.value = null
+    instructorProfile.value = null
+    isEditingInstructor.value = false
     showEditModal.value = false
+}
+
+// Load instructor profile
+const loadInstructorProfile = (userId) => {
+    const profile = instructors.value?.find(inst => inst.user_id === userId)
+    if (profile) {
+        instructorProfile.value = profile
+        instructorFormData.value = {
+            bio: profile.bio || '',
+            specialties: profile.specialties || '',
+            hourly_rate: profile.hourly_rate || ''
+        }
+    }
 }
 
 const saveUserEdit = async () => {
@@ -303,9 +363,77 @@ const saveUserEdit = async () => {
         
         showSuccess('User updated successfully');
         closeEditModal();
-        await fetchUsers();
+        // Vue Query handles refetch automatically
     } catch (err) {
         handleError(err, 'Error updating user: ');
+    }
+}
+
+// Save role change
+const saveRoleChange = async () => {
+    try {
+        // Update the editingUser with the pending role change
+        editingUser.value.role = pendingRoleChange.value
+        
+        await updateUserMutation({
+            userId: editingUser.value.id,
+            userData: { 
+                name: editingUser.value.name,
+                email: editingUser.value.email,
+                role: pendingRoleChange.value,
+                in_person_payment_override: editingUser.value.in_person_payment_override
+            }
+        })
+        
+        showSuccess(`User role updated to ${pendingRoleChange.value}`)
+        
+        // Reload instructor profile if now an instructor
+        if (pendingRoleChange.value === 'instructor') {
+            setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
+        } else {
+            instructorProfile.value = null
+        }
+    } catch (err) {
+        handleError(err, 'Error updating role: ')
+        // Revert pending change on error
+        pendingRoleChange.value = editingUser.value.role
+    }
+}
+
+// Create instructor profile
+const createInstructorProfile = async () => {
+    try {
+        await createInstructorMutation({
+            user_id: editingUser.value.id,
+            bio: instructorFormData.value.bio,
+            specialties: instructorFormData.value.specialties,
+            hourly_rate: instructorFormData.value.hourly_rate
+        })
+        
+        showSuccess('Instructor profile created successfully')
+        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
+    } catch (err) {
+        handleError(err, 'Error creating instructor profile: ')
+    }
+}
+
+// Save instructor profile
+const saveInstructorProfile = async () => {
+    try {
+        await updateInstructorMutation({
+            instructorId: instructorProfile.value.id,
+            instructorData: {
+                bio: instructorFormData.value.bio,
+                specialties: instructorFormData.value.specialties,
+                hourly_rate: instructorFormData.value.hourly_rate
+            }
+        })
+        
+        showSuccess('Instructor profile updated successfully')
+        isEditingInstructor.value = false
+        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
+    } catch (err) {
+        handleError(err, 'Error updating instructor profile: ')
     }
 }
 
@@ -767,17 +895,10 @@ const formatTime = (timeObj) => {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label" for="editRole">Role:</label>
+                        <label class="form-label">Role:</label>
                         <div class="form-input">
-                            <select 
-                                id="editRole"
-                                v-model="editingUser.role"
-                                class="form-input"
-                            >
-                                <option value="student">Student</option>
-                                <option value="instructor">Instructor</option>
-                                <option value="admin">Admin</option>
-                            </select>
+                            <input type="text" :value="editingUser?.role" disabled class="form-input" />
+                            <small class="form-text">Role can only be changed by admins from the Account tab</small>
                         </div>
                     </div>
 
@@ -797,17 +918,6 @@ const formatTime = (timeObj) => {
                                 "Use Global Setting" means they follow the system-wide preference.
                             </small>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">
-                            <input 
-                                type="checkbox"
-                                v-model="editingUser.is_approved"
-                                class="form-input"
-                            >
-                            Account Approved
-                        </label>
                     </div>
 
                     <div v-if="error" class="form-message error-message">
@@ -836,7 +946,175 @@ const formatTime = (timeObj) => {
                 </form>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Bookings">
+            <!-- Instructor Details Tab (Instructors only) -->
+            <TabbedModalTab 
+                v-if="isUserInstructor" 
+                label="Instructor Details"
+            >
+                <div class="instructor-details-tab">
+                    <!-- No profile yet -->
+                    <div v-if="!instructorProfile && !isLoadingInstructors" class="no-profile-message">
+                        <p>This instructor doesn't have a profile yet.</p>
+                        
+                        <form @submit.prevent="createInstructorProfile" class="create-profile-form">
+                            <div class="form-group">
+                                <label class="form-label">Bio:</label>
+                                <textarea
+                                    v-model="instructorFormData.bio"
+                                    class="form-input"
+                                    rows="4"
+                                    placeholder="Tell students about your teaching experience..."
+                                ></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Specialties:</label>
+                                <input 
+                                    v-model="instructorFormData.specialties"
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="e.g., Piano, Guitar, Voice"
+                                />
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Hourly Rate ($):</label>
+                                <input 
+                                    v-model="instructorFormData.hourly_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="form-input"
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <button 
+                                type="submit"
+                                :disabled="isCreatingInstructor"
+                                class="form-button"
+                            >
+                                {{ isCreatingInstructor ? 'Creating...' : 'Create Instructor Profile' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Profile exists -->
+                    <div v-else-if="instructorProfile" class="profile-exists">
+                        <!-- View Mode -->
+                        <div v-if="!isEditingInstructor" class="profile-view">
+                            <div class="profile-field">
+                                <label>Bio:</label>
+                                <p>{{ instructorProfile.bio || 'No bio provided' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Specialties:</label>
+                                <p>{{ instructorProfile.specialties || 'No specialties listed' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Hourly Rate:</label>
+                                <p>${{ instructorProfile.hourly_rate || '0.00' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Status:</label>
+                                <p>
+                                    <span :class="instructorProfile.is_active ? 'status-active' : 'status-inactive'">
+                                        {{ instructorProfile.is_active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </p>
+                            </div>
+
+                            <div class="form-actions">
+                                <button 
+                                    @click="isEditingInstructor = true"
+                                    class="form-button"
+                                >
+                                    Edit Profile
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Edit Mode -->
+                        <div v-else class="profile-edit">
+                            <form @submit.prevent="saveInstructorProfile">
+                                <div class="form-group">
+                                    <label class="form-label">Bio:</label>
+                                    <textarea
+                                        v-model="instructorFormData.bio"
+                                        class="form-input"
+                                        rows="4"
+                                    ></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Specialties:</label>
+                                    <input 
+                                        v-model="instructorFormData.specialties"
+                                        type="text"
+                                        class="form-input"
+                                    />
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Hourly Rate ($):</label>
+                                    <input 
+                                        v-model="instructorFormData.hourly_rate"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        class="form-input"
+                                    />
+                                </div>
+
+                                <div class="form-actions">
+                                    <button 
+                                        type="submit"
+                                        :disabled="isUpdatingInstructor"
+                                        class="form-button"
+                                    >
+                                        {{ isUpdatingInstructor ? 'Saving...' : 'Save Changes' }}
+                                    </button>
+                                    
+                                    <button 
+                                        type="button"
+                                        @click="isEditingInstructor = false"
+                                        class="form-button form-button-cancel"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div v-else class="loading-message">
+                        Loading instructor profile...
+                    </div>
+                </div>
+            </TabbedModalTab>
+
+            <!-- Availability Tab (Instructors only) -->
+            <TabbedModalTab 
+                v-if="isUserInstructor && instructorProfile" 
+                label="Availability"
+            >
+                <div class="availability-tab">
+                    <!-- Google Calendar Integration -->
+                    <GoogleCalendarSettings 
+                        :instructor-id="instructorProfile.id"
+                    />
+                </div>
+            </TabbedModalTab>
+
+            <!-- Bookings Tab (Students only) -->
+            <TabbedModalTab 
+                v-if="!isUserAdmin && !isUserInstructor"
+                label="Bookings"
+            >
                 <div class="bookings-tab">
                     <SlideTransition :slide-count="2">
                         <!-- Main slide: Bookings list -->
@@ -873,7 +1151,11 @@ const formatTime = (timeObj) => {
                 </div>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Memberships">
+            <!-- Memberships Tab (Students only) -->
+            <TabbedModalTab 
+                v-if="!isUserAdmin && !isUserInstructor"
+                label="Memberships"
+            >
                 <div class="memberships-tab">
                     <div v-if="subscriptionLoading" class="loading-message">
                         Loading subscription information...
@@ -963,57 +1245,79 @@ const formatTime = (timeObj) => {
                 </div>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Account">
+            <!-- Account Tab (Admins only) -->
+            <TabbedModalTab 
+                v-if="userStore.canManageUsers"
+                label="Account"
+            >
                 <div class="account-tab">
                     <div class="account-section">
-                        <h4>User Management</h4>
-                        <p>Perform administrative actions on this user account.</p>
-                        
+                        <!-- Account Approval -->
                         <div class="action-group">
-                            <h5>Account Information</h5>
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>User ID:</strong> {{ editingUser?.id }}
-                                </div>
-                                <div class="action-info">
-                                    <strong>Account Status:</strong> 
-                                    <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
-                                        {{ editingUser?.is_approved ? 'Approved' : 'Pending Approval' }}
-                                    </span>
-                                </div>
-                                <div class="action-info">
-                                    <strong>Role:</strong> {{ editingUser?.role }}
-                                </div>
+                            <div class="action-header">
+                                <h5>Account Approval</h5>
+                                <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
+                                    {{ editingUser?.is_approved ? 'Approved' : 'Pending' }}
+                                </span>
+                            </div>
+                            <div class="action-content">
+                                <label class="checkbox-label">
+                                    <input 
+                                        type="checkbox"
+                                        v-model="editingUser.is_approved"
+                                    >
+                                    <span>Grant account access</span>
+                                </label>
+                                <button 
+                                    @click="saveUserEdit"
+                                    :disabled="isUpdatingUser"
+                                    class="form-button form-button-sm"
+                                >
+                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </button>
                             </div>
                         </div>
 
+                        <!-- Role Management -->
+                        <div class="action-group">
+                            <div class="action-header">
+                                <h5>Role</h5>
+                                <span class="role-badge">{{ editingUser?.role }}</span>
+                            </div>
+                            <div class="action-content">
+                                <select 
+                                    v-model="pendingRoleChange"
+                                    class="form-input"
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="instructor">Instructor</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button 
+                                    @click="saveRoleChange"
+                                    :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
+                                    class="form-button form-button-sm"
+                                >
+                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
                         <div class="action-group danger-zone">
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>Delete User Account</strong>
-                                </div>
-                                <div class="action-description">
-                                    <p>Permanently remove this user from the system. This action cannot be undone.</p>
-                                    <p><strong>Warning:</strong> This will also delete all associated data including:</p>
-                                    <ul>
-                                        <li>User profile information</li>
-                                        <li>Lesson bookings and history</li>
-                                        <li>Subscription records</li>
-                                        <li>Payment history</li>
-                                        <li>Instructor information (if applicable)</li>
-                                    </ul>
-                                </div>
+                            <div class="action-header">
+                                <h5>Delete Account</h5>
+                            </div>
+                            <div class="action-content">
+                                <p class="danger-description">Permanently delete this user and all associated data. This cannot be undone.</p>
                                 <button 
                                     type="button"
                                     class="form-button form-button-danger"
                                     @click="deleteUserFromModal"
                                     :disabled="editingUser?.id === currentUserId"
                                 >
-                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User Account' }}
+                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User' }}
                                 </button>
-                                <p v-if="editingUser?.id === currentUserId" class="warning-text">
-                                    You cannot delete your own account from this interface.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -1217,6 +1521,112 @@ select:disabled {
     min-height: 200px;
 }
 
+/* Role Management Tab */
+.role-management-tab {
+    padding: var(--spacing-md);
+}
+
+.info-message {
+    background-color: #f0f9ff;
+    border-left: 4px solid var(--primary-color);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border-radius: 4px;
+}
+
+.info-message p {
+    margin: 0.5rem 0;
+}
+
+.info-message .help-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-sm);
+}
+
+.role-change-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    border-radius: 4px;
+}
+
+.role-change-warning p {
+    margin: 0;
+    color: #92400e;
+}
+
+/* Instructor Details Tab */
+.instructor-details-tab {
+    padding: var(--spacing-md);
+}
+
+.no-profile-message {
+    background-color: #f9fafb;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: var(--spacing-xl);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.no-profile-message p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.create-profile-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.profile-view,
+.profile-edit {
+    max-width: 600px;
+}
+
+.profile-field {
+    margin-bottom: var(--spacing-lg);
+}
+
+.profile-field label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-field p {
+    margin: 0;
+    color: var(--text-color);
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+.status-active {
+    color: #059669;
+    font-weight: 500;
+}
+
+.status-inactive {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.form-button-delete {
+    background-color: #dc2626;
+    color: white;
+}
+
+.form-button-delete:hover:not(:disabled) {
+    background-color: #b91c1c;
+}
+
 .loading-message {
     text-align: center;
     padding: var(--spacing-lg);
@@ -1338,6 +1748,68 @@ select:disabled {
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
     font-size: var(--font-size-md);
+}
+
+.action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.action-header h5 {
+    margin: 0;
+}
+
+.action-content {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-content .form-input {
+    flex: 1;
+    min-width: 150px;
+}
+
+.form-button-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    white-space: nowrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    cursor: pointer;
+    flex: 1;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-label span {
+    color: var(--text-primary);
+}
+
+.role-badge {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.danger-description {
+    flex: 1 1 100%;
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
 
 .action-item {

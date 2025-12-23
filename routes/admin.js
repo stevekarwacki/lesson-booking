@@ -122,14 +122,15 @@ router.post('/users', authorize('manage', 'all'), async (req, res) => {
         // Hash password before storing
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const userId = await User.createUser({
+        const newUser = await User.create({
             name,
             email,
             password: hashedPassword,
-            role: role || 'student'
+            role: role || 'student',
+            is_approved: true // New users created by admin are automatically approved
         });
 
-        res.status(201).json({ message: 'User created successfully', userId });
+        res.status(201).json({ message: 'User created successfully', userId: newUser.id });
     } catch (error) {
         console.error('Error creating user:', error);
         res.status(500).json({ error: 'Error creating user' });
