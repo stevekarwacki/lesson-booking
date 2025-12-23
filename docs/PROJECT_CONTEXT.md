@@ -6,6 +6,7 @@ A full-stack lesson booking application where students book lessons with instruc
 
 - **Backend**: Node.js, Express.js, Sequelize ORM
 - **Frontend**: Vue 3 (Composition API), Pinia stores, Vite
+- **State Management**: Pinia (client state), Vue Query/Tanstack Query (server state)
 - **Database**: SQLite (dev), PostgreSQL (prod)
 - **Payments**: Stripe (one-time purchases + subscriptions)
 - **Auth**: JWT tokens, CASL permission library
@@ -62,11 +63,8 @@ A full-stack lesson booking application where students book lessons with instruc
 - **Date handling**: Custom `dateHelpers.js` for timezone-aware operations
 - **Time slots**: 15-minute increments starting at 6 AM (slot 0 = 6:00 AM)
 - **Email providers**: Configurable (Gmail OAuth vs Nodemailer) with fallback chain
+- **Server state**: Vue Query (Tanstack Query) for data fetching, caching, and synchronization
+- **Composables**: Data fetching logic encapsulated in composables (`/frontend/src/composables/`)
 - **Functional style**: Prefer functions over classes throughout codebase
 
-## Current Priorities Context
-
-- OAuth calendar/email integration recently stabilized
-- Test suite maintained at 229+ backend tests, 73+ frontend tests
-- Documentation kept in `/docs/` for complex features
 
