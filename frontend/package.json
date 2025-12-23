@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^7.3.0",
+    "@tanstack/vue-query": "^5.92.1",
     "vue": "^3.5.13",
     "vue-toastification": "^2.0.0-rc.5",
     "vue3-mq": "^4.0.2"
