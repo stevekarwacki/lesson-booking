@@ -79,14 +79,14 @@
                     @click="cancelBooking"
                     :disabled="loading"
                 >
-                    {{ loading ? 'Processing...' : 'Cancel Booking' }}
+                    Cancel Booking
                 </button>
                 <button 
                     class="form-button" 
                     @click="updateBooking"
                     :disabled="loading || !selectedSlot"
                 >
-                    {{ loading ? 'Processing...' : 'Update Booking' }}
+                    Update Booking
                 </button>
             </div>
         </div>
@@ -328,13 +328,13 @@ const updateBooking = async () => {
         // Show success toast
         formFeedback.showSuccess('Booking rescheduled successfully!')
 
-        // Emit event - parent will close modal and refresh booking list
+        // Emit immediately - keep buttons in "Processing..." state during transition
         emit('booking-updated')
+        // Don't reset loading - component will be destroyed during transition
     } catch (err) {
         error.value = err.message
         formFeedback.handleError(err, 'Failed to reschedule:')
-    } finally {
-        loading.value = false
+        loading.value = false // Only reset on error so user can retry
     }
 }
 
@@ -367,13 +367,13 @@ const cancelBooking = async () => {
         // Show success toast
         formFeedback.showSuccess('Booking cancelled successfully!')
         
-        // Emit event - parent will close modal and refresh booking list
+        // Emit immediately - keep buttons in "Processing..." state during transition
         emit('booking-cancelled', result)
+        // Don't reset loading - component will be destroyed during transition
     } catch (err) {
         error.value = err.message
         formFeedback.handleError(err, 'Failed to cancel booking:')
-    } finally {
-        loading.value = false
+        loading.value = false // Only reset on error so user can retry
     }
 }
 </script>

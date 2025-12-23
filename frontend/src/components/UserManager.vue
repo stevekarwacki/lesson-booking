@@ -2,33 +2,197 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useUserManagement } from '../composables/useUserManagement'
+import { useUserSubscription, usePaymentPlans } from '../composables/useUserSubscription'
+import { useUserBookings } from '../composables/useUserBookings'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
 import SlideTransition from './SlideTransition.vue'
 import EditBooking from './EditBooking.vue'
 import RefundModal from './RefundModal.vue'
+import SearchBar from './SearchBar.vue'
+import FilterTabs from './FilterTabs.vue'
+import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
-const users = ref([])
+
+// Vue Query for data fetching
+const {
+  users: queryUsers,
+  instructors,
+  isLoadingUsers,
+  isLoadingInstructors,
+  createUser: createUserMutation,
+  isCreatingUser,
+  updateUser: updateUserMutation,
+  isUpdatingUser,
+  createInstructor: createInstructorMutation,
+  isCreatingInstructor,
+  updateInstructor: updateInstructorMutation,
+  isUpdatingInstructor,
+  updateUserApproval: updateUserApprovalMutation,
+  isUpdatingUserApproval
+} = useUserManagement()
+
+// Payment plans (global)
+const { plans: availablePlans, isLoadingPlans } = usePaymentPlans()
+
+// Local state
 const error = ref('')
 const success = ref('')
 const showAddForm = ref(false)
+
+// Search and filter state
+const searchQuery = ref('')
+const activeFilter = ref('student') // Default to Student as requested
+const isSearchFocused = ref(false)
+
+// Filter configuration
+const filters = [
+  { label: 'All', value: 'all' },
+  { label: 'Student', value: 'student' },
+  { label: 'Instructor', value: 'instructor' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'Unverified', value: 'unverified' }
+]
+
+// Search results for dropdown (only when searching)
+const searchResults = computed(() => {
+  if (!searchQuery.value || searchQuery.value.length < 2 || !queryUsers.value) return []
+  
+  const query = searchQuery.value.toLowerCase().trim()
+  return queryUsers.value.filter(user => {
+    const fullName = user.name?.toLowerCase() || ''
+    const email = user.email?.toLowerCase() || ''
+    
+    // Split name into parts for first/last name matching
+    const nameParts = fullName.split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    
+    return (
+      fullName.includes(query) ||           // Full name match
+      firstName.includes(query) ||          // First name match
+      lastName.includes(query) ||           // Last name match
+      email.includes(query)                 // Email match
+    )
+  }).slice(0, 10) // Limit to 10 results for dropdown
+})
+
+// Filtered users for table (by filter tabs only, not search)
+const filteredUsers = computed(() => {
+  if (!queryUsers.value) return []
+  
+  let filtered = [...queryUsers.value]
+  
+  // Apply role filter
+  if (activeFilter.value === 'unverified') {
+    filtered = filtered.filter(user => !user.is_approved)
+  } else if (activeFilter.value !== 'all') {
+    filtered = filtered.filter(user => user.role === activeFilter.value)
+  }
+  
+  return filtered
+})
+
+// Calculate counts for filter tabs
+const filterCounts = computed(() => {
+  if (!queryUsers.value) return {}
+  
+  return {
+    all: queryUsers.value.length,
+    student: queryUsers.value.filter(u => u.role === 'student').length,
+    instructor: queryUsers.value.filter(u => u.role === 'instructor').length,
+    admin: queryUsers.value.filter(u => u.role === 'admin').length,
+    unverified: queryUsers.value.filter(u => !u.is_approved).length
+  }
+})
+
+// Handle filter change
+const handleFilterChange = (filterValue) => {
+  activeFilter.value = filterValue
+}
+
+// Handle search focus/blur
+const handleSearchFocus = () => {
+  isSearchFocused.value = true
+}
+
+const handleSearchBlur = () => {
+  // Delay to allow click on result
+  setTimeout(() => {
+    isSearchFocused.value = false
+  }, 200)
+}
+
+// Handle search result selection
+const handleSearchSelect = (user) => {
+  openEditModal(user)
+  // Don't clear search - let user keep their search context
+  isSearchFocused.value = false
+}
+
+// Alias for backward compatibility with existing code
+const users = computed(() => filteredUsers.value)
+const loading = computed(() => isLoadingUsers.value)
 const showEditModal = ref(false)
 const editingUser = ref(null)
-const userSubscription = ref(null)
-const subscriptionLoading = ref(false)
-const loading = ref(true)
 const showCreateSubscriptionModal = ref(false)
-const availablePlans = ref([])
+
+// Instructor profile state
+const instructorProfile = ref(null)
+const instructorFormData = ref({
+  bio: '',
+  specialties: '',
+  hourly_rate: ''
+})
+const isEditingInstructor = ref(false)
+const pendingRoleChange = ref(null) // Track unsaved role changes
+
+// Computed: Check if current editing user is an instructor
+const isUserInstructor = computed(() => editingUser.value?.role === 'instructor')
+
+// Computed: Check if current editing user is an admin
+const isUserAdmin = computed(() => editingUser.value?.role === 'admin')
+
+// Computed: Get instructor profile for current user
+const currentInstructorProfile = computed(() => {
+  if (!editingUser.value || !instructors.value) return null
+  return instructors.value.find(inst => inst.user_id === editingUser.value.id)
+})
+
+// Vue Query hooks for subscription and bookings (reactive based on current editing user)
+const editingUserId = computed(() => editingUser.value?.id)
+const isEditingStudent = computed(() => editingUser.value?.role === 'student')
+
+// Only pass userId to composables if the user is a student (to prevent unnecessary API calls)
+const studentUserId = computed(() => isEditingStudent.value ? editingUserId.value : null)
+
+// Conditionally use subscription and bookings queries (only for students)
+const {
+  subscription: userSubscription,
+  isLoadingSubscription: subscriptionLoading,
+  cancelSubscription,
+  reactivateSubscription,
+  createSubscription,
+  isCancellingSubscription,
+  isReactivatingSubscription,
+  isCreatingSubscription
+} = useUserSubscription(studentUserId)
+
+const {
+  bookings: userBookings,
+  isLoadingBookings: loadingUserBookings,
+  refetchBookings
+} = useUserBookings(studentUserId)
+
 const selectedPlan = ref('')
 const adminNote = ref('')
-const creatingSubscription = ref(false)
+const creatingSubscription = computed(() => isCreatingSubscription.value)
 
-// User bookings data
-const userBookings = ref([])
-const loadingUserBookings = ref(false)
+// Booking selection
 const selectedBooking = ref(null)
 
 // Refund modal data
@@ -62,53 +226,17 @@ const addUser = async () => {
     }
 
     try {
-        const response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify(newUser.value)
-        })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create user')
-        }
-
+        await createUserMutation(newUser.value)
         showSuccess('User created successfully')
         showAddForm.value = false
         resetNewUser()
-        await fetchUsers()
+        // Vue Query automatically refetches via cache invalidation
     } catch (err) {
         handleError(err, 'Error creating user: ')
     }
 }
 
-const fetchUsers = async () => {
-    try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch('/api/admin/users', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch users');
-        }
-        
-        const data = await response.json();
-        users.value = data;
-    } catch (err) {
-        error.value = 'Error fetching users: ' + err.message;
-        console.error('Error fetching users:', err);
-    } finally {
-        loading.value = false;
-    }
-};
+// fetchUsers removed - Vue Query handles this automatically via useUserManagement
 
 const deleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
@@ -164,33 +292,18 @@ const deleteUserFromModal = async () => {
     }
 };
 
-const fetchUserSubscription = async (userId) => {
-    try {
-        subscriptionLoading.value = true
-        const response = await fetch(`/api/admin/users/${userId}/subscription`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            userSubscription.value = await response.json()
-        } else {
-            userSubscription.value = null
-        }
-    } catch (err) {
-        console.error('Error fetching user subscription:', err)
-        userSubscription.value = null
-    } finally {
-        subscriptionLoading.value = false
-    }
-}
-
 const openEditModal = (user) => {
     editingUser.value = { ...user }
     showEditModal.value = true
-    fetchUserSubscription(user.id)
-    fetchUserBookings(user.id)
+    pendingRoleChange.value = user.role // Initialize with current role
+    
+    // Vue Query will automatically fetch subscription and bookings for students
+    // based on the reactive editingUserId and isEditingStudent computed properties
+    
+    // Load instructor profile if user is an instructor
+    if (user.role === 'instructor') {
+        loadInstructorProfile(user.id)
+    }
 }
 
 const closeEditModal = () => {
@@ -198,7 +311,22 @@ const closeEditModal = () => {
     userSubscription.value = null
     userBookings.value = []
     selectedBooking.value = null
+    instructorProfile.value = null
+    isEditingInstructor.value = false
     showEditModal.value = false
+}
+
+// Load instructor profile
+const loadInstructorProfile = (userId) => {
+    const profile = instructors.value?.find(inst => inst.user_id === userId)
+    if (profile) {
+        instructorProfile.value = profile
+        instructorFormData.value = {
+            bio: profile.bio || '',
+            specialties: profile.specialties || '',
+            hourly_rate: profile.hourly_rate || ''
+        }
+    }
 }
 
 const saveUserEdit = async () => {
@@ -234,115 +362,127 @@ const saveUserEdit = async () => {
         
         showSuccess('User updated successfully');
         closeEditModal();
-        await fetchUsers();
+        // Vue Query handles refetch automatically
     } catch (err) {
         handleError(err, 'Error updating user: ');
     }
 }
 
-const cancelUserSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel this user\'s subscription?')) {
-        return
-    }
-    
+// Save role change
+const saveRoleChange = async () => {
     try {
-        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/cancel`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
+        // Update the editingUser with the pending role change
+        editingUser.value.role = pendingRoleChange.value
+        
+        await updateUserMutation({
+            userId: editingUser.value.id,
+            userData: { 
+                name: editingUser.value.name,
+                email: editingUser.value.email,
+                role: pendingRoleChange.value,
+                in_person_payment_override: editingUser.value.in_person_payment_override
             }
         })
         
-        if (response.ok) {
-            const result = await response.json()
-            
-            // Handle different success scenarios
-            if (result.cancellation.wasSyncIssue) {
-                success.value = 'Subscription status synchronized - was already cancelled in Stripe'
-            } else if (result.credits.awarded > 0) {
-                success.value = `Subscription cancelled successfully. User received ${result.credits.awarded} lesson credits as compensation.`
-            } else {
-                success.value = 'Subscription cancelled successfully'
-            }
-            
-            await fetchUserSubscription(editingUser.value.id)
+        showSuccess(`User role updated to ${pendingRoleChange.value}`)
+        
+        // Reload instructor profile if now an instructor
+        if (pendingRoleChange.value === 'instructor') {
+            setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
         } else {
-            const errorData = await response.json()
-            error.value = errorData.error || errorData.message || 'Failed to cancel subscription'
+            instructorProfile.value = null
         }
     } catch (err) {
-        error.value = 'Error cancelling subscription: ' + err.message
+        handleError(err, 'Error updating role: ')
+        // Revert pending change on error
+        pendingRoleChange.value = editingUser.value.role
     }
 }
 
-const reactivateUserSubscription = async () => {
-    if (!confirm('Are you sure you want to reactivate this user\'s subscription?')) {
-        return
-    }
-    
+// Create instructor profile
+const createInstructorProfile = async () => {
     try {
-        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/reactivate`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
+        await createInstructorMutation({
+            user_id: editingUser.value.id,
+            bio: instructorFormData.value.bio,
+            specialties: instructorFormData.value.specialties,
+            hourly_rate: instructorFormData.value.hourly_rate
         })
         
-        if (response.ok) {
-            const result = await response.json()
-            
-            // Handle different success scenarios
-            if (result.reactivation.reactivationType === 'removed_cancel_at_period_end') {
-                success.value = 'Subscription reactivated successfully - removed scheduled cancellation'
-            } else if (result.reactivation.reactivationType === 'already_active') {
-                success.value = 'Subscription is already active'
-            } else {
-                success.value = 'Subscription reactivated successfully'
-            }
-            
-            await fetchUserSubscription(editingUser.value.id)
-        } else {
-            const errorData = await response.json()
-            error.value = errorData.error || errorData.message || 'Failed to reactivate subscription'
-            
-            // Show helpful suggestions for common issues
-            if (errorData.suggestion) {
-                error.value += ` Suggestion: ${errorData.suggestion}`
-            }
-        }
+        showSuccess('Instructor profile created successfully')
+        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
     } catch (err) {
-        error.value = 'Error reactivating subscription: ' + err.message
+        handleError(err, 'Error creating instructor profile: ')
     }
 }
 
-const createUserSubscription = async () => {
-    // Fetch available membership plans
+// Save instructor profile
+const saveInstructorProfile = async () => {
     try {
-        const response = await fetch('/api/payments/plans', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
+        await updateInstructorMutation({
+            instructorId: instructorProfile.value.id,
+            instructorData: {
+                bio: instructorFormData.value.bio,
+                specialties: instructorFormData.value.specialties,
+                hourly_rate: instructorFormData.value.hourly_rate
             }
         })
         
-        if (response.ok) {
-            const plans = await response.json()
-            availablePlans.value = plans.filter(plan => plan.type === 'membership')
-            
-            if (availablePlans.value.length === 0) {
-                error.value = 'No membership plans available for subscription creation'
-                return
-            }
-            
-            // Reset form
-            selectedPlan.value = ''
-            adminNote.value = ''
-            showCreateSubscriptionModal.value = true
+        showSuccess('Instructor profile updated successfully')
+        isEditingInstructor.value = false
+        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
+    } catch (err) {
+        handleError(err, 'Error updating instructor profile: ')
+    }
+}
+
+// Subscription management handlers
+const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel this user\'s subscription?')) return
+    
+    try {
+        const result = await cancelSubscription(userSubscription.value.id)
+        if (result.cancellation.wasSyncIssue) {
+            showSuccess('Subscription status synchronized - was already cancelled in Stripe')
+        } else if (result.credits.awarded > 0) {
+            showSuccess(`Subscription cancelled. User received ${result.credits.awarded} lesson credits.`)
         } else {
-            error.value = 'Failed to fetch available plans'
+            showSuccess('Subscription cancelled successfully')
         }
     } catch (err) {
-        error.value = 'Error fetching plans: ' + err.message
+        handleError(err, 'Error cancelling subscription: ')
     }
+}
+
+const handleReactivateSubscription = async () => {
+    if (!confirm('Are you sure you want to reactivate this user\'s subscription?')) return
+    
+    try {
+        const result = await reactivateSubscription(userSubscription.value.id)
+        if (result.reactivation.reactivationType === 'removed_cancel_at_period_end') {
+            showSuccess('Subscription reactivated - removed scheduled cancellation')
+        } else if (result.reactivation.reactivationType === 'already_active') {
+            showSuccess('Subscription is already active')
+        } else {
+            showSuccess('Subscription reactivated successfully')
+        }
+    } catch (err) {
+        handleError(err, 'Error reactivating subscription: ')
+    }
+}
+
+const handleOpenCreateSubscription = () => {
+    // Filter to membership plans only
+    const membershipPlans = availablePlans.value?.filter(plan => plan.type === 'membership') || []
+    
+    if (membershipPlans.length === 0) {
+        showError('No membership plans available')
+        return
+    }
+    
+    selectedPlan.value = ''
+    adminNote.value = ''
+    showCreateSubscriptionModal.value = true
 }
 
 const closeCreateSubscriptionModal = () => {
@@ -351,97 +491,49 @@ const closeCreateSubscriptionModal = () => {
     adminNote.value = ''
 }
 
-const confirmCreateSubscription = async () => {
+const handleCreateSubscription = async () => {
     if (!selectedPlan.value) {
-        error.value = 'Please select a plan'
+        showError('Please select a plan')
         return
     }
     
-    if (!confirm('Are you sure you want to create this subscription for the user?')) {
-        return
-    }
-    
-    creatingSubscription.value = true
+    if (!confirm('Create this subscription for the user?')) return
     
     try {
-        const response = await fetch(`/api/admin/users/${editingUser.value.id}/subscription`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                planId: selectedPlan.value,
-                note: adminNote.value
-            })
+        await createSubscription({
+            planId: selectedPlan.value,
+            note: adminNote.value
         })
-        
-        if (response.ok) {
-            const result = await response.json()
-            success.value = `Subscription created successfully for ${editingUser.value.name}`
-            closeCreateSubscriptionModal()
-            await fetchUserSubscription(editingUser.value.id)
-        } else {
-            const errorData = await response.json()
-            error.value = errorData.error || 'Failed to create subscription'
-            
-            // Show helpful suggestions for common issues
-            if (errorData.suggestion) {
-                error.value += ` Suggestion: ${errorData.suggestion}`
-            }
-        }
+        showSuccess(`Subscription created for ${editingUser.value.name}`)
+        closeCreateSubscriptionModal()
     } catch (err) {
-        error.value = 'Error creating subscription: ' + err.message
-    } finally {
-        creatingSubscription.value = false
+        handleError(err, 'Error creating subscription: ')
     }
 }
 
-// User booking management functions
-const fetchUserBookings = async (userId) => {
-    try {
-        loadingUserBookings.value = true
-        const response = await fetch(`/api/calendar/student/${userId}?includeAll=true`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch user bookings')
-        }
-        
-        const bookings = await response.json()
-        
-        // Transform bookings for BookingList component
-        userBookings.value = bookings.map(booking => ({
-            id: booking.id,
-            date: booking.date,
-            startTime: formatTime(slotToTime(booking.start_slot)),
-            endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-            instructorName: booking.Instructor.User.name,
-            status: booking.status || 'booked',
-            isRecurring: false,
-            refundStatus: booking.refundStatus || { status: 'none' },
-            paymentMethod: booking.paymentMethod, // From backend
-            paymentStatus: booking.paymentStatus, // From backend
-            originalBooking: booking
-        }))
-    } catch (err) {
-        console.error('Error fetching user bookings:', err)
-        userBookings.value = []
-    } finally {
-        loadingUserBookings.value = false
-    }
-}
+// Transform bookings for BookingList component
+const transformedBookings = computed(() => {
+    if (!userBookings.value) return []
+    return userBookings.value.map(booking => ({
+        id: booking.id,
+        date: booking.date,
+        startTime: formatTime(slotToTime(booking.start_slot)),
+        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+        instructorName: booking.Instructor.User.name,
+        status: booking.status || 'booked',
+        isRecurring: false,
+        refundStatus: booking.refundStatus || { status: 'none' },
+        paymentMethod: booking.paymentMethod,
+        paymentStatus: booking.paymentStatus,
+        originalBooking: booking
+    }))
+})
 
 const handleEditUserBooking = (booking) => {
-    // Set selected booking and navigate to detail slide
     selectedBooking.value = booking.originalBooking
 }
 
 const handleCancelUserBooking = (booking) => {
-    // TODO: Implement booking cancellation for admin/instructor
     console.warn('Admin booking cancellation not yet implemented for booking:', booking.id)
 }
 
@@ -465,12 +557,12 @@ const handleRefundProcessed = async (result) => {
     
     // Refresh user bookings to show updated refund status
     if (editingUser.value) {
-        await fetchUserBookings(editingUser.value.id)
+        await refetchBookings()
     }
     
     // Show success message
     const refundType = result.refund.type === 'stripe' ? 'to original payment method' : 'as lesson credits'
-    success.value = `Refund processed successfully ${refundType}!`
+    showSuccess(`Refund processed successfully ${refundType}!`)
     
     // Clear success message after 5 seconds
     setTimeout(() => {
@@ -479,25 +571,35 @@ const handleRefundProcessed = async (result) => {
 }
 
 // EditBooking event handlers
-const handleBookingUpdated = (goBack) => {
-    // Refresh bookings list
-    selectedBooking.value = null
-    fetchUserBookings(editingUser.value.id)
-    
-    // Automatically navigate back to booking list
+const handleBookingUpdated = async (goBack) => {
+    // Automatically navigate back to booking list first (no data changes yet = no jitter)
     if (goBack) {
         goBack()
+        // Wait for transition to complete, then refresh data and clear selection
+        setTimeout(async () => {
+            await refetchBookings()
+            selectedBooking.value = null
+        }, 350) // After the 300ms transition completes
+    } else {
+        // If no goBack function, refresh and clear immediately
+        await refetchBookings()
+        selectedBooking.value = null
     }
 }
 
-const handleBookingCancelled = (goBack) => {
-    // Refresh bookings list
-    selectedBooking.value = null
-    fetchUserBookings(editingUser.value.id)
-    
-    // Automatically navigate back to booking list
+const handleBookingCancelled = async (goBack) => {
+    // Automatically navigate back to booking list first (no data changes yet = no jitter)
     if (goBack) {
         goBack()
+        // Wait for transition to complete, then refresh data and clear selection
+        setTimeout(async () => {
+            await refetchBookings()
+            selectedBooking.value = null
+        }, 350) // After the 300ms transition completes
+    } else {
+        // If no goBack function, refresh and clear immediately
+        await refetchBookings()
+        selectedBooking.value = null
     }
 }
 
@@ -523,9 +625,7 @@ const formatTime = (timeObj) => {
     })
 }
 
-onMounted(async () => {
-    await fetchUsers()
-})
+// onMounted removed - Vue Query handles initial fetch automatically
 </script>
 
 <template>
@@ -541,6 +641,41 @@ onMounted(async () => {
 
         <div v-if="error" class="error-message">{{ error }}</div>
         <div v-if="success" class="success-message">{{ success }}</div>
+
+        <!-- Search Bar -->
+        <div class="search-section">
+          <SearchBar
+            v-model="searchQuery"
+            placeholder="Search by name or email..."
+            :disabled="loading"
+            :results="searchResults"
+            :show-results="isSearchFocused"
+            :min-chars="2"
+            @focus="handleSearchFocus"
+            @blur="handleSearchBlur"
+            @select="handleSearchSelect"
+          >
+            <template #result="{ result }">
+              <div class="result-content">
+                <div class="result-primary">{{ result.name }}</div>
+                <div class="result-secondary">
+                  {{ result.email }} • {{ result.role }}
+                </div>
+              </div>
+            </template>
+          </SearchBar>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filters-section">
+          <FilterTabs
+            :filters="filters"
+            :activeFilter="activeFilter"
+            :counts="filterCounts"
+            :isLoading="loading"
+            @filter-change="handleFilterChange"
+          />
+        </div>
 
         <!-- Add User Modal -->
         <div v-if="showAddForm" class="modal-overlay">
@@ -665,17 +800,10 @@ onMounted(async () => {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label" for="editRole">Role:</label>
+                        <label class="form-label">Role:</label>
                         <div class="form-input">
-                            <select 
-                                id="editRole"
-                                v-model="editingUser.role"
-                                class="form-input"
-                            >
-                                <option value="student">Student</option>
-                                <option value="instructor">Instructor</option>
-                                <option value="admin">Admin</option>
-                            </select>
+                            <input type="text" :value="editingUser?.role" disabled class="form-input" />
+                            <small class="form-text">Role can only be changed by admins from the Account tab</small>
                         </div>
                     </div>
 
@@ -695,17 +823,6 @@ onMounted(async () => {
                                 "Use Global Setting" means they follow the system-wide preference.
                             </small>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">
-                            <input 
-                                type="checkbox"
-                                v-model="editingUser.is_approved"
-                                class="form-input"
-                            >
-                            Account Approved
-                        </label>
                     </div>
 
                     <div v-if="error" class="form-message error-message">
@@ -734,14 +851,182 @@ onMounted(async () => {
                 </form>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Bookings">
+            <!-- Instructor Details Tab (Instructors only) -->
+            <TabbedModalTab 
+                v-if="isUserInstructor" 
+                label="Instructor Details"
+            >
+                <div class="instructor-details-tab">
+                    <!-- No profile yet -->
+                    <div v-if="!instructorProfile && !isLoadingInstructors" class="no-profile-message">
+                        <p>This instructor doesn't have a profile yet.</p>
+                        
+                        <form @submit.prevent="createInstructorProfile" class="create-profile-form">
+                            <div class="form-group">
+                                <label class="form-label">Bio:</label>
+                                <textarea
+                                    v-model="instructorFormData.bio"
+                                    class="form-input"
+                                    rows="4"
+                                    placeholder="Tell students about your teaching experience..."
+                                ></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Specialties:</label>
+                                <input 
+                                    v-model="instructorFormData.specialties"
+                                    type="text"
+                                    class="form-input"
+                                    placeholder="e.g., Piano, Guitar, Voice"
+                                />
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Hourly Rate ($):</label>
+                                <input 
+                                    v-model="instructorFormData.hourly_rate"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="form-input"
+                                    placeholder="0.00"
+                                />
+                            </div>
+
+                            <button 
+                                type="submit"
+                                :disabled="isCreatingInstructor"
+                                class="form-button"
+                            >
+                                {{ isCreatingInstructor ? 'Creating...' : 'Create Instructor Profile' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Profile exists -->
+                    <div v-else-if="instructorProfile" class="profile-exists">
+                        <!-- View Mode -->
+                        <div v-if="!isEditingInstructor" class="profile-view">
+                            <div class="profile-field">
+                                <label>Bio:</label>
+                                <p>{{ instructorProfile.bio || 'No bio provided' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Specialties:</label>
+                                <p>{{ instructorProfile.specialties || 'No specialties listed' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Hourly Rate:</label>
+                                <p>${{ instructorProfile.hourly_rate || '0.00' }}</p>
+                            </div>
+
+                            <div class="profile-field">
+                                <label>Status:</label>
+                                <p>
+                                    <span :class="instructorProfile.is_active ? 'status-active' : 'status-inactive'">
+                                        {{ instructorProfile.is_active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </p>
+                            </div>
+
+                            <div class="form-actions">
+                                <button 
+                                    @click="isEditingInstructor = true"
+                                    class="form-button"
+                                >
+                                    Edit Profile
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Edit Mode -->
+                        <div v-else class="profile-edit">
+                            <form @submit.prevent="saveInstructorProfile">
+                                <div class="form-group">
+                                    <label class="form-label">Bio:</label>
+                                    <textarea
+                                        v-model="instructorFormData.bio"
+                                        class="form-input"
+                                        rows="4"
+                                    ></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Specialties:</label>
+                                    <input 
+                                        v-model="instructorFormData.specialties"
+                                        type="text"
+                                        class="form-input"
+                                    />
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Hourly Rate ($):</label>
+                                    <input 
+                                        v-model="instructorFormData.hourly_rate"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        class="form-input"
+                                    />
+                                </div>
+
+                                <div class="form-actions">
+                                    <button 
+                                        type="submit"
+                                        :disabled="isUpdatingInstructor"
+                                        class="form-button"
+                                    >
+                                        {{ isUpdatingInstructor ? 'Saving...' : 'Save Changes' }}
+                                    </button>
+                                    
+                                    <button 
+                                        type="button"
+                                        @click="isEditingInstructor = false"
+                                        class="form-button form-button-cancel"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div v-else class="loading-message">
+                        Loading instructor profile...
+                    </div>
+                </div>
+            </TabbedModalTab>
+
+            <!-- Availability Tab (Instructors only) -->
+            <TabbedModalTab 
+                v-if="isUserInstructor && instructorProfile" 
+                label="Availability"
+            >
+                <div class="availability-tab">
+                    <!-- Google Calendar Integration -->
+                    <GoogleCalendarSettings 
+                        :instructor-id="instructorProfile.id"
+                    />
+                </div>
+            </TabbedModalTab>
+
+            <!-- Bookings Tab (Students only) -->
+            <TabbedModalTab 
+                v-if="!isUserAdmin && !isUserInstructor"
+                label="Bookings"
+            >
                 <div class="bookings-tab">
                     <SlideTransition :slide-count="2">
                         <!-- Main slide: Bookings list -->
                         <template #main="{ navigate }">
                             <div v-if="userBookings.length > 0 || loadingUserBookings">
                                 <BookingList
-                                    :bookings="userBookings"
+                                    :bookings="transformedBookings"
                                     :loading="loadingUserBookings"
                                     :userId="editingUser?.id"
                                     :userRole="userStore.canManageUsers ? 'admin' : 'instructor'"
@@ -771,7 +1056,11 @@ onMounted(async () => {
                 </div>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Memberships">
+            <!-- Memberships Tab (Students only) -->
+            <TabbedModalTab 
+                v-if="!isUserAdmin && !isUserInstructor"
+                label="Memberships"
+            >
                 <div class="memberships-tab">
                     <div v-if="subscriptionLoading" class="loading-message">
                         Loading subscription information...
@@ -820,27 +1109,30 @@ onMounted(async () => {
                                 v-if="!userSubscription.cancel_at_period_end && (userSubscription.status === 'active' || userSubscription.status === 'trialing')"
                                 type="button"
                                 class="form-button form-button-cancel"
-                                @click="cancelUserSubscription"
+                                @click="handleCancelSubscription"
+                                :disabled="isCancellingSubscription"
                             >
-                                Cancel Subscription
+                                {{ isCancellingSubscription ? 'Cancelling...' : 'Cancel Subscription' }}
                             </button>
                             
                             <button 
                                 v-if="userSubscription.cancel_at_period_end"
                                 type="button"
                                 class="form-button"
-                                @click="reactivateUserSubscription"
+                                @click="handleReactivateSubscription"
+                                :disabled="isReactivatingSubscription"
                             >
-                                Reactivate Subscription
+                                {{ isReactivatingSubscription ? 'Reactivating...' : 'Reactivate Subscription' }}
                             </button>
                             
                             <button 
                                 v-if="userSubscription.status === 'cancelled' || userSubscription.status === 'canceled'"
                                 type="button"
                                 class="form-button"
-                                @click="createUserSubscription"
+                                @click="handleOpenCreateSubscription"
+                                :disabled="isLoadingPlans"
                             >
-                                Create New Subscription
+                                {{ isLoadingPlans ? 'Loading...' : 'Create New Subscription' }}
                             </button>
                         </div>
                     </div>
@@ -852,66 +1144,89 @@ onMounted(async () => {
                             <button 
                                 type="button"
                                 class="form-button"
-                                @click="createUserSubscription"
+                                @click="handleOpenCreateSubscription"
+                                :disabled="isLoadingPlans"
                             >
-                                Create Subscription
+                                {{ isLoadingPlans ? 'Loading...' : 'Create Subscription' }}
                             </button>
                         </div>
                     </div>
                 </div>
             </TabbedModalTab>
 
-            <TabbedModalTab label="Account">
+            <!-- Account Tab (Admins only) -->
+            <TabbedModalTab 
+                v-if="userStore.canManageUsers"
+                label="Account"
+            >
                 <div class="account-tab">
                     <div class="account-section">
-                        <h4>User Management</h4>
-                        <p>Perform administrative actions on this user account.</p>
-                        
+                        <!-- Account Approval -->
                         <div class="action-group">
-                            <h5>Account Information</h5>
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>User ID:</strong> {{ editingUser?.id }}
-                                </div>
-                                <div class="action-info">
-                                    <strong>Account Status:</strong> 
-                                    <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
-                                        {{ editingUser?.is_approved ? 'Approved' : 'Pending Approval' }}
-                                    </span>
-                                </div>
-                                <div class="action-info">
-                                    <strong>Role:</strong> {{ editingUser?.role }}
-                                </div>
+                            <div class="action-header">
+                                <h5>Account Approval</h5>
+                                <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
+                                    {{ editingUser?.is_approved ? 'Approved' : 'Pending' }}
+                                </span>
+                            </div>
+                            <div class="action-content">
+                                <label class="checkbox-label">
+                                    <input 
+                                        type="checkbox"
+                                        v-model="editingUser.is_approved"
+                                    >
+                                    <span>Grant account access</span>
+                                </label>
+                                <button 
+                                    @click="saveUserEdit"
+                                    :disabled="isUpdatingUser"
+                                    class="form-button form-button-sm"
+                                >
+                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </button>
                             </div>
                         </div>
 
+                        <!-- Role Management -->
+                        <div class="action-group">
+                            <div class="action-header">
+                                <h5>Role</h5>
+                                <span class="role-badge">{{ editingUser?.role }}</span>
+                            </div>
+                            <div class="action-content">
+                                <select 
+                                    v-model="pendingRoleChange"
+                                    class="form-input"
+                                >
+                                    <option value="student">Student</option>
+                                    <option value="instructor">Instructor</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button 
+                                    @click="saveRoleChange"
+                                    :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
+                                    class="form-button form-button-sm"
+                                >
+                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
                         <div class="action-group danger-zone">
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>Delete User Account</strong>
-                                </div>
-                                <div class="action-description">
-                                    <p>Permanently remove this user from the system. This action cannot be undone.</p>
-                                    <p><strong>Warning:</strong> This will also delete all associated data including:</p>
-                                    <ul>
-                                        <li>User profile information</li>
-                                        <li>Lesson bookings and history</li>
-                                        <li>Subscription records</li>
-                                        <li>Payment history</li>
-                                        <li>Instructor information (if applicable)</li>
-                                    </ul>
-                                </div>
+                            <div class="action-header">
+                                <h5>Delete Account</h5>
+                            </div>
+                            <div class="action-content">
+                                <p class="danger-description">Permanently delete this user and all associated data. This cannot be undone.</p>
                                 <button 
                                     type="button"
                                     class="form-button form-button-danger"
                                     @click="deleteUserFromModal"
                                     :disabled="editingUser?.id === currentUserId"
                                 >
-                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User Account' }}
+                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User' }}
                                 </button>
-                                <p v-if="editingUser?.id === currentUserId" class="warning-text">
-                                    You cannot delete your own account from this interface.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -978,10 +1293,10 @@ onMounted(async () => {
                 </button>
                 <button 
                     class="form-button" 
-                    @click="confirmCreateSubscription"
-                    :disabled="creatingSubscription || !selectedPlan"
+                    @click="handleCreateSubscription"
+                    :disabled="isCreatingSubscription || !selectedPlan"
                 >
-                    {{ creatingSubscription ? 'Creating...' : 'Create Subscription' }}
+                    {{ isCreatingSubscription ? 'Creating...' : 'Create Subscription' }}
                 </button>
             </div>
         </div>
@@ -1050,6 +1365,14 @@ select:disabled {
     margin-bottom: var(--spacing-lg);
 }
 
+.search-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.filters-section {
+    margin-bottom: var(--spacing-lg);
+}
+
 .add-button {
     background-color: var(--primary-color);
     color: white;
@@ -1105,6 +1428,112 @@ select:disabled {
 
 .memberships-tab {
     min-height: 200px;
+}
+
+/* Role Management Tab */
+.role-management-tab {
+    padding: var(--spacing-md);
+}
+
+.info-message {
+    background-color: #f0f9ff;
+    border-left: 4px solid var(--primary-color);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    border-radius: 4px;
+}
+
+.info-message p {
+    margin: 0.5rem 0;
+}
+
+.info-message .help-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-sm);
+}
+
+.role-change-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    border-radius: 4px;
+}
+
+.role-change-warning p {
+    margin: 0;
+    color: #92400e;
+}
+
+/* Instructor Details Tab */
+.instructor-details-tab {
+    padding: var(--spacing-md);
+}
+
+.no-profile-message {
+    background-color: #f9fafb;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: var(--spacing-xl);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.no-profile-message p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.create-profile-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.profile-view,
+.profile-edit {
+    max-width: 600px;
+}
+
+.profile-field {
+    margin-bottom: var(--spacing-lg);
+}
+
+.profile-field label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.profile-field p {
+    margin: 0;
+    color: var(--text-color);
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+}
+
+.status-active {
+    color: #059669;
+    font-weight: 500;
+}
+
+.status-inactive {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.form-button-delete {
+    background-color: #dc2626;
+    color: white;
+}
+
+.form-button-delete:hover:not(:disabled) {
+    background-color: #b91c1c;
 }
 
 .loading-message {
@@ -1228,6 +1657,68 @@ select:disabled {
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
     font-size: var(--font-size-md);
+}
+
+.action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.action-header h5 {
+    margin: 0;
+}
+
+.action-content {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-content .form-input {
+    flex: 1;
+    min-width: 150px;
+}
+
+.form-button-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    white-space: nowrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    cursor: pointer;
+    flex: 1;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-label span {
+    color: var(--text-primary);
+}
+
+.role-badge {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.danger-description {
+    flex: 1 1 100%;
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
 }
 
 .action-item {

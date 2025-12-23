@@ -122,14 +122,15 @@ router.post('/users', authorize('manage', 'all'), async (req, res) => {
         // Hash password before storing
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const userId = await User.createUser({
+        const newUser = await User.create({
             name,
             email,
             password: hashedPassword,
-            role: role || 'student'
+            role: role || 'student',
+            is_approved: true // New users created by admin are automatically approved
         });
 
-        res.status(201).json({ message: 'User created successfully', userId });
+        res.status(201).json({ message: 'User created successfully', userId: newUser.id });
     } catch (error) {
         console.error('Error creating user:', error);
         res.status(500).json({ error: 'Error creating user' });
@@ -137,35 +138,6 @@ router.post('/users', authorize('manage', 'all'), async (req, res) => {
 });
 
 // Update instructor
-router.patch('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
-    try {
-        const instructorId = parseInt(req.params.id, 10);
-        const { hourly_rate, specialties, bio } = req.body;
-        
-        await Instructor.updateInstructor(instructorId, { 
-            hourly_rate, 
-            specialties, 
-            bio 
-        });
-        res.json({ message: 'Instructor updated successfully' });
-    } catch (error) {
-        console.error('Error updating instructor:', error);
-        res.status(500).json({ error: 'Error updating instructor' });
-    }
-});
-
-// Delete instructor
-router.delete('/instructors/:id', authorize('manage', 'all'), async (req, res) => {
-    try {
-        const instructorId = parseInt(req.params.id, 10);
-        await Instructor.deleteInstructor(instructorId);
-        res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting instructor:', error);
-        res.status(500).json({ error: 'Error deleting instructor' });
-    }
-});
-
 // Get all payment plans
 router.get('/packages', authorize('manage', 'all'), async (req, res) => {
     try {
@@ -262,7 +234,8 @@ router.get('/users/:userId/subscription', authorize('manage', 'all'), async (req
     try {
         const userId = parseInt(req.params.userId, 10);
         
-        if (!userId) {
+        // Validate userId
+        if (isNaN(userId) || !userId) {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
         
@@ -278,8 +251,9 @@ router.get('/users/:userId/subscription', authorize('manage', 'all'), async (req
             order: [['created_at', 'DESC']]
         });
         
+        // If user has no subscriptions, return null (this is a valid state, not an error)
         if (allSubscriptions.length === 0) {
-            return res.status(404).json({ error: 'No subscriptions found for this user' });
+            return res.json(null);
         }
         
         // Get the most recent subscription

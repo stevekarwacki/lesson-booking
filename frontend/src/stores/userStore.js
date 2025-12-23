@@ -21,7 +21,6 @@ export const useUserStore = defineStore('user', {
         
         // CASL-based permission getters
         canManageUsers: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'User') : false,
-        canManageInstructors: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Instructor') : false,
         canManagePackages: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Package') : false,
         canManageCalendar: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Calendar') : false,
         canManageAvailability: (state) => state.user ? defineAbilitiesFor(state.user).can('manage', 'Availability') : false,

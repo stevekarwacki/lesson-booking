@@ -48,6 +48,9 @@ npm run test business-info.test.js
 
 ### Backend
 - `app-settings.test.js` - AppSettings model and API tests
+- `user-management.test.js` - User CRUD, role changes, instructor profiles
+- `subscription-management.test.js` - Subscription lifecycle, payment plans
+- `vue-query-composables.test.js` - Vue Query composable logic
 - `integration-test.js` - CASL permissions integration
 - `middleware.test.js` - Authentication middleware
 - `permissions.test.js` - Permission system
@@ -83,24 +86,52 @@ Tests should be run automatically on:
 
 ## Writing New Tests
 
-### Backend Test Template
+### Backend Test Template (with Database)
 ```javascript
+const { describe, it, beforeEach, afterEach } = require('node:test');
+const assert = require('node:assert');
+const { sequelize } = require('../db/index');
+const { User } = require('../models/User');
+
 describe('Feature Name', () => {
+  let testUser;
+
   beforeEach(async () => {
-    // Setup test data
+    // Recreate database tables for clean state
+    await sequelize.sync({ force: true });
+    
+    // Create test data
+    testUser = await User.create({
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'hashedpassword',
+      role: 'student'
+    });
   });
 
   afterEach(async () => {
-    // Cleanup test data
+    // Drop all tables after test
+    await sequelize.drop();
   });
 
-  test('should do something', async () => {
+  it('should do something', async () => {
     // Arrange
-    // Act  
+    const input = { /* ... */ };
+    
+    // Act
+    const result = await someFunction(input);
+    
     // Assert
+    assert.strictEqual(result.id, testUser.id);
   });
 });
 ```
+
+**Key Points:**
+- Use `sequelize.sync({ force: true })` in `beforeEach` to recreate tables
+- Use `sequelize.drop()` in `afterEach` to clean up
+- Create unique test data (use timestamps for emails to avoid conflicts)
+- Test direct model/service interactions, not HTTP endpoints
 
 ### Frontend Test Template
 ```javascript
@@ -157,7 +188,51 @@ const helper = fromString('2025-10-12') // Local time calculation
 
 For detailed test examples, see the existing test files in the codebase.
 
+## Vue Query Composable Testing
+
+When testing Vue Query composables, focus on the logic, not the query execution:
+
+```javascript
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { ref, computed } from 'vue';
+import { useUserSubscription } from '../frontend/src/composables/useUserSubscription';
+
+describe('Vue Query Composables', () => {
+  it('should normalize userId from ref', () => {
+    const userId = ref(123);
+    const { /* query states */ } = useUserSubscription(userId);
+    // Test that composable correctly handles ref input
+  });
+
+  it('should not run query when userId is null', () => {
+    const userId = ref(null);
+    const { /* query states */ } = useUserSubscription(userId);
+    // Test that query is disabled when userId is null
+  });
+
+  it('should handle computed userId', () => {
+    const user = ref({ id: 456 });
+    const userId = computed(() => user.value?.id);
+    const { /* query states */ } = useUserSubscription(userId);
+    // Test that composable correctly handles computed input
+  });
+});
+```
+
+**What to Test:**
+- Parameter normalization (refs vs raw values)
+- Conditional query enabling logic
+- Query key construction
+- Error handling for expected states (e.g., 404 = no subscription)
+
+**What NOT to Test:**
+- Actual API calls (use backend tests for that)
+- Vue Query internals (already tested by Tanstack)
+
 ## Related Documentation
 
 - [Date Helpers System](DATE_HELPERS_SYSTEM.md) - Comprehensive guide to date handling in tests
 - [Attendance Tracking Feature](ATTENDANCE_TRACKING_FEATURE.md) - Example of date helper usage in tests
+- [Vue Query Pattern Guide](VUE_QUERY_PATTERN.md) - Vue Query usage patterns and best practices
+- [User Management Flow](USER_MANAGEMENT_FLOW.md) - User management system architecture
