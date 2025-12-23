@@ -2,24 +2,129 @@
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useUserManagement } from '../composables/useUserManagement'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
 import SlideTransition from './SlideTransition.vue'
 import EditBooking from './EditBooking.vue'
 import RefundModal from './RefundModal.vue'
+import SearchBar from './SearchBar.vue'
+import FilterTabs from './FilterTabs.vue'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
-const users = ref([])
+
+// Vue Query for data fetching
+const {
+  users: queryUsers,
+  isLoadingUsers,
+  createUser: createUserMutation,
+  isCreatingUser
+} = useUserManagement()
+
+// Local state
 const error = ref('')
 const success = ref('')
 const showAddForm = ref(false)
+
+// Search and filter state
+const searchQuery = ref('')
+const activeFilter = ref('student') // Default to Student as requested
+const isSearchFocused = ref(false)
+
+// Filter configuration
+const filters = [
+  { label: 'All', value: 'all' },
+  { label: 'Student', value: 'student' },
+  { label: 'Instructor', value: 'instructor' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'Unverified', value: 'unverified' }
+]
+
+// Search results for dropdown (only when searching)
+const searchResults = computed(() => {
+  if (!searchQuery.value || searchQuery.value.length < 2 || !queryUsers.value) return []
+  
+  const query = searchQuery.value.toLowerCase().trim()
+  return queryUsers.value.filter(user => {
+    const fullName = user.name?.toLowerCase() || ''
+    const email = user.email?.toLowerCase() || ''
+    
+    // Split name into parts for first/last name matching
+    const nameParts = fullName.split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || ''
+    
+    return (
+      fullName.includes(query) ||           // Full name match
+      firstName.includes(query) ||          // First name match
+      lastName.includes(query) ||           // Last name match
+      email.includes(query)                 // Email match
+    )
+  }).slice(0, 10) // Limit to 10 results for dropdown
+})
+
+// Filtered users for table (by filter tabs only, not search)
+const filteredUsers = computed(() => {
+  if (!queryUsers.value) return []
+  
+  let filtered = [...queryUsers.value]
+  
+  // Apply role filter
+  if (activeFilter.value === 'unverified') {
+    filtered = filtered.filter(user => !user.is_approved)
+  } else if (activeFilter.value !== 'all') {
+    filtered = filtered.filter(user => user.role === activeFilter.value)
+  }
+  
+  return filtered
+})
+
+// Calculate counts for filter tabs
+const filterCounts = computed(() => {
+  if (!queryUsers.value) return {}
+  
+  return {
+    all: queryUsers.value.length,
+    student: queryUsers.value.filter(u => u.role === 'student').length,
+    instructor: queryUsers.value.filter(u => u.role === 'instructor').length,
+    admin: queryUsers.value.filter(u => u.role === 'admin').length,
+    unverified: queryUsers.value.filter(u => !u.is_approved).length
+  }
+})
+
+// Handle filter change
+const handleFilterChange = (filterValue) => {
+  activeFilter.value = filterValue
+}
+
+// Handle search focus/blur
+const handleSearchFocus = () => {
+  isSearchFocused.value = true
+}
+
+const handleSearchBlur = () => {
+  // Delay to allow click on result
+  setTimeout(() => {
+    isSearchFocused.value = false
+  }, 200)
+}
+
+// Handle search result selection
+const handleSearchSelect = (user) => {
+  openEditModal(user)
+  // Don't clear search - let user keep their search context
+  isSearchFocused.value = false
+}
+
+// Alias for backward compatibility with existing code
+const users = computed(() => filteredUsers.value)
+const loading = computed(() => isLoadingUsers.value)
 const showEditModal = ref(false)
 const editingUser = ref(null)
 const userSubscription = ref(null)
 const subscriptionLoading = ref(false)
-const loading = ref(true)
 const showCreateSubscriptionModal = ref(false)
 const availablePlans = ref([])
 const selectedPlan = ref('')
@@ -62,53 +167,17 @@ const addUser = async () => {
     }
 
     try {
-        const response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify(newUser.value)
-        })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create user')
-        }
-
+        await createUserMutation(newUser.value)
         showSuccess('User created successfully')
         showAddForm.value = false
         resetNewUser()
-        await fetchUsers()
+        // Vue Query automatically refetches via cache invalidation
     } catch (err) {
         handleError(err, 'Error creating user: ')
     }
 }
 
-const fetchUsers = async () => {
-    try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch('/api/admin/users', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch users');
-        }
-        
-        const data = await response.json();
-        users.value = data;
-    } catch (err) {
-        error.value = 'Error fetching users: ' + err.message;
-        console.error('Error fetching users:', err);
-    } finally {
-        loading.value = false;
-    }
-};
+// fetchUsers removed - Vue Query handles this automatically via useUserManagement
 
 const deleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
@@ -523,9 +592,7 @@ const formatTime = (timeObj) => {
     })
 }
 
-onMounted(async () => {
-    await fetchUsers()
-})
+// onMounted removed - Vue Query handles initial fetch automatically
 </script>
 
 <template>
@@ -541,6 +608,41 @@ onMounted(async () => {
 
         <div v-if="error" class="error-message">{{ error }}</div>
         <div v-if="success" class="success-message">{{ success }}</div>
+
+        <!-- Search Bar -->
+        <div class="search-section">
+          <SearchBar
+            v-model="searchQuery"
+            placeholder="Search by name or email..."
+            :disabled="loading"
+            :results="searchResults"
+            :show-results="isSearchFocused"
+            :min-chars="2"
+            @focus="handleSearchFocus"
+            @blur="handleSearchBlur"
+            @select="handleSearchSelect"
+          >
+            <template #result="{ result }">
+              <div class="result-content">
+                <div class="result-primary">{{ result.name }}</div>
+                <div class="result-secondary">
+                  {{ result.email }} • {{ result.role }}
+                </div>
+              </div>
+            </template>
+          </SearchBar>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filters-section">
+          <FilterTabs
+            :filters="filters"
+            :activeFilter="activeFilter"
+            :counts="filterCounts"
+            :isLoading="loading"
+            @filter-change="handleFilterChange"
+          />
+        </div>
 
         <!-- Add User Modal -->
         <div v-if="showAddForm" class="modal-overlay">
@@ -1047,6 +1149,14 @@ select:disabled {
 }
 
 .header-actions {
+    margin-bottom: var(--spacing-lg);
+}
+
+.search-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.filters-section {
     margin-bottom: var(--spacing-lg);
 }
 
