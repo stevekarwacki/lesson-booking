@@ -544,6 +544,11 @@ router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(re
         // Convert studentId to number for comparison
         const studentId = parseInt(req.params.studentId, 10);
         
+        // Validate studentId
+        if (isNaN(studentId) || !studentId) {
+            return res.status(400).json({ error: 'Invalid student ID' });
+        }
+        
         // User access already authorized by middleware
 
         // Check if we should include all bookings (past, cancelled)

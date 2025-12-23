@@ -182,6 +182,27 @@ async function deleteInstructorApi(instructorId, token) {
 }
 
 /**
+ * Update user approval status
+ */
+async function updateUserApprovalApi(userId, isApproved, token) {
+  const response = await fetch(`/api/users/${userId}/approval`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ isApproved })
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to update approval status')
+  }
+  
+  return response.json()
+}
+
+/**
  * Main composable for user management
  */
 export function useUserManagement() {
@@ -276,6 +297,15 @@ export function useUserManagement() {
     },
   })
   
+  // Mutation: Update user approval status
+  const updateUserApprovalMutation = useMutation({
+    mutationFn: ({ userId, isApproved }) => updateUserApprovalApi(userId, isApproved, token.value),
+    onSuccess: () => {
+      // Invalidate and refetch users list
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+  
   return {
     // Users
     users,
@@ -300,6 +330,10 @@ export function useUserManagement() {
     isCreatingInstructor: createInstructorMutation.isPending,
     isUpdatingInstructor: updateInstructorMutation.isPending,
     isDeletingInstructor: deleteInstructorMutation.isPending,
+    
+    // User Approval
+    updateUserApproval: updateUserApprovalMutation.mutateAsync,
+    isUpdatingUserApproval: updateUserApprovalMutation.isPending,
   }
 }
 

@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useUserManagement } from '../composables/useUserManagement'
+import { useUserSubscription, usePaymentPlans } from '../composables/useUserSubscription'
+import { useUserBookings } from '../composables/useUserBookings'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
@@ -29,8 +31,13 @@ const {
   createInstructor: createInstructorMutation,
   isCreatingInstructor,
   updateInstructor: updateInstructorMutation,
-  isUpdatingInstructor
+  isUpdatingInstructor,
+  updateUserApproval: updateUserApprovalMutation,
+  isUpdatingUserApproval
 } = useUserManagement()
+
+// Payment plans (global)
+const { plans: availablePlans, isLoadingPlans } = usePaymentPlans()
 
 // Local state
 const error = ref('')
@@ -132,8 +139,6 @@ const users = computed(() => filteredUsers.value)
 const loading = computed(() => isLoadingUsers.value)
 const showEditModal = ref(false)
 const editingUser = ref(null)
-const userSubscription = ref(null)
-const subscriptionLoading = ref(false)
 const showCreateSubscriptionModal = ref(false)
 
 // Instructor profile state
@@ -157,14 +162,37 @@ const currentInstructorProfile = computed(() => {
   if (!editingUser.value || !instructors.value) return null
   return instructors.value.find(inst => inst.user_id === editingUser.value.id)
 })
-const availablePlans = ref([])
+
+// Vue Query hooks for subscription and bookings (reactive based on current editing user)
+const editingUserId = computed(() => editingUser.value?.id)
+const isEditingStudent = computed(() => editingUser.value?.role === 'student')
+
+// Only pass userId to composables if the user is a student (to prevent unnecessary API calls)
+const studentUserId = computed(() => isEditingStudent.value ? editingUserId.value : null)
+
+// Conditionally use subscription and bookings queries (only for students)
+const {
+  subscription: userSubscription,
+  isLoadingSubscription: subscriptionLoading,
+  cancelSubscription,
+  reactivateSubscription,
+  createSubscription,
+  isCancellingSubscription,
+  isReactivatingSubscription,
+  isCreatingSubscription
+} = useUserSubscription(studentUserId)
+
+const {
+  bookings: userBookings,
+  isLoadingBookings: loadingUserBookings,
+  refetchBookings
+} = useUserBookings(studentUserId)
+
 const selectedPlan = ref('')
 const adminNote = ref('')
-const creatingSubscription = ref(false)
+const creatingSubscription = computed(() => isCreatingSubscription.value)
 
-// User bookings data
-const userBookings = ref([])
-const loadingUserBookings = ref(false)
+// Booking selection
 const selectedBooking = ref(null)
 
 // Refund modal data
@@ -264,42 +292,13 @@ const deleteUserFromModal = async () => {
     }
 };
 
-const fetchUserSubscription = async (userId) => {
-    try {
-        subscriptionLoading.value = true
-        const response = await fetch(`/api/admin/users/${userId}/subscription`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            userSubscription.value = await response.json()
-        } else {
-            userSubscription.value = null
-        }
-    } catch (err) {
-        console.error('Error fetching user subscription:', err)
-        userSubscription.value = null
-    } finally {
-        subscriptionLoading.value = false
-    }
-}
-
 const openEditModal = (user) => {
     editingUser.value = { ...user }
     showEditModal.value = true
     pendingRoleChange.value = user.role // Initialize with current role
     
-    // Only fetch subscription and bookings for students
-    if (user.role === 'student') {
-        fetchUserSubscription(user.id)
-        fetchUserBookings(user.id)
-    } else {
-        // Clear subscription and bookings for non-students
-        userSubscription.value = null
-        userBookings.value = []
-    }
+    // Vue Query will automatically fetch subscription and bookings for students
+    // based on the reactive editingUserId and isEditingStudent computed properties
     
     // Load instructor profile if user is an instructor
     if (user.role === 'instructor') {
@@ -437,109 +436,53 @@ const saveInstructorProfile = async () => {
     }
 }
 
-const cancelUserSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel this user\'s subscription?')) {
-        return
-    }
+// Subscription management handlers
+const handleCancelSubscription = async () => {
+    if (!confirm('Are you sure you want to cancel this user\'s subscription?')) return
     
     try {
-        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/cancel`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const result = await response.json()
-            
-            // Handle different success scenarios
-            if (result.cancellation.wasSyncIssue) {
-                success.value = 'Subscription status synchronized - was already cancelled in Stripe'
-            } else if (result.credits.awarded > 0) {
-                success.value = `Subscription cancelled successfully. User received ${result.credits.awarded} lesson credits as compensation.`
-            } else {
-                success.value = 'Subscription cancelled successfully'
-            }
-            
-            await fetchUserSubscription(editingUser.value.id)
+        const result = await cancelSubscription(userSubscription.value.id)
+        if (result.cancellation.wasSyncIssue) {
+            showSuccess('Subscription status synchronized - was already cancelled in Stripe')
+        } else if (result.credits.awarded > 0) {
+            showSuccess(`Subscription cancelled. User received ${result.credits.awarded} lesson credits.`)
         } else {
-            const errorData = await response.json()
-            error.value = errorData.error || errorData.message || 'Failed to cancel subscription'
+            showSuccess('Subscription cancelled successfully')
         }
     } catch (err) {
-        error.value = 'Error cancelling subscription: ' + err.message
+        handleError(err, 'Error cancelling subscription: ')
     }
 }
 
-const reactivateUserSubscription = async () => {
-    if (!confirm('Are you sure you want to reactivate this user\'s subscription?')) {
-        return
-    }
+const handleReactivateSubscription = async () => {
+    if (!confirm('Are you sure you want to reactivate this user\'s subscription?')) return
     
     try {
-        const response = await fetch(`/api/admin/subscriptions/${userSubscription.value.id}/reactivate`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const result = await response.json()
-            
-            // Handle different success scenarios
-            if (result.reactivation.reactivationType === 'removed_cancel_at_period_end') {
-                success.value = 'Subscription reactivated successfully - removed scheduled cancellation'
-            } else if (result.reactivation.reactivationType === 'already_active') {
-                success.value = 'Subscription is already active'
-            } else {
-                success.value = 'Subscription reactivated successfully'
-            }
-            
-            await fetchUserSubscription(editingUser.value.id)
+        const result = await reactivateSubscription(userSubscription.value.id)
+        if (result.reactivation.reactivationType === 'removed_cancel_at_period_end') {
+            showSuccess('Subscription reactivated - removed scheduled cancellation')
+        } else if (result.reactivation.reactivationType === 'already_active') {
+            showSuccess('Subscription is already active')
         } else {
-            const errorData = await response.json()
-            error.value = errorData.error || errorData.message || 'Failed to reactivate subscription'
-            
-            // Show helpful suggestions for common issues
-            if (errorData.suggestion) {
-                error.value += ` Suggestion: ${errorData.suggestion}`
-            }
+            showSuccess('Subscription reactivated successfully')
         }
     } catch (err) {
-        error.value = 'Error reactivating subscription: ' + err.message
+        handleError(err, 'Error reactivating subscription: ')
     }
 }
 
-const createUserSubscription = async () => {
-    // Fetch available membership plans
-    try {
-        const response = await fetch('/api/payments/plans', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const plans = await response.json()
-            availablePlans.value = plans.filter(plan => plan.type === 'membership')
-            
-            if (availablePlans.value.length === 0) {
-                error.value = 'No membership plans available for subscription creation'
-                return
-            }
-            
-            // Reset form
-            selectedPlan.value = ''
-            adminNote.value = ''
-            showCreateSubscriptionModal.value = true
-        } else {
-            error.value = 'Failed to fetch available plans'
-        }
-    } catch (err) {
-        error.value = 'Error fetching plans: ' + err.message
+const handleOpenCreateSubscription = () => {
+    // Filter to membership plans only
+    const membershipPlans = availablePlans.value?.filter(plan => plan.type === 'membership') || []
+    
+    if (membershipPlans.length === 0) {
+        showError('No membership plans available')
+        return
     }
+    
+    selectedPlan.value = ''
+    adminNote.value = ''
+    showCreateSubscriptionModal.value = true
 }
 
 const closeCreateSubscriptionModal = () => {
@@ -548,97 +491,49 @@ const closeCreateSubscriptionModal = () => {
     adminNote.value = ''
 }
 
-const confirmCreateSubscription = async () => {
+const handleCreateSubscription = async () => {
     if (!selectedPlan.value) {
-        error.value = 'Please select a plan'
+        showError('Please select a plan')
         return
     }
     
-    if (!confirm('Are you sure you want to create this subscription for the user?')) {
-        return
-    }
-    
-    creatingSubscription.value = true
+    if (!confirm('Create this subscription for the user?')) return
     
     try {
-        const response = await fetch(`/api/admin/users/${editingUser.value.id}/subscription`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                planId: selectedPlan.value,
-                note: adminNote.value
-            })
+        await createSubscription({
+            planId: selectedPlan.value,
+            note: adminNote.value
         })
-        
-        if (response.ok) {
-            const result = await response.json()
-            success.value = `Subscription created successfully for ${editingUser.value.name}`
-            closeCreateSubscriptionModal()
-            await fetchUserSubscription(editingUser.value.id)
-        } else {
-            const errorData = await response.json()
-            error.value = errorData.error || 'Failed to create subscription'
-            
-            // Show helpful suggestions for common issues
-            if (errorData.suggestion) {
-                error.value += ` Suggestion: ${errorData.suggestion}`
-            }
-        }
+        showSuccess(`Subscription created for ${editingUser.value.name}`)
+        closeCreateSubscriptionModal()
     } catch (err) {
-        error.value = 'Error creating subscription: ' + err.message
-    } finally {
-        creatingSubscription.value = false
+        handleError(err, 'Error creating subscription: ')
     }
 }
 
-// User booking management functions
-const fetchUserBookings = async (userId) => {
-    try {
-        loadingUserBookings.value = true
-        const response = await fetch(`/api/calendar/student/${userId}?includeAll=true`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch user bookings')
-        }
-        
-        const bookings = await response.json()
-        
-        // Transform bookings for BookingList component
-        userBookings.value = bookings.map(booking => ({
-            id: booking.id,
-            date: booking.date,
-            startTime: formatTime(slotToTime(booking.start_slot)),
-            endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-            instructorName: booking.Instructor.User.name,
-            status: booking.status || 'booked',
-            isRecurring: false,
-            refundStatus: booking.refundStatus || { status: 'none' },
-            paymentMethod: booking.paymentMethod, // From backend
-            paymentStatus: booking.paymentStatus, // From backend
-            originalBooking: booking
-        }))
-    } catch (err) {
-        console.error('Error fetching user bookings:', err)
-        userBookings.value = []
-    } finally {
-        loadingUserBookings.value = false
-    }
-}
+// Transform bookings for BookingList component
+const transformedBookings = computed(() => {
+    if (!userBookings.value) return []
+    return userBookings.value.map(booking => ({
+        id: booking.id,
+        date: booking.date,
+        startTime: formatTime(slotToTime(booking.start_slot)),
+        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
+        instructorName: booking.Instructor.User.name,
+        status: booking.status || 'booked',
+        isRecurring: false,
+        refundStatus: booking.refundStatus || { status: 'none' },
+        paymentMethod: booking.paymentMethod,
+        paymentStatus: booking.paymentStatus,
+        originalBooking: booking
+    }))
+})
 
 const handleEditUserBooking = (booking) => {
-    // Set selected booking and navigate to detail slide
     selectedBooking.value = booking.originalBooking
 }
 
 const handleCancelUserBooking = (booking) => {
-    // TODO: Implement booking cancellation for admin/instructor
     console.warn('Admin booking cancellation not yet implemented for booking:', booking.id)
 }
 
@@ -662,12 +557,12 @@ const handleRefundProcessed = async (result) => {
     
     // Refresh user bookings to show updated refund status
     if (editingUser.value) {
-        await fetchUserBookings(editingUser.value.id)
+        await refetchBookings()
     }
     
     // Show success message
     const refundType = result.refund.type === 'stripe' ? 'to original payment method' : 'as lesson credits'
-    success.value = `Refund processed successfully ${refundType}!`
+    showSuccess(`Refund processed successfully ${refundType}!`)
     
     // Clear success message after 5 seconds
     setTimeout(() => {
@@ -1121,7 +1016,7 @@ const formatTime = (timeObj) => {
                         <template #main="{ navigate }">
                             <div v-if="userBookings.length > 0 || loadingUserBookings">
                                 <BookingList
-                                    :bookings="userBookings"
+                                    :bookings="transformedBookings"
                                     :loading="loadingUserBookings"
                                     :userId="editingUser?.id"
                                     :userRole="userStore.canManageUsers ? 'admin' : 'instructor'"
@@ -1204,27 +1099,30 @@ const formatTime = (timeObj) => {
                                 v-if="!userSubscription.cancel_at_period_end && (userSubscription.status === 'active' || userSubscription.status === 'trialing')"
                                 type="button"
                                 class="form-button form-button-cancel"
-                                @click="cancelUserSubscription"
+                                @click="handleCancelSubscription"
+                                :disabled="isCancellingSubscription"
                             >
-                                Cancel Subscription
+                                {{ isCancellingSubscription ? 'Cancelling...' : 'Cancel Subscription' }}
                             </button>
                             
                             <button 
                                 v-if="userSubscription.cancel_at_period_end"
                                 type="button"
                                 class="form-button"
-                                @click="reactivateUserSubscription"
+                                @click="handleReactivateSubscription"
+                                :disabled="isReactivatingSubscription"
                             >
-                                Reactivate Subscription
+                                {{ isReactivatingSubscription ? 'Reactivating...' : 'Reactivate Subscription' }}
                             </button>
                             
                             <button 
                                 v-if="userSubscription.status === 'cancelled' || userSubscription.status === 'canceled'"
                                 type="button"
                                 class="form-button"
-                                @click="createUserSubscription"
+                                @click="handleOpenCreateSubscription"
+                                :disabled="isLoadingPlans"
                             >
-                                Create New Subscription
+                                {{ isLoadingPlans ? 'Loading...' : 'Create New Subscription' }}
                             </button>
                         </div>
                     </div>
@@ -1236,9 +1134,10 @@ const formatTime = (timeObj) => {
                             <button 
                                 type="button"
                                 class="form-button"
-                                @click="createUserSubscription"
+                                @click="handleOpenCreateSubscription"
+                                :disabled="isLoadingPlans"
                             >
-                                Create Subscription
+                                {{ isLoadingPlans ? 'Loading...' : 'Create Subscription' }}
                             </button>
                         </div>
                     </div>
@@ -1384,10 +1283,10 @@ const formatTime = (timeObj) => {
                 </button>
                 <button 
                     class="form-button" 
-                    @click="confirmCreateSubscription"
-                    :disabled="creatingSubscription || !selectedPlan"
+                    @click="handleCreateSubscription"
+                    :disabled="isCreatingSubscription || !selectedPlan"
                 >
-                    {{ creatingSubscription ? 'Creating...' : 'Create Subscription' }}
+                    {{ isCreatingSubscription ? 'Creating...' : 'Create Subscription' }}
                 </button>
             </div>
         </div>

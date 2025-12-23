@@ -263,7 +263,8 @@ router.get('/users/:userId/subscription', authorize('manage', 'all'), async (req
     try {
         const userId = parseInt(req.params.userId, 10);
         
-        if (!userId) {
+        // Validate userId
+        if (isNaN(userId) || !userId) {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
         
@@ -279,8 +280,9 @@ router.get('/users/:userId/subscription', authorize('manage', 'all'), async (req
             order: [['created_at', 'DESC']]
         });
         
+        // If user has no subscriptions, return null (this is a valid state, not an error)
         if (allSubscriptions.length === 0) {
-            return res.status(404).json({ error: 'No subscriptions found for this user' });
+            return res.json(null);
         }
         
         // Get the most recent subscription
