@@ -172,7 +172,8 @@ export default {
       setActiveTab,
       toggleAccordion,
       defaultTab,
-      secondaryTabs
+      secondaryTabs,
+      resetState
     } = useTabbedModal(tabs.value)
     
     // View state
@@ -297,13 +298,20 @@ export default {
       document.removeEventListener('keydown', handleEscape)
     })
     
-    // Reset secondary view when modal closes
+    // Reset state when modal closes
     watch(() => props.show, (newShow) => {
       if (!newShow) {
         secondaryView.value = null
         isTransitioning.value = false
+        // Reset tab state to defaults when modal closes
+        resetState()
       }
     })
+    
+    // Reset state when tabs change (different user types)
+    watch(tabs, () => {
+      resetState()
+    }, { deep: true })
     
     return {
       tabs,

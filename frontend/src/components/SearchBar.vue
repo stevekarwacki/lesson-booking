@@ -124,6 +124,7 @@ export default {
   font-size: 0.95rem;
   transition: all 0.2s ease;
   background-color: white;
+  box-sizing: border-box;
 }
 
 .search-input:focus {

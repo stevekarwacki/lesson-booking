@@ -5,11 +5,16 @@ export function useTabbedModal(tabs) {
   const accordionState = ref({})
   
   // Initialize accordion state based on priority
-  tabs.forEach(tab => {
-    if (!tab.default) {
-      accordionState.value[tab.id] = tab.priority === 'high'
-    }
-  })
+  const initializeAccordionState = () => {
+    accordionState.value = {}
+    tabs.forEach(tab => {
+      if (!tab.default) {
+        accordionState.value[tab.id] = tab.priority === 'high'
+      }
+    })
+  }
+  
+  initializeAccordionState()
   
   const setActiveTab = (tabId) => {
     activeTab.value = tabId
@@ -17,9 +22,6 @@ export function useTabbedModal(tabs) {
   
   const toggleAccordion = (tabId) => {
     accordionState.value[tabId] = !accordionState.value[tabId]
-    
-    // Save accordion state to localStorage
-    localStorage.setItem('tabbedModalAccordion', JSON.stringify(accordionState.value))
   }
   
   const defaultTab = computed(() => tabs.find(t => t.default))
@@ -30,25 +32,11 @@ export function useTabbedModal(tabs) {
     })
   )
   
-  // Load saved accordion state
-  const loadAccordionState = () => {
-    try {
-      const saved = localStorage.getItem('tabbedModalAccordion')
-      if (saved) {
-        const parsedState = JSON.parse(saved)
-        Object.keys(parsedState).forEach(key => {
-          if (accordionState.value.hasOwnProperty(key)) {
-            accordionState.value[key] = parsedState[key]
-          }
-        })
-      }
-    } catch (error) {
-      console.warn('Failed to load accordion state:', error)
-    }
+  // Reset to default state (called when modal closes)
+  const resetState = () => {
+    activeTab.value = tabs.find(t => t.default)?.id || tabs[0]?.id
+    initializeAccordionState()
   }
-  
-  // Initialize with saved state
-  loadAccordionState()
   
   return {
     activeTab,
@@ -56,6 +44,7 @@ export function useTabbedModal(tabs) {
     setActiveTab,
     toggleAccordion,
     defaultTab,
-    secondaryTabs
+    secondaryTabs,
+    resetState
   }
 } 
