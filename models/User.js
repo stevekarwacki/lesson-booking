@@ -210,6 +210,43 @@ User.afterUpdate(async (user) => {
     await clearCache(user.id);
 });
 
+// Cascade delete all related records before destroying user
+User.beforeDestroy(async (user, options) => {
+    const transaction = options.transaction;
+    
+    // Import models (done here to avoid circular dependencies)
+    const { Instructor, Subscription, Transactions, Calendar, Refund } = require('./index');
+    const { UserCredits, CreditUsage } = require('./Credits');
+    
+    // Delete related records in order to respect foreign key constraints
+    // Order matters: delete child records before parent records
+    
+    // 1. Delete credit usage records (references user_credits)
+    await CreditUsage.destroy({ where: { user_id: user.id }, transaction });
+    
+    // 2. Delete user credits
+    await UserCredits.destroy({ where: { user_id: user.id }, transaction });
+    
+    // 3. Delete instructor profile (if exists)
+    await Instructor.destroy({ where: { user_id: user.id }, transaction });
+    
+    // 4. Delete subscriptions (this will cascade to RecurringBookings via subscription_id)
+    await Subscription.destroy({ where: { user_id: user.id }, transaction });
+    
+    // 5. Delete transactions
+    await Transactions.destroy({ where: { user_id: user.id }, transaction });
+    
+    // 6. Delete bookings where user is the student
+    await Calendar.destroy({ where: { student_id: user.id }, transaction });
+    
+    // 7. Preserve refund history by nullifying the refunded_by reference
+    // Use validate: false to bypass the allowNull constraint
+    await Refund.update(
+        { refunded_by: null }, 
+        { where: { refunded_by: user.id }, transaction, validate: false }
+    );
+});
+
 User.afterDestroy(async (user) => {
     await clearCache(user.id);
 });

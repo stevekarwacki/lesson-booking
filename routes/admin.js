@@ -62,11 +62,14 @@ router.put('/users/:id', authorize('manage', 'User'), async (req, res) => {
 router.delete('/users/:id', authorize('manage', 'User'), async (req, res) => {
     try {
         const userId = parseInt(req.params.id, 10);
+        
+        // User.deleteUser() will trigger beforeDestroy hook which handles all cascading deletes
         await User.deleteUser(userId);
+        
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
         console.error('Error deleting user:', error);
-        res.status(500).json({ error: 'Error deleting user' });
+        res.status(500).json({ error: error.message || 'Error deleting user' });
     }
 });
 

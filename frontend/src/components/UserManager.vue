@@ -28,6 +28,8 @@ const {
   isCreatingUser,
   updateUser: updateUserMutation,
   isUpdatingUser,
+  deleteUser: deleteUserMutation,
+  isDeletingUser,
   createInstructor: createInstructorMutation,
   isCreatingInstructor,
   updateInstructor: updateInstructorMutation,
@@ -242,27 +244,11 @@ const deleteUser = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch(`/api/admin/users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to delete user');
-        }
-        
-        await fetchUsers();
-        success.value = 'User deleted successfully';
+        await deleteUserMutation(userId);
+        showSuccess('User deleted successfully');
     } catch (err) {
-        error.value = 'Error deleting user: ' + err.message;
+        showError('Error deleting user: ' + err.message);
         console.error('Error deleting user:', err);
-    } finally {
-        loading.value = false;
     }
 };
 
@@ -272,22 +258,16 @@ const deleteUserFromModal = async () => {
     }
     
     try {
-        const response = await fetch(`/api/admin/users/${editingUser.value.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
+        const userId = editingUser.value.id;
         
-        if (!response.ok) {
-            throw new Error('Failed to delete user');
-        }
-        
-        success.value = 'User deleted successfully';
+        // Close modal first to stop any in-flight queries
         closeEditModal();
-        await fetchUsers();
+        
+        // Then delete the user
+        await deleteUserMutation(userId);
+        showSuccess('User deleted successfully');
     } catch (err) {
-        error.value = 'Error deleting user: ' + err.message;
+        showError('Error deleting user: ' + err.message);
         console.error('Error deleting user:', err);
     }
 };
