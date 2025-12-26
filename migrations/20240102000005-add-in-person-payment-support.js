@@ -45,18 +45,6 @@ module.exports = {
       });
     }
 
-    // Add in-person payment enabled setting to app_settings
-    await queryInterface.bulkInsert('app_settings', [
-      {
-        category: 'lessons',
-        key: 'in_person_payment_enabled',
-        value: 'false',
-        updated_by: 1, // Assuming admin user ID 1
-        created_at: new Date(),
-        updated_at: new Date()
-      }
-    ]);
-
     // Add index for in_person_payment_override for efficient queries
     await queryInterface.addIndex('users', ['in_person_payment_override'], {
       name: 'idx_users_in_person_payment_override'
@@ -66,6 +54,33 @@ module.exports = {
     await queryInterface.addIndex('transactions', ['payment_method', 'status'], {
       name: 'idx_transactions_payment_method_status'
     });
+
+    // Add in-person payment enabled setting to app_settings (for existing installations only)
+    // Fresh installs: seeds/app-settings.js handles this
+    const [users] = await queryInterface.sequelize.query(
+      'SELECT id FROM users LIMIT 1'
+    );
+    
+    if (users.length > 0) {
+      // Existing installation - check if setting already exists
+      const [existing] = await queryInterface.sequelize.query(
+        `SELECT id FROM app_settings WHERE category = 'lessons' AND key = 'in_person_payment_enabled' LIMIT 1`
+      );
+      
+      if (existing.length === 0) {
+        // Setting doesn't exist, add it
+        await queryInterface.bulkInsert('app_settings', [
+          {
+            category: 'lessons',
+            key: 'in_person_payment_enabled',
+            value: 'false',
+            updated_by: users[0].id,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        ]);
+      }
+    }
   },
 
   async down(queryInterface, Sequelize) {

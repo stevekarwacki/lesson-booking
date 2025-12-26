@@ -1,3 +1,8 @@
+// Polyfill crypto for ical-generator compatibility
+if (typeof global.crypto === 'undefined') {
+    global.crypto = require('crypto').webcrypto;
+}
+
 const { default: ical } = require('ical-generator');
 const { User } = require('../models/User');
 const logger = require('../utils/logger');

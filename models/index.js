@@ -83,8 +83,12 @@ const initModels = async () => {
         // Authenticate connection to ensure everything is working
         await sequelize.authenticate();
         
-        // Run seeds after migrations
-        if (process.env.RUN_SEEDS === 'true') {
+        // Check if this is a fresh installation (no users exist)
+        const userCount = await User.count();
+        const isFreshInstall = userCount === 0;
+        
+        // Run seeds on fresh install OR if explicitly requested via env var
+        if (isFreshInstall || process.env.RUN_SEEDS === 'true') {
             await runSeeds(models);
         }
     } catch (error) {

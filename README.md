@@ -19,16 +19,41 @@ A web application for managing lesson bookings.
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies:
+### Quick Start
+
+```bash
+# 1. Install dependencies
+npm install
+cd frontend && npm install && cd ..
+
+# 2. Start the application (migrations and seeds run automatically)
+npm start
+```
+
+**That's it!** The application will:
+- ✅ Automatically create all database tables
+- ✅ Seed a default admin user (`admin@example.com` / `admin123`)
+- ✅ Set up default application settings
+- ✅ Start the server on http://localhost:3000
+
+⚠️ **Important:** Change the default admin password after first login!
+
+### Custom Configuration
+
+1. Create a `.env` file with your settings:
    ```bash
-   npm install
+   ADMIN_EMAIL=your-admin@domain.com
+   ADMIN_PASSWORD=your-secure-password
+   JWT_SECRET=your-super-secret-jwt-key
+   STRIPE_SECRET_KEY=sk_test_...
    ```
-3. Copy `.env.example` to `.env` and configure your environment variables
-4. Run the application:
+
+2. Start the application:
    ```bash
    npm start
    ```
+
+📖 **For detailed installation instructions**, see [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md)
 
 ## Caching Options
 

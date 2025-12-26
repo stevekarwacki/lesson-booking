@@ -17,12 +17,12 @@ const createAdminUser = async (models) => {
             10
         );
 
-        const adminUser = await models.User.create({
+        await models.User.create({
             name: 'Admin',
             email: process.env.ADMIN_EMAIL || 'admin@example.com',
             password: hashedPassword,
             role: 'admin',
-            credits: 0
+            is_approved: true
         });
 
     } catch (error) {

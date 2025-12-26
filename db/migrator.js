@@ -75,7 +75,8 @@ class DatabaseMigrator {
             const args = command.split(' ');
             const child = spawn('npx', ['sequelize-cli', ...args], {
                 cwd: path.resolve(__dirname, '..'),
-                stdio: ['pipe', 'pipe', 'pipe']
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: { ...process.env, SEQUELIZE_CLI: 'true' }
             });
 
             let stdout = '';
