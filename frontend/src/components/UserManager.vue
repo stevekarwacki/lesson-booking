@@ -14,6 +14,7 @@ import RefundModal from './RefundModal.vue'
 import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
+import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
@@ -988,6 +989,11 @@ const formatTime = (timeObj) => {
                 label="Availability"
             >
                 <div class="availability-tab">
+                    <!-- Weekly Schedule & Blocked Times -->
+                    <InstructorAvailabilityManager 
+                        :instructor-id="instructorProfile.id"
+                    />
+                    
                     <!-- Google Calendar Integration -->
                     <GoogleCalendarSettings 
                         :instructor-id="instructorProfile.id"

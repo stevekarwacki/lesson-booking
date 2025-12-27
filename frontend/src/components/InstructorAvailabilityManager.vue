@@ -355,8 +355,8 @@ onMounted(async () => {
 
 <style scoped>
 .availability-manager {
-    padding: var(--spacing-lg);
-    max-width: 1200px;
+    padding: 0;
+    max-width: 100%;
     margin: 0 auto;
 }
 
