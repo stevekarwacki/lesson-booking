@@ -13,7 +13,9 @@
 .env
 
 # DB files
+*.sqlite-wal
 *.sqlite
+*.sqlite-shm
 *.sqlite3
 *.db
 *.db3
