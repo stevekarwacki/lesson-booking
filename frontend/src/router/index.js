@@ -5,7 +5,6 @@ import AdminSettingsPage from '../views/AdminSettingsPage.vue'
 import AccountPage from '../views/AccountPage.vue'
 import CalendarPage from '../views/CalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
-import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
 import GoogleAuthCallback from '../views/GoogleAuthCallback.vue'
 import { useUserStore } from '../stores/userStore'
@@ -74,24 +73,6 @@ const routes = [
         meta: { 
             requiresAuth: true,
             permission: { action: 'create', subject: 'StudentBooking' }
-        }
-    },
-    {
-        path: '/availability',
-        name: 'manage-availability',
-        component: ManageAvailabilityPage,
-        meta: { 
-            requiresAuth: true,
-            permission: { action: 'manage', subject: 'Availability' }
-        }
-    },
-    {
-        path: '/admin/availability',
-        name: 'admin-availability',
-        component: ManageAvailabilityPage,
-        meta: { 
-            requiresAuth: true,
-            permission: { action: 'manage', subject: 'Availability' }
         }
     },
     {

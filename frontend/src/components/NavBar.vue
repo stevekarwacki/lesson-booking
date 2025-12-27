@@ -159,31 +159,7 @@ const handleLogout = () => {
                 >
                     Users
                 </router-link>
-                <router-link 
-                    v-if="canManagePackages"
-                    to="/admin/packages" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Packages
-                </router-link>
-                <router-link 
-                    v-if="canManageAllInstructorAvailability && $mq.lgPlus"
-                    to="/admin/availability" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Instructor Availability
-                </router-link>
-                <router-link 
-                    v-if="canManageUsers"
-                    to="/admin/settings" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Settings
-                </router-link>
-
+                
                 <!-- Calendar Management (Instructors and Admins) -->
                 <router-link 
                     v-if="canManageOwnInstructorCalendar || canManageUsers"
@@ -193,13 +169,22 @@ const handleLogout = () => {
                 >
                     Calendar
                 </router-link>
+                
                 <router-link 
-                    v-if="canManageOwnInstructorAvailability && $mq.lgPlus"
-                    to="/availability" 
+                    v-if="canManagePackages"
+                    to="/admin/packages" 
                     class="nav-link"
                     @click="closeMenu"
                 >
-                    My Availability
+                    Packages
+                </router-link>
+                <router-link 
+                    v-if="canManageUsers"
+                    to="/admin/settings" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Settings
                 </router-link>
 
                 <!-- Student/Booking Links -->
