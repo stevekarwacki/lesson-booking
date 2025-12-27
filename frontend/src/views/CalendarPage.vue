@@ -1,7 +1,7 @@
 <template>
     <div class="calendar-page">
         <div class="page-header">
-            <h1>Manage Your Calendar</h1>
+            <h1>Calendar</h1>
         </div>
         
         <!-- Instructor Bookings List -->

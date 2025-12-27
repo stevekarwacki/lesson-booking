@@ -37,7 +37,7 @@ const handleSubmit = async () => {
                 if (userStore.canManageUsers) {
                     await router.push('/admin/users')
                 } else if (userStore.canManageCalendar) {
-                    await router.push('/instructor/calendar')
+                    await router.push('/calendar')
                 } else if (userStore.canCreateBooking && userStore.user.is_approved) {
                     await router.push('/book-lesson')
                 }

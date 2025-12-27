@@ -3,7 +3,7 @@ import ManageUsersPage from '../views/ManageUsersPage.vue'
 import ManagePackagesPage from '../views/ManagePackagesPage.vue'
 import AdminSettingsPage from '../views/AdminSettingsPage.vue'
 import AccountPage from '../views/AccountPage.vue'
-import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
+import CalendarPage from '../views/CalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import ManageAvailabilityPage from '../views/ManageAvailabilityPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
@@ -59,9 +59,9 @@ const routes = [
         }
     },
     {
-        path: '/instructor/calendar',
-        name: 'instructor-calendar',
-        component: InstructorCalendarPage,
+        path: '/calendar',
+        name: 'calendar',
+        component: CalendarPage,
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'Calendar' }
@@ -139,7 +139,7 @@ router.beforeEach(async (to, from, next) => {
             if (userStore.canManageUsers) {
                 next('/admin/users')
             } else if (userStore.canManageCalendar) {
-                next('/instructor/calendar')
+                next('/calendar')
             } else {
                 next('/book-lesson')
             }

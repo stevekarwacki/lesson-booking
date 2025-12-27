@@ -184,14 +184,14 @@ const handleLogout = () => {
                     Settings
                 </router-link>
 
-                <!-- Calendar Management (Instructors only, not admins) -->
+                <!-- Calendar Management (Instructors and Admins) -->
                 <router-link 
-                    v-if="canManageOwnInstructorCalendar"
-                    to="/instructor/calendar" 
+                    v-if="canManageOwnInstructorCalendar || canManageUsers"
+                    to="/calendar" 
                     class="nav-link"
                     @click="closeMenu"
                 >
-                    My Calendar
+                    Calendar
                 </router-link>
                 <router-link 
                     v-if="canManageOwnInstructorAvailability && $mq.lgPlus"
