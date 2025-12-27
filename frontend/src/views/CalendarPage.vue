@@ -38,7 +38,7 @@
                 <BookingList
                     :bookings="formattedBookings"
                     :loading="bookingsLoading"
-                    :userId="userStore.user.id"
+                    :userId="userStore.user?.id"
                     :userRole="'instructor'"
                     @edit-booking="handleEditBooking"
                     @cancel-booking="handleCancelBooking"

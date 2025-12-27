@@ -230,6 +230,110 @@ describe('Vue Query Composables', () => {
 - Actual API calls (use backend tests for that)
 - Vue Query internals (already tested by Tanstack)
 
+## Testing Components with CASL Permissions and Pinia
+
+### The Challenge
+
+Testing Vue 3 components that use CASL permissions with Pinia stores is complex because `<script setup>` captures stores at module load time - before test setup runs. This means the component has `user: null` and `token: null` when lifecycle hooks execute.
+
+### ⚠️ Anti-Pattern: Testing Through Component Mounting
+
+```javascript
+// ❌ BAD: Component already captured stale userStore reference
+const wrapper = mount(CalendarPage)
+await flushPromises()
+// onMounted hooks don't trigger reliably with stubbed components
+```
+
+### ✅ Preferred: Function-Based Testing
+
+**Test the logic directly, not through component integration.**
+
+This approach tests the SAME code that runs in production, but in isolation. Benefits:
+- ✅ Faster (no DOM rendering)
+- ✅ More focused (one thing at a time)
+- ✅ 100% reliable and deterministic
+- ✅ Not affected by Vue Test Utils quirks
+
+#### Setup Pattern
+
+```javascript
+import { describe, it, expect, beforeEach } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+
+describe('Feature Logic Tests', () => {
+  let pinia, userStore
+
+  beforeEach(async () => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    
+    const { useUserStore } = await import('../stores/userStore')
+    userStore = useUserStore()
+    
+    // Override Pinia getters to bypass CASL in tests
+    Object.defineProperty(userStore, 'canManageUsers', {
+      get: () => userStore.user?.role === 'admin',
+      configurable: true
+    })
+  })
+
+  it('should allow admins to manage users', () => {
+    userStore.user = { id: 1, role: 'admin' }
+    expect(userStore.canManageUsers).toBe(true)
+  })
+})
+```
+
+#### Testing Pure Logic
+
+```javascript
+// Test filtering, visibility rules, data transformations directly
+it('should filter instructors by name (case-insensitive)', () => {
+  const query = 'john'
+  const filtered = instructors.filter(i => 
+    i.name?.toLowerCase().includes(query.toLowerCase())
+  )
+  expect(filtered).toHaveLength(1)
+})
+```
+
+### Key Principles
+
+1. **Test behavior, not implementation** - Verify what the code DOES, not how it's structured
+2. **Test logic in isolation** - Extract and test functions directly when possible
+3. **Override getters, don't mock modules** - Use `Object.defineProperty` for Pinia getters
+4. **Mock external dependencies** - Mock `fetch`, not internal functions
+
+### What to Test
+
+✅ **DO Test:**
+- Permission logic (role-based access)
+- Data filtering and transformation
+- API calls with correct parameters/headers
+- Conditional rendering logic
+- State management
+- Error handling
+
+❌ **DON'T Test:**
+- Vue lifecycle hooks (unreliable in test environment)
+- CASL/Pinia internals (already tested by libraries)
+
+### Example
+
+See `frontend/src/tests/admin-calendar.test.js` for complete implementation:
+- Comprehensive coverage of permissions, filtering, API integration, and error handling
+- All tests passing
+
+### When Component Integration Testing IS Needed
+
+Use full component mounting only for:
+- User interactions (clicks, form submissions)
+- UI rendering edge cases
+- Accessibility features
+
+**Note:** Component integration tests with Pinia stores face the same module load timing issues. If you must test through component mounting, use dynamic imports or accept that some state may need to be set up via component methods rather than lifecycle hooks.
+
 ## Related Documentation
 
 - [Date Helpers System](DATE_HELPERS_SYSTEM.md) - Comprehensive guide to date handling in tests

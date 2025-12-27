@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import BookingList from '../components/BookingList.vue'
-import InstructorCalendarPage from '../views/InstructorCalendarPage.vue'
+import CalendarPage from '../views/CalendarPage.vue'
 import { useUserStore } from '../stores/userStore'
 import { today, fromString } from '../utils/dateHelpers.js'
 
@@ -332,7 +332,7 @@ describe('Attendance Tracking Frontend', () => {
     })
   })
 
-  describe('InstructorCalendarPage Component', () => {
+  describe('CalendarPage Component', () => {
     beforeEach(() => {
       // Mock successful API responses
       fetch.mockImplementation((url) => {
@@ -395,7 +395,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it.skip('should load instructor data and bookings on mount', async () => {
-      const wrapper = mount(InstructorCalendarPage, {
+      const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia]
         }
@@ -417,7 +417,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it.skip('should handle attendance changes via API', async () => {
-      const wrapper = mount(InstructorCalendarPage, {
+      const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia]
         }
@@ -464,7 +464,7 @@ describe('Attendance Tracking Frontend', () => {
       // Clear previous mock calls
       mockFormFeedback.handleError.mockClear()
 
-      const wrapper = mount(InstructorCalendarPage, {
+      const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia]
         }
@@ -480,7 +480,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should update local state after successful attendance change', async () => {
-      const wrapper = mount(InstructorCalendarPage, {
+      const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia]
         }
@@ -508,7 +508,7 @@ describe('Attendance Tracking Frontend', () => {
     })
 
     it('should handle reschedule modal opening', async () => {
-      const wrapper = mount(InstructorCalendarPage, {
+      const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia]
         }
