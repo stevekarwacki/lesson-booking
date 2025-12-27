@@ -81,9 +81,42 @@ export default {
     minChars: {
       type: Number,
       default: 2
+    },
+    // Optional: Full dataset to filter
+    items: {
+      type: Array,
+      default: () => []
+    },
+    // Optional: Filter function for dependency injection
+    filterFn: {
+      type: Function,
+      default: null
     }
   },
-  emits: ['update:modelValue', 'select', 'focus', 'blur'],
+  emits: ['update:modelValue', 'select', 'focus', 'blur', 'filter'],
+  computed: {
+    filteredItems() {
+      // If filterFn provided and items provided, compute filtered results
+      if (this.filterFn && this.items.length > 0 && this.modelValue) {
+        return this.filterFn(this.items, this.modelValue)
+      }
+      return []
+    }
+  },
+  watch: {
+    filteredItems(newFiltered) {
+      // Emit filtered results whenever they change
+      if (this.filterFn) {
+        this.$emit('filter', newFiltered)
+      }
+    },
+    modelValue(newValue) {
+      // Also emit when search is cleared
+      if (!newValue && this.filterFn) {
+        this.$emit('filter', this.items)
+      }
+    }
+  },
   methods: {
     handleSelect(result) {
       this.$emit('select', result)

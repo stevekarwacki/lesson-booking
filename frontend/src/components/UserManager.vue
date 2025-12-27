@@ -51,15 +51,6 @@ const searchQuery = ref('')
 const activeFilter = ref('student') // Default to Student as requested
 const isSearchFocused = ref(false)
 
-// Filter configuration
-const filters = [
-  { label: 'All', value: 'all' },
-  { label: 'Student', value: 'student' },
-  { label: 'Instructor', value: 'instructor' },
-  { label: 'Admin', value: 'admin' },
-  { label: 'Unverified', value: 'unverified' }
-]
-
 // Search results for dropdown (only when searching)
 const searchResults = computed(() => {
   if (!searchQuery.value || searchQuery.value.length < 2 || !queryUsers.value) return []
@@ -82,6 +73,15 @@ const searchResults = computed(() => {
     )
   }).slice(0, 10) // Limit to 10 results for dropdown
 })
+
+// Filter configuration
+const filters = [
+  { label: 'All', value: 'all' },
+  { label: 'Student', value: 'student' },
+  { label: 'Instructor', value: 'instructor' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'Unverified', value: 'unverified' }
+]
 
 // Filtered users for table (by filter tabs only, not search)
 const filteredUsers = computed(() => {

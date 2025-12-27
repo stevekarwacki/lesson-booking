@@ -3,6 +3,31 @@
         <div class="page-header">
             <h1>Calendar</h1>
         </div>
+
+        <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
+        <div v-if="showInstructorPicker" class="instructor-picker card">
+            <div class="card-body">
+                <SearchBar
+                    v-model="instructorSearchQuery"
+                    placeholder="Search instructors by name or email..."
+                    :results="searchResults"
+                    :show-results="isSearchFocused"
+                    :min-chars="1"
+                    @focus="isSearchFocused = true"
+                    @blur="handleSearchBlur"
+                    @select="handleInstructorSelect"
+                >
+                    <template #result="{ result }">
+                        <div class="result-content">
+                            <div class="result-primary">{{ result.name }}</div>
+                            <div class="result-secondary">
+                                {{ result.User?.email || result.email }}
+                            </div>
+                        </div>
+                    </template>
+                </SearchBar>
+            </div>
+        </div>
         
         <!-- Instructor Bookings List -->
         <div v-if="instructor && instructor.id" class="bookings-section card">
@@ -55,6 +80,7 @@ import InstructorCalendar from '../components/InstructorCalendar.vue'
 import BookingList from '../components/BookingList.vue'
 import EditBookingModal from '../components/EditBookingModal.vue'
 import RefundModal from '../components/RefundModal.vue'
+import SearchBar from '../components/SearchBar.vue'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -73,7 +99,79 @@ const showRefundModal = ref(false)
 const selectedBooking = ref(null)
 const selectedRefundBooking = ref(null)
 
-const fetchInstructor = async () => {
+// Admin instructor picker state
+const allInstructors = ref([])
+const instructorSearchQuery = ref('')
+const isSearchFocused = ref(false)
+
+// Computed property to determine if we should show the instructor picker
+const showInstructorPicker = computed(() => {
+    return userStore.canManageUsers && allInstructors.value.length > 1
+})
+
+// Search results for instructor picker
+const searchResults = computed(() => {
+    if (!instructorSearchQuery.value || !allInstructors.value.length) {
+        return allInstructors.value.slice(0, 10) // Show first 10 by default
+    }
+    
+    const query = instructorSearchQuery.value.toLowerCase()
+    return allInstructors.value.filter(instr => {
+        const name = instr.name?.toLowerCase() || ''
+        const email = instr.User?.email?.toLowerCase() || instr.email?.toLowerCase() || ''
+        return name.includes(query) || email.includes(query)
+    }).slice(0, 10)
+})
+
+const handleSearchBlur = () => {
+    setTimeout(() => {
+        isSearchFocused.value = false
+    }, 200)
+}
+
+// Fetch all instructors (for admins)
+const fetchAllInstructors = async () => {
+    try {
+        const response = await fetch('/api/instructors', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch instructors')
+        }
+        
+        const data = await response.json()
+        // Filter to only active instructors
+        allInstructors.value = data.filter(instr => instr.is_active)
+        
+        // If only one instructor, auto-select
+        if (allInstructors.value.length === 1) {
+            instructor.value = allInstructors.value[0]
+            await fetchBookings(allInstructors.value[0].id)
+        }
+    } catch (err) {
+        console.error('Error fetching instructors:', err)
+        error.value = 'Error fetching instructors: ' + err.message
+    }
+}
+
+// Handle instructor selection (for admins)
+const handleInstructorSelect = async (selectedInstructor) => {
+    if (selectedInstructor) {
+        instructor.value = selectedInstructor
+        instructorSearchQuery.value = '' // Clear search after selection
+        isSearchFocused.value = false
+        // Fetch bookings for the selected instructor
+        if (selectedInstructor.id) {
+            await fetchBookings(selectedInstructor.id)
+        }
+    }
+}
+
+// Fetch own instructor profile (for instructors)
+const fetchOwnInstructor = async () => {
     try {
         loading.value = true;
         error.value = null;
@@ -274,11 +372,20 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
     }
 };
 
-onMounted(() => {
-    if (!userStore.canManageCalendar) {
+onMounted(async () => {
+    // Check permissions - both instructors and admins can access
+    if (!userStore.canManageCalendar && !userStore.canManageUsers) {
         router.push('/')
-    } else {
-        fetchInstructor()
+        return
+    }
+    
+    // Admin flow: fetch all instructors and let them select
+    if (userStore.canManageUsers) {
+        await fetchAllInstructors()
+    } 
+    // Instructor flow: fetch their own instructor profile
+    else if (userStore.canManageCalendar) {
+        await fetchOwnInstructor()
     }
 })
 </script>
@@ -297,5 +404,9 @@ onMounted(() => {
     color: var(--secondary-color);
     font-size: 2rem;
     margin: 0;
+}
+
+.instructor-picker {
+    margin-bottom: var(--spacing-lg);
 }
 </style> 
