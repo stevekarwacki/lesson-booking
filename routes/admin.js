@@ -1288,7 +1288,8 @@ router.get('/settings/lessons', authorize('manage', 'User'), async (req, res) =>
         // Provide default values for missing settings
         const settings = {
             default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled || 'false'
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled || 'false',
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled || 'false'
         };
         
         res.json(settings);
@@ -1377,7 +1378,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
             // Handle lesson settings
             const lessonFields = {
                 default_duration_minutes: settingsData.default_duration_minutes,
-                in_person_payment_enabled: settingsData.in_person_payment_enabled
+                in_person_payment_enabled: settingsData.in_person_payment_enabled,
+                card_payment_on_behalf_enabled: settingsData.card_payment_on_behalf_enabled
             };
             
             // Validate lesson settings
@@ -1403,6 +1405,16 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                     validatedFields.in_person_payment_enabled = validated;
                 } catch (error) {
                     errors.in_person_payment_enabled = error.message;
+                }
+            }
+            
+            // Validate card payment on behalf enabled setting
+            if (lessonFields.card_payment_on_behalf_enabled !== undefined) {
+                try {
+                    const validated = AppSettings.validateLessonSetting('card_payment_on_behalf_enabled', lessonFields.card_payment_on_behalf_enabled);
+                    validatedFields.card_payment_on_behalf_enabled = validated;
+                } catch (error) {
+                    errors.card_payment_on_behalf_enabled = error.message;
                 }
             }
             
