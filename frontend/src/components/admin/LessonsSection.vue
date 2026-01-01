@@ -39,10 +39,15 @@
           </span>
         </div>
         
-        <!-- In-Person Payment Setting -->
+      </div>
+      
+      <!-- Payment Methods Section -->
+      <div class="payment-methods-section">
+        <h3 class="subsection-header">Payment Methods</h3>
+        
         <div class="form-group full-width">
           <label for="inPersonPayment" class="form-label">
-            In-Person Payment Option
+            Allow In-Person Payments
           </label>
           <div class="toggle-input-group">
             <label class="toggle-switch">
@@ -66,6 +71,33 @@
             When enabled globally, students can choose to pay for lessons in person. Individual students can have this overridden in their user settings.
           </span>
         </div>
+        
+        <div class="form-group full-width">
+          <label for="cardPaymentOnBehalf" class="form-label">
+            Allow Card Payment in Order-on-Behalf-Of
+          </label>
+          <div class="toggle-input-group">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                id="cardPaymentOnBehalf"
+                v-model="formData.cardPaymentOnBehalfEnabled"
+                :disabled="loading"
+                class="toggle-input"
+              >
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">
+              {{ formData.cardPaymentOnBehalfEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <span v-if="errors.cardPaymentOnBehalfEnabled" class="error-message">
+            {{ errors.cardPaymentOnBehalfEnabled }}
+          </span>
+          <span class="help-text">
+            When enabled, admins and instructors can use card payment when booking lessons on behalf of students. Disabled by default for security.
+          </span>
+        </div>
       </div>
       
       <!-- Preview Section -->
@@ -77,6 +109,9 @@
           </div>
           <div class="preview-item">
             <strong>In-Person Payment:</strong> {{ formData.inPersonPaymentEnabled ? 'Enabled' : 'Disabled' }}
+          </div>
+          <div class="preview-item">
+            <strong>Card Payment (Book on Behalf):</strong> {{ formData.cardPaymentOnBehalfEnabled ? 'Enabled' : 'Disabled' }}
           </div>
           <div class="preview-note">
             <small>
@@ -135,7 +170,8 @@ export default {
     // Form data
     const formData = reactive({
       defaultDurationMinutes: '30',
-      inPersonPaymentEnabled: false
+      inPersonPaymentEnabled: false,
+      cardPaymentOnBehalfEnabled: false
     })
     
     // Original data for change tracking
@@ -144,7 +180,8 @@ export default {
     // Form validation
     const errors = reactive({
       defaultDurationMinutes: '',
-      inPersonPaymentEnabled: ''
+      inPersonPaymentEnabled: '',
+      cardPaymentOnBehalfEnabled: ''
     })
     
     // Validation functions
@@ -192,7 +229,8 @@ export default {
       
       const settingsToSave = {
         default_duration_minutes: formData.defaultDurationMinutes,
-        in_person_payment_enabled: formData.inPersonPaymentEnabled
+        in_person_payment_enabled: formData.inPersonPaymentEnabled,
+        card_payment_on_behalf_enabled: formData.cardPaymentOnBehalfEnabled
       }
       
       emit('change', {
@@ -207,6 +245,7 @@ export default {
       
       formData.defaultDurationMinutes = lessonData.default_duration_minutes || '30'
       formData.inPersonPaymentEnabled = lessonData.in_person_payment_enabled || false
+      formData.cardPaymentOnBehalfEnabled = lessonData.card_payment_on_behalf_enabled || false
       
       // Store original data for change tracking
       originalData.value = JSON.parse(JSON.stringify(formData))
@@ -339,6 +378,21 @@ export default {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   line-height: 1.4;
+}
+
+.payment-methods-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.subsection-header {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary, var(--color-text, #333));
+  font-size: var(--font-size-xl, 1.25rem, 20px);
+  font-weight: 600;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .preview-section {

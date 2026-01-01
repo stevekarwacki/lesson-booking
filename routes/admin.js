@@ -1252,7 +1252,8 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         // Prepare lesson settings with defaults
         const lessons = {
             default_duration_minutes: lessonSettings.default_duration_minutes || '30',
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true'
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true'
         };
         
         const settings = {
@@ -1285,11 +1286,11 @@ router.get('/settings/lessons', authorize('manage', 'User'), async (req, res) =>
     try {
         const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
         
-        // Provide default values for missing settings
+        // Provide default values for missing settings and convert booleans
         const settings = {
             default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled || 'false',
-            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled || 'false'
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true'
         };
         
         res.json(settings);
@@ -1434,7 +1435,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 message: 'Lesson settings updated successfully',
                 data: {
                     default_duration_minutes: validatedFields.default_duration_minutes,
-                    in_person_payment_enabled: validatedFields.in_person_payment_enabled === 'true'
+                    in_person_payment_enabled: validatedFields.in_person_payment_enabled === 'true',
+                    card_payment_on_behalf_enabled: validatedFields.card_payment_on_behalf_enabled === 'true'
                 }
             });
             

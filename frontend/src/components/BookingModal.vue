@@ -99,7 +99,7 @@
                                     Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
                                 </label>
                             </div>
-                            <div class="form-radio-group">
+                            <div v-if="showCardPaymentOption" class="form-radio-group">
                                 <input 
                                     type="radio" 
                                     id="payNow" 
@@ -195,6 +195,7 @@ const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
 const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
+const cardPaymentOnBehalfEnabled = ref(false) // Will be fetched from lesson settings
 
 // Booking on behalf state
 const isBookingOnBehalf = computed(() => props.slot.bookingOnBehalf === true)
@@ -330,6 +331,16 @@ const availableCredits = computed(() => {
     }
     // Otherwise use current user's credits
     return getAvailableCredits.value(selectedDuration.value);
+})
+
+// Computed property to determine if card payment should be shown
+const showCardPaymentOption = computed(() => {
+    // For regular bookings, always show card payment
+    if (!isBookingOnBehalf.value) {
+        return true
+    }
+    // For booking on behalf, only show if enabled in settings
+    return cardPaymentOnBehalfEnabled.value
 })
 
 // Fetch all students for booking on behalf
@@ -491,15 +502,29 @@ onMounted(async () => {
         isBookingOnBehalf.value ? Promise.resolve() : fetchPaymentOptions(),
         (async () => {
             try {
-                const response = await fetch('/api/branding/lesson-settings')
-                if (response.ok) {
-                    const data = await response.json()
+                // Fetch public lesson settings (default duration)
+                const publicResponse = await fetch('/api/branding/lesson-settings')
+                if (publicResponse.ok) {
+                    const data = await publicResponse.json()
                     const defaultDuration = data.default_duration_minutes || 30
                     selectedDuration.value = defaultDuration.toString()
                 }
+                
+                // Fetch admin lesson settings (card payment on behalf) if admin/instructor
+                if (isBookingOnBehalf.value) {
+                    const adminResponse = await fetch('/api/admin/settings/lessons', {
+                        headers: {
+                            'Authorization': `Bearer ${userStore.token}`
+                        }
+                    })
+                    if (adminResponse.ok) {
+                        const adminData = await adminResponse.json()
+                        cardPaymentOnBehalfEnabled.value = adminData.card_payment_on_behalf_enabled || false
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching lesson settings:', err)
-                // Keep default of 30 minutes
+                // Keep defaults
             }
         })()
     ])
