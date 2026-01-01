@@ -222,16 +222,14 @@ const handleSlotClick = (slot) => {
   // Emit slot-selected for both available and booked slots
   // The parent component (InstructorCalendar) will handle the logic
   if (slot.type === 'available') {
-    // In rescheduling mode, always allow selection of available slots
-    // In normal instructor view, prevent selection (unless rescheduling)
-    if (props.isRescheduling || !props.isInstructor) {
-      emit('slot-selected', {
-        date: props.date,
-        startSlot: slot.startSlot,
-        duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2, // Use original duration when rescheduling
-        type: 'available'
-      })
-    }
+    // Always emit for available slots - let parent decide what to do
+    // Parent will handle rescheduling mode and booking on behalf logic
+    emit('slot-selected', {
+      date: props.date,
+      startSlot: slot.startSlot,
+      duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2, // Use original duration when rescheduling
+      type: 'available'
+    })
   } else if (slot.type === 'booked') {
     emit('slot-selected', {
       ...slot,

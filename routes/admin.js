@@ -22,7 +22,14 @@ const { Refund } = require('../models/Refund');
 router.get('/users', authorize('manage', 'User'), async (req, res) => {
     try {
         const users = await User.getAllUsers();
-        res.json(users);
+        
+        // Filter by role if provided
+        const roleFilter = req.query.role;
+        const filteredUsers = roleFilter 
+            ? users.filter(user => user.role === roleFilter)
+            : users;
+        
+        res.json({ users: filteredUsers });
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Error fetching users' });

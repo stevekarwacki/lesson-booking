@@ -70,4 +70,29 @@ router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) =
     }
 });
 
+// Get a user's credit balance (admin/instructor only, for booking on behalf)
+router.get('/:userId/credits', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        const duration = req.query.duration ? parseInt(req.query.duration) : 30;
+        
+        // Import UserCredits model
+        const { UserCredits } = require('../models/Credits');
+        
+        // Get credits breakdown by duration
+        const breakdown = await UserCredits.getUserCreditsBreakdown(userId);
+        
+        // Extract credits for the requested duration
+        const availableCredits = breakdown[duration]?.credits || 0;
+        
+        res.json({
+            availableCredits,
+            duration
+        });
+    } catch (error) {
+        console.error('Error fetching user credits:', error);
+        res.status(500).json({ error: 'Error fetching user credits' });
+    }
+});
+
 module.exports = router; 

@@ -2,10 +2,38 @@
     <div class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Confirm Booking</h2>
+                <h2>{{ isBookingOnBehalf ? 'Book Lesson for Student' : 'Confirm Booking' }}</h2>
             </div>
             
             <div class="modal-body">
+                <!-- Student Selector (only for booking on behalf) -->
+                <div v-if="isBookingOnBehalf" class="student-selector">
+                    <h3>Select Student</h3>
+                    <SearchBar
+                        v-model="studentSearchQuery"
+                        :results="searchResults"
+                        :show-results="showStudentResults"
+                        :min-chars="1"
+                        placeholder="Search for a student..."
+                        @select="handleStudentSelect"
+                        @focus="showStudentResults = true"
+                        @blur="handleSearchBlur"
+                    >
+                        <template #result="{ result }">
+                            <div class="result-content">
+                                <div class="result-primary">{{ result.name }}</div>
+                                <div class="result-secondary">{{ result.email }}</div>
+                            </div>
+                        </template>
+                    </SearchBar>
+                    <div v-if="selectedStudent" class="selected-student">
+                        <strong>Selected:</strong> {{ selectedStudent.name }} ({{ selectedStudent.email }})
+                    </div>
+                    <div v-if="!selectedStudent && error" class="form-message error-message">
+                        Please select a student before booking.
+                    </div>
+                </div>
+
                 <div class="booking-details">
                     <p>Date: {{ currentSlot.date.toISOString().split('T')[0] }}</p>
                     <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ displayEndTime }}</p>
@@ -138,6 +166,7 @@ import { useCredits } from '../composables/useCredits'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
+import SearchBar from './SearchBar.vue'
 
 const props = defineProps({
     slot: {
@@ -166,6 +195,28 @@ const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
 const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
 const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
+
+// Booking on behalf state
+const isBookingOnBehalf = computed(() => props.slot.bookingOnBehalf === true)
+const allStudents = ref([])
+const selectedStudent = ref(null)
+const studentSearchQuery = ref('')
+const showStudentResults = ref(false)
+const selectedStudentCredits = ref(0)
+
+// Computed search results for student selector
+const searchResults = computed(() => {
+    if (!studentSearchQuery.value || studentSearchQuery.value.length < 1) {
+        return allStudents.value
+    }
+    
+    const query = studentSearchQuery.value.toLowerCase()
+    return allStudents.value.filter(student => {
+        const name = student.name?.toLowerCase() || ''
+        const email = student.email?.toLowerCase() || ''
+        return name.includes(query) || email.includes(query)
+    })
+})
 
 // Computed property for the displayed end time based on selected duration
 const displayEndTime = computed(() => {
@@ -273,7 +324,85 @@ const lessonPrice = computed(() => {
 
 // Computed property for available credits for selected duration
 const availableCredits = computed(() => {
+    // If booking on behalf, use selected student's credits
+    if (isBookingOnBehalf.value && selectedStudent.value) {
+        return selectedStudentCredits.value
+    }
+    // Otherwise use current user's credits
     return getAvailableCredits.value(selectedDuration.value);
+})
+
+// Fetch all students for booking on behalf
+const fetchAllStudents = async () => {
+    try {
+        const response = await fetch('/api/admin/users?role=student', {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            const data = await response.json()
+            allStudents.value = data.users || []
+        }
+    } catch (err) {
+        console.error('Error fetching students:', err)
+    }
+}
+
+// Handle student selection
+const handleStudentSelect = async (student) => {
+    selectedStudent.value = student
+    studentSearchQuery.value = student.name
+    showStudentResults.value = false
+    
+    // Fetch the selected student's credit balance
+    await fetchStudentCredits(student.id)
+}
+
+// Handle search blur with delay to allow click event
+const handleSearchBlur = () => {
+    setTimeout(() => {
+        showStudentResults.value = false
+    }, 200)
+}
+
+// Fetch credit balance for selected student
+const fetchStudentCredits = async (studentId) => {
+    try {
+        const response = await fetch(`/api/users/${studentId}/credits?duration=${selectedDuration.value}`, {
+            headers: {
+                'Authorization': `Bearer ${userStore.token}`
+            }
+        })
+        
+        if (response.ok) {
+            const data = await response.json()
+            selectedStudentCredits.value = data.availableCredits || 0
+            
+            // Update payment method based on credits and settings
+            updatePaymentMethodForBookingOnBehalf()
+        }
+    } catch (err) {
+        console.error('Error fetching student credits:', err)
+        selectedStudentCredits.value = 0
+    }
+}
+
+// Update payment method when booking on behalf
+const updatePaymentMethodForBookingOnBehalf = () => {
+    if (isBookingOnBehalf.value) {
+        // Default to in-person payment
+        paymentMethod.value = 'in-person'
+        // Will show credits option if available via the template
+    }
+}
+
+// Watch for duration changes to update student credits
+watch(selectedDuration, async () => {
+    if (isBookingOnBehalf.value && selectedStudent.value) {
+        await fetchStudentCredits(selectedStudent.value.id)
+    }
 })
 
 // Fetch instructor's hourly rate
@@ -318,9 +447,22 @@ const fetchPaymentOptions = async () => {
 
 // Fetch user credits and instructor rate when modal opens
 onMounted(async () => {
+    // If booking on behalf, fetch all students
+    if (isBookingOnBehalf.value) {
+        await fetchAllStudents()
+        // Default to in-person payment for booking on behalf
+        paymentMethod.value = 'in-person'
+        canUseInPersonPayment.value = true
+    }
+    
     // Fetch credits, instructor rate, payment options, and lesson settings in parallel
     await Promise.all([
         (async () => {
+            // Skip credit fetching if booking on behalf (will fetch after student selection)
+            if (isBookingOnBehalf.value) {
+                return
+            }
+            
             try {
                 await fetchCredits()
                 
@@ -345,7 +487,8 @@ onMounted(async () => {
             }
         })(),
         fetchInstructorRate(),
-        fetchPaymentOptions(),
+        // Only fetch payment options if not booking on behalf
+        isBookingOnBehalf.value ? Promise.resolve() : fetchPaymentOptions(),
         (async () => {
             try {
                 const response = await fetch('/api/branding/lesson-settings')
@@ -391,6 +534,13 @@ const confirmBooking = async () => {
         loading.value = true;
         error.value = null;
 
+        // Validate student selection if booking on behalf
+        if (isBookingOnBehalf.value && !selectedStudent.value) {
+            error.value = 'Please select a student before booking.'
+            loading.value = false
+            return
+        }
+
         // Get the date in UTC using utility functions
         const utcDate = formatDateUTC(currentSlot.value.date);
         
@@ -411,6 +561,11 @@ const confirmBooking = async () => {
             endTime: endDate.toISOString(),
             paymentMethod: paymentMethod.value,
             studentTimezone: timezoneStore.userTimezone
+        }
+
+        // Add studentId if booking on behalf
+        if (isBookingOnBehalf.value) {
+            requestBody.studentId = selectedStudent.value.id
         }
 
         const response = await fetch('/api/calendar/addEvent', {
@@ -438,7 +593,11 @@ const confirmBooking = async () => {
         // Credits are automatically deducted by the backend, so we refresh to get accurate count
         if (paymentMethod.value === 'credits') {
             try {
-                await fetchCredits()
+                if (isBookingOnBehalf.value && selectedStudent.value) {
+                    await fetchStudentCredits(selectedStudent.value.id)
+                } else {
+                    await fetchCredits()
+                }
             } catch (creditError) {
                 console.error('Failed to refresh credits after booking:', creditError)
                 // Don't fail the booking if credit refresh fails
@@ -465,6 +624,27 @@ watch(() => props.slot, (newSlot) => {
 </script>
 
 <style scoped>
+.student-selector {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-light);
+}
+
+.student-selector h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.selected-student {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--background-primary);
+    border-radius: var(--border-radius);
+    color: var(--text-primary);
+}
+
 .booking-details {
     margin: var(--spacing-md) 0;
 }
