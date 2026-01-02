@@ -83,7 +83,7 @@
                     <p><strong>Please select a different time or choose 30 minutes instead.</strong></p>
                 </div>
 
-                <div v-if="showPaymentOptions && !hasTimeConflict" class="payment-options">
+                <div v-if="showPaymentOptions && !hasTimeConflict && (!isBookingOnBehalf || selectedStudent)" class="payment-options">
                     <h3>Payment Method</h3>
                     <div class="form-group">
                         <div class="form-input-group">
@@ -149,9 +149,9 @@
                     v-if="paymentMethod !== 'direct'"
                     class="form-button" 
                     @click="confirmBooking"
-                    :disabled="loading || hasTimeConflict"
+                    :disabled="isConfirmDisabled"
                 >
-                    {{ loading ? 'Processing...' : hasTimeConflict ? 'Booking Conflict' : 'Confirm Booking' }}
+                    {{ loading ? 'Processing...' : hasTimeConflict ? 'Booking Conflict' : isBookingOnBehalf && !selectedStudent ? 'Select Student' : 'Confirm Booking' }}
                 </button>
             </div>
         </div>
@@ -341,6 +341,19 @@ const showCardPaymentOption = computed(() => {
     }
     // For booking on behalf, only show if enabled in settings
     return cardPaymentOnBehalfEnabled.value
+})
+
+// Computed property to determine if confirm button should be disabled
+const isConfirmDisabled = computed(() => {
+    // Always disabled when loading or has time conflict
+    if (loading.value || hasTimeConflict.value) {
+        return true
+    }
+    // When booking on behalf, require a student to be selected
+    if (isBookingOnBehalf.value && !selectedStudent.value) {
+        return true
+    }
+    return false
 })
 
 // Fetch all students for booking on behalf
