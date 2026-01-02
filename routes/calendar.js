@@ -145,8 +145,15 @@ router.post('/attendance', authorizeBooking('update', async (req) => {
 // Book a lesson
 router.post('/addEvent', authorize('create', 'Booking'), async (req, res) => {
     try {
-        const { instructorId, startTime, endTime, paymentMethod = 'credits' } = req.body;
-        const studentId = req.user.id;
+        const { instructorId, startTime, endTime, paymentMethod = 'credits', studentId: requestedStudentId } = req.body;
+        
+        // Determine the student ID
+        // If a studentId is provided and the requester can manage users/calendar, use that
+        // Otherwise, use the requester's ID (student booking for themselves)
+        let studentId = req.user.id;
+        if (requestedStudentId && (req.user.role === 'admin' || req.user.role === 'instructor')) {
+            studentId = requestedStudentId;
+        }
 
         // Validate required fields
         if (!instructorId || !startTime || !endTime) {

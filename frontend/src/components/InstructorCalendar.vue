@@ -199,14 +199,20 @@ const showEditBookingModal = ref(false)
 const selectedSlot = ref(null)
 
 const handleSlotSelected = (slot) => {
-    // Instructors should not be able to book new lessons on available slots
+    // Handle available slot clicks
     if (slot.type === 'available') {
-        // Only prevent booking for instructors, allow students to book
+        // For admins and instructors, open booking modal in "book on behalf" mode
         if (userStore.canManageCalendar || userStore.canManageUsers) {
-            return // Do nothing for available slots when user is instructor/admin
+            selectedSlot.value = {
+                ...slot,
+                instructorId: instructor.id,
+                bookingOnBehalf: true // Flag to indicate this is a "book on behalf" flow
+            }
+            showBookingModal.value = true
+            return
         }
         
-        // For students, open booking modal
+        // For students, open booking modal normally
         selectedSlot.value = {
             ...slot,
             instructorId: instructor.id

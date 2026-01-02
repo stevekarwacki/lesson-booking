@@ -30,6 +30,38 @@ const authorize = (action, subject, options = {}) => {
 };
 
 /**
+ * Check if user has any of the specified permissions
+ * Useful when multiple roles can access an endpoint
+ * @param {Array<{action: string, subject: string}>} permissions - Array of permission objects
+ * @returns {Function} Express middleware function
+ */
+const authorizeAny = (permissions) => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const ability = defineAbilitiesFor(req.user);
+    
+    // Check if user has any of the required permissions
+    const hasPermission = permissions.some(({ action, subject }) => 
+      ability.can(action, subject)
+    );
+    
+    if (!hasPermission) {
+      return res.status(403).json({ 
+        error: 'Permission denied',
+        required: permissions.map(p => `${p.action} ${p.subject}`).join(' OR ')
+      });
+    }
+
+    // Attach ability to request for use in route handlers
+    req.ability = ability;
+    next();
+  };
+};
+
+/**
  * Middleware to check permissions on a specific resource
  * @param {string} action - The action to check
  * @param {string} subject - The subject/resource type
@@ -173,6 +205,7 @@ const requireOwnInstructor = () => {
 
 module.exports = {
   authorize,
+  authorizeAny,
   authorizeResource,
   authorizeBooking,
   authorizeUserAccess,

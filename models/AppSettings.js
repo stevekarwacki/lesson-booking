@@ -263,6 +263,30 @@ AppSettings.getInPersonPaymentEnabled = async function() {
     }
 };
 
+// Static method to get card payment on behalf enabled setting
+AppSettings.getCardPaymentOnBehalfEnabled = async function() {
+    try {
+        const setting = await this.findOne({
+            where: {
+                category: 'lessons',
+                key: 'card_payment_on_behalf_enabled'
+            }
+        });
+        
+        if (!setting) {
+            // Default to false if setting doesn't exist
+            return false;
+        }
+        
+        // Convert string to boolean
+        return setting.value === 'true';
+    } catch (error) {
+        console.error('Error getting card payment on behalf enabled setting:', error);
+        // Default to false on error
+        return false;
+    }
+};
+
 // Validation helper for lesson settings
 AppSettings.validateLessonSetting = function(key, value) {
     switch (key) {
@@ -277,6 +301,7 @@ AppSettings.validateLessonSetting = function(key, value) {
             return duration.toString();
             
         case 'in_person_payment_enabled':
+        case 'card_payment_on_behalf_enabled':
             if (typeof value === 'boolean') {
                 return value.toString();
             }
@@ -286,7 +311,7 @@ AppSettings.validateLessonSetting = function(key, value) {
                     return lowerValue;
                 }
             }
-            throw new Error('In-person payment setting must be true or false');
+            throw new Error('Payment setting must be true or false');
             
         default:
             throw new Error(`Unknown lesson setting: ${key}`);

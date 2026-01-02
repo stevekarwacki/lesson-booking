@@ -36,13 +36,17 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Public route for lesson settings (default duration)
+// Public route for lesson settings (read-only, write restricted to admins)
 router.get('/lesson-settings', async (req, res) => {
     try {
-        const defaultDuration = await AppSettings.getDefaultLessonDuration();
-        res.json({
-            default_duration_minutes: defaultDuration
-        });
+        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
+        
+        const settings = {
+            default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true'
+        };
+        
+        res.json(settings);
     } catch (error) {
         console.error('Error fetching lesson settings:', error);
         res.status(500).json({ 

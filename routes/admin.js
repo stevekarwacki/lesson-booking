@@ -18,11 +18,11 @@ const RefundService = require('../services/RefundService');
 const { Refund } = require('../models/Refund');
 
 
-// Get all users - protected by CASL permissions
+// Get all users - admin only, no role filtering (use /api/users/students for students)
 router.get('/users', authorize('manage', 'User'), async (req, res) => {
     try {
         const users = await User.getAllUsers();
-        res.json(users);
+        res.json({ users });
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Error fetching users' });
@@ -1245,7 +1245,8 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
         // Prepare lesson settings with defaults
         const lessons = {
             default_duration_minutes: lessonSettings.default_duration_minutes || '30',
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true'
+            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true'
         };
         
         const settings = {
@@ -1274,23 +1275,6 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
 });
 
 // Get lesson settings specifically (for frontend caching)
-router.get('/settings/lessons', authorize('manage', 'User'), async (req, res) => {
-    try {
-        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
-        
-        // Provide default values for missing settings
-        const settings = {
-            default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled || 'false'
-        };
-        
-        res.json(settings);
-    } catch (error) {
-        console.error('Error fetching lesson settings:', error);
-        res.status(500).json({ error: 'Error fetching lesson settings' });
-    }
-});
-
 // Update settings by category
 router.put('/settings/:category', authorize('manage', 'User'), async (req, res) => {
     try {
@@ -1370,7 +1354,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
             // Handle lesson settings
             const lessonFields = {
                 default_duration_minutes: settingsData.default_duration_minutes,
-                in_person_payment_enabled: settingsData.in_person_payment_enabled
+                in_person_payment_enabled: settingsData.in_person_payment_enabled,
+                card_payment_on_behalf_enabled: settingsData.card_payment_on_behalf_enabled
             };
             
             // Validate lesson settings
@@ -1399,6 +1384,16 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 }
             }
             
+            // Validate card payment on behalf enabled setting
+            if (lessonFields.card_payment_on_behalf_enabled !== undefined) {
+                try {
+                    const validated = AppSettings.validateLessonSetting('card_payment_on_behalf_enabled', lessonFields.card_payment_on_behalf_enabled);
+                    validatedFields.card_payment_on_behalf_enabled = validated;
+                } catch (error) {
+                    errors.card_payment_on_behalf_enabled = error.message;
+                }
+            }
+            
             // If there are validation errors, return them
             if (Object.keys(errors).length > 0) {
                 return res.status(400).json({
@@ -1415,7 +1410,8 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 message: 'Lesson settings updated successfully',
                 data: {
                     default_duration_minutes: validatedFields.default_duration_minutes,
-                    in_person_payment_enabled: validatedFields.in_person_payment_enabled === 'true'
+                    in_person_payment_enabled: validatedFields.in_person_payment_enabled === 'true',
+                    card_payment_on_behalf_enabled: validatedFields.card_payment_on_behalf_enabled === 'true'
                 }
             });
             

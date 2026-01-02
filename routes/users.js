@@ -2,8 +2,25 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models/User');
 const bcrypt = require('bcrypt');
-const { authorize, authorizeUserAccess } = require('../middleware/permissions');
+const { authorize, authorizeAny, authorizeUserAccess } = require('../middleware/permissions');
 const { canUserUseInPersonPayment } = require('../utils/inPersonPaymentUtils');
+const { error: logError } = require('../utils/logger');
+
+// Get all students (for instructors/admins booking on behalf)
+router.get('/students', authorizeAny([
+    { action: 'read', subject: 'StudentList' },
+    { action: 'manage', subject: 'User' }
+]), async (req, res) => {
+    try {
+        const allUsers = await User.getAllUsers();
+        const students = allUsers.filter(user => user.role === 'student');
+        
+        res.json({ users: students });
+    } catch (err) {
+        logError('Error fetching students', { error: err.message, userId: req.user?.id });
+        res.status(500).json({ error: 'Error fetching students' });
+    }
+});
 
 // Update user profile - user can update their own, admin can update any
 router.patch('/:id', authorizeUserAccess(async (req) => parseInt(req.params.id)), async (req, res) => {
@@ -67,6 +84,34 @@ router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) =
         res.json({ message: 'User approval status updated successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Error updating user approval status' });
+    }
+});
+
+// Get a user's credit balance (admin/instructor only, for booking on behalf)
+router.get('/:userId/credits', authorizeAny([
+    { action: 'read', subject: 'StudentCredits' },
+    { action: 'manage', subject: 'User' }
+]), async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        const duration = req.query.duration ? parseInt(req.query.duration) : 30;
+        
+        // Import UserCredits model
+        const { UserCredits } = require('../models/Credits');
+        
+        // Get credits breakdown by duration
+        const breakdown = await UserCredits.getUserCreditsBreakdown(userId);
+        
+        // Extract credits for the requested duration
+        const availableCredits = breakdown[duration]?.credits || 0;
+        
+        res.json({
+            availableCredits,
+            duration
+        });
+    } catch (err) {
+        logError('Error fetching user credits', { error: err.message, userId, requestedBy: req.user?.id });
+        res.status(500).json({ error: 'Error fetching user credits' });
     }
 });
 
