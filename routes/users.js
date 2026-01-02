@@ -4,6 +4,29 @@ const { User } = require('../models/User');
 const bcrypt = require('bcrypt');
 const { authorize, authorizeUserAccess } = require('../middleware/permissions');
 const { canUserUseInPersonPayment } = require('../utils/inPersonPaymentUtils');
+const { authMiddleware } = require('../middleware/auth');
+const { defineAbilitiesFor } = require('../utils/abilities');
+
+// Get all students (for instructors/admins booking on behalf)
+router.get('/students', authMiddleware, async (req, res) => {
+    try {
+        // Define abilities for the user
+        const ability = defineAbilitiesFor(req.user);
+        
+        // Check if user has permission to read student list (instructors) or manage users (admins)
+        if (!ability.can('read', 'StudentList') && !ability.can('manage', 'User')) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+        
+        const allUsers = await User.getAllUsers();
+        const students = allUsers.filter(user => user.role === 'student');
+        
+        res.json({ users: students });
+    } catch (error) {
+        console.error('Error fetching students:', error);
+        res.status(500).json({ error: 'Error fetching students' });
+    }
+});
 
 // Update user profile - user can update their own, admin can update any
 router.patch('/:id', authorizeUserAccess(async (req) => parseInt(req.params.id)), async (req, res) => {
@@ -71,8 +94,16 @@ router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) =
 });
 
 // Get a user's credit balance (admin/instructor only, for booking on behalf)
-router.get('/:userId/credits', authorize('manage', 'User'), async (req, res) => {
+router.get('/:userId/credits', authMiddleware, async (req, res) => {
     try {
+        // Define abilities for the user
+        const ability = defineAbilitiesFor(req.user);
+        
+        // Check if user has permission to read student credits (instructors) or manage users (admins)
+        if (!ability.can('read', 'StudentCredits') && !ability.can('manage', 'User')) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+        
         const userId = parseInt(req.params.userId, 10);
         const duration = req.query.duration ? parseInt(req.query.duration) : 30;
         

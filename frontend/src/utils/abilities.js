@@ -63,6 +63,10 @@ export const defineAbilitiesFor = (user) => {
       can('cancel', 'Booking', { instructor_id: user.instructor_id });
       can('manage', 'Booking', { instructor_id: user.instructor_id }); // Including past bookings
       
+      // Student information access (for booking on behalf)
+      can('read', 'StudentList'); // Read list of students
+      can('read', 'StudentCredits'); // Read student credit information
+      
       // Instructor profile management
       can('read', 'Instructor', { user_id: user.id });
       can('update', 'Instructor', { user_id: user.id });

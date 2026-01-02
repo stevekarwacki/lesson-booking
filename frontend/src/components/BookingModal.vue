@@ -359,7 +359,7 @@ const isConfirmDisabled = computed(() => {
 // Fetch all students for booking on behalf
 const fetchAllStudents = async () => {
     try {
-        const response = await fetch('/api/admin/users?role=student', {
+        const response = await fetch('/api/users/students', {
             headers: {
                 'Authorization': `Bearer ${userStore.token}`
             }
@@ -515,25 +515,12 @@ onMounted(async () => {
         isBookingOnBehalf.value ? Promise.resolve() : fetchPaymentOptions(),
         (async () => {
             try {
-                // Fetch public lesson settings (default duration)
-                const publicResponse = await fetch('/api/branding/lesson-settings')
-                if (publicResponse.ok) {
-                    const data = await publicResponse.json()
-                    const defaultDuration = data.default_duration_minutes || 30
-                    selectedDuration.value = defaultDuration.toString()
-                }
-                
-                // Fetch admin lesson settings (card payment on behalf) if admin/instructor
-                if (isBookingOnBehalf.value) {
-                    const adminResponse = await fetch('/api/admin/settings/lessons', {
-                        headers: {
-                            'Authorization': `Bearer ${userStore.token}`
-                        }
-                    })
-                    if (adminResponse.ok) {
-                        const adminData = await adminResponse.json()
-                        cardPaymentOnBehalfEnabled.value = adminData.card_payment_on_behalf_enabled || false
-                    }
+                // Fetch lesson settings (public read-only endpoint)
+                const response = await fetch('/api/branding/lesson-settings')
+                if (response.ok) {
+                    const data = await response.json()
+                    selectedDuration.value = data.default_duration_minutes?.toString() || '30'
+                    cardPaymentOnBehalfEnabled.value = data.card_payment_on_behalf_enabled || false
                 }
             } catch (err) {
                 console.error('Error fetching lesson settings:', err)

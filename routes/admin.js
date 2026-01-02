@@ -18,18 +18,11 @@ const RefundService = require('../services/RefundService');
 const { Refund } = require('../models/Refund');
 
 
-// Get all users - protected by CASL permissions
+// Get all users - admin only, no role filtering (use /api/users/students for students)
 router.get('/users', authorize('manage', 'User'), async (req, res) => {
     try {
         const users = await User.getAllUsers();
-        
-        // Filter by role if provided
-        const roleFilter = req.query.role;
-        const filteredUsers = roleFilter 
-            ? users.filter(user => user.role === roleFilter)
-            : users;
-        
-        res.json({ users: filteredUsers });
+        res.json({ users });
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Error fetching users' });
@@ -1282,24 +1275,6 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
 });
 
 // Get lesson settings specifically (for frontend caching)
-router.get('/settings/lessons', authorize('manage', 'User'), async (req, res) => {
-    try {
-        const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
-        
-        // Provide default values for missing settings and convert booleans
-        const settings = {
-            default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
-            in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
-            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true'
-        };
-        
-        res.json(settings);
-    } catch (error) {
-        console.error('Error fetching lesson settings:', error);
-        res.status(500).json({ error: 'Error fetching lesson settings' });
-    }
-});
-
 // Update settings by category
 router.put('/settings/:category', authorize('manage', 'User'), async (req, res) => {
     try {
