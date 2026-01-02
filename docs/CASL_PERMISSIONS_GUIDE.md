@@ -43,6 +43,8 @@ This lesson booking application uses **CASL (Conditional Access Control List)** 
 | **Availability** | ✅ Own | ✅ Own | ✅ Own | ✅ Own | Manage own schedule |
 | **OwnInstructorAvailability** | ✅ | ✅ | ✅ | ✅ | Granular availability |
 | **Student** | ❌ | ✅ | ❌ | ❌ | View students with bookings |
+| **StudentList** | ❌ | ✅ | ❌ | ❌ | View all students for booking |
+| **StudentCredits** | ❌ | ✅ | ❌ | ❌ | View student credit balances |
 | **Subscription** | ✅ Own | ✅ Own | ✅ Own | ✅ Own | Manage subscriptions |
 | **RecurringBooking** | ✅ Own | ✅ Own | ✅ Own | ✅ Own | Their students' recurring |
 
