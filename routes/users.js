@@ -2,28 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models/User');
 const bcrypt = require('bcrypt');
-const { authorize, authorizeUserAccess } = require('../middleware/permissions');
+const { authorize, authorizeAny, authorizeUserAccess } = require('../middleware/permissions');
 const { canUserUseInPersonPayment } = require('../utils/inPersonPaymentUtils');
-const { authMiddleware } = require('../middleware/auth');
-const { defineAbilitiesFor } = require('../utils/abilities');
+const { error: logError } = require('../utils/logger');
 
 // Get all students (for instructors/admins booking on behalf)
-router.get('/students', authMiddleware, async (req, res) => {
+router.get('/students', authorizeAny([
+    { action: 'read', subject: 'StudentList' },
+    { action: 'manage', subject: 'User' }
+]), async (req, res) => {
     try {
-        // Define abilities for the user
-        const ability = defineAbilitiesFor(req.user);
-        
-        // Check if user has permission to read student list (instructors) or manage users (admins)
-        if (!ability.can('read', 'StudentList') && !ability.can('manage', 'User')) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
-        }
-        
         const allUsers = await User.getAllUsers();
         const students = allUsers.filter(user => user.role === 'student');
         
         res.json({ users: students });
-    } catch (error) {
-        console.error('Error fetching students:', error);
+    } catch (err) {
+        logError('Error fetching students', { error: err.message, userId: req.user?.id });
         res.status(500).json({ error: 'Error fetching students' });
     }
 });
@@ -94,16 +88,11 @@ router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) =
 });
 
 // Get a user's credit balance (admin/instructor only, for booking on behalf)
-router.get('/:userId/credits', authMiddleware, async (req, res) => {
+router.get('/:userId/credits', authorizeAny([
+    { action: 'read', subject: 'StudentCredits' },
+    { action: 'manage', subject: 'User' }
+]), async (req, res) => {
     try {
-        // Define abilities for the user
-        const ability = defineAbilitiesFor(req.user);
-        
-        // Check if user has permission to read student credits (instructors) or manage users (admins)
-        if (!ability.can('read', 'StudentCredits') && !ability.can('manage', 'User')) {
-            return res.status(403).json({ error: 'Insufficient permissions' });
-        }
-        
         const userId = parseInt(req.params.userId, 10);
         const duration = req.query.duration ? parseInt(req.query.duration) : 30;
         
@@ -120,8 +109,8 @@ router.get('/:userId/credits', authMiddleware, async (req, res) => {
             availableCredits,
             duration
         });
-    } catch (error) {
-        console.error('Error fetching user credits:', error);
+    } catch (err) {
+        logError('Error fetching user credits', { error: err.message, userId, requestedBy: req.user?.id });
         res.status(500).json({ error: 'Error fetching user credits' });
     }
 });

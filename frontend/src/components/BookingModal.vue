@@ -197,6 +197,9 @@ const instructorHourlyRate = ref(50) // Default rate, will be fetched from datab
 const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
 const cardPaymentOnBehalfEnabled = ref(false) // Will be fetched from lesson settings
 
+// Constants
+const SEARCH_BLUR_DELAY_MS = 200 // Delay to allow click event on search results
+
 // Booking on behalf state
 const isBookingOnBehalf = computed(() => props.slot.bookingOnBehalf === true)
 const allStudents = ref([])
@@ -365,12 +368,15 @@ const fetchAllStudents = async () => {
             }
         })
         
-        if (response.ok) {
-            const data = await response.json()
-            allStudents.value = data.users || []
+        if (!response.ok) {
+            throw new Error(`Failed to fetch students: ${response.statusText}`)
         }
+        
+        const data = await response.json()
+        allStudents.value = data.users || []
     } catch (err) {
         console.error('Error fetching students:', err)
+        showError('Unable to load student list. Please try again.')
     }
 }
 
@@ -388,7 +394,7 @@ const handleStudentSelect = async (student) => {
 const handleSearchBlur = () => {
     setTimeout(() => {
         showStudentResults.value = false
-    }, 200)
+    }, SEARCH_BLUR_DELAY_MS)
 }
 
 // Fetch credit balance for selected student
@@ -400,16 +406,19 @@ const fetchStudentCredits = async (studentId) => {
             }
         })
         
-        if (response.ok) {
-            const data = await response.json()
-            selectedStudentCredits.value = data.availableCredits || 0
-            
-            // Update payment method based on credits and settings
-            updatePaymentMethodForBookingOnBehalf()
+        if (!response.ok) {
+            throw new Error(`Failed to fetch student credits: ${response.statusText}`)
         }
+        
+        const data = await response.json()
+        selectedStudentCredits.value = data.availableCredits || 0
+        
+        // Update payment method based on credits and settings
+        updatePaymentMethodForBookingOnBehalf()
     } catch (err) {
         console.error('Error fetching student credits:', err)
         selectedStudentCredits.value = 0
+        showError('Unable to load student credit balance.')
     }
 }
 
