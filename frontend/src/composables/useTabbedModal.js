@@ -1,13 +1,16 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch, unref } from 'vue'
 
-export function useTabbedModal(tabs) {
-  const activeTab = ref(tabs.find(t => t.default)?.id || tabs[0]?.id)
+export function useTabbedModal(tabsRef) {
+  // Unwrap the ref/computed to get initial value
+  const tabs = computed(() => unref(tabsRef))
+  
+  const activeTab = ref(tabs.value.find(t => t.default)?.id || tabs.value[0]?.id)
   const accordionState = ref({})
   
   // Initialize accordion state based on priority
   const initializeAccordionState = () => {
     accordionState.value = {}
-    tabs.forEach(tab => {
+    tabs.value.forEach(tab => {
       if (!tab.default) {
         accordionState.value[tab.id] = tab.priority === 'high'
       }
@@ -24,9 +27,9 @@ export function useTabbedModal(tabs) {
     accordionState.value[tabId] = !accordionState.value[tabId]
   }
   
-  const defaultTab = computed(() => tabs.find(t => t.default))
+  const defaultTab = computed(() => tabs.value.find(t => t.default))
   const secondaryTabs = computed(() => 
-    tabs.filter(t => !t.default).sort((a, b) => {
+    tabs.value.filter(t => !t.default).sort((a, b) => {
       const priorities = { high: 1, medium: 2, low: 3 }
       return priorities[a.priority || 'medium'] - priorities[b.priority || 'medium']
     })
@@ -34,9 +37,20 @@ export function useTabbedModal(tabs) {
   
   // Reset to default state (called when modal closes)
   const resetState = () => {
-    activeTab.value = tabs.find(t => t.default)?.id || tabs[0]?.id
+    activeTab.value = tabs.value.find(t => t.default)?.id || tabs.value[0]?.id
     initializeAccordionState()
   }
+  
+  // Watch for tab changes and reinitialize
+  watch(tabs, () => {
+    // Reinitialize accordion state when tabs change
+    initializeAccordionState()
+    // Reset active tab if current one no longer exists
+    const currentTabExists = tabs.value.some(t => t.id === activeTab.value)
+    if (!currentTabExists) {
+      activeTab.value = tabs.value.find(t => t.default)?.id || tabs.value[0]?.id
+    }
+  }, { deep: true })
   
   return {
     activeTab,

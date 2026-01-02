@@ -151,9 +151,12 @@ export default {
       children.forEach((child, index) => {
         if (child.type?.name === 'TabbedModalTab') {
           const tabProps = child.props || {}
+          const label = tabProps.label || `Tab ${index + 1}`
+          // Use label as stable ID instead of index to prevent mobile/desktop mismatch
+          const id = label.toLowerCase().replace(/\s+/g, '-')
           slotTabs.push({
-            id: `tab-${index}`,
-            label: tabProps.label || `Tab ${index + 1}`,
+            id,
+            label,
             badge: tabProps.badge,
             icon: tabProps.icon,
             priority: tabProps.priority || 'medium',
@@ -174,7 +177,7 @@ export default {
       defaultTab,
       secondaryTabs,
       resetState
-    } = useTabbedModal(tabs.value)
+    } = useTabbedModal(tabs)
     
     // View state
     const isMainView = computed(() => !secondaryView.value)
