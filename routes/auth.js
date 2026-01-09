@@ -29,7 +29,7 @@ router.post('/signup', async (req, res) => {
         // Create token for new user
         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
         
-        // Return user data and token
+        // Return user data and token (verification_status included in getPlainObject)
         res.json({
             message: 'User created successfully',
             token,
@@ -72,13 +72,11 @@ router.post('/login', async (req, res) => {
         // Create token
         const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
         
-        // Get plain object representation of user
-        const userData = User.getPlainObject(user);
-        
+        // Return user data (verification_status included in getPlainObject)
         res.json({
             message: 'Login successful',
             token,
-            user: userData
+            user: User.getPlainObject(user)
         });
         
     } catch (error) {

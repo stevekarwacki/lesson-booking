@@ -161,10 +161,37 @@ User.setApprovalStatus = async function(userId, isApproved) {
     return user;
 };
 
-// Add a method to get plain object representation
+// Verification helper wrappers - delegates to pure functions in utils/verificationHelpers.js
+// This keeps routes DRY by only requiring the User model import
+const verificationHelpers = require('../utils/verificationHelpers');
+
+User.isVerificationComplete = function(user) {
+    return verificationHelpers.isVerificationComplete(user);
+};
+
+User.getVerificationStatus = function(user) {
+    return verificationHelpers.getVerificationStatus(user);
+};
+
+User.validateVerificationData = function(data) {
+    return verificationHelpers.validateVerificationData(data);
+};
+
+User.buildProfileData = function(data) {
+    return verificationHelpers.buildProfileData(data);
+};
+
+// Get plain object representation with verification status included
 User.getPlainObject = function(user) {
     if (!user) return null;
-    return user.get({ plain: true });
+    
+    const plainUser = user.get({ plain: true });
+    const verificationStatus = verificationHelpers.getVerificationStatus(plainUser);
+    
+    return {
+        ...plainUser,
+        verification_status: verificationStatus
+    };
 };
 
 // Add a method to update subscription periods

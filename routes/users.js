@@ -72,6 +72,59 @@ router.get('/me/payment-options', async (req, res) => {
     }
 });
 
+// Update current user's verification data
+router.put('/me/verification', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Validate incoming data
+        const validation = User.validateVerificationData(req.body);
+        if (!validation.valid) {
+            return res.status(400).json({ 
+                error: 'Validation failed', 
+                errors: validation.errors 
+            });
+        }
+        
+        // Build profile data JSON
+        const profileData = User.buildProfileData(req.body);
+        
+        // Prepare updates
+        const updates = {
+            phone_number: req.body.phone_number?.trim(),
+            is_student_minor: req.body.is_student_minor,
+            user_profile_data: profileData
+        };
+        
+        // Update user
+        await User.updateUser(userId, updates);
+        
+        // Fetch updated user to check if verification is now complete
+        const updatedUser = await User.findById(userId);
+        const complete = User.isVerificationComplete(updatedUser);
+        
+        // Set completion timestamp if verification is complete
+        if (complete && !updatedUser.profile_completed_at) {
+            await User.updateUser(userId, { profile_completed_at: new Date() });
+        }
+        
+        // Fetch final user state and return with verification status
+        const finalUser = await User.findById(userId);
+        const userData = User.getPlainObject(finalUser);
+        
+        res.json({
+            message: 'Verification data updated successfully',
+            verification_status: userData.verification_status
+        });
+    } catch (error) {
+        logError('Error updating verification data', { 
+            error: error.message, 
+            userId: req.user?.id 
+        });
+        res.status(500).json({ error: 'Error updating verification data' });
+    }
+});
+
 // Update user approval status (admin only)
 router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) => {
     try {
