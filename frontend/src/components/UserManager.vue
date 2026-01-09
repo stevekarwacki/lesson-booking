@@ -15,6 +15,7 @@ import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
+import { formatAddress } from '../utils/verificationHelpers'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
@@ -606,6 +607,20 @@ const formatTime = (timeObj) => {
     })
 }
 
+// Format date to readable string
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    
+    const date = new Date(dateString)
+    return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
 // onMounted removed - Vue Query handles initial fetch automatically
 </script>
 
@@ -1170,6 +1185,45 @@ const formatTime = (timeObj) => {
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Verification Information (Students only) -->
+                        <div v-if="editingUser?.role === 'student'" class="action-group">
+                            <div class="action-header">
+                                <h5>Verification Information</h5>
+                                <span 
+                                    :class="['status-badge', editingUser?.profile_completed_at ? 'status-active' : 'status-inactive']"
+                                >
+                                    {{ editingUser?.profile_completed_at ? 'Complete' : 'Incomplete' }}
+                                </span>
+                            </div>
+                            <div v-if="editingUser?.profile_completed_at" class="verification-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Phone Number:</span>
+                                    <span class="detail-value">{{ editingUser?.phone_number || 'Not provided' }}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Is Minor:</span>
+                                    <span class="detail-value">{{ editingUser?.is_student_minor ? 'Yes' : 'No' }}</span>
+                                </div>
+                                <div v-if="editingUser?.user_profile_data?.address" class="detail-row">
+                                    <span class="detail-label">Address:</span>
+                                    <span class="detail-value">
+                                        {{ formatAddress(editingUser.user_profile_data.address) }}
+                                    </span>
+                                </div>
+                                <div v-if="editingUser?.is_student_minor && editingUser?.user_profile_data?.parent_approval" class="detail-row">
+                                    <span class="detail-label">Parent Approval:</span>
+                                    <span class="detail-value">✓ Confirmed</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Completed:</span>
+                                    <span class="detail-value">{{ formatDate(editingUser.profile_completed_at) }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="verification-incomplete-message">
+                                <p>User has not completed verification process yet.</p>
                             </div>
                         </div>
 
@@ -1747,6 +1801,43 @@ select:disabled {
 .danger-zone {
     border-color: var(--error-color);
     background: rgba(255, 0, 0, 0.02);
+}
+
+.verification-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+}
+
+.detail-row {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.detail-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 140px;
+}
+
+.detail-value {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.verification-incomplete-message {
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border-radius: var(--border-radius);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.verification-incomplete-message p {
+    margin: 0;
 }
 
 .danger-zone h5 {

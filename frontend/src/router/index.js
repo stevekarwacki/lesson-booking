@@ -7,6 +7,7 @@ import CalendarPage from '../views/CalendarPage.vue'
 import BookLessonPage from '../views/BookLessonPage.vue'
 import PaymentsPage from '../views/PaymentsPage.vue'
 import GoogleAuthCallback from '../views/GoogleAuthCallback.vue'
+import PendingApprovalPage from '../views/PendingApprovalPage.vue'
 import { useUserStore } from '../stores/userStore'
 import { defineAbilitiesFor } from '../utils/abilities'
 // Import other views as needed
@@ -15,7 +16,8 @@ const routes = [
     {
         path: '/',
         name: 'home',
-        component: () => import('../views/HomePage.vue')
+        component: () => import('../views/HomePage.vue'),
+        meta: { bypassVerificationCheck: true }
     },
     {
         path: '/account',
@@ -80,6 +82,12 @@ const routes = [
         name: 'google-auth-callback',
         component: GoogleAuthCallback,
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/verification',
+        name: 'verification',
+        component: PendingApprovalPage,
+        meta: { requiresAuth: true, bypassVerificationCheck: true }
     }
 ]
 
@@ -108,6 +116,20 @@ router.beforeEach(async (to, from, next) => {
     if (to.meta.requiresAuth && !userStore.user) {
         next('/')
         return
+    }
+    
+    // Check verification status for authenticated users (unless bypassing)
+    if (userStore.user && !to.meta.bypassVerificationCheck) {
+        const verificationStatus = userStore.user.verification_status
+        
+        // Only enforce verification for students
+        if (userStore.user.role === 'student' && verificationStatus) {
+            // If verification incomplete or approval needed, redirect to verification page
+            if (!verificationStatus.canAccess && to.path !== '/verification') {
+                next('/verification')
+                return
+            }
+        }
     }
     
     // Check CASL permissions
