@@ -31,6 +31,12 @@ const createDefaultAppSettings = async (models) => {
                 key: 'timezone',
                 value: 'UTC',
                 description: 'Business timezone'
+            },
+            {
+                category: 'business',
+                key: 'user_approval_required',
+                value: 'false',
+                description: 'Require admin approval for new users before they can book lessons'
             }
         ];
         
@@ -55,4 +61,3 @@ const createDefaultAppSettings = async (models) => {
 };
 
 module.exports = createDefaultAppSettings;
-

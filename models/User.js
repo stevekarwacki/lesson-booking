@@ -51,6 +51,33 @@ const User = sequelize.define('User', {
         validate: {
             isIn: [['enabled', 'disabled']]
         }
+    },
+    user_profile_data: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+        comment: 'JSON field for address and parent approval data'
+    },
+    phone_number: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+            is: {
+                args: /^[+]?[\d\s\-()]+$/,
+                msg: 'Phone number must contain only digits, spaces, hyphens, parentheses, or start with +'
+            }
+        }
+    },
+    is_student_minor: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: null
+    },
+    profile_completed_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null
     }
 }, {
     tableName: 'users',
