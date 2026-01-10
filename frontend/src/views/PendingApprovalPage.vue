@@ -147,9 +147,10 @@ onMounted(async () => {
 .pending-approval-page {
     min-height: calc(100vh - 200px);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: var(--spacing-lg);
+    padding: var(--spacing-xl) var(--spacing-lg);
+    padding-top: calc(var(--spacing-xl) * 2);
 }
 
 .loading-container {
@@ -158,7 +159,7 @@ onMounted(async () => {
 
 .verification-container {
     width: 100%;
-    max-width: 600px;
+    max-width: 800px;
 }
 
 .approval-pending-container {
@@ -264,7 +265,7 @@ onMounted(async () => {
 /* Mobile responsive */
 @media (max-width: 768px) {
     .pending-approval-page {
-        padding: var(--spacing-md);
+        padding: var(--spacing-lg) var(--spacing-md);
     }
     
     .approval-card {
