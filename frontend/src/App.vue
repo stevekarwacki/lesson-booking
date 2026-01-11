@@ -4,6 +4,7 @@ import SignupForm from './components/SignupForm.vue'
 import LoginForm from './components/LoginForm.vue'
 import NavBar from './components/NavBar.vue'
 import AppFooter from './components/AppFooter.vue'
+import ProfileStatusBanner from './components/ProfileStatusBanner.vue'
 import { useUserStore } from './stores/userStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTheme } from './composables/useTheme'
@@ -31,6 +32,7 @@ const handleLogout = () => {
 <template>
     <div class="app">
         <NavBar @logout="handleLogout" />
+        <ProfileStatusBanner v-if="userStore.user" />
         <div class="container">
             <main class="main-content">
                 <SubscriptionPeriodUpdater />

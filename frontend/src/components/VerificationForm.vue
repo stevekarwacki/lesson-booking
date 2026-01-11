@@ -1,13 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useFormFeedback } from '../composables/useFormFeedback'
-import { useVerification } from '../composables/useVerification'
-import { validateVerificationData } from '../utils/verificationHelpers'
+import { useProfileUpdate } from '../composables/useProfileUpdate'
+import { validateProfileData } from '../utils/formValidation'
 
 const emit = defineEmits(['verification-complete'])
 
 const { showSuccess, showError } = useFormFeedback()
-const { submitVerificationAsync, isSubmitting } = useVerification()
+const { updateProfileAsync, isUpdating } = useProfileUpdate()
 
 // Form fields
 const phoneNumber = ref('')
@@ -36,7 +36,7 @@ const showParentApproval = computed(() => isMinor.value === true)
 
 const handleSubmit = async () => {
     // Validate form using helper
-    const validation = validateVerificationData({
+    const validation = validateProfileData({
         phone_number: phoneNumber.value,
         address_line_1: addressLine1.value,
         city: city.value,
@@ -74,7 +74,7 @@ const handleSubmit = async () => {
         }
         
         // Submit using Vue Query mutation
-        const data = await submitVerificationAsync(verificationData)
+        const data = await updateProfileAsync(verificationData)
         
         showSuccess('Verification data submitted successfully!')
         
@@ -252,9 +252,9 @@ const handleSubmit = async () => {
             <button 
                 type="submit" 
                 class="form-button form-button-full"
-                :disabled="isSubmitting"
+                :disabled="isUpdating"
             >
-                {{ isSubmitting ? 'Submitting...' : 'Submit Verification' }}
+                {{ isUpdating ? 'Submitting...' : 'Submit Verification' }}
             </button>
         </form>
         </div>

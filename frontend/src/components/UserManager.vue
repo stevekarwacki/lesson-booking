@@ -15,7 +15,7 @@ import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
-import { formatAddress } from '../utils/verificationHelpers'
+import { formatAddress } from '../utils/formValidation'
 
 const userStore = useUserStore()
 const { showSuccess, showError, handleError } = useFormFeedback()
