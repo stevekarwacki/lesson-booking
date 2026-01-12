@@ -318,10 +318,24 @@ const loadInstructorProfile = (userId) => {
 const handleProfileUpdate = async (profileData) => {
     try {
         // Use Vue Query mutation to update user profile
-        await updateUserProfileMutation({
+        const result = await updateUserProfileMutation({
             userId: editingUser.value.id,
             profileData
         })
+        
+        // Update editingUser with the new data so the form shows the updated values
+        if (result?.user) {
+            editingUser.value = { ...result.user }
+        } else {
+            // If no user returned, manually update the fields
+            editingUser.value.phone_number = profileData.phone_number
+            editingUser.value.is_student_minor = profileData.is_student_minor
+            editingUser.value.user_profile_data = {
+                ...editingUser.value.user_profile_data,
+                address: profileData.address,
+                parent_approval: profileData.parent_approval
+            }
+        }
         
         showSuccess('Profile updated successfully')
     } catch (err) {
@@ -784,80 +798,11 @@ const formatDate = (dateString) => {
         <!-- Edit Modal -->
         <TabbedModal :show="showEditModal" title="Edit User" @close="closeEditModal">
             
-            <TabbedModalTab label="Profile" default>
-                <form @submit.prevent="saveUserEdit">
-                    <div class="form-group">
-                        <label class="form-label">Name:</label>
-                        <div class="form-input">
-                            <input type="text" :value="editingUser?.name" disabled class="form-input" />
-                            <small class="form-text">Name cannot be changed from this interface</small>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Email:</label>
-                        <div class="form-input">
-                            <input type="email" :value="editingUser?.email" disabled class="form-input" />
-                            <small class="form-text">Email cannot be changed from this interface</small>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Role:</label>
-                        <div class="form-input">
-                            <input type="text" :value="editingUser?.role" disabled class="form-input" />
-                            <small class="form-text">Role can only be changed by admins from the Account tab</small>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">In-Person Payment Override:</label>
-                        <div class="form-input">
-                            <select 
-                                v-model="editingUser.in_person_payment_override"
-                                class="form-input"
-                            >
-                                <option :value="null">Use Global Setting</option>
-                                <option value="enabled">Enabled</option>
-                                <option value="disabled">Disabled</option>
-                            </select>
-                            <small class="form-text">
-                                Override the global in-person payment setting for this user. 
-                                "Use Global Setting" means they follow the system-wide preference.
-                            </small>
-                        </div>
-                    </div>
-
-                    <div v-if="error" class="form-message error-message">
-                        {{ error }}
-                    </div>
-
-                    <div v-if="success" class="form-message success-message">
-                        {{ success }}
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button 
-                            type="button"
-                            class="form-button form-button-cancel"
-                            @click="closeEditModal"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            type="submit"
-                            class="form-button"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
-            </TabbedModalTab>
-
-            <!-- Profile Details Tab (Students only) -->
+            <!-- Profile Tab (Students only) -->
             <TabbedModalTab 
                 v-if="!isUserAdmin && !isUserInstructor" 
-                label="Profile Details"
+                label="Profile"
+                default
             >
                 <Profile 
                     :user="editingUser"
@@ -1264,6 +1209,34 @@ const formatDate = (dateString) => {
                                 <button 
                                     @click="saveRoleChange"
                                     :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
+                                    class="form-button form-button-sm"
+                                >
+                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- In-Person Payment Override -->
+                        <div class="action-group">
+                            <div class="action-header">
+                                <h5>In-Person Payment Override</h5>
+                            </div>
+                            <div class="action-content">
+                                <select 
+                                    v-model="editingUser.in_person_payment_override"
+                                    class="form-input"
+                                >
+                                    <option :value="null">Use Global Setting</option>
+                                    <option value="enabled">Enabled</option>
+                                    <option value="disabled">Disabled</option>
+                                </select>
+                                <small class="form-text">
+                                    Override the global in-person payment setting for this user. 
+                                    "Use Global Setting" means they follow the system-wide preference.
+                                </small>
+                                <button 
+                                    @click="saveUserEdit"
+                                    :disabled="isUpdatingUser"
                                     class="form-button form-button-sm"
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}

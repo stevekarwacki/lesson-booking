@@ -279,28 +279,26 @@ const isProfileIncomplete = computed(() => {
 const loadProfileData = (user) => {
     if (!user) return
     
-    // Load basic info
+    // Load basic info (always present)
     profileData.value.name = user.name || ''
     profileData.value.email = user.email || ''
     
-    // Load verification/extended profile info
+    // Load verification/extended profile info (only if exists)
     profileData.value.phoneNumber = user.phone_number || ''
-    profileData.value.isMinor = user.is_student_minor || false
     
-    // Load address from JSON field
+    // Only set isMinor if explicitly set in database (null/undefined means not set)
+    profileData.value.isMinor = user.is_student_minor === true
+    
+    // Load address from JSON field using optional chaining
     const address = user.user_profile_data?.address
-    if (address) {
-        profileData.value.addressLine1 = address.line_1 || ''
-        profileData.value.addressLine2 = address.line_2 || ''
-        profileData.value.city = address.city || ''
-        profileData.value.state = address.state || ''
-        profileData.value.zip = address.zip || ''
-    }
+    profileData.value.addressLine1 = address?.line_1 || ''
+    profileData.value.addressLine2 = address?.line_2 || ''
+    profileData.value.city = address?.city || ''
+    profileData.value.state = address?.state || ''
+    profileData.value.zip = address?.zip || ''
     
-    // Load parent approval if minor
-    if (user.is_student_minor) {
-        profileData.value.parentApproval = user.user_profile_data?.parent_approval || false
-    }
+    // Load parent approval only if minor
+    profileData.value.parentApproval = user.is_student_minor && user.user_profile_data?.parent_approval === true
     
     // DO NOT pre-populate password fields - always leave blank
     profileData.value.newPassword = ''
@@ -422,6 +420,10 @@ const updateProfile = async () => {
     // In admin mode, emit event instead of making API call
     if (props.adminMode) {
         const profileUpdateData = {
+            // Basic info
+            name: profileData.value.name,
+            email: profileData.value.email,
+            // Profile data
             phone_number: profileData.value.phoneNumber,
             is_student_minor: profileData.value.isMinor,
             parent_approval: profileData.value.parentApproval,

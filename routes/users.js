@@ -157,12 +157,20 @@ router.put('/:userId/profile', authorize('manage', 'User'), async (req, res) => 
         // Build profile data JSON
         const profileData = User.buildProfileData(req.body);
         
-        // Prepare updates
+        // Prepare updates (including name and email if provided)
         const updates = {
             phone_number: req.body.phone_number?.trim(),
             is_student_minor: req.body.is_student_minor,
             user_profile_data: profileData
         };
+        
+        // Add name and email if provided
+        if (req.body.name) {
+            updates.name = req.body.name.trim();
+        }
+        if (req.body.email) {
+            updates.email = req.body.email.trim();
+        }
         
         // Update user
         await User.updateUser(userId, updates);
