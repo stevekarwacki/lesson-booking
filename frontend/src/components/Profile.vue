@@ -369,6 +369,7 @@ const updateProfile = async () => {
     const profileValidation = validateProfileData({
         phone_number: profileData.value.phoneNumber,
         address_line_1: profileData.value.addressLine1,
+        address_line_2: profileData.value.addressLine2 || '',
         city: profileData.value.city,
         state: profileData.value.state,
         zip: profileData.value.zip,
