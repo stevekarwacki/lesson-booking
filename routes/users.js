@@ -140,6 +140,60 @@ router.post('/:userId/approval', authorize('manage', 'User'), async (req, res) =
     }
 });
 
+// Update user profile data (admin only - for editing any user's profile)
+router.put('/:userId/profile', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId, 10);
+        
+        // Validate incoming data using Zod schema (via helper)
+        const validation = User.validateVerificationData(req.body);
+        if (!validation.valid) {
+            return res.status(400).json({ 
+                error: 'Validation failed', 
+                errors: validation.errors 
+            });
+        }
+        
+        // Build profile data JSON
+        const profileData = User.buildProfileData(req.body);
+        
+        // Prepare updates
+        const updates = {
+            phone_number: req.body.phone_number?.trim(),
+            is_student_minor: req.body.is_student_minor,
+            user_profile_data: profileData
+        };
+        
+        // Update user
+        await User.updateUser(userId, updates);
+        
+        // Fetch updated user to check if verification is now complete
+        const updatedUser = await User.findById(userId);
+        const complete = User.isVerificationComplete(updatedUser);
+        
+        // Set completion timestamp if verification is complete
+        if (complete && !updatedUser.profile_completed_at) {
+            await User.updateUser(userId, { profile_completed_at: new Date() });
+        }
+        
+        // Fetch final user state and return with verification status
+        const finalUser = await User.findById(userId);
+        const userData = User.getPlainObject(finalUser);
+        
+        res.json({
+            message: 'Profile updated successfully',
+            user: userData
+        });
+    } catch (error) {
+        logError('Error updating user profile', { 
+            error: error.message, 
+            userId,
+            adminId: req.user?.id 
+        });
+        res.status(500).json({ error: 'Error updating user profile' });
+    }
+});
+
 // Get a user's credit balance (admin/instructor only, for booking on behalf)
 router.get('/:userId/credits', authorizeAny([
     { action: 'read', subject: 'StudentCredits' },

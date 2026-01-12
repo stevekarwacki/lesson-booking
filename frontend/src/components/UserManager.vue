@@ -15,6 +15,7 @@ import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
+import Profile from './Profile.vue'
 import { formatAddress } from '../utils/formValidation'
 
 const userStore = useUserStore()
@@ -37,7 +38,9 @@ const {
   updateInstructor: updateInstructorMutation,
   isUpdatingInstructor,
   updateUserApproval: updateUserApprovalMutation,
-  isUpdatingUserApproval
+  isUpdatingUserApproval,
+  updateUserProfile: updateUserProfileMutation,
+  isUpdatingUserProfile
 } = useUserManagement()
 
 // Payment plans (global)
@@ -308,6 +311,22 @@ const loadInstructorProfile = (userId) => {
             specialties: profile.specialties || '',
             hourly_rate: profile.hourly_rate || ''
         }
+    }
+}
+
+// Handle profile update from Profile component (admin editing student profile)
+const handleProfileUpdate = async (profileData) => {
+    try {
+        // Use Vue Query mutation to update user profile
+        await updateUserProfileMutation({
+            userId: editingUser.value.id,
+            profileData
+        })
+        
+        showSuccess('Profile updated successfully')
+    } catch (err) {
+        showError('Error updating profile: ' + err.message)
+        console.error('Error updating profile:', err)
     }
 }
 
@@ -833,6 +852,18 @@ const formatDate = (dateString) => {
                         </button>
                     </div>
                 </form>
+            </TabbedModalTab>
+
+            <!-- Profile Details Tab (Students only) -->
+            <TabbedModalTab 
+                v-if="!isUserAdmin && !isUserInstructor" 
+                label="Profile Details"
+            >
+                <Profile 
+                    :user="editingUser"
+                    :admin-mode="true"
+                    @profile-updated="handleProfileUpdate"
+                />
             </TabbedModalTab>
 
             <!-- Instructor Details Tab (Instructors only) -->

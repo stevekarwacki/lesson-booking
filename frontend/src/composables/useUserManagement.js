@@ -204,6 +204,27 @@ async function updateUserApprovalApi(userId, isApproved, token) {
 }
 
 /**
+ * Update user profile data (phone, address, minor status)
+ */
+async function updateUserProfileApi(userId, profileData, token) {
+  const response = await fetch(`/api/users/${userId}/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(profileData)
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to update user profile')
+  }
+  
+  return response.json()
+}
+
+/**
  * Main composable for user management
  */
 export function useUserManagement() {
@@ -307,6 +328,15 @@ export function useUserManagement() {
     },
   })
   
+  // Mutation: Update user profile data
+  const updateUserProfileMutation = useMutation({
+    mutationFn: ({ userId, profileData }) => updateUserProfileApi(userId, profileData, token.value),
+    onSuccess: () => {
+      // Invalidate and refetch users list to show updated profile data
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+  
   return {
     // Users
     users,
@@ -335,6 +365,10 @@ export function useUserManagement() {
     // User Approval
     updateUserApproval: updateUserApprovalMutation.mutateAsync,
     isUpdatingUserApproval: updateUserApprovalMutation.isPending,
+    
+    // User Profile
+    updateUserProfile: updateUserProfileMutation.mutateAsync,
+    isUpdatingUserProfile: updateUserProfileMutation.isPending,
   }
 }
 
