@@ -20,13 +20,14 @@ const routes = [
     {
         path: '/account',
         component: AccountPage,
-        meta: { requiresAuth: true }
+        meta: { requiresAuth: true, bypassApprovalCheck: true }
     },
     {
         path: '/payments',
         component: PaymentsPage,
         meta: { 
             requiresAuth: true,
+            requiresApproval: true,
             permission: { action: 'access', subject: 'StudentPayments' }
         }
     },
@@ -72,6 +73,7 @@ const routes = [
         component: BookLessonPage,
         meta: { 
             requiresAuth: true,
+            requiresApproval: true,
             permission: { action: 'create', subject: 'StudentBooking' }
         }
     },
@@ -108,6 +110,20 @@ router.beforeEach(async (to, from, next) => {
     if (to.meta.requiresAuth && !userStore.user) {
         next('/')
         return
+    }
+    
+    // Check approval requirement for students (unless route explicitly bypasses)
+    if (userStore.user && to.meta.requiresApproval && !to.meta.bypassApprovalCheck) {
+        const verificationStatus = userStore.user.verification_status
+        
+        // Only enforce for students
+        if (userStore.user.role === 'student' && verificationStatus) {
+            // If user can't access (incomplete profile or not approved), redirect to account
+            if (!verificationStatus.canAccess) {
+                next('/account')
+                return
+            }
+        }
     }
     
     // Check CASL permissions

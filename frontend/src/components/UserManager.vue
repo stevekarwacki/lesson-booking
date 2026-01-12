@@ -313,38 +313,26 @@ const loadInstructorProfile = (userId) => {
 
 const saveUserEdit = async () => {
     try {
-        // Update user with all fields including in-person payment override
-        const userUpdateResponse = await fetch(`/api/admin/users/${editingUser.value.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({ 
+        // Update user basic fields
+        await updateUserMutation({ 
+            userId: editingUser.value.id,
+            userData: {
                 name: editingUser.value.name,
                 email: editingUser.value.email,
                 role: editingUser.value.role,
                 in_person_payment_override: editingUser.value.in_person_payment_override
-            })
-        });
-        
-        if (!userUpdateResponse.ok) throw new Error('Failed to update user');
-
-        // Update approval status (separate endpoint)
-        const approvalResponse = await fetch(`/api/users/${editingUser.value.id}/approval`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({ isApproved: editingUser.value.is_approved })
+            }
         });
 
-        if (!approvalResponse.ok) throw new Error('Failed to update approval status');
+        // Update approval status using the dedicated mutation
+        await updateUserApprovalMutation({
+            userId: editingUser.value.id,
+            isApproved: editingUser.value.is_approved
+        });
         
         showSuccess('User updated successfully');
         closeEditModal();
-        // Vue Query handles refetch automatically
+        // Vue Query handles refetch automatically via cache invalidation
     } catch (err) {
         handleError(err, 'Error updating user: ');
     }
