@@ -44,7 +44,8 @@
     "sharp": "^0.34.4",
     "sqlite3": "^5.1.7",
     "stripe": "^18.1.0",
-    "vue-router": "^4.5.0"
+    "vue-router": "^4.5.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "husky": "^9.1.7",
