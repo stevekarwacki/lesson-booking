@@ -2,7 +2,27 @@
  * Verification Helpers - utilities for user verification logic
  * 
  * For checking verification completeness and building verification data.
+ * Validation now uses Zod schemas from /common/schemas (ES modules)
  */
+
+// Load ES module schemas at startup (CommonJS can import ES modules dynamically)
+let profileSchemaNested = null;
+let schemasReady = false;
+
+// Promise that resolves when schemas are loaded
+const schemasPromise = import('../common/schemas/index.mjs')
+    .then(schemas => {
+        profileSchemaNested = schemas.profileSchemaNested;
+        schemasReady = true;
+        return schemas;
+    })
+    .catch(err => {
+        console.error('Failed to load validation schemas:', err);
+        process.exit(1);
+    });
+
+// Export promise for routes that need to ensure schemas are loaded
+const ensureSchemasLoaded = () => schemasPromise;
 
 /**
  * Check if user's profile verification is complete
@@ -91,53 +111,44 @@ const getVerificationStatus = (user) => {
 };
 
 /**
- * Validate verification form data
+ * Validate verification form data using Zod schema
  * @param {Object} verificationData - Form data to validate
  * @returns {Object} - { valid: boolean, errors: Object }
  */
 const validateVerificationData = (verificationData) => {
+    // Schemas load at module initialization and should be ready by the time routes are called
+    // In the rare case they're not, provide a helpful error
+    if (!schemasReady) {
+        throw new Error('Validation schemas not loaded yet. Call ensureSchemasLoaded() and await it before using validation.');
+    }
+    
+    // Use Zod schema for validation
+    const result = profileSchemaNested.safeParse(verificationData);
+    
+    if (result.success) {
+        return {
+            valid: true,
+            errors: {}
+        };
+    }
+    
+    // Transform Zod errors to flat structure for backward compatibility
     const errors = {};
-    
-    // Phone number validation
-    if (!verificationData.phone_number || !verificationData.phone_number.trim()) {
-        errors.phone_number = 'Phone number is required';
-    } else if (!/^[+]?[\d\s\-()]+$/.test(verificationData.phone_number)) {
-        errors.phone_number = 'Phone number must contain only digits, spaces, hyphens, parentheses, or start with +';
-    }
-    
-    // Minor status validation
-    if (verificationData.is_student_minor === null || verificationData.is_student_minor === undefined) {
-        errors.is_student_minor = 'Must specify if student is a minor';
-    }
-    
-    // Address validation
-    const address = verificationData.address;
-    if (!address || typeof address !== 'object') {
-        errors.address = 'Address information is required';
-    } else {
-        if (!address.line_1 || !address.line_1.trim()) {
-            errors.address_line_1 = 'Address line 1 is required';
+    result.error.issues.forEach(issue => {
+        const path = issue.path.join('.');
+        
+        // Flatten address.field_name to field_name for convenience
+        // This maintains backward compatibility with existing error handling
+        if (path.startsWith('address.')) {
+            const fieldName = path.replace('address.', '');
+            errors[fieldName] = issue.message;
+        } else {
+            errors[path] = issue.message;
         }
-        if (!address.city || !address.city.trim()) {
-            errors.city = 'City is required';
-        }
-        if (!address.state || !address.state.trim()) {
-            errors.state = 'State is required';
-        }
-        if (!address.zip || !address.zip.trim()) {
-            errors.zip = 'ZIP code is required';
-        } else if (!/^\d{5}(-\d{4})?$/.test(address.zip.trim())) {
-            errors.zip = 'ZIP code must be in format 12345 or 12345-6789';
-        }
-    }
-    
-    // Parent approval validation (only if minor)
-    if (verificationData.is_student_minor === true && !verificationData.parent_approval) {
-        errors.parent_approval = 'Parent approval is required for minors';
-    }
+    });
     
     return {
-        valid: Object.keys(errors).length === 0,
+        valid: false,
         errors
     };
 };
@@ -146,6 +157,7 @@ module.exports = {
     isVerificationComplete,
     buildProfileData,
     getVerificationStatus,
-    validateVerificationData
+    validateVerificationData,
+    ensureSchemasLoaded
 };
 

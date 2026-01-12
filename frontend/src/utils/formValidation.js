@@ -1,9 +1,11 @@
 /**
  * Form Validation Helpers
  * 
- * Pure validation functions that are implementation-agnostic.
- * These can be used with any form, validation approach, or UI framework.
+ * Pure validation functions using Zod schemas from /common/schemas.
+ * These are implementation-agnostic adapters that bridge Zod with frontend forms.
  */
+
+import { profileSchemaFlat } from '@common/schemas/index.mjs'
 
 /**
  * Validates that two password values match
@@ -78,54 +80,30 @@ export const validatePasswordStrength = (password, options = {}) => {
 }
 
 /**
- * Validate user profile data
- * @param {Object} data - Profile data to validate
+ * Validate user profile data using Zod schema
+ * @param {Object} data - Profile data to validate (flat structure)
  * @returns {Object} - { valid: boolean, errors: Object }
  */
 export const validateProfileData = (data) => {
+    // Use Zod schema for validation
+    const result = profileSchemaFlat.safeParse(data)
+    
+    if (result.success) {
+        return {
+            valid: true,
+            errors: {}
+        }
+    }
+    
+    // Transform Zod errors to flat object for easy field lookup
     const errors = {}
-    
-    // Phone number validation
-    if (!data.phone_number || !data.phone_number.trim()) {
-        errors.phone_number = 'Phone number is required'
-    } else if (!/^[+]?[\d\s\-()]+$/.test(data.phone_number)) {
-        errors.phone_number = 'Invalid phone number format'
-    }
-    
-    // Address line 1 validation
-    if (!data.address_line_1 || !data.address_line_1.trim()) {
-        errors.address_line_1 = 'Address is required'
-    }
-    
-    // City validation
-    if (!data.city || !data.city.trim()) {
-        errors.city = 'City is required'
-    }
-    
-    // State validation
-    if (!data.state) {
-        errors.state = 'State is required'
-    }
-    
-    // ZIP code validation
-    if (!data.zip || !data.zip.trim()) {
-        errors.zip = 'ZIP code is required'
-    } else if (!/^\d{5}(-\d{4})?$/.test(data.zip.trim())) {
-        errors.zip = 'ZIP code must be in format 12345 or 12345-6789'
-    }
-    
-    // Minor status validation (must be explicitly set)
-    if (data.is_minor === null || data.is_minor === undefined) {
-        errors.is_minor = 'Must specify if student is a minor'
-    }
-    
-    // Parent approval validation (only if minor)
-    if (data.is_minor === true && !data.parent_approval) {
-        errors.parent_approval = 'Parent approval is required for minors'
-    }
+    result.error.issues.forEach(issue => {
+        const fieldName = issue.path.join('.')
+        errors[fieldName] = issue.message
+    })
     
     return {
-        valid: Object.keys(errors).length === 0,
+        valid: false,
         errors
     }
 }

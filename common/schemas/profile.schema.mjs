@@ -5,7 +5,7 @@
  * These schemas work in both Node.js (backend) and Vue (frontend).
  */
 
-const { z } = require('zod')
+import { z } from 'zod'
 
 // Reusable field validators
 const phoneNumberValidator = z.string()
@@ -18,7 +18,7 @@ const zipCodeValidator = z.string()
   .regex(/^\d{5}(-\d{4})?$/, 'ZIP code must be in format 12345 or 12345-6789')
 
 // Flat structure (used by frontend components)
-const profileSchemaFlat = z.object({
+export const profileSchemaFlat = z.object({
   phone_number: phoneNumberValidator,
   address_line_1: z.string().trim().min(1, 'Address is required'),
   address_line_2: z.string().trim().optional().or(z.literal('')),
@@ -36,7 +36,7 @@ const profileSchemaFlat = z.object({
 )
 
 // Nested structure (used by backend API - expects address object)
-const profileSchemaNested = z.object({
+export const profileSchemaNested = z.object({
   phone_number: phoneNumberValidator,
   is_student_minor: z.boolean(),
   parent_approval: z.boolean().optional(),
@@ -55,22 +55,4 @@ const profileSchemaNested = z.object({
   }
 )
 
-// Helper: Transform Zod errors to simple field errors object
-function zodErrorsToFieldErrors(zodError) {
-  const fieldErrors = {}
-  
-  zodError.issues.forEach(issue => {
-    const path = issue.path.join('.')
-    fieldErrors[path] = issue.message
-  })
-  
-  return fieldErrors
-}
-
-// CommonJS export
-module.exports = {
-  profileSchemaFlat,
-  profileSchemaNested,
-  zodErrorsToFieldErrors
-}
 
