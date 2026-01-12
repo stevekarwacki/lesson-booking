@@ -161,8 +161,8 @@
                     </div>
                 </div>
 
-                <!-- Password Section -->
-                <div class="form-section">
+                <!-- Password Section (hidden in admin mode) -->
+                <div v-if="!adminMode" class="form-section">
                     <h3 class="section-heading">Change Password</h3>
                     
                     <div class="form-group">
@@ -201,13 +201,32 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { validateProfileData, validatePasswordsMatch, validatePasswordStrength } from '../utils/formValidation'
 import { useProfileUpdate } from '../composables/useProfileUpdate'
 
+// Props for admin editing mode
+const props = defineProps({
+    // User object when admin is editing another user's profile
+    user: {
+        type: Object,
+        default: null
+    },
+    // Whether this is being used by an admin to edit another user
+    adminMode: {
+        type: Boolean,
+        default: false
+    }
+})
+
+const emit = defineEmits(['profile-updated'])
+
 const userStore = useUserStore()
 const { updateProfileAsync } = useProfileUpdate()
+
+// Use prop user if in admin mode, otherwise use current user
+const sourceUser = computed(() => props.adminMode && props.user ? props.user : userStore.user)
 
 const error = ref('')
 const success = ref('')
@@ -239,9 +258,11 @@ const US_STATES = [
     'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
 ]
 
-// Check if profile is incomplete
+// Check if profile is incomplete (hide header when in admin mode)
 const isProfileIncomplete = computed(() => {
-    const user = userStore.user
+    if (props.adminMode) return false // Don't show incomplete header in admin mode
+    
+    const user = sourceUser.value
     if (!user) return false
     
     // Check if essential verification fields are missing
@@ -254,35 +275,47 @@ const isProfileIncomplete = computed(() => {
     return !hasPhone || !hasAddress
 })
 
-onMounted(async () => {
-    if (userStore.user) {
-        // Load basic info
-        profileData.value.name = userStore.user.name || ''
-        profileData.value.email = userStore.user.email || ''
-        
-        // Load verification/extended profile info
-        profileData.value.phoneNumber = userStore.user.phone_number || ''
-        profileData.value.isMinor = userStore.user.is_student_minor || false
-        
-        // Load address from JSON field
-        const address = userStore.user.user_profile_data?.address
-        if (address) {
-            profileData.value.addressLine1 = address.line_1 || ''
-            profileData.value.addressLine2 = address.line_2 || ''
-            profileData.value.city = address.city || ''
-            profileData.value.state = address.state || ''
-            profileData.value.zip = address.zip || ''
-        }
-        
-        // Load parent approval if minor
-        if (userStore.user.is_student_minor) {
-            profileData.value.parentApproval = userStore.user.user_profile_data?.parent_approval || false
-        }
-        
-        // DO NOT pre-populate password fields - always leave blank
-        profileData.value.newPassword = ''
-        profileData.value.confirmPassword = ''
+// Initialize profile data from user object
+const loadProfileData = (user) => {
+    if (!user) return
+    
+    // Load basic info
+    profileData.value.name = user.name || ''
+    profileData.value.email = user.email || ''
+    
+    // Load verification/extended profile info
+    profileData.value.phoneNumber = user.phone_number || ''
+    profileData.value.isMinor = user.is_student_minor || false
+    
+    // Load address from JSON field
+    const address = user.user_profile_data?.address
+    if (address) {
+        profileData.value.addressLine1 = address.line_1 || ''
+        profileData.value.addressLine2 = address.line_2 || ''
+        profileData.value.city = address.city || ''
+        profileData.value.state = address.state || ''
+        profileData.value.zip = address.zip || ''
     }
+    
+    // Load parent approval if minor
+    if (user.is_student_minor) {
+        profileData.value.parentApproval = user.user_profile_data?.parent_approval || false
+    }
+    
+    // DO NOT pre-populate password fields - always leave blank
+    profileData.value.newPassword = ''
+    profileData.value.confirmPassword = ''
+}
+
+// Watch for prop changes (when admin switches between users)
+watch(() => props.user, (newUser) => {
+    if (props.adminMode && newUser) {
+        loadProfileData(newUser)
+    }
+}, { immediate: false })
+
+onMounted(() => {
+    loadProfileData(sourceUser.value)
 })
 
 // Validate password strength as user types
@@ -337,32 +370,35 @@ const updateProfile = async () => {
     success.value = ''
     fieldErrors.value = {}
 
-    // Browser validation handles password strength and matching, but double-check
-    if (profileData.value.newPassword && !profileData.value.confirmPassword) {
-        error.value = 'Please confirm your new password'
-        return
-    }
-
-    if (profileData.value.newPassword) {
-        const strengthValidation = validatePasswordStrength(
-            profileData.value.newPassword,
-            { minLength: 8 }
-        )
-        
-        if (!strengthValidation.valid) {
-            error.value = strengthValidation.errors.join(', ')
+    // Skip password validation in admin mode (password fields are hidden)
+    if (!props.adminMode) {
+        // Browser validation handles password strength and matching, but double-check
+        if (profileData.value.newPassword && !profileData.value.confirmPassword) {
+            error.value = 'Please confirm your new password'
             return
         }
-    }
 
-    const passwordValidation = validatePasswordsMatch(
-        profileData.value.newPassword,
-        profileData.value.confirmPassword
-    )
-    
-    if (!passwordValidation.valid) {
-        error.value = passwordValidation.error
-        return
+        if (profileData.value.newPassword) {
+            const strengthValidation = validatePasswordStrength(
+                profileData.value.newPassword,
+                { minLength: 8 }
+            )
+            
+            if (!strengthValidation.valid) {
+                error.value = strengthValidation.errors.join(', ')
+                return
+            }
+        }
+
+        const passwordValidation = validatePasswordsMatch(
+            profileData.value.newPassword,
+            profileData.value.confirmPassword
+        )
+        
+        if (!passwordValidation.valid) {
+            error.value = passwordValidation.error
+            return
+        }
     }
 
     // Validate profile fields
@@ -380,6 +416,25 @@ const updateProfile = async () => {
     if (!profileValidation.valid) {
         fieldErrors.value = profileValidation.errors
         error.value = 'Please fix the errors below'
+        return
+    }
+
+    // In admin mode, emit event instead of making API call
+    if (props.adminMode) {
+        const profileUpdateData = {
+            phone_number: profileData.value.phoneNumber,
+            is_student_minor: profileData.value.isMinor,
+            parent_approval: profileData.value.parentApproval,
+            address: {
+                line_1: profileData.value.addressLine1,
+                line_2: profileData.value.addressLine2 || null,
+                city: profileData.value.city,
+                state: profileData.value.state,
+                zip: profileData.value.zip
+            }
+        }
+        
+        emit('profile-updated', profileUpdateData)
         return
     }
 
