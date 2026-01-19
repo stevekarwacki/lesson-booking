@@ -192,6 +192,7 @@ import PaymentPlans from '../components/PaymentPlans.vue'
 import RecurringBookingModal from '../components/RecurringBookingModal.vue'
 import { useUserStore } from '../stores/userStore'
 import { useCredits } from '../composables/useCredits'
+import { useSubscriptionUpdate } from '../composables/useSubscriptionUpdate'
 import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
 import { getPaymentStatusColor, formatPaymentMethod, formatPaymentStatus } from '../utils/paymentUtils'
 
@@ -204,6 +205,9 @@ const {
     nextExpiry,
     fetchCredits 
 } = useCredits()
+
+// Use subscription update composable to sync with Stripe
+const { updateSubscriptionPeriods } = useSubscriptionUpdate()
 const transactions = ref([])
 const allPlans = ref([])
 const activeSubscriptions = ref([])
@@ -482,6 +486,11 @@ const refreshData = async () => {
 };
 
 onMounted(async () => {
+    // First sync subscription periods with Stripe (if user has a subscription)
+    // This ensures we show accurate billing period dates
+    await updateSubscriptionPeriods()
+    
+    // Then fetch all payment data
     await Promise.all([
         fetchCredits(),
         fetchPaymentPlans(),

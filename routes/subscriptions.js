@@ -452,10 +452,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 router.post('/update-periods', authMiddleware, async (req, res) => {
     try {
         const result = await User.updateSubscriptionPeriods(req.user.id);
+        // The method handles its own errors and returns success:false if something went wrong
+        // We don't want to return 500 for expected cases like no subscription
         res.json(result);
     } catch (error) {
-        console.error('Error updating subscription periods:', error);
-        res.status(500).json({ error: 'Failed to update subscription periods' });
+        console.error('Unexpected error in update-periods endpoint:', error);
+        res.status(500).json({ success: false, error: 'Failed to update subscription periods' });
     }
 });
 

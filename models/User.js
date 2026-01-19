@@ -201,15 +201,26 @@ User.updateSubscriptionPeriods = async function(userId) {
         // Get user's active subscription
         const subscription = await Subscription.findActiveByUserId(userId);
 
-        if (subscription) {
-            // Check if current period is in the past
-            const now = new Date();
-            if (subscription.current_period_end > now) {
-                return { success: true, updated: false };
-            }
+        if (!subscription) {
+            return { success: true, updated: false, message: 'No active subscription found' };
+        }
 
-            // Retrieve subscription from Stripe to get latest period dates
-            const { stripe } = require('../config/stripe');
+        // Check if current period is in the past
+        const now = new Date();
+        if (subscription.current_period_end > now) {
+            return { success: true, updated: false, message: 'Subscription period is still active' };
+        }
+
+        // Check if stripe_subscription_id exists
+        if (!subscription.stripe_subscription_id) {
+            console.warn(`Subscription ${subscription.id} has no stripe_subscription_id`);
+            return { success: true, updated: false, message: 'No Stripe subscription ID' };
+        }
+
+        // Retrieve subscription from Stripe to get latest period dates
+        const { stripe } = require('../config/stripe');
+        
+        try {
             const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
 
             // Convert Unix timestamps to Date objects
@@ -235,18 +246,20 @@ User.updateSubscriptionPeriods = async function(userId) {
             }
             
             // Update subscription with new period dates
-            const updatedSubscription = await subscription.update({
+            await subscription.update({
                 current_period_start: periodStart,
                 current_period_end: periodEnd
             });
 
             return { success: true, updated: true };
+        } catch (stripeError) {
+            console.error('Stripe API error in updateSubscriptionPeriods:', stripeError.message);
+            return { success: true, updated: false, message: 'Stripe API error', error: stripeError.message };
         }
-
-        return { success: true, updated: false };
     } catch (error) {
         console.error('Error updating subscription periods:', error);
-        throw error;
+        // Return success:false to indicate a real error, but don't crash the endpoint
+        return { success: false, error: error.message };
     }
 };
 

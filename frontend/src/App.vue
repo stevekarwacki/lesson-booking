@@ -8,8 +8,6 @@ import ProfileStatusBanner from './components/ProfileStatusBanner.vue'
 import { useUserStore } from './stores/userStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTheme } from './composables/useTheme'
-import SubscriptionPeriodUpdater from './components/SubscriptionPeriodUpdater.vue'
-
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 
@@ -35,7 +33,6 @@ const handleLogout = () => {
         <ProfileStatusBanner v-if="userStore.user" />
         <div class="container">
             <main class="main-content">
-                <SubscriptionPeriodUpdater />
                 <router-view v-if="userStore.token"></router-view>
                 <div v-else class="auth-forms">
                     <LoginForm />
