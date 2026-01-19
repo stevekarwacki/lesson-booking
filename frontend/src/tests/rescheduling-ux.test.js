@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 import EditBooking from '../components/EditBooking.vue'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
@@ -106,7 +107,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
@@ -157,7 +158,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
@@ -199,7 +200,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
@@ -249,7 +250,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
@@ -291,7 +292,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
@@ -334,7 +335,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
           booking: mockBooking
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, VueQueryPlugin]
         }
       })
 
