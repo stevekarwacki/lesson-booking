@@ -8,9 +8,6 @@
             </p>
         </div>
         <h2 v-else>Profile</h2>
-        
-        <div v-if="error" class="error-message">{{ error }}</div>
-        <div v-if="success" class="success-message">{{ success }}</div>
 
         <div class="card">
             <form @submit.prevent="updateProfile">
@@ -205,6 +202,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { validateProfileData, validatePasswordsMatch, validatePasswordStrength } from '../utils/formValidation'
 import { useProfileUpdate } from '../composables/useProfileUpdate'
+import { useFormFeedback } from '../composables/useFormFeedback'
 
 // Props for admin editing mode
 const props = defineProps({
@@ -224,12 +222,11 @@ const emit = defineEmits(['profile-updated'])
 
 const userStore = useUserStore()
 const { updateProfileAsync } = useProfileUpdate()
+const { showSuccess, showError } = useFormFeedback()
 
 // Use prop user if in admin mode, otherwise use current user
 const sourceUser = computed(() => props.adminMode && props.user ? props.user : userStore.user)
 
-const error = ref('')
-const success = ref('')
 const fieldErrors = ref({})
 const newPasswordInput = ref(null)
 const confirmPasswordInput = ref(null)
@@ -364,15 +361,13 @@ const validatePasswordMatch = () => {
 }
 
 const updateProfile = async () => {
-    error.value = ''
-    success.value = ''
     fieldErrors.value = {}
 
     // Skip password validation in admin mode (password fields are hidden)
     if (!props.adminMode) {
         // Browser validation handles password strength and matching, but double-check
         if (profileData.value.newPassword && !profileData.value.confirmPassword) {
-            error.value = 'Please confirm your new password'
+            showError('Please confirm your new password')
             return
         }
 
@@ -383,7 +378,7 @@ const updateProfile = async () => {
             )
             
             if (!strengthValidation.valid) {
-                error.value = strengthValidation.errors.join(', ')
+                showError(strengthValidation.errors.join(', '))
                 return
             }
         }
@@ -394,7 +389,7 @@ const updateProfile = async () => {
         )
         
         if (!passwordValidation.valid) {
-            error.value = passwordValidation.error
+            showError(passwordValidation.error)
             return
         }
     }
@@ -413,7 +408,7 @@ const updateProfile = async () => {
     
     if (!profileValidation.valid) {
         fieldErrors.value = profileValidation.errors
-        error.value = 'Please fix the errors below'
+        showError('Please fix the errors below')
         return
     }
 
@@ -487,7 +482,7 @@ const updateProfile = async () => {
         
         await updateProfileAsync(profileUpdateData)
 
-        success.value = 'Profile updated successfully'
+        showSuccess('Profile updated successfully')
         
         // Clear password fields after successful update
         profileData.value.newPassword = ''
@@ -505,7 +500,7 @@ const updateProfile = async () => {
         await userStore.fetchUser()
         
     } catch (err) {
-        error.value = err.message || 'An error occurred while updating your profile'
+        showError(err.message || 'An error occurred while updating your profile')
         console.error('Profile update error:', err)
     }
 }
