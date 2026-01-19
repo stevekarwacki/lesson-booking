@@ -134,6 +134,11 @@ const handleSubmit = async () => {
 - **Mark Attendance Success**: "Attendance marked as [status]"
 - **Mark Attendance Error**: "Failed to update attendance: [error message]"
 
+### Profile Management
+- **Update Success**: "Profile updated successfully"
+- **Update Error**: Validation errors / "An error occurred while updating your profile"
+- **Password Validation Error**: Various password strength/match errors
+
 ### Payments
 - **Payment Success**: "Payment processed successfully!"
 - **Subscription Success**: "Subscription activated successfully!"
