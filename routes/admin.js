@@ -1231,15 +1231,7 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
                 linkedin: businessSettings.social_media_linkedin || '',
                 youtube: businessSettings.social_media_youtube || ''
             },
-            businessHours: {
-                monday: { isOpen: true, open: '09:00', close: '17:00' },
-                tuesday: { isOpen: true, open: '09:00', close: '17:00' },
-                wednesday: { isOpen: true, open: '09:00', close: '17:00' },
-                thursday: { isOpen: true, open: '09:00', close: '17:00' },
-                friday: { isOpen: true, open: '09:00', close: '17:00' },
-                saturday: { isOpen: false, open: '09:00', close: '17:00' },
-                sunday: { isOpen: false, open: '09:00', close: '17:00' }
-            }
+            businessHours: await AppSettings.getBusinessHours()
         };
         
         // Prepare lesson settings with defaults
@@ -1301,6 +1293,11 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                 businessFields.social_media_youtube = settingsData.socialMedia.youtube;
             }
             
+            // Handle business hours if they exist
+            if (settingsData.businessHours) {
+                businessFields.business_hours = settingsData.businessHours;
+            }
+            
             // Validate each field
             const validatedFields = {};
             const errors = {};
@@ -1343,6 +1340,11 @@ router.put('/settings/:category', authorize('manage', 'User'), async (req, res) 
                     youtube: validatedFields.social_media_youtube || ''
                 }
             };
+            
+            // Include business hours if they were saved
+            if (validatedFields.business_hours) {
+                frontendFormat.businessHours = JSON.parse(validatedFields.business_hours);
+            }
             
             res.json({
                 success: true,

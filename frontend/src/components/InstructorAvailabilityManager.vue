@@ -1,8 +1,5 @@
 <template>
     <div class="availability-manager">
-        <div v-if="error" class="error-message">{{ error }}</div>
-        <div v-if="success" class="success-message">{{ success }}</div>
-
         <!-- Weekly Schedule Section -->
         <div class="schedule-section card">
             <h3>Weekly Schedule</h3>
@@ -83,12 +80,12 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
 
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
-const error = ref(null)
-const success = ref('')
+const { showSuccess, showError } = useFormFeedback()
 const loading = ref(false)
 
 const props = defineProps({
@@ -157,17 +154,15 @@ const loadSchedule = async () => {
                 duration: slot.duration
             });
         });
-    } catch (error) {
-        console.error('Error loading schedule:', error);
-        error.value = 'Failed to load schedule';
+    } catch (err) {
+        console.error('Error loading schedule:', err);
+        showError('Failed to load schedule');
     }
 };
 
 const saveWeeklySchedule = async () => {
     try {
         loading.value = true;
-        error.value = null;
-        success.value = '';
         
         const slots = [];
         
@@ -229,12 +224,13 @@ const saveWeeklySchedule = async () => {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save schedule');
+            console.error('Backend validation error:', errorData);
+            throw new Error(errorData.error || errorData.message || 'Failed to save schedule');
         }
         
-        success.value = 'Schedule saved successfully';
+        showSuccess('Schedule saved successfully');
     } catch (err) {
-        error.value = 'Error saving schedule: ' + err.message;
+        showError('Error saving schedule: ' + err.message);
         console.error('Error saving schedule:', err);
     } finally {
         loading.value = false;
@@ -265,7 +261,7 @@ const fetchBlockedTimes = async () => {
         if (!response.ok) throw new Error('Failed to fetch blocked times');
         blockedTimes.value = await response.json();
     } catch (err) {
-        error.value = 'Failed to load blocked times';
+        showError('Failed to load blocked times');
         console.error(err);
     }
 };
@@ -299,14 +295,14 @@ const addBlockedTime = async () => {
 
         if (!response.ok) throw new Error('Failed to add blocked time');
         
-        success.value = 'Blocked time added successfully';
+        showSuccess('Blocked time added successfully');
         newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' };
         await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++;
     } catch (err) {
-        error.value = 'Failed to add blocked time';
+        showError('Failed to add blocked time');
         console.error(err);
     }
 };
@@ -322,13 +318,13 @@ const removeBlockedTime = async (blockId) => {
 
         if (!response.ok) throw new Error('Failed to remove blocked time');
         
-        success.value = 'Blocked time removed successfully';
+        showSuccess('Blocked time removed successfully');
         await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++;
     } catch (err) {
-        error.value = 'Failed to remove blocked time';
+        showError('Failed to remove blocked time');
         console.error(err);
     }
 };

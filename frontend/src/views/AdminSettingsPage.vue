@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useQueryClient } from '@tanstack/vue-query'
 import SettingsTabs from '../components/SettingsTabs.vue'
 import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
@@ -12,14 +13,13 @@ import AdvancedSettingsSection from '../components/admin/AdvancedSettingsSection
 
 const userStore = useUserStore()
 const router = useRouter()
+const queryClient = useQueryClient()
 const { showSuccess, handleError } = useFormFeedback()
 
 // Settings state
 const currentSection = ref('business')
 const settingsData = ref({})
 const loading = ref(false)
-const error = ref('')
-const success = ref('')
 
 // Tab configuration - using computed to make props reactive
 const settingsTabs = computed(() => [
@@ -29,8 +29,7 @@ const settingsTabs = computed(() => [
     component: BusinessInfoSection,
     props: {
       initialData: settingsData.value.business || {},
-      loading: loading.value,
-      clearErrors: success.value ? Date.now() : null
+      loading: loading.value
     }
   },
   {
@@ -48,8 +47,7 @@ const settingsTabs = computed(() => [
     component: LessonsSection,
     props: {
       initialData: settingsData.value.lessons || {},
-      loading: loading.value,
-      clearErrors: success.value ? Date.now() : null
+      loading: loading.value
     }
   },
   {
@@ -73,7 +71,6 @@ const settingsTabs = computed(() => [
 const loadSettings = async () => {
   try {
     loading.value = true
-    error.value = ''
     
     const response = await fetch('/api/admin/settings', {
       headers: {
@@ -88,7 +85,7 @@ const loadSettings = async () => {
     const data = await response.json()
     settingsData.value = data
   } catch (err) {
-    error.value = 'Error loading settings: ' + err.message
+    handleError(err, 'Error loading settings: ')
     console.error('Error loading settings:', err)
   } finally {
     loading.value = false
@@ -97,9 +94,6 @@ const loadSettings = async () => {
 
 const handleTabChange = (tabId) => {
   currentSection.value = tabId
-  // Clear any previous messages when switching tabs
-  error.value = ''
-  success.value = ''
 }
 
 const handleContentChange = async (data) => {
@@ -109,31 +103,24 @@ const handleContentChange = async (data) => {
     // Handle logo-specific actions separately
     if (action === 'logo_uploaded' || action === 'logo_removed' || action === 'logo_position_updated') {
       if (action === 'logo_uploaded') {
-        success.value = payload.message || 'Logo uploaded successfully'
+        showSuccess(payload.message || 'Logo uploaded successfully')
       } else if (action === 'logo_removed') {
-        success.value = payload.message || 'Logo removed successfully'
+        showSuccess(payload.message || 'Logo removed successfully')
       } else if (action === 'logo_position_updated') {
-        success.value = payload.message || 'Logo position updated successfully'
+        showSuccess(payload.message || 'Logo position updated successfully')
       }
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        success.value = ''
-      }, 3000)
       
       return
     }
     
     // Handle upload errors
     if (action === 'upload_error') {
-      error.value = payload.error || 'Upload failed'
+      handleError(new Error(payload.error || 'Upload failed'))
       return
     }
     
     // Show loading state for standard form submissions
     loading.value = true
-    error.value = ''
-    success.value = ''
     
     const response = await fetch(`/api/admin/settings/${tabId}`, {
       method: 'PUT',
@@ -164,6 +151,12 @@ const handleContentChange = async (data) => {
     settingsData.value = {
       ...settingsData.value,
       [tabId]: result.data
+    }
+    
+    // Invalidate appSettings cache if business hours were updated
+    // This ensures instructor availability UI reflects new business hours immediately
+    if (tabId === 'business') {
+      await queryClient.invalidateQueries({ queryKey: ['appSettings'] })
     }
     
     // Clear any component-level validation errors on successful save
@@ -200,17 +193,6 @@ onMounted(() => {
       <p class="page-description">
         Manage your application's theme, branding, and configuration
       </p>
-    </div>
-    
-    <!-- Global Messages -->
-    <div v-if="error" class="message error-message">
-      <span class="message-text">{{ error }}</span>
-      <button class="message-close" @click="error = ''" aria-label="Close error">&times;</button>
-    </div>
-    
-    <div v-if="success" class="message success-message">
-      <span class="message-text">{{ success }}</span>
-      <button class="message-close" @click="success = ''" aria-label="Close success">&times;</button>
     </div>
     
     <!-- Settings Tabs -->
@@ -265,68 +247,6 @@ onMounted(() => {
   border: 1px solid var(--border-color);
 }
 
-/* Global Messages */
-.message {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-md);
-  font-weight: 500;
-  animation: slideIn 0.3s ease-out;
-}
-
-.error-message {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.success-message {
-  background: #f0fdf4;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
-}
-
-.message-text {
-  flex: 1;
-}
-
-.message-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background var(--transition-normal);
-  color: inherit;
-  opacity: 0.7;
-}
-
-.message-close:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-/* Animations */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
   .admin-settings-page {
@@ -345,11 +265,6 @@ onMounted(() => {
     min-height: 500px;
     border-radius: var(--border-radius);
   }
-  
-  .message {
-    padding: var(--spacing-sm);
-    font-size: var(--font-size-sm);
-  }
 }
 
 @media (max-width: 480px) {
@@ -362,36 +277,10 @@ onMounted(() => {
   }
 }
 
-/* Dark mode support (future) */
-@media (prefers-color-scheme: dark) {
-  .error-message {
-    background: #1f1f23;
-    color: #f87171;
-    border-color: #3f3f46;
-  }
-  
-  .success-message {
-    background: #1f1f23;
-    color: #4ade80;
-    border-color: #3f3f46;
-  }
-}
-
 /* High contrast mode */
 @media (prefers-contrast: high) {
   .settings-container {
     border-width: 2px;
-  }
-  
-  .message {
-    border-width: 2px;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .message {
-    animation: none;
   }
 }
 </style>

@@ -190,6 +190,7 @@ const getSlotClasses = (slot) => {
     'past': isPastTimeSlot(slot.startSlot, props.date.toISOString()),
     'booked': slot.type === 'booked',
     'own-booking': slot.type === 'booked' && slot.isOwnBooking,
+    'recurring-booking': slot.is_recurring,
     'rescheduling': slot.type === 'rescheduling',
     'google-calendar': slot.is_google_calendar,
     'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
@@ -208,6 +209,11 @@ const getSlotClasses = (slot) => {
 const handleSlotClick = (slot) => {
   // Prevent clicks on past time slots
   if (isPastTimeSlot(slot.startSlot, props.date.toISOString())) {
+    return
+  }
+  
+  // Prevent clicks on recurring subscription bookings
+  if (slot.is_recurring) {
     return
   }
   

@@ -48,6 +48,8 @@ npm run test business-info.test.js
 
 ### Backend
 - `app-settings.test.js` - AppSettings model and API tests
+- `app-settings-validation.test.js` - Business hours and settings validation
+- `business-hours-availability.test.js` - Business hours feature and slot validation
 - `user-management.test.js` - User CRUD, role changes, instructor profiles
 - `subscription-management.test.js` - Subscription lifecycle, payment plans
 - `vue-query-composables.test.js` - Vue Query composable logic
@@ -58,6 +60,7 @@ npm run test business-info.test.js
 
 ### Frontend
 - `business-info.test.js` - Business Information components
+- `useAppSettings.test.js` - App settings composable and business hours helpers
 - `attendance.test.js` - Attendance tracking features
 - `logo.test.js` - Logo upload functionality
 - `router-permissions.test.js` - Frontend route permissions
@@ -333,6 +336,88 @@ Use full component mounting only for:
 - Accessibility features
 
 **Note:** Component integration tests with Pinia stores face the same module load timing issues. If you must test through component mounting, use dynamic imports or accept that some state may need to be set up via component methods rather than lifecycle hooks.
+
+## Feature-Specific Testing
+
+### Business Hours Availability Tests
+
+The Business Hours Availability feature includes comprehensive test coverage for both frontend and backend validation.
+
+#### Backend Tests (`tests/business-hours-availability.test.js`)
+
+**Test Coverage:**
+- Business hours configuration validation (format, time ranges, logical consistency)
+- Slot validation against business hours using `validateSlotAgainstBusinessHours()`
+- Different operating hours per day
+- Closed days handling
+- Edge cases (24-hour operation, boundary times)
+- Default hours retrieval fallback
+
+**Run Individual Test:**
+```bash
+NODE_ENV=test node --test tests/business-hours-availability.test.js
+```
+
+**Key Test Pattern:**
+```javascript
+const { validateSlotAgainstBusinessHours } = require('../utils/timeUtils');
+
+it('should reject slots on closed days', () => {
+  const result = validateSlotAgainstBusinessHours(
+    3, // Wednesday (0=Sunday)
+    '09:00',
+    '12:00',
+    businessHours
+  );
+  
+  assert.strictEqual(result.valid, false);
+  assert.ok(result.error.includes('closed'));
+});
+```
+
+#### Frontend Tests (`frontend/src/tests/useAppSettings.test.js`)
+
+**Test Coverage:**
+- `useAppSettings` composable API surface
+- Business hours fetching with TanStack Query
+- `earliestOpenTime` and `latestCloseTime` computed properties
+- `isSlotWithinHours()` validation function
+- Error handling and fallback to defaults
+
+**Run Individual Test:**
+```bash
+cd frontend && npm run test -- useAppSettings.test.js
+```
+
+**Key Test Pattern:**
+```javascript
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query';
+
+// Setup with QueryClient
+beforeEach(() => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  });
+  setActivePinia(createPinia());
+});
+
+// Mount with VueQueryPlugin
+const wrapper = mount(TestComponent, {
+  global: {
+    plugins: [[VueQueryPlugin, { queryClient }]]
+  }
+});
+```
+
+**Important:** Tests for components using TanStack Query must include `VueQueryPlugin` in the test setup.
+
+#### Integration with Other Tests
+
+Business hours validation is also tested through:
+- **`app-settings-validation.test.js`**: Comprehensive validation of all business settings
+- **`business-info.test.js`**: UI component tests for admin settings page
+
+**See Also:** [Business Hours Availability Feature Documentation](./BUSINESS_HOURS_AVAILABILITY_FEATURE.md)
 
 ## Related Documentation
 

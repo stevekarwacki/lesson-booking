@@ -35,9 +35,11 @@ import { computed } from 'vue'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { transformWeeklySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
 import { useUserStore } from '../stores/userStore'
+import { useAppSettings } from '../composables/useAppSettings'
 import DailyScheduleColumn from './DailyScheduleColumn.vue'
 
 const userStore = useUserStore()
+const { earliestOpenTime, latestCloseTime } = useAppSettings()
 
 const props = defineProps({
     weeklySchedule: {
@@ -71,16 +73,34 @@ const emit = defineEmits(['slot-selected'])
 // Column-based layout computed properties
 const weeklyColumns = computed(() => {
     if (!props.useColumnLayout) return []
-    return transformWeeklySchedule(props.weeklySchedule, props.weekStartDate)
+    
+    // Use business hours range to ensure alignment with time labels
+    const startHour = earliestOpenTime.value || 6
+    const endHour = latestCloseTime.value || 20
+    const startSlot = startHour * 4
+    const endSlot = endHour * 4
+    
+    return transformWeeklySchedule(props.weeklySchedule, props.weekStartDate, startSlot, endSlot)
 })
 
 const timeLabels = computed(() => {
     if (!props.useColumnLayout) return []
     
-    const timeRange = getScheduleTimeRange(props.weeklySchedule)
-    if (!timeRange) return []
+    // Use business hours instead of schedule data range to ensure consistent grid alignment
+    const startHour = earliestOpenTime.value || 6
+    const endHour = latestCloseTime.value || 20
+    const startSlot = startHour * 4  // Convert hours to slots (4 slots per hour)
+    const endSlot = endHour * 4
     
-    return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2) // 30-minute intervals
+    // Fall back to schedule data range if business hours aren't available
+    if (startSlot === 24 && endSlot === 80) {  // Check if still using defaults
+        const timeRange = getScheduleTimeRange(props.weeklySchedule)
+        if (timeRange) {
+            return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2)
+        }
+    }
+    
+    return generateTimeLabels(startSlot, endSlot, 2) // 30-minute intervals
 })
 
 // Event handlers

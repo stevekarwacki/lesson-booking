@@ -223,6 +223,12 @@ const handleSlotSelected = (slot) => {
     
     // For booked slots, allow instructors and admins to edit/cancel student bookings
     if (slot.type === 'booked') {
+        // Don't allow editing recurring subscription bookings
+        if (slot.is_recurring) {
+            // TODO: Could show a message or modal explaining this is a subscription booking
+            return
+        }
+        
         // Check if current user can manage bookings (instructors and admins)
         if ((userStore.canManageCalendar || userStore.canManageUsers) && slot.student && slot.student.id) {
             // Create a booking object that matches the EditBookingModal expected format
@@ -315,18 +321,28 @@ const clearSelectedDate = () => {
  * @returns {Object} - formatted slot
  */
 const formatSlot = (slot, date) => {
+    // Normalize slot type/status to recognized types
+    let slotType = slot.type || slot.status || 'available'
+    
+    // Map recurring_reserved status to booked type for display
+    if (slotType === 'recurring_reserved') {
+        slotType = 'booked'
+    }
+    
     const formattedSlot = {
         id: slot.id, // Preserve the original booking/event ID
         start_slot: slot.start_slot,
         duration: slot.duration,
         date: date,
-        type: slot.type || slot.status || 'available', // Check 'type' first, then fall back to 'status'
+        type: slotType,
         student: null,
         startTime: null,
         endTime: null,
         // Preserve Google Calendar properties for styling
         is_google_calendar: slot.is_google_calendar,
-        source: slot.source
+        source: slot.source,
+        // Flag for recurring bookings
+        is_recurring: slot.status === 'recurring_reserved'
     }
 
     // Calculate start and end times

@@ -37,9 +37,11 @@ import { computed } from 'vue'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { transformDailySchedule, getScheduleTimeRange, generateTimeLabels } from '../utils/scheduleTransform'
 import { useUserStore } from '../stores/userStore'
+import { useAppSettings } from '../composables/useAppSettings'
 import DailyScheduleColumn from './DailyScheduleColumn.vue'
 
 const userStore = useUserStore()
+const { earliestOpenTime, latestCloseTime } = useAppSettings()
 
 const props = defineProps({
     dailySchedule: {
@@ -68,15 +70,32 @@ const emit = defineEmits(['slot-selected'])
 
 // Transform daily schedule data for DailyScheduleColumn component
 const dailySlots = computed(() => {
-    return transformDailySchedule(props.dailySchedule, props.selectedDay.date)
+    // Use business hours range to ensure alignment with time labels
+    const startHour = earliestOpenTime.value || 6
+    const endHour = latestCloseTime.value || 20
+    const startSlot = startHour * 4
+    const endSlot = endHour * 4
+    
+    return transformDailySchedule(props.dailySchedule, props.selectedDay.date, startSlot, endSlot)
 })
 
 // Generate time labels for the daily view
 const timeLabels = computed(() => {
-    const timeRange = getScheduleTimeRange(props.dailySchedule)
-    if (!timeRange) return []
+    // Use business hours instead of schedule data range to ensure consistent grid alignment
+    const startHour = earliestOpenTime.value || 6
+    const endHour = latestCloseTime.value || 20
+    const startSlot = startHour * 4  // Convert hours to slots (4 slots per hour)
+    const endSlot = endHour * 4
     
-    return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2) // 30-minute intervals
+    // Fall back to schedule data range if business hours aren't available
+    if (startSlot === 24 && endSlot === 80) {  // Check if still using defaults
+        const timeRange = getScheduleTimeRange(props.dailySchedule)
+        if (timeRange) {
+            return generateTimeLabels(timeRange.minSlot, timeRange.maxSlot, 2)
+        }
+    }
+    
+    return generateTimeLabels(startSlot, endSlot, 2) // 30-minute intervals
 })
 
 // Event handler for slot selection

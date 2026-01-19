@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
 import AdminSettingsPage from '../views/AdminSettingsPage.vue'
 import { createPinia, setActivePinia } from 'pinia'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 
 // Mock the user store
 const mockUserStore = {
@@ -323,6 +324,7 @@ describe('AdminSettingsPage Component', () => {
   const createWrapper = () => {
     return mount(AdminSettingsPage, {
       global: {
+        plugins: [VueQueryPlugin],
         mocks: {
           $router: mockRouter,
           $mq: mockMq
@@ -395,14 +397,9 @@ describe('AdminSettingsPage Component', () => {
     wrapper.vm.handleTabChange('theme')
     expect(wrapper.vm.currentSection).toBe('theme')
 
-    // Should clear previous messages
-    wrapper.vm.error = 'Previous error'
-    wrapper.vm.success = 'Previous success'
-    
+    // Switch back to business tab
     wrapper.vm.handleTabChange('business')
-    
-    expect(wrapper.vm.error).toBe('')
-    expect(wrapper.vm.success).toBe('')
+    expect(wrapper.vm.currentSection).toBe('business')
   })
 })
 
@@ -433,6 +430,7 @@ describe('Integration Tests', () => {
 
     const adminWrapper = mount(AdminSettingsPage, {
       global: {
+        plugins: [VueQueryPlugin],
         mocks: {
           $router: mockRouter,
           $mq: mockMq
