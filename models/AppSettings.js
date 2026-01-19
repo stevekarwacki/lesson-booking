@@ -204,6 +204,59 @@ AppSettings.validateBusinessSetting = function(key, value) {
             }
             break;
             
+        case 'business_hours':
+            // Business hours must be a valid JSON object
+            if (!trimmedValue) {
+                throw new Error('Business hours cannot be empty');
+            }
+            
+            try {
+                const businessHours = typeof value === 'string' ? JSON.parse(trimmedValue) : value;
+                
+                // Validate structure
+                const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:MM format (00:00 - 23:59)
+                
+                for (const day of validDays) {
+                    if (!businessHours[day]) {
+                        throw new Error(`Missing configuration for ${day}`);
+                    }
+                    
+                    const dayConfig = businessHours[day];
+                    
+                    if (typeof dayConfig.isOpen !== 'boolean') {
+                        throw new Error(`${day}: isOpen must be true or false`);
+                    }
+                    
+                    if (!dayConfig.open || !dayConfig.close) {
+                        throw new Error(`${day}: must have open and close times`);
+                    }
+                    
+                    if (!timeRegex.test(dayConfig.open)) {
+                        throw new Error(`${day}: open time must be in HH:MM format (e.g., 09:00)`);
+                    }
+                    
+                    if (!timeRegex.test(dayConfig.close)) {
+                        throw new Error(`${day}: close time must be in HH:MM format (e.g., 17:00)`);
+                    }
+                    
+                    // Validate open time is before close time (only if open)
+                    if (dayConfig.isOpen && dayConfig.open >= dayConfig.close) {
+                        throw new Error(`${day}: open time must be before close time`);
+                    }
+                }
+                
+                // Return JSON string for storage
+                return JSON.stringify(businessHours);
+            } catch (error) {
+                // If JSON parse failed
+                if (error instanceof SyntaxError) {
+                    throw new Error('Business hours must be valid JSON');
+                }
+                // Re-throw our validation errors
+                throw error;
+            }
+            
         default:
             // Allow other keys without specific validation
             if (trimmedValue.length > 1000) {
@@ -284,6 +337,32 @@ AppSettings.getCardPaymentOnBehalfEnabled = async function() {
         console.error('Error getting card payment on behalf enabled setting:', error);
         // Default to false on error
         return false;
+    }
+};
+
+// Static method to get business hours with defaults
+AppSettings.getBusinessHours = async function() {
+    try {
+        const setting = await this.findOne({
+            where: {
+                category: 'business',
+                key: 'business_hours'
+            }
+        });
+        
+        if (!setting || !setting.value) {
+            // Load defaults from config file
+            const defaults = require('../config/defaults.json');
+            return defaults.business.businessHours;
+        }
+        
+        // Parse and return stored business hours
+        return JSON.parse(setting.value);
+    } catch (error) {
+        console.error('Error getting business hours:', error);
+        // Fallback to defaults from config file
+        const defaults = require('../config/defaults.json');
+        return defaults.business.businessHours;
     }
 };
 
