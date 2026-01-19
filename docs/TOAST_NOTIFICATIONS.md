@@ -134,6 +134,11 @@ const handleSubmit = async () => {
 - **Mark Attendance Success**: "Attendance marked as [status]"
 - **Mark Attendance Error**: "Failed to update attendance: [error message]"
 
+### Instructor Availability
+- **Save Schedule Success**: "Schedule saved successfully"
+- **Save Schedule Error**: "Error saving schedule: [error message]"
+- **Validation Error**: "Please select availability for at least one day"
+
 ### Profile Management
 - **Update Success**: "Profile updated successfully"
 - **Update Error**: Validation errors / "An error occurred while updating your profile"

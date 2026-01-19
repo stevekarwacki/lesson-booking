@@ -9,6 +9,7 @@ A web application for managing lesson bookings.
 - **Lesson scheduling and management** with 30 and 60-minute durations
 - **Duration-based pricing** (60-minute lessons cost 2x the 30-minute rate)
 - **Smart rescheduling** with duration preservation and conflict detection
+- **Business hours management** with automatic availability enforcement
 - **In-person payment system** with configurable global/per-student settings
 - **Comprehensive refund system** with Stripe integration and credit restoration
 - Payment processing with email confirmations
@@ -129,6 +130,7 @@ For detailed documentation, see:
 - [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md) - Permission system
 - [`docs/60_MINUTE_LESSON_FEATURES.md`](docs/60_MINUTE_LESSON_FEATURES.md) - 60-minute lesson functionality
 - [`docs/REFUND_SYSTEM.md`](docs/REFUND_SYSTEM.md) - Comprehensive refund system
+- [`docs/BUSINESS_HOURS_AVAILABILITY_FEATURE.md`](docs/BUSINESS_HOURS_AVAILABILITY_FEATURE.md) - Business hours and availability management
 
 ### Permission Overview
 

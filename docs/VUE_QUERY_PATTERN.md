@@ -53,6 +53,7 @@ All Vue Query logic is encapsulated in composables located in `/frontend/src/com
 - `useUserSubscription.js` - Subscription management
 - `useUserBookings.js` - User bookings
 - `usePaymentPlans.js` - Payment plan queries
+- `useAppSettings.js` - Application settings and business hours
 
 ## Usage Patterns
 
@@ -268,6 +269,61 @@ const { refetch } = useQuery({ /* ... */ })
 await refetch()
 ```
 
+### 6. Settings Queries with Extended Cache
+
+For rarely-changing data like app settings, use longer cache times:
+
+```javascript
+// In composable: useAppSettings.js
+export function useAppSettings() {
+  const userStore = useUserStore()
+  
+  const { data: settings, isLoading, error } = useQuery({
+    queryKey: ['appSettings'],
+    queryFn: () => fetchAppSettings(userStore.token),
+    staleTime: 5 * 60 * 1000,   // 5 minutes (longer than default)
+    cacheTime: 30 * 60 * 1000,  // 30 minutes (keep in memory)
+    enabled: computed(() => !!userStore.token),
+  });
+  
+  // Computed properties for specific settings
+  const businessHours = computed(() => settings.value?.businessHours || null);
+  const timezone = computed(() => settings.value?.timezone || 'America/Los_Angeles');
+  
+  // Helper functions
+  const isSlotWithinHours = (dayOfWeek, slotTime) => {
+    // Business logic using businessHours...
+  };
+  
+  return {
+    settings,
+    businessHours,
+    timezone,
+    isSlotWithinHours,
+    isLoading,
+    error
+  };
+}
+```
+
+**Usage in components:**
+```vue
+<script setup>
+import { useAppSettings } from '@/composables/useAppSettings'
+import { useQueryClient } from '@tanstack/vue-query'
+
+const { businessHours, isSlotWithinHours } = useAppSettings()
+const queryClient = useQueryClient()
+
+async function saveSettings() {
+  // Save via API...
+  
+  // Invalidate cache to force refresh
+  await queryClient.invalidateQueries({ queryKey: ['appSettings'] })
+}
+</script>
+```
+
 ## Query Keys
 
 Query keys are used for caching and invalidation. Use consistent, hierarchical keys:
@@ -280,6 +336,7 @@ Query keys are used for caching and invalidation. Use consistent, hierarchical k
 ['instructors']                        // All instructors
 ['instructors', instructorId]          // Specific instructor
 ['paymentPlans']                       // All payment plans
+['appSettings']                        // Application settings (business hours, etc.)
 ```
 
 ## Best Practices
@@ -356,6 +413,8 @@ const mutation = useMutation({
 
 ## Testing Vue Query Composables
 
+### Backend Tests
+
 See `/tests/vue-query-composables.test.js` for examples:
 
 ```javascript
@@ -378,6 +437,34 @@ describe('Vue Query Composables', () => {
 })
 ```
 
+### Frontend Tests
+
+See `/frontend/src/tests/useAppSettings.test.js` for complete example.
+
+**Key Requirements:**
+- Must include `VueQueryPlugin` in test setup
+- Create a `QueryClient` for each test
+- Mount test component with the plugin
+
+```javascript
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+
+beforeEach(() => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  })
+  setActivePinia(createPinia())
+})
+
+const wrapper = mount(TestComponent, {
+  global: {
+    plugins: [[VueQueryPlugin, { queryClient }]]
+  }
+})
+```
+
 ## Migration Status
 
 ### ✅ Completed (Phase 2)
@@ -388,16 +475,19 @@ describe('Vue Query Composables', () => {
 - Payment Plans
 - User Approval Status
 
+### ✅ Completed (Phase 3)
+- App Settings (Business Hours, Business Information)
+
 ### 🔄 Planned (Phase 4)
 - Booking Management
 - Credit Management
 - Instructor Availability
 - Calendar Events
-- Settings Management
 
 ## Related Documentation
 
 - [Tanstack Query Docs](https://tanstack.com/query/latest/docs/framework/vue/overview)
 - [Testing Guide](TESTING_GUIDE.md)
+- [Business Hours Availability Feature](BUSINESS_HOURS_AVAILABILITY_FEATURE.md) - Complete example of Vue Query usage
 - [User Management Flow](USER_MANAGEMENT_FLOW.md)
 
