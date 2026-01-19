@@ -602,7 +602,6 @@ h2 {
     align-items: center;
     gap: var(--spacing-sm);
     cursor: pointer;
-    text-wrap: nowrap;
 }
 
 .checkbox-label input[type="checkbox"] {
