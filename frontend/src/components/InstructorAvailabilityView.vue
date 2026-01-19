@@ -75,7 +75,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { timeToSlot } from '../utils/timeFormatting'
+import { timeToSlot, slotToTime } from '../utils/timeFormatting'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { useAppSettings } from '../composables/useAppSettings'
 
@@ -134,18 +134,19 @@ watch(() => props.weeklySchedule, (newSchedule) => {
     editingSchedule.value = expanded
 }, { immediate: true, deep: true })
 
-const isTimeAvailable = (dayOfWeek, hour) => {
+const isTimeAvailable = (dayOfWeek, slotNumber) => {
     const schedule = editingSchedule.value[dayOfWeek]
-    const timeSlot = timeToSlot(`${hour}:00`)
+    
+    // slotNumber is now 0-95, can compare directly
     return schedule?.some(slot => 
-        timeSlot >= slot.startSlot && 
-        timeSlot < (slot.startSlot + slot.duration)
+        slotNumber >= slot.startSlot && 
+        slotNumber < (slot.startSlot + slot.duration)
     )
 }
 
-const toggleTimeSlot = (dayOfWeek, hour) => {
+const toggleTimeSlot = (dayOfWeek, slotNumber) => {
     // Prevent toggling slots outside business hours
-    if (!isSlotInBusinessHours(dayOfWeek, hour)) {
+    if (!isSlotInBusinessHours(dayOfWeek, slotNumber)) {
         return
     }
     
@@ -154,7 +155,7 @@ const toggleTimeSlot = (dayOfWeek, hour) => {
     }
     
     const schedule = editingSchedule.value[dayOfWeek]
-    const startSlot = timeToSlot(`${hour}:00`)
+    const startSlot = slotNumber  // Already a slot number (0-95)
     const duration = 2  // 30 minutes = 2 fifteen-minute slots
     
     // Find if this half-hour block exists
@@ -181,28 +182,28 @@ const toggleTimeSlot = (dayOfWeek, hour) => {
     emit('update:weeklySchedule', editingSchedule.value)
 }
 
-const startDrag = (dayOfWeek, hour, event) => {
+const startDrag = (dayOfWeek, slotNumber, event) => {
     if (!isEditing.value) return
     
     // Prevent dragging on slots outside business hours
-    if (!isSlotInBusinessHours(dayOfWeek, hour)) {
+    if (!isSlotInBusinessHours(dayOfWeek, slotNumber)) {
         return
     }
     
     event.preventDefault()
     isDragging.value = true
     currentDayColumn.value = dayOfWeek
-    dragStartValue.value = isTimeAvailable(dayOfWeek, hour)
-    toggleTimeSlot(dayOfWeek, hour)
+    dragStartValue.value = isTimeAvailable(dayOfWeek, slotNumber)
+    toggleTimeSlot(dayOfWeek, slotNumber)
 }
 
-const handleDrag = (dayOfWeek, hour) => {
+const handleDrag = (dayOfWeek, slotNumber) => {
     if (!isDragging.value || !isEditing.value || dayOfWeek !== currentDayColumn.value) return
     
     // Toggle if the current cell's availability is the same as the drag start value
-    const currentAvailable = isTimeAvailable(dayOfWeek, hour)
+    const currentAvailable = isTimeAvailable(dayOfWeek, slotNumber)
     if (currentAvailable === dragStartValue.value) {
-        toggleTimeSlot(dayOfWeek, hour)
+        toggleTimeSlot(dayOfWeek, slotNumber)
     }
 }
 
@@ -243,9 +244,11 @@ const getDayName = (dayValue) => {
 }
 
 // Check if a specific slot is within business hours
-const isSlotInBusinessHours = (dayOfWeek, hour) => {
+const isSlotInBusinessHours = (dayOfWeek, slotNumber) => {
     const dayName = getDayName(dayOfWeek)
-    return isSlotWithinHours(dayName, hour)
+    // Convert slot number (0-95) to decimal hours (0-24)
+    const decimalHour = slotNumber / 4
+    return isSlotWithinHours(dayName, decimalHour)
 }
 
 const timeSlots = computed(() => {
@@ -255,35 +258,39 @@ const timeSlots = computed(() => {
     const startHour = earliestOpenTime.value || 6
     const endHour = latestCloseTime.value || 20
     
-    for (let hour = startHour; hour < endHour; hour++) {
-        // Add hour slot
-        const hourLabel = timezoneStore.use12HourFormat 
-            ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
-            : `${hour.toString().padStart(2, '0')}:00`
-            
-        slots.push({
-            value: hour,
-            label: hourLabel
-        })
+    // Convert to slot numbers (4 slots per hour, 0-95 for full day)
+    const startSlot = startHour * 4
+    const endSlot = endHour * 4
+    
+    // Create 30-minute blocks (2 slots each)
+    for (let slot = startSlot; slot < endSlot; slot += 2) {
+        const timeString = slotToTime(slot)
+        const [hour, minute] = timeString.split(':').map(Number)
         
-        // Add half hour slot
-        const halfHourLabel = timezoneStore.use12HourFormat 
-            ? `${hour % 12 || 12}:30${hour < 12 ? 'am' : 'pm'}`
-            : `${hour.toString().padStart(2, '0')}:30`
+        const label = timezoneStore.use12HourFormat 
+            ? minute === 0 
+                ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
+                : `${hour % 12 || 12}:${minute}${hour < 12 ? 'am' : 'pm'}`
+            : timeString
             
         slots.push({
-            value: hour + 0.5,
-            label: halfHourLabel
+            value: slot,  // Use slot number (0-95) instead of decimal hour
+            label
         })
     }
+    
     return slots
 })
 
-const getBlockedReason = (dayOfWeek, hour) => {
+const getBlockedReason = (dayOfWeek, slotNumber) => {
     if (!props.blockedTimes.length) return null
 
+    // Convert slot number (0-95) to hours and minutes
+    const hours = Math.floor(slotNumber / 4)
+    const minutes = (slotNumber % 4) * 15
+
     const today = new Date()
-    today.setHours(hour, 0, 0, 0)
+    today.setHours(hours, minutes, 0, 0)
     today.setDate(today.getDate() + ((dayOfWeek - today.getDay() + 7) % 7))
 
     const block = props.blockedTimes.find(block => {
