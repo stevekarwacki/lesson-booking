@@ -126,3 +126,27 @@ export const formatAddress = (address) => {
     return parts.join(', ')
 }
 
+/**
+ * Format phone number for display
+ * @param {string} phoneNumber - Raw phone number string
+ * @returns {string} - Formatted phone number or original if can't format
+ */
+export const formatPhoneNumber = (phoneNumber) => {
+    if (!phoneNumber) return ''
+    
+    // Remove all non-digit characters
+    const digits = phoneNumber.replace(/\D/g, '')
+    
+    // Format based on digit count
+    if (digits.length === 10) {
+        // US format: (555) 123-4567
+        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    } else if (digits.length === 11 && digits[0] === '1') {
+        // US format with country code: +1 (555) 123-4567
+        return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
+    }
+    
+    // For other formats, return as-is (international numbers, etc.)
+    return phoneNumber
+}
+

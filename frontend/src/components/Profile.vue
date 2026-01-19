@@ -140,7 +140,7 @@
                                 v-model="profileData.isMinor"
                                 type="checkbox"
                             >
-                            <span>I am under 18 years old</span>
+                            <span>Student is under 18 years of age</span>
                         </label>
                     </div>
 
@@ -151,7 +151,7 @@
                                 type="checkbox"
                             >
                             <span>
-                                My parent or legal guardian has approved my registration
+                                Parent or legal guardian has approved registration
                                 <span class="required">*</span>
                             </span>
                         </label>
@@ -607,6 +607,7 @@ h2 {
     align-items: center;
     gap: var(--spacing-sm);
     cursor: pointer;
+    text-wrap: nowrap;
 }
 
 .checkbox-label input[type="checkbox"] {

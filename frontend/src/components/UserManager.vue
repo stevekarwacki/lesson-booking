@@ -1734,6 +1734,7 @@ select:disabled {
 
 .checkbox-label span {
     color: var(--text-primary);
+    text-wrap: nowrap;
 }
 
 .role-badge {
