@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const InstructorAvailability = require('../models/InstructorAvailability');
+const { AppSettings } = require('../models/AppSettings');
 const instructorAuth = require('../middleware/instructorAuth');
-const {createLocalAvailabilityRecord} = require('../utils/timeUtils');
+const { createLocalAvailabilityRecord, validateSlotAgainstBusinessHours } = require('../utils/timeUtils');
 const { authorize, authorizeResource } = require('../middleware/permissions');
 
 // Get instructor's weekly availability
@@ -68,6 +69,33 @@ router.post('/:instructorId/weekly', authorize('update', 'InstructorAvailability
                     endTime: 'string (HH:MM)'
                 }
             });
+        }
+
+        // Validate slots against business hours
+        const businessHours = await AppSettings.getBusinessHours();
+        
+        for (const slot of slots) {
+            const validation = validateSlotAgainstBusinessHours(
+                slot.dayOfWeek,
+                slot.startTime,
+                slot.endTime,
+                businessHours
+            );
+            
+            if (!validation.valid) {
+                return res.status(400).json({
+                    error: validation.error,
+                    businessHours: validation.dayConfig ? { 
+                        open: validation.dayConfig.open, 
+                        close: validation.dayConfig.close 
+                    } : undefined,
+                    requestedSlot: { 
+                        dayOfWeek: slot.dayOfWeek, 
+                        startTime: slot.startTime, 
+                        endTime: slot.endTime 
+                    }
+                });
+            }
         }
 
         // Convert timezone-aware slots to database records

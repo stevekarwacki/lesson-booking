@@ -51,8 +51,10 @@
                         :class="{
                             'available': isTimeAvailable(day.value, hour.value),
                             'unavailable': !isTimeAvailable(day.value, hour.value),
-                            'editable': isEditing
+                            'editable': isEditing,
+                            'outside-business-hours': !isSlotInBusinessHours(day.value, hour.value)
                         }"
+                        :title="!isSlotInBusinessHours(day.value, hour.value) ? 'Outside business hours' : ''"
                         @mousedown="startDrag(day.value, hour.value, $event)"
                         @mouseenter="handleDrag(day.value, hour.value)"
                         @mouseup="endDrag"
@@ -75,6 +77,7 @@
 import { ref, computed, watch } from 'vue'
 import { timeToSlot } from '../utils/timeFormatting'
 import { useTimezoneStore } from '../stores/timezoneStore'
+import { useAppSettings } from '../composables/useAppSettings'
 
 const props = defineProps({
     weeklySchedule: {
@@ -90,6 +93,7 @@ const props = defineProps({
 const emit = defineEmits(['update:weeklySchedule', 'save'])
 
 const timezoneStore = useTimezoneStore()
+const { businessHours, earliestOpenTime, latestCloseTime, isSlotWithinHours } = useAppSettings()
 
 const isEditing = ref(false)
 const editingSchedule = ref(props.weeklySchedule)
@@ -140,6 +144,11 @@ const isTimeAvailable = (dayOfWeek, hour) => {
 }
 
 const toggleTimeSlot = (dayOfWeek, hour) => {
+    // Prevent toggling slots outside business hours
+    if (!isSlotInBusinessHours(dayOfWeek, hour)) {
+        return
+    }
+    
     if (!Array.isArray(editingSchedule.value[dayOfWeek])) {
         editingSchedule.value[dayOfWeek] = []
     }
@@ -174,6 +183,12 @@ const toggleTimeSlot = (dayOfWeek, hour) => {
 
 const startDrag = (dayOfWeek, hour, event) => {
     if (!isEditing.value) return
+    
+    // Prevent dragging on slots outside business hours
+    if (!isSlotInBusinessHours(dayOfWeek, hour)) {
+        return
+    }
+    
     event.preventDefault()
     isDragging.value = true
     currentDayColumn.value = dayOfWeek
@@ -212,19 +227,35 @@ const cancelEditing = () => {
 }
 
 const daysOfWeek = [
-    { value: 0, label: 'Sun' },
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' }
+    { value: 0, label: 'Sun', name: 'sunday' },
+    { value: 1, label: 'Mon', name: 'monday' },
+    { value: 2, label: 'Tue', name: 'tuesday' },
+    { value: 3, label: 'Wed', name: 'wednesday' },
+    { value: 4, label: 'Thu', name: 'thursday' },
+    { value: 5, label: 'Fri', name: 'friday' },
+    { value: 6, label: 'Sat', name: 'saturday' }
 ]
+
+// Helper to get day name from day value
+const getDayName = (dayValue) => {
+    const day = daysOfWeek.find(d => d.value === dayValue)
+    return day?.name || 'monday'
+}
+
+// Check if a specific slot is within business hours
+const isSlotInBusinessHours = (dayOfWeek, hour) => {
+    const dayName = getDayName(dayOfWeek)
+    return isSlotWithinHours(dayName, hour)
+}
 
 const timeSlots = computed(() => {
     const slots = []
     
-    for (let hour = 7; hour < 19; hour++) {
+    // Use business hours to determine time range, with fallback to 6am-8pm
+    const startHour = earliestOpenTime.value || 6
+    const endHour = latestCloseTime.value || 20
+    
+    for (let hour = startHour; hour < endHour; hour++) {
         // Add hour slot
         const hourLabel = timezoneStore.use12HourFormat 
             ? `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`
@@ -404,5 +435,21 @@ const getBlockedReason = (dayOfWeek, hour) => {
     font-size: 0.75rem;
     display: inline-block;
     cursor: help;
+}
+
+.schedule-cell.outside-business-hours {
+    background-color: #f5f5f5;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 0, 0, 0.03) 10px,
+        rgba(0, 0, 0, 0.03) 20px
+    );
+    cursor: not-allowed;
+}
+
+.schedule-cell.outside-business-hours.editable:hover {
+    opacity: 0.6;
 }
 </style> 

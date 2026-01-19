@@ -1,5 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index');
+const { AppSettings } = require('./AppSettings');
+const { validateSlotAgainstBusinessHours } = require('../utils/timeUtils');
 
 const InstructorAvailability = sequelize.define('InstructorAvailability', {
     id: {
@@ -104,17 +106,39 @@ const setWeeklyAvailability = (instructorId, slots) => {
     });
 };
 
-const getWeeklyAvailability = (instructorId) => {
-    return new Promise((resolve, reject) => {
-        InstructorAvailability.findAll({
+const getWeeklyAvailability = async (instructorId) => {
+    try {
+        const rows = await InstructorAvailability.findAll({
             where: {
                 instructor_id: instructorId
             },
             order: [['day_of_week', 'ASC'], ['start_slot', 'ASC']]
-        })
-        .then(rows => resolve(rows || []))
-        .catch(err => reject(err));
-    });
+        });
+        
+        // Filter out slots that are outside current business hours
+        // This handles legacy data from before business hours were configured
+        const businessHours = await AppSettings.getBusinessHours();
+        
+        const filteredRows = rows.filter(slot => {
+            // If slot has local times, validate against business hours
+            if (slot.local_start_time && slot.local_end_time) {
+                const validation = validateSlotAgainstBusinessHours(
+                    slot.day_of_week,
+                    slot.local_start_time,
+                    slot.local_end_time,
+                    businessHours
+                );
+                return validation.valid;
+            }
+            
+            // Keep slots without local times (shouldn't happen with current data)
+            return true;
+        });
+        
+        return filteredRows || [];
+    } catch (err) {
+        throw err;
+    }
 };
 
 // Blocked times methods

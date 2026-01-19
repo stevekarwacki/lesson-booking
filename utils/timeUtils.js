@@ -432,6 +432,62 @@ function getStartOfDay(date) {
     return d;
 }
 
+/**
+ * Parse time string to decimal hours for comparison
+ * @param {string} timeStr - Time in HH:MM format
+ * @returns {number} Decimal hours (e.g., "14:30" => 14.5)
+ */
+function parseTimeToHours(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours + (minutes / 60);
+}
+
+/**
+ * Validate if a time slot is within business hours
+ * @param {number} dayOfWeek - Day of week (0=Sunday, 6=Saturday)
+ * @param {string} startTime - Start time in HH:MM format
+ * @param {string} endTime - End time in HH:MM format
+ * @param {Object} businessHours - Business hours configuration object
+ * @returns {Object} { valid: boolean, error?: string, dayName?: string, dayConfig?: object }
+ */
+function validateSlotAgainstBusinessHours(dayOfWeek, startTime, endTime, businessHours) {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek];
+    const dayConfig = businessHours[dayName];
+    
+    // Check if day is open
+    if (!dayConfig || !dayConfig.isOpen) {
+        return {
+            valid: false,
+            error: `Business is closed on ${dayName}`,
+            dayName,
+            dayConfig
+        };
+    }
+    
+    // Parse times for comparison
+    const slotStart = parseTimeToHours(startTime);
+    const slotEnd = parseTimeToHours(endTime);
+    const businessOpen = parseTimeToHours(dayConfig.open);
+    const businessClose = parseTimeToHours(dayConfig.close);
+    
+    // Check if slot is within business hours
+    if (slotStart < businessOpen || slotEnd > businessClose) {
+        return {
+            valid: false,
+            error: `Time slot (${startTime}-${endTime}) is outside business hours for ${dayName} (${dayConfig.open}-${dayConfig.close})`,
+            dayName,
+            dayConfig
+        };
+    }
+    
+    return {
+        valid: true,
+        dayName,
+        dayConfig
+    };
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -468,5 +524,9 @@ module.exports = {
     isCurrentDay,
     isPastDay,
     isPastTimeSlot,
-    getStartOfDay
+    getStartOfDay,
+    
+    // Business hours helpers
+    parseTimeToHours,
+    validateSlotAgainstBusinessHours
 };
