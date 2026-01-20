@@ -121,6 +121,7 @@ import { useMq } from 'vue3-mq'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useCalendar } from '../composables/useCalendar'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import BookingList from './BookingList.vue'
@@ -147,7 +148,6 @@ const weeklyScheduleData = ref([])
 const dailyScheduleData = ref({})
 const dailyScheduleLoaded = ref(false)
 const error = ref('')
-const dailyBookings = ref([])
 
 // Week selection state
 const selectedWeek = ref(firstDayOfWeek(today().toDate()))
@@ -159,6 +159,29 @@ const weekStart = computed(() => {
     date.setDate(date.getDate() - day)
     return date
 })
+
+// Computed date range for weekly events query
+const weekStartDate = computed(() => weekStart.value.toISOString().split('T')[0])
+const weekEndDate = computed(() => {
+    const endDate = new Date(weekStart.value)
+    endDate.setDate(endDate.getDate() + 6)
+    return endDate.toISOString().split('T')[0]
+})
+
+// Use calendar composable for events (Vue Query)
+const {
+    weeklyEvents,
+    isLoadingWeeklyEvents,
+    weeklyEventsError,
+    dailyEvents,
+    isLoadingDailyEvents,
+    dailyEventsError,
+} = useCalendar(
+    computed(() => instructor.id),
+    weekStartDate,
+    weekEndDate,
+    selectedDate
+)
 
 function firstDayOfWeek(dateObject, firstDayOfWeekIndex = 0) {
     const dayOfWeek = dateObject.getDay(),
@@ -368,30 +391,19 @@ const fetchWeeklySchedule = async () => {
     if (!instructor.id) return
 
     try {
-        // Get week start and end dates
-        const startDate = weekStart.value.toISOString().split('T')[0]
-        const endDate = new Date(weekStart.value)
-        endDate.setDate(endDate.getDate() + 6)
-        const endDateStr = endDate.toISOString().split('T')[0]
+        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
+        const availabilityResponse = await fetch(`/api/availability/${instructor.id}/weekly`, {
+            headers: { 'Authorization': `Bearer ${userStore.token}` }
+        })
 
-        // Fetch both availability and booked events
-        const [availabilityResponse, eventsResponse] = await Promise.all([
-            fetch(`/api/availability/${instructor.id}/weekly`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            }),
-            fetch(`/api/calendar/events/${instructor.id}/${startDate}/${endDateStr}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            })
-        ])
-
-        if (!availabilityResponse.ok || !eventsResponse.ok) {
+        if (!availabilityResponse.ok) {
             throw new Error('Failed to fetch data')
         }
 
-        const [availabilityData, bookedEvents] = await Promise.all([
-            availabilityResponse.json(),
-            eventsResponse.json()
-        ])
+        const availabilityData = await availabilityResponse.json()
+        
+        // Use events from Vue Query (weeklyEvents will be undefined if not loaded yet)
+        const bookedEvents = weeklyEvents.value || []
 
         // Initialize schedule with dates
         const formattedSchedule = {}
@@ -522,27 +534,21 @@ const fetchDailySchedule = async () => {
     dailyScheduleLoaded.value = false
 
     try {
-        // Fetch both availability and booked events
-        
-        const [availabilityResponse, eventsResponse] = await Promise.all([
-            fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            }),
-            fetch(`/api/calendar/dailyEvents/${instructor.id}/${selectedDate.value}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            })
-        ])
+        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
+        const availabilityResponse = await fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
+            headers: { 'Authorization': `Bearer ${userStore.token}` }
+        })
 
-        if (!availabilityResponse.ok || !eventsResponse.ok) {
+        if (!availabilityResponse.ok) {
             throw new Error('Failed to fetch data')
         }
 
         const scheduleDate = new Date(selectedDate.value)
 
-        const [availabilityData, bookedEvents] = await Promise.all([
-            availabilityResponse.json(),
-            eventsResponse.json()
-        ])
+        const availabilityData = await availabilityResponse.json()
+        
+        // Use events from Vue Query (dailyEvents will be undefined if not loaded yet)
+        const bookedEvents = dailyEvents.value || []
 
         const formattedSchedule = {}
 
@@ -644,14 +650,12 @@ watch(selectedWeek, () => {
 // Watch for changes to selected date
 watch(selectedDate, () => {
     fetchDailySchedule()
-    fetchDailyBookings()
 })
 
 // Fetch data on component mount
 onMounted(() => {
     fetchWeeklySchedule()
     fetchDailySchedule()
-    fetchDailyBookings()
 })
 
 watch(() => instructor, async (newInstructor) => {
@@ -665,15 +669,30 @@ watch(() => scheduleStore.refreshTrigger, async () => {
     if (instructor?.id && scheduleStore.needsRefresh(instructor.id)) {
         await fetchWeeklySchedule()
         await fetchDailySchedule()
-        await fetchDailyBookings()
         scheduleStore.markInstructorRefreshed(instructor.id)
     }
 })
 
+// Watch for Vue Query data changes and update local schedule data
+watch(weeklyEvents, () => {
+    if (weeklyEvents.value) {
+        fetchWeeklySchedule()
+    }
+})
 
-// Transform dailyBookings for BookingList component
+watch(dailyEvents, () => {
+    if (dailyEvents.value) {
+        fetchDailySchedule()
+    }
+})
+
+
+// Transform dailyEvents for BookingList component
 const formattedBookingsForList = computed(() => {
-    return dailyBookings.value.map(booking => ({
+    // Use dailyEvents from Vue Query
+    const events = dailyEvents.value || []
+    
+    return events.map(booking => ({
         id: booking.id || `temp-${booking.start_slot}`,
         date: booking.date,
         startTime: formatTime(slotToTime(booking.start_slot)),
@@ -684,34 +703,9 @@ const formattedBookingsForList = computed(() => {
         isRecurring: false, // Add logic for recurring if needed
         refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
         // Original booking data for actions
-        originalBooking: booking
+        originalBooking: formatSlot(booking, new Date(selectedDate.value))
     }))
 })
-
-const fetchDailyBookings = async () => {
-    if (!instructor.id || !selectedDate.value) {
-        dailyBookings.value = []
-        return
-    }
-
-    const bookingDate = selectedDate.value
-
-    try {
-        const response = await fetch(`/api/calendar/dailyEvents/${instructor.id}/${bookingDate}`, {
-            headers: { 'Authorization': `Bearer ${userStore.token}` }
-        })
-
-        if (!response.ok) { 
-            throw new Error('Failed to fetch daily bookings')
-        }
-
-        const events = await response.json()
-        dailyBookings.value = events.map(event => (formatSlot(event, new Date(selectedDate.value))))
-    } catch (error) {
-        console.error('Error fetching daily bookings:', error)
-        dailyBookings.value = []
-    }
-}
 
 // BookingList event handlers
 const handleEditBookingFromList = (booking) => {

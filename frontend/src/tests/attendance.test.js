@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import BookingList from '../components/BookingList.vue'
 import CalendarPage from '../views/CalendarPage.vue'
 import { useUserStore } from '../stores/userStore'
@@ -32,6 +33,7 @@ vi.mock('../composables/useFormFeedback', () => ({
 describe('Attendance Tracking Frontend', () => {
   let pinia
   let userStore
+  let queryClient
   
   // Create dynamic dates for testing - available to all tests
   // Use date helpers for consistent timezone-aware date creation
@@ -42,6 +44,13 @@ describe('Attendance Tracking Frontend', () => {
   const yesterdayStr = yesterdayHelper.toDateString()
 
   beforeEach(() => {
+    // Create fresh QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    })
+    
     pinia = createPinia()
     setActivePinia(pinia)
     userStore = useUserStore()
@@ -63,6 +72,8 @@ describe('Attendance Tracking Frontend', () => {
   afterEach(() => {
     // Clean up timers after each test
     vi.useRealTimers()
+    // Clear query client cache
+    queryClient.clear()
   })
 
   describe('BookingList Component - Attendance Features', () => {
@@ -397,7 +408,7 @@ describe('Attendance Tracking Frontend', () => {
     it.skip('should load instructor data and bookings on mount', async () => {
       const wrapper = mount(CalendarPage, {
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -419,7 +430,7 @@ describe('Attendance Tracking Frontend', () => {
     it.skip('should handle attendance changes via API', async () => {
       const wrapper = mount(CalendarPage, {
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -466,7 +477,7 @@ describe('Attendance Tracking Frontend', () => {
 
       const wrapper = mount(CalendarPage, {
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -482,7 +493,7 @@ describe('Attendance Tracking Frontend', () => {
     it('should update local state after successful attendance change', async () => {
       const wrapper = mount(CalendarPage, {
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -510,7 +521,7 @@ describe('Attendance Tracking Frontend', () => {
     it('should handle reschedule modal opening', async () => {
       const wrapper = mount(CalendarPage, {
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 

@@ -160,10 +160,12 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { useCredits } from '../composables/useCredits'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useCalendar } from '../composables/useCalendar'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
@@ -177,6 +179,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'booking-confirmed'])
 
+const queryClient = useQueryClient()
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
 const { showSuccess, showError } = useFormFeedback()
@@ -207,6 +210,23 @@ const selectedStudent = ref(null)
 const studentSearchQuery = ref('')
 const showStudentResults = ref(false)
 const selectedStudentCredits = ref(0)
+
+// Computed date for conflict checking
+const conflictCheckDate = computed(() => {
+    if (!currentSlot.value?.date) return null
+    return currentSlot.value.date.toISOString().split('T')[0]
+})
+
+// Use calendar composable for conflict checking (Vue Query)
+const {
+    dailyEvents: conflictCheckEvents,
+    isLoadingDailyEvents: isLoadingConflictCheck,
+} = useCalendar(
+    computed(() => currentSlot.value?.instructorId),
+    null, // no weekly start date needed
+    null, // no weekly end date needed
+    conflictCheckDate
+)
 
 // Computed search results for student selector
 const searchResults = computed(() => {
@@ -242,28 +262,24 @@ const checkTimeConflicts = async () => {
     }
 
     try {
-        // For 60-minute lessons, fetch availability and booked events to check conflicts
+        // For 60-minute lessons, fetch availability and use Vue Query events to check conflicts
         const formattedDate = currentSlot.value.date.toISOString().split('T')[0]
         
-        const [availabilityResponse, eventsResponse] = await Promise.all([
-            fetch(`/api/availability/${currentSlot.value.instructorId}/daily/${formattedDate}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            }),
-            fetch(`/api/calendar/dailyEvents/${currentSlot.value.instructorId}/${formattedDate}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            })
-        ])
+        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
+        const availabilityResponse = await fetch(`/api/availability/${currentSlot.value.instructorId}/daily/${formattedDate}`, {
+            headers: { 'Authorization': `Bearer ${userStore.token}` }
+        })
 
-        if (!availabilityResponse.ok || !eventsResponse.ok) {
+        if (!availabilityResponse.ok) {
             hasTimeConflict.value = true
             conflictMessage.value = 'Unable to check availability'
             return
         }
 
-        const [availabilityData, bookedEvents] = await Promise.all([
-            availabilityResponse.json(),
-            eventsResponse.json()
-        ])
+        const availabilityData = await availabilityResponse.json()
+        
+        // Use events from Vue Query (will be undefined if not loaded yet)
+        const bookedEvents = conflictCheckEvents.value || []
 
         // Check if the extended duration (60 minutes = 4 slots) would conflict
         const startSlot = currentSlot.value.startSlot
@@ -623,6 +639,26 @@ const confirmBooking = async () => {
         }
 
         const result = await response.json()
+        
+        // Invalidate Vue Query caches to reflect the new booking
+        // This triggers automatic refetch of calendar data
+        queryClient.invalidateQueries({ 
+            queryKey: ['calendar', 'events', currentSlot.value.instructorId] 
+        })
+        
+        // Invalidate credits cache for the student
+        const studentId = isBookingOnBehalf.value && selectedStudent.value 
+            ? selectedStudent.value.id 
+            : userStore.user.id
+            
+        queryClient.invalidateQueries({ 
+            queryKey: ['credits', studentId] 
+        })
+        
+        // Invalidate user bookings cache
+        queryClient.invalidateQueries({ 
+            queryKey: ['users', studentId, 'bookings'] 
+        })
         
         // Credits are automatically deducted by the backend, so we refresh to get accurate count
         if (paymentMethod.value === 'credits') {

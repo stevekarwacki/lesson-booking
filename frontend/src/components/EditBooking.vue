@@ -95,6 +95,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
@@ -111,6 +112,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 
+const queryClient = useQueryClient()
 const formFeedback = useFormFeedback()
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
@@ -322,6 +324,15 @@ const updateBooking = async () => {
             throw new Error(data.error || 'Failed to update booking')
         }
 
+        // Invalidate Vue Query caches to reflect the updated booking
+        queryClient.invalidateQueries({ 
+            queryKey: ['calendar', 'events', props.booking.instructor_id] 
+        })
+        
+        queryClient.invalidateQueries({ 
+            queryKey: ['users', props.booking.student_id, 'bookings'] 
+        })
+
         // Trigger schedule refresh for this instructor
         scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
 
@@ -360,6 +371,20 @@ const cancelBooking = async () => {
         }
 
         const result = await response.json()
+        
+        // Invalidate Vue Query caches to reflect the cancelled booking
+        queryClient.invalidateQueries({ 
+            queryKey: ['calendar', 'events', props.booking.instructor_id] 
+        })
+        
+        queryClient.invalidateQueries({ 
+            queryKey: ['users', props.booking.student_id, 'bookings'] 
+        })
+        
+        // Invalidate credits cache (credits are restored on cancellation)
+        queryClient.invalidateQueries({ 
+            queryKey: ['credits', props.booking.student_id] 
+        })
         
         // Trigger schedule refresh for this instructor
         scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
