@@ -47,7 +47,7 @@
             <button @click="disconnectOAuth" :disabled="disconnecting" class="btn btn-danger">
               {{ disconnecting ? 'Disconnecting...' : 'Disconnect OAuth' }}
             </button>
-            <button @click="testConnection" :disabled="testing" class="btn btn-secondary">
+            <button @click="handleTestConnection" :disabled="testing" class="btn btn-secondary">
               {{ testing ? 'Testing...' : 'Test Connection' }}
             </button>
           </div>
@@ -140,7 +140,7 @@
         
         <button
           v-if="!setupInfo?.oauth?.connected"
-          @click="testConnection"
+          @click="handleTestConnection"
           :disabled="testing || !calendarId"
           class="btn btn-secondary"
         >
@@ -152,10 +152,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useOAuth } from '../composables/useOAuth'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useGoogleCalendar } from '../composables/useGoogleCalendar'
 
 const props = defineProps({
     instructorId: {
@@ -170,108 +171,74 @@ const formFeedback = useFormFeedback()
 // OAuth composable
 const oauth = useOAuth(ref(props.instructorId))
 
-// Reactive data
-const loading = ref(false)
-const saving = ref(false)
-const testing = ref(false)
-const error = ref(null)
+// Google Calendar composable
+const {
+    calendarConfig,
+    setupInfo,
+    isLoadingConfig,
+    isLoadingSetup,
+    saveCalendarConfig,
+    testConnection,
+    isSavingConfig,
+    isTestingConnection
+} = useGoogleCalendar(computed(() => props.instructorId))
+
+// Form state
 const calendarId = ref('')
 const allDayHandling = ref('ignore')
-const setupInfo = ref(null)
+
+// Watch for config changes to update form
+watch(calendarConfig, (config) => {
+    if (config) {
+        calendarId.value = config.calendar_id || ''
+        allDayHandling.value = config.all_day_event_handling || 'ignore'
+    }
+}, { immediate: true })
+
+// Loading states
+const loading = computed(() => isLoadingConfig.value || isLoadingSetup.value)
+const saving = isSavingConfig
+const testing = isTestingConnection
 
 // Alias for template compatibility
 const connecting = oauth.connecting
 const disconnecting = oauth.disconnecting
+const error = ref(null)
 
 // Load current settings
 const loadSettings = async () => {
-    loading.value = true
     error.value = null
     
     try {
-        // Load calendar config
-        const configResponse = await fetch(`/api/auth/calendar/config/${props.instructorId}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (configResponse.ok) {
-            const config = await configResponse.json()
-            calendarId.value = config.calendar_id || ''
-            allDayHandling.value = config.all_day_event_handling || 'ignore'
-        }
-        
-        // Load setup info (including OAuth status)
-        const setupResponse = await fetch(`/api/auth/calendar/setup-info/${props.instructorId}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (setupResponse.ok) {
-            setupInfo.value = await setupResponse.json()
-        }
-        
-        // Check OAuth status
+        // Check OAuth status (calendar config and setup info loaded automatically by Vue Query)
         await oauth.checkStatus()
-        
     } catch (err) {
         console.error('Failed to load calendar settings:', err)
         error.value = 'Failed to load calendar settings. Please try again.'
-    } finally {
-        loading.value = false
     }
 }
 
 // Save settings
 const saveSettings = async () => {
-    saving.value = true
     error.value = null
     
     try {
-        const response = await fetch(`/api/auth/calendar/config/${props.instructorId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                calendar_id: calendarId.value || null,
-                all_day_event_handling: allDayHandling.value
-            })
+        await saveCalendarConfig({
+            calendar_id: calendarId.value || null,
+            all_day_event_handling: allDayHandling.value
         })
         
-        if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to save settings')
-        }
-        
-        // Show success toast
         formFeedback.showSuccess('Calendar settings saved successfully!')
-        
-        // Reload setup info to reflect changes
-        await loadSettings()
         
     } catch (err) {
         formFeedback.handleError(err, 'Failed to save calendar settings:')
-    } finally {
-        saving.value = false
     }
 }
 
 // Test connection
-const testConnection = async () => {
-    testing.value = true
-    
+const handleTestConnection = async () => {
     try {
-        const response = await fetch(`/api/auth/calendar/test/${props.instructorId}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        const result = await response.json()
+        const result = await testConnection()
         
         // Show toast notification based on result
         if (result.success) {
@@ -285,8 +252,6 @@ const testConnection = async () => {
         
     } catch (err) {
         formFeedback.handleError(err, 'Failed to test connection:')
-    } finally {
-        testing.value = false
     }
 }
 
