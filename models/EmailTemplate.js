@@ -142,7 +142,7 @@ EmailTemplate.validateTemplate = function(subjectTemplate, bodyTemplate) {
     checkUnclosedBrackets(bodyTemplate, 'Body');
     
     return {
-        valid: errors.length === 0,
+        isValid: errors.length === 0,
         errors
     };
 };

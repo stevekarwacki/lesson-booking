@@ -8,25 +8,13 @@
     </div>
     
     <!-- Loading State -->
-    <div v-if="loading && !templates.length" class="loading-container">
+    <div v-if="loading && (!templates || !templates.length)" class="loading-container">
       <div class="loading-spinner"></div>
       <p>Loading email templates...</p>
     </div>
     
-    <!-- Error State -->
-    <div v-if="error" class="error-banner">
-      <span class="error-text">{{ error }}</span>
-      <button class="error-close" @click="error = ''" aria-label="Close error">&times;</button>
-    </div>
-    
-    <!-- Success State -->
-    <div v-if="success" class="success-banner">
-      <span class="success-text">{{ success }}</span>
-      <button class="success-close" @click="success = ''" aria-label="Close success">&times;</button>
-    </div>
-    
     <!-- Template List -->
-    <div v-if="templates.length > 0" class="templates-container">
+    <div v-if="templates && templates.length > 0" class="templates-container">
       <!-- No active editor: Show template grid -->
       <div v-if="!activeTemplate" class="templates-grid">
         <div 
@@ -188,6 +176,8 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../../stores/userStore'
+import { useEmailTemplates } from '../../composables/useEmailTemplates'
+import { useFormFeedback } from '../../composables/useFormFeedback'
 
 export default {
   name: 'EmailTemplatesSection',
@@ -206,20 +196,30 @@ export default {
   
   setup(props, { emit }) {
     const userStore = useUserStore()
+    const { showSuccess, showError } = useFormFeedback()
+    const {
+        templates,
+        isLoadingTemplates,
+        saveEmailTemplate,
+        sendTestEmail,
+        resetEmailTemplate,
+        isSavingTemplate,
+        isSendingTest,
+        isResettingTemplate
+    } = useEmailTemplates()
     
     // State
-    const templates = ref([])
     const activeTemplate = ref(null)
     const editingSubject = ref('')
     const editingBody = ref('')
     const originalSubject = ref('')
     const originalBody = ref('')
     const showVariables = ref(false)
-    const error = ref('')
-    const success = ref('')
-    const loading = ref(false)
-    const saving = ref(false)
     const testingTemplate = ref(null)
+    
+    // Computed for loading state (combines Vue Query loading with component prop)
+    const loading = computed(() => isLoadingTemplates.value || props.loading)
+    const saving = computed(() => isSavingTemplate.value)
     
     // Computed
     const hasUnsavedChanges = computed(() => {
@@ -228,34 +228,7 @@ export default {
              editingBody.value !== originalBody.value
     })
     
-    // Methods
-    const loadTemplates = async () => {
-      try {
-        loading.value = true
-        error.value = ''
-        
-        const response = await fetch('/api/admin/email-templates', {
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Failed to load email templates: ${response.status} ${errorText}`)
-        }
-        
-        const data = await response.json()
-        // Check if data is an array directly or has templates property
-        templates.value = Array.isArray(data) ? data : (data.templates || [])
-        
-      } catch (err) {
-        error.value = err.message
-      } finally {
-        loading.value = false
-      }
-    }
+    // Templates are now loaded via useEmailTemplates composable
     
     const editTemplate = (template) => {
       activeTemplate.value = template
@@ -284,75 +257,39 @@ export default {
       if (!activeTemplate.value) return
       
       try {
-        saving.value = true
-        error.value = ''
-        
-        const response = await fetch(`/api/admin/email-templates/${activeTemplate.value.template_key}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        const result = await saveEmailTemplate({
+          templateKey: activeTemplate.value.template_key,
+          templateData: {
             subject_template: editingSubject.value,
             body_template: editingBody.value
-          })
+          }
         })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to save template')
-        }
-        
-        const result = await response.json()
-        
-        // Update the template in our list
-        const templateIndex = templates.value.findIndex(t => t.template_key === activeTemplate.value.template_key)
-        if (templateIndex !== -1) {
-          templates.value[templateIndex] = result.template
-        }
         
         // Update the active template and reset original values
         activeTemplate.value = result.template
         originalSubject.value = result.template.subject_template
         originalBody.value = result.template.body_template
         
-        success.value = 'Template saved successfully'
-        setTimeout(() => { success.value = '' }, 3000)
+        showSuccess('Template saved successfully')
         
       } catch (err) {
-        error.value = err.message
-      } finally {
-        saving.value = false
+        showError(err.message || 'Failed to save template')
       }
     }
     
     const testTemplate = async (template) => {
       try {
         testingTemplate.value = template.template_key
-        error.value = ''
         
-        const response = await fetch(`/api/admin/email-templates/${template.template_key}/test`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            recipientEmail: userStore.user.email
-          })
+        await sendTestEmail({
+          templateKey: template.template_key,
+          recipientEmail: userStore.user.email
         })
         
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to send test email')
-        }
-        
-        success.value = `Test email sent to ${userStore.user.email}`
-        setTimeout(() => { success.value = '' }, 3000)
+        showSuccess(`Test email sent to ${userStore.user.email}`)
         
       } catch (err) {
-        error.value = err.message
+        showError(err.message || 'Failed to send test email')
       } finally {
         testingTemplate.value = null
       }
@@ -364,42 +301,17 @@ export default {
       }
       
       try {
-        loading.value = true
-        error.value = ''
-        
-        const response = await fetch(`/api/admin/email-templates/${template.template_key}/reset`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${userStore.token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || 'Failed to reset template')
-        }
-        
-        const result = await response.json()
-        
-        // Update the template in our list
-        const templateIndex = templates.value.findIndex(t => t.template_key === template.template_key)
-        if (templateIndex !== -1) {
-          templates.value[templateIndex] = result.template
-        }
+        const result = await resetEmailTemplate(template.template_key)
         
         // If this template is currently being edited, update the editor
         if (activeTemplate.value && activeTemplate.value.template_key === template.template_key) {
           editTemplate(result.template)
         }
         
-        success.value = 'Template reset to default successfully'
-        setTimeout(() => { success.value = '' }, 3000)
+        showSuccess('Template reset to default successfully')
         
       } catch (err) {
-        error.value = err.message
-      } finally {
-        loading.value = false
+        showError(err.message || 'Failed to reset template')
       }
     }
     
@@ -459,10 +371,7 @@ export default {
       })
     }
     
-    // Lifecycle
-    onMounted(() => {
-      loadTemplates()
-    })
+    // Templates are automatically loaded by Vue Query composable
     
     return {
       templates,
@@ -470,13 +379,10 @@ export default {
       editingSubject,
       editingBody,
       showVariables,
-      error,
-      success,
       loading,
       saving,
       testingTemplate,
       hasUnsavedChanges,
-      loadTemplates,
       editTemplate,
       closeEditor,
       saveTemplate,

@@ -998,9 +998,6 @@ router.put('/email-templates/:templateKey', authorize('manage', 'all'), async (r
             return res.status(404).json({ error: 'Email template not found' });
         }
         
-        // Clear template from cache so changes take effect immediately
-        emailService.clearTemplateFromCache(templateKey);
-        
         res.json({
             success: true,
             message: 'Email template updated successfully',
@@ -1026,9 +1023,6 @@ router.post('/email-templates/:templateKey/reset', authorize('manage', 'all'), a
         if (!resetTemplate) {
             return res.status(404).json({ error: 'Email template not found' });
         }
-        
-        // Clear template from cache so changes take effect immediately
-        emailService.clearTemplateFromCache(templateKey);
         
         res.json({
             success: true,
