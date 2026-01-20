@@ -351,18 +351,18 @@ AppSettings.getBusinessHours = async function() {
         });
         
         if (!setting || !setting.value) {
-            // Load defaults from config file
-            const defaults = require('../config/defaults.json');
-            return defaults.business.businessHours;
+            // Load defaults from isomorphic constants
+            const { getBusinessHoursDefaults } = require('../utils/constants');
+            return getBusinessHoursDefaults();
         }
         
         // Parse and return stored business hours
         return JSON.parse(setting.value);
     } catch (error) {
         console.error('Error getting business hours:', error);
-        // Fallback to defaults from config file
-        const defaults = require('../config/defaults.json');
-        return defaults.business.businessHours;
+        // Fallback to defaults from isomorphic constants
+        const { getBusinessHoursDefaults } = require('../utils/constants');
+        return getBusinessHoursDefaults();
     }
 };
 

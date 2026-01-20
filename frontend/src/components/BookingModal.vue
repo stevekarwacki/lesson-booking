@@ -167,6 +167,7 @@ import { useCredits } from '../composables/useCredits'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
 import { useAvailability } from '../composables/useAvailability'
+import { useInstructor } from '../composables/useInstructor'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
@@ -192,15 +193,21 @@ const {
     invalidateCredits
 } = useCredits()
 
+// Define currentSlot before using it in computed
 const loading = ref(false)
 const error = ref(null)
 const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
-const instructorHourlyRate = ref(50) // Default rate, will be fetched from database
 const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
 const cardPaymentOnBehalfEnabled = ref(false) // Will be fetched from lesson settings
+
+// Use instructor composable for instructor rate (must come after currentSlot definition)
+const {
+    hourlyRate: instructorHourlyRate,
+    isLoadingInstructor
+} = useInstructor(computed(() => currentSlot.value?.instructorId))
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay to allow click event on search results
@@ -437,25 +444,7 @@ watch(selectedDuration, async () => {
     }
 })
 
-// Fetch instructor's hourly rate
-const fetchInstructorRate = async () => {
-    try {
-        const response = await fetch(`/api/instructors/${currentSlot.value.instructorId}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const instructor = await response.json()
-            if (instructor.hourly_rate) {
-                instructorHourlyRate.value = parseFloat(instructor.hourly_rate)
-            }
-        }
-    } catch (err) {
-        console.error('Error fetching instructor rate:', err)
-    }
-}
+// Instructor rate is now fetched via useInstructor composable
 
 // Fetch user's payment options (including in-person payment eligibility)
 const fetchPaymentOptions = async () => {
@@ -518,7 +507,7 @@ onMounted(async () => {
                 showPaymentOptions.value = true
             }
         })(),
-        fetchInstructorRate(),
+        // Instructor rate fetched automatically by useInstructor composable
         // Only fetch payment options if not booking on behalf
         isBookingOnBehalf.value ? Promise.resolve() : fetchPaymentOptions(),
         (async () => {

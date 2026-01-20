@@ -29,22 +29,17 @@ import { useUserStore } from '../stores/userStore'
 import { computed } from 'vue'
 
 /**
- * Fetch app settings from the API
- * Returns all business, branding, and operational settings
+ * Fetch public config (no auth required)
+ * Returns UI configuration including business hours
  */
-async function fetchAppSettings(token) {
-  const response = await fetch('/api/admin/settings', {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  })
+async function fetchPublicConfig() {
+  const response = await fetch('/api/public/config')
   
   if (!response.ok) {
-    throw new Error('Failed to fetch app settings')
+    throw new Error('Failed to fetch public config')
   }
   
-  const data = await response.json()
-  return data
+  return await response.json()
 }
 
 /**
@@ -61,7 +56,7 @@ function timeToDecimal(timeString) {
 /**
  * Get the earliest open time across all days
  * @param {Object} businessHours - Business hours configuration
- * @returns {number} - Earliest open time as decimal hours
+ * @returns {number} - Earliest open time as decimal hours (not rounded)
  */
 function getEarliestOpenTime(businessHours) {
   if (!businessHours) return 6 // Default to 6 AM
@@ -70,13 +65,14 @@ function getEarliestOpenTime(businessHours) {
   if (openDays.length === 0) return 6 // Default if no days are open
   
   const earliestTime = Math.min(...openDays.map(day => timeToDecimal(day.open)))
-  return Math.floor(earliestTime) // Round down to nearest hour
+  // Round down to nearest 15-minute slot (0.25 hour increments)
+  return Math.floor(earliestTime * 4) / 4
 }
 
 /**
  * Get the latest close time across all days
  * @param {Object} businessHours - Business hours configuration
- * @returns {number} - Latest close time as decimal hours
+ * @returns {number} - Latest close time as decimal hours (not rounded)
  */
 function getLatestCloseTime(businessHours) {
   if (!businessHours) return 19 // Default to 7 PM
@@ -85,7 +81,8 @@ function getLatestCloseTime(businessHours) {
   if (openDays.length === 0) return 19 // Default if no days are open
   
   const latestTime = Math.max(...openDays.map(day => timeToDecimal(day.close)))
-  return Math.ceil(latestTime) // Round up to nearest hour
+  // Round up to nearest 15-minute slot (0.25 hour increments)
+  return Math.ceil(latestTime * 4) / 4
 }
 
 /**
@@ -113,21 +110,34 @@ function isWithinBusinessHours(businessHours, dayOfWeek, slotTime) {
  * Main composable hook
  */
 export function useAppSettings() {
-  const userStore = useUserStore()
-  
-  // Query for all app settings
-  const { 
-    data: settings, 
-    isLoading, 
+  // Query for public config (available to all users)
+  const {
+    data: publicConfig,
+    isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => fetchAppSettings(userStore.token),
-    staleTime: 5 * 60 * 1000, // 5 minutes (settings rarely change)
+    queryKey: ['publicConfig'],
+    queryFn: fetchPublicConfig,
+    staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 30 * 60 * 1000, // 30 minutes
-    enabled: computed(() => !!userStore.token),
-    retry: 2
+  })
+  
+  // Construct settings object from public config
+  const settings = computed(() => {
+    if (!publicConfig.value) return null
+    
+    return {
+      business: {
+        businessHours: publicConfig.value.businessHours
+      },
+      lessons: {
+        defaultDuration: publicConfig.value.default_duration_minutes,
+        inPersonPaymentEnabled: publicConfig.value.in_person_payment_enabled,
+        cardPaymentOnBehalfEnabled: publicConfig.value.card_payment_on_behalf_enabled
+      },
+      theme: publicConfig.value.theme
+    }
   })
   
   // Focused getters for specific settings sections

@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { AppSettings } = require('../models/AppSettings');
+const { getThemeDefaults } = require('../utils/constants');
 
 /**
  * Cache for the HTML template to avoid file reads on every request
@@ -46,8 +47,9 @@ function loadHTMLTemplate() {
  * to ensure consistency between server-rendered and client-applied themes.
  */
 function generateThemeCSS(themeSettings) {
-  const primaryColor = themeSettings.primary_color || '#28a745';
-  const secondaryColor = themeSettings.secondary_color || '#20c997';
+  const themeDefaults = getThemeDefaults();
+  const primaryColor = themeSettings.primary_color || themeDefaults.primary_color;
+  const secondaryColor = themeSettings.secondary_color || themeDefaults.secondary_color;
   
   // Helper function to darken a color (matches frontend logic)
   function darkenColor(color, amount) {

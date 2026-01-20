@@ -1,9 +1,14 @@
-const { describe, it, beforeEach } = require('node:test');
+const { describe, it, before, beforeEach } = require('node:test');
 const assert = require('node:assert');
+const { ensureConstantsLoaded } = require('../utils/constants');
 const { AppSettings } = require('../models/AppSettings');
 const { validateSlotAgainstBusinessHours } = require('../utils/timeUtils');
 
 describe('Business Hours Availability Feature', () => {
+  before(async () => {
+    // Load isomorphic constants before running tests
+    await ensureConstantsLoaded();
+  });
   describe('Business Hours Validation', () => {
     it('should validate standard business hours', () => {
       const validHours = {

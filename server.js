@@ -6,12 +6,16 @@ const { initializeStorage } = require('./storage/index');
 const cronJobService = require('./services/CronJobService');
 const logger = require('./utils/logger');
 const config = require('./config');
+const { ensureConstantsLoaded } = require('./utils/constants');
 
 const port = config.server.port;
 
 // Initialize models and start server
 const startServer = async () => {
     try {
+        // Load isomorphic constants from @common/
+        await ensureConstantsLoaded();
+        
         await initModels();
         
         // Initialize storage system with AppSettings for configuration

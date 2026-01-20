@@ -16,7 +16,7 @@ The Business Hours Availability feature allows administrators to configure globa
 
 ### Backend Components
 
-#### 1. Configuration Storage (`/config/defaults.json`)
+#### 1. Configuration Storage (`/common/constants/defaults.mjs`)
 
 Default business hours configuration:
 

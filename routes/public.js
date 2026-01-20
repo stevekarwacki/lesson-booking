@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { AppSettings } = require('../models/AppSettings');
+const { getThemeDefaults, getBusinessHoursDefaults } = require('../utils/constants');
 
 // Public endpoint to get basic business information for footer, etc.
 router.get('/business-info', async (req, res) => {
@@ -51,19 +52,24 @@ router.get('/config', async (req, res) => {
     try {
         const lessonSettings = await AppSettings.getSettingsByCategory('lessons');
         const themeSettings = await AppSettings.getSettingsByCategory('theme');
+        const businessHours = await AppSettings.getBusinessHours();
         
         // Return all non-sensitive configuration needed for UI rendering
         const publicConfig = {
             // Lesson configuration
             default_duration_minutes: parseInt(lessonSettings.default_duration_minutes) || 30,
             in_person_payment_enabled: lessonSettings.in_person_payment_enabled === 'true',
+            card_payment_on_behalf_enabled: lessonSettings.card_payment_on_behalf_enabled === 'true',
             
             // Theme configuration for UI styling
             theme: {
-                primary_color: themeSettings.primary_color || '#28a745',
-                secondary_color: themeSettings.secondary_color || '#20c997',
-                palette_name: themeSettings.palette_name || 'Forest Green'
+                primary_color: themeSettings.primary_color || getThemeDefaults().primary_color,
+                secondary_color: themeSettings.secondary_color || getThemeDefaults().secondary_color,
+                palette_name: themeSettings.palette_name || getThemeDefaults().palette_name
             },
+            
+            // Business hours for calendar rendering
+            businessHours: businessHours,
             
             // Add other UI-affecting config here as needed
             // max_booking_days: parseInt(lessonSettings.max_booking_days) || 30,
@@ -76,7 +82,10 @@ router.get('/config', async (req, res) => {
         // Return default values to prevent app breaking
         res.json({
             default_duration_minutes: 30,
-            in_person_payment_enabled: false
+            in_person_payment_enabled: false,
+            card_payment_on_behalf_enabled: false,
+            businessHours: getBusinessHoursDefaults(),
+            theme: getThemeDefaults()
         });
     }
 });

@@ -13,6 +13,7 @@ const { logoUpload } = require('../middleware/uploadMiddleware');
 const { processLogoUpload, removeLogo } = require('../utils/logoOperations');
 const emailQueueService = require('../services/EmailQueueService');
 const cronJobService = require('../services/CronJobService');
+const { getThemeDefaults } = require('../utils/constants');
 const { createDateHelper } = require('../utils/dateHelpers');
 const RefundService = require('../services/RefundService');
 const { Refund } = require('../models/Refund');
@@ -1248,9 +1249,9 @@ router.get('/settings', authorize('manage', 'User'), async (req, res) => {
             lessons,
             // Theme settings from database with defaults
             theme: {
-                primaryColor: themeSettings.primary_color || '#28a745',
-                secondaryColor: themeSettings.secondary_color || '#20c997',
-                palette: themeSettings.palette_name || 'Forest Green',
+                primaryColor: themeSettings.primary_color || getThemeDefaults().primary_color,
+                secondaryColor: themeSettings.secondary_color || getThemeDefaults().secondary_color,
+                palette: themeSettings.palette_name || getThemeDefaults().palette_name,
                 logoUrl: null
             },
             email: {

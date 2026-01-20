@@ -7,9 +7,14 @@
 
 const { describe, it, before } = require('node:test');
 const assert = require('node:assert');
+const { ensureConstantsLoaded } = require('../utils/constants');
 const { generateThemeCSS } = require('../middleware/themeInjection');
 
 describe('Theme Injection Middleware', () => {
+  before(async () => {
+    // Load isomorphic constants before running tests
+    await ensureConstantsLoaded();
+  });
   describe('generateThemeCSS', () => {
     it('should generate CSS with default colors when no settings provided', () => {
       const css = generateThemeCSS({});
