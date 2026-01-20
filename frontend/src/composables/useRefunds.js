@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/userStore'
+import { useScheduleStore } from '@/stores/scheduleStore'
 import axios from 'axios'
 
 /**
@@ -47,6 +48,7 @@ async function processRefundApi(refundData, token) {
 export function useRefunds(bookingId) {
     const userStore = useUserStore()
     const queryClient = useQueryClient()
+    const scheduleStore = useScheduleStore()
     
     // Normalize bookingId parameter
     const normalizedBookingId = computed(() => {
@@ -80,6 +82,16 @@ export function useRefunds(bookingId) {
             queryClient.invalidateQueries({ queryKey: ['users', variables.studentId, 'bookings'] })
             // Invalidate credits for the student
             queryClient.invalidateQueries({ queryKey: ['credits', variables.studentId] })
+            // Invalidate calendar queries (refund typically cancels the booking)
+            queryClient.invalidateQueries({ queryKey: ['calendar'] })
+            // Invalidate availability queries (slots may become available)
+            queryClient.invalidateQueries({ queryKey: ['availability'] })
+            // Trigger schedule store refresh for components that rely on it
+            if (variables.instructorId) {
+                scheduleStore.triggerInstructorRefresh(variables.instructorId)
+            } else {
+                scheduleStore.triggerGlobalRefresh()
+            }
         }
     })
     

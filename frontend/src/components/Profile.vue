@@ -202,6 +202,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { validateProfileData, validatePasswordsMatch, validatePasswordStrength } from '../utils/formValidation'
 import { useProfileUpdate } from '../composables/useProfileUpdate'
+import { useUserManagement } from '../composables/useUserManagement'
 import { useFormFeedback } from '../composables/useFormFeedback'
 
 // Props for admin editing mode
@@ -222,6 +223,7 @@ const emit = defineEmits(['profile-updated'])
 
 const userStore = useUserStore()
 const { updateProfileAsync } = useProfileUpdate()
+const { updateOwnUser } = useUserManagement()
 const { showSuccess, showError } = useFormFeedback()
 
 // Use prop user if in admin mode, otherwise use current user
@@ -448,19 +450,10 @@ const updateProfile = async () => {
         }
 
         // Update basic profile info (name, email, password)
-        const profileResponse = await fetch(`/api/users/${userStore.user.id}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify(updatePayload)
+        await updateOwnUser({
+            userId: userStore.user.id,
+            userData: updatePayload
         })
-
-        if (!profileResponse.ok) {
-            const data = await profileResponse.json()
-            throw new Error(data.error || 'Failed to update profile')
-        }
 
         // Update verification data (phone, address, minor status)
         const profileUpdateData = {

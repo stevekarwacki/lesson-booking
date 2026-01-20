@@ -177,6 +177,7 @@
 import { ref, computed } from 'vue'
 import FilterTabs from './FilterTabs.vue'
 import { filterPresets } from '../composables/useFiltering.js'
+import { useCalendar } from '../composables/useCalendar.js'
 import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
 import { useUserStore } from '../stores/userStore'
 import { fromString, filterToday, filterPast, filterFuture, today, createDateHelper } from '../utils/dateHelpers.js'
@@ -215,6 +216,9 @@ export default {
     const activeFilter = ref('today')
     const currentPage = ref(1)
     const itemsPerPage = 25
+    
+    // Initialize calendar composable for payment status updates
+    const { updatePaymentStatus, isUpdatingPaymentStatus } = useCalendar()
 
     // Filter counts for tab badges
     const filterCounts = computed(() => {
@@ -434,22 +438,10 @@ export default {
       try {
         updatingPayment.value = booking.id
         
-        const response = await fetch(`/api/calendar/bookings/${booking.id}/payment-status`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userStore.token}`
-          },
-          body: JSON.stringify({
-            status: newStatus,
-            notes: `Payment marked as ${newStatus} by ${props.userRole}`
-          })
+        await updatePaymentStatus({
+          bookingId: booking.id,
+          status: newStatus
         })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to update payment status')
-        }
 
         // Update the booking's payment status locally
         booking.paymentStatus = newStatus

@@ -6,7 +6,7 @@
             <InstructorAvailabilityView 
                 v-model:weeklySchedule="weeklySchedule"
                 :blocked-times="blockedTimes"
-                @save="saveWeeklySchedule"
+                @save="handleSaveWeeklySchedule"
             />
         </div>
 
@@ -77,10 +77,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useAvailability } from '../composables/useAvailability'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
 
 const userStore = useUserStore()
@@ -94,6 +95,31 @@ const props = defineProps({
         required: true
     }
 })
+
+// Date range for blocked times query (next 3 months)
+const blockedStartDate = computed(() => {
+    const date = new Date()
+    return date.toISOString()
+})
+const blockedEndDate = computed(() => {
+    const date = new Date()
+    date.setMonth(date.getMonth() + 3)
+    return date.toISOString()
+})
+
+// Initialize availability composable
+const {
+    weeklyAvailability,
+    isLoadingWeeklyAvailability,
+    saveWeeklyAvailability,
+    isSavingWeeklyAvailability,
+    blockedSlots,
+    isLoadingBlockedSlots,
+    createBlockedSlot,
+    isCreatingBlockedSlot,
+    deleteBlockedSlot,
+    isDeletingBlockedSlot,
+} = useAvailability(props.instructorId, null, blockedStartDate, blockedEndDate)
 
 // Weekly Schedule
 const weeklySchedule = ref({
@@ -117,6 +143,32 @@ const newBlockedTime = ref({
 // Add a counter to force re-render
 const scheduleUpdateCounter = ref(0)
 
+// Watch for weekly availability changes
+watch(weeklyAvailability, (newAvailability) => {
+    if (newAvailability) {
+        // Reset schedule
+        for (let i = 0; i < 7; i++) {
+            weeklySchedule.value[i] = []
+        }
+        
+        // Group slots by day
+        newAvailability.forEach(slot => {
+            weeklySchedule.value[slot.day_of_week].push({
+                startSlot: slot.start_slot,
+                duration: slot.duration
+            })
+        })
+    }
+})
+
+// Watch for blocked slots changes
+// Note: Blocked times feature is currently disabled due to incomplete backend implementation
+watch(blockedSlots, (newBlockedSlots) => {
+    if (newBlockedSlots) {
+        blockedTimes.value = newBlockedSlots
+    }
+}, { immediate: true })
+
 const formatDateTime = (datetime) => {
     // Convert datetime to user's timezone for display
     const date = new Date(datetime)
@@ -131,36 +183,7 @@ const formatDateTime = (datetime) => {
     })
 }
 
-const loadSchedule = async () => {
-    try {
-        const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        if (!response.ok) throw new Error('Failed to fetch schedule');
-        
-        const slots = await response.json();
-        
-        // Reset schedule
-        for (let i = 0; i < 7; i++) {
-            weeklySchedule.value[i] = [];
-        }
-        
-        // Group slots by day
-        slots.forEach(slot => {
-            weeklySchedule.value[slot.day_of_week].push({
-                startSlot: slot.start_slot,
-                duration: slot.duration
-            });
-        });
-    } catch (err) {
-        console.error('Error loading schedule:', err);
-        showError('Failed to load schedule');
-    }
-};
-
-const saveWeeklySchedule = async () => {
+const handleSaveWeeklySchedule = async () => {
     try {
         loading.value = true;
         
@@ -210,23 +233,10 @@ const saveWeeklySchedule = async () => {
             });
         });
 
-        const response = await fetch(`/api/availability/${props.instructorId}/weekly`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({ 
-                slots,
-                instructorTimezone: timezoneStore.userTimezone
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Backend validation error:', errorData);
-            throw new Error(errorData.error || errorData.message || 'Failed to save schedule');
-        }
+        await saveWeeklyAvailability({ 
+            slots,
+            instructorTimezone: timezoneStore.userTimezone
+        })
         
         showSuccess('Schedule saved successfully');
     } catch (err) {
@@ -244,28 +254,6 @@ const slotToLocalTime = (slot) => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
-const fetchBlockedTimes = async () => {
-    try {
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 3); // Get next 3 months
-
-        const response = await fetch(
-            `/api/availability/${props.instructorId}/blocked?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${userStore.token}`
-                }
-            }
-        );
-        if (!response.ok) throw new Error('Failed to fetch blocked times');
-        blockedTimes.value = await response.json();
-    } catch (err) {
-        showError('Failed to load blocked times');
-        console.error(err);
-    }
-};
-
 const addBlockedTime = async () => {
     try {
         // Convert local datetime-local input to UTC for storage
@@ -280,24 +268,14 @@ const addBlockedTime = async () => {
         const utcStartDateTime = startDate.toISOString()
         const utcEndDateTime = endDate.toISOString()
         
-        const response = await fetch(`/api/availability/${userStore.user.id}/blocked`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                startDateTime: utcStartDateTime,
-                endDateTime: utcEndDateTime,
-                reason: newBlockedTime.value.reason
-            })
-        });
-
-        if (!response.ok) throw new Error('Failed to add blocked time');
+        await createBlockedSlot({
+            startDateTime: utcStartDateTime,
+            endDateTime: utcEndDateTime,
+            reason: newBlockedTime.value.reason
+        })
         
         showSuccess('Blocked time added successfully');
         newBlockedTime.value = { startDateTime: '', endDateTime: '', reason: '' };
-        await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++;
@@ -309,17 +287,9 @@ const addBlockedTime = async () => {
 
 const removeBlockedTime = async (blockId) => {
     try {
-        const response = await fetch(`/api/availability/blocked/${blockId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-
-        if (!response.ok) throw new Error('Failed to remove blocked time');
+        await deleteBlockedSlot(blockId)
         
         showSuccess('Blocked time removed successfully');
-        await fetchBlockedTimes();
         
         // Increment counter to force re-render of InstructorAvailabilityView
         scheduleUpdateCounter.value++;
@@ -336,17 +306,12 @@ const resetAndFetch = async () => {
     }
     blockedTimes.value = []
     
-    // Fetch fresh data
-    await loadSchedule()
-    // await fetchBlockedTimes()
+    // Data will be refetched automatically by Vue Query
 }
 
 defineExpose({ resetAndFetch })
 
-onMounted(async () => {
-    await loadSchedule()
-    // await fetchBlockedTimes()
-})
+// No need for onMounted - watch handles initialization
 </script>
 
 <style scoped>

@@ -63,7 +63,7 @@ async function fetchDailyAvailability(instructorId, date, token) {
 /**
  * Save weekly availability for an instructor
  * @param {number} instructorId - The instructor's ID
- * @param {Array} availabilityData - Availability slots to save
+ * @param {Object} availabilityData - Availability data (slots and instructorTimezone)
  * @param {string} token - Authorization token
  * @returns {Promise<Object>} Saved availability data
  */
@@ -74,7 +74,7 @@ async function saveWeeklyAvailabilityApi(instructorId, availabilityData, token) 
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ availability: availabilityData })
+    body: JSON.stringify(availabilityData)
   })
   
   if (!response.ok) {
@@ -111,6 +111,31 @@ async function createBlockedSlotApi(instructorId, blockData, token) {
 }
 
 /**
+ * Fetch blocked time slots for an instructor
+ * @param {number} instructorId - The instructor's ID
+ * @param {string} startDate - Start date in ISO format
+ * @param {string} endDate - End date in ISO format
+ * @param {string} token - Authorization token
+ * @returns {Promise<Array>} Array of blocked time slots
+ */
+async function fetchBlockedSlots(instructorId, startDate, endDate, token) {
+  const response = await fetch(
+    `/api/availability/${instructorId}/blocked?start_date=${startDate}&end_date=${endDate}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    }
+  )
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch blocked slots')
+  }
+  
+  return response.json()
+}
+
+/**
  * Delete a blocked time slot
  * @param {number} blockId - The block ID to delete
  * @param {string} token - Authorization token
@@ -137,9 +162,11 @@ async function deleteBlockedSlotApi(blockId, token) {
  * 
  * @param {Ref<number>|number} instructorId - Instructor ID (can be ref or raw value)
  * @param {Ref<string>|string|null} selectedDate - Selected date for daily view (YYYY-MM-DD)
+ * @param {Ref<string>|string|null} blockedStartDate - Start date for blocked slots query (ISO format)
+ * @param {Ref<string>|string|null} blockedEndDate - End date for blocked slots query (ISO format)
  * @returns {Object} Availability queries, mutations, and state
  */
-export function useAvailability(instructorId, selectedDate = null) {
+export function useAvailability(instructorId, selectedDate = null, blockedStartDate = null, blockedEndDate = null) {
   const userStore = useUserStore()
   const queryClient = useQueryClient()
   const token = computed(() => userStore.token)
@@ -156,6 +183,20 @@ export function useAvailability(instructorId, selectedDate = null) {
     const value = typeof selectedDate === 'object' && selectedDate !== null && 'value' in selectedDate
       ? selectedDate.value
       : selectedDate
+    return value
+  })
+  
+  const normalizedBlockedStartDate = computed(() => {
+    const value = typeof blockedStartDate === 'object' && blockedStartDate !== null && 'value' in blockedStartDate
+      ? blockedStartDate.value
+      : blockedStartDate
+    return value
+  })
+  
+  const normalizedBlockedEndDate = computed(() => {
+    const value = typeof blockedEndDate === 'object' && blockedEndDate !== null && 'value' in blockedEndDate
+      ? blockedEndDate.value
+      : blockedEndDate
     return value
   })
   
@@ -196,6 +237,32 @@ export function useAvailability(instructorId, selectedDate = null) {
       !!token.value && 
       !!normalizedInstructorId.value && 
       !!normalizedSelectedDate.value
+    ),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  })
+  
+  // Query: Fetch blocked time slots
+  // Note: Blocked times feature is not fully implemented in backend yet
+  const {
+    data: blockedSlots,
+    isLoading: isLoadingBlockedSlots,
+    error: blockedSlotsError,
+    refetch: refetchBlockedSlots
+  } = useQuery({
+    queryKey: ['availability', normalizedInstructorId, 'blocked', normalizedBlockedStartDate, normalizedBlockedEndDate],
+    queryFn: () => fetchBlockedSlots(
+      normalizedInstructorId.value,
+      normalizedBlockedStartDate.value,
+      normalizedBlockedEndDate.value,
+      token.value
+    ),
+    enabled: computed(() => 
+      false // Disabled until backend implementation is complete
+      // !!token.value && 
+      // !!normalizedInstructorId.value && 
+      // !!normalizedBlockedStartDate.value &&
+      // !!normalizedBlockedEndDate.value
     ),
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
@@ -267,6 +334,12 @@ export function useAvailability(instructorId, selectedDate = null) {
     isLoadingDailyAvailability,
     dailyAvailabilityError,
     refetchDailyAvailability,
+    
+    // Blocked slots
+    blockedSlots,
+    isLoadingBlockedSlots,
+    blockedSlotsError,
+    refetchBlockedSlots,
     
     // Mutations
     saveWeeklyAvailability: saveWeeklyAvailabilityMutation.mutateAsync,

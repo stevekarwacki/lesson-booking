@@ -14,7 +14,7 @@
  * } = useCalendar(instructorId, startDate, endDate, selectedDate)
  */
 
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '../stores/userStore'
 import { computed } from 'vue'
 
@@ -62,6 +62,78 @@ async function fetchDailyEvents(instructorId, date, token) {
 }
 
 /**
+ * Update a booking
+ * @param {number} bookingId - The booking ID
+ * @param {Object} updateData - Update data
+ * @param {string} token - Authorization token
+ * @returns {Promise<Object>} Updated booking
+ */
+async function updateBookingApi(bookingId, updateData, token) {
+  const response = await fetch(`/api/calendar/student/${bookingId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(updateData)
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to update booking')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Cancel a booking
+ * @param {number} bookingId - The booking ID
+ * @param {string} token - Authorization token
+ * @returns {Promise<Object>} Cancellation result
+ */
+async function cancelBookingApi(bookingId, token) {
+  const response = await fetch(`/api/calendar/student/${bookingId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to cancel booking')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Update payment status of a booking
+ * @param {number} bookingId - The booking ID
+ * @param {string} status - New payment status
+ * @param {string} token - Authorization token
+ * @returns {Promise<Object>} Updated booking
+ */
+async function updatePaymentStatusApi(bookingId, status, token) {
+  const response = await fetch(`/api/calendar/bookings/${bookingId}/payment-status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to update payment status')
+  }
+  
+  return response.json()
+}
+
+/**
  * Main composable for calendar events
  * 
  * @param {Ref<number>|number} instructorId - Instructor ID (can be ref or raw value)
@@ -72,6 +144,7 @@ async function fetchDailyEvents(instructorId, date, token) {
  */
 export function useCalendar(instructorId, startDate = null, endDate = null, selectedDate = null) {
   const userStore = useUserStore()
+  const queryClient = useQueryClient()
   const token = computed(() => userStore.token)
   
   // Normalize parameters to handle both refs and raw values
@@ -149,6 +222,47 @@ export function useCalendar(instructorId, startDate = null, endDate = null, sele
     cacheTime: 5 * 60 * 1000, // 5 minutes
   })
   
+  // Mutation: Update booking
+  const updateBookingMutation = useMutation({
+    mutationFn: ({ bookingId, updateData }) => updateBookingApi(bookingId, updateData, token.value),
+    onSuccess: (data) => {
+      // Invalidate calendar queries
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Invalidate user bookings
+      queryClient.invalidateQueries({ queryKey: ['users', userStore.user?.id, 'bookings'] })
+      // Invalidate credits
+      if (userStore.user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['credits', userStore.user.id] })
+      }
+    }
+  })
+  
+  // Mutation: Cancel booking
+  const cancelBookingMutation = useMutation({
+    mutationFn: (bookingId) => cancelBookingApi(bookingId, token.value),
+    onSuccess: () => {
+      // Invalidate calendar queries
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Invalidate user bookings
+      queryClient.invalidateQueries({ queryKey: ['users', userStore.user?.id, 'bookings'] })
+      // Invalidate credits
+      if (userStore.user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['credits', userStore.user.id] })
+      }
+    }
+  })
+  
+  // Mutation: Update payment status
+  const updatePaymentStatusMutation = useMutation({
+    mutationFn: ({ bookingId, status }) => updatePaymentStatusApi(bookingId, status, token.value),
+    onSuccess: () => {
+      // Invalidate calendar queries
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Invalidate user bookings
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    }
+  })
+  
   return {
     // Weekly events
     weeklyEvents,
@@ -161,5 +275,13 @@ export function useCalendar(instructorId, startDate = null, endDate = null, sele
     isLoadingDailyEvents,
     dailyEventsError,
     refetchDailyEvents,
+    
+    // Mutations
+    updateBooking: updateBookingMutation.mutateAsync,
+    isUpdatingBooking: updateBookingMutation.isPending,
+    cancelBooking: cancelBookingMutation.mutateAsync,
+    isCancellingBooking: cancelBookingMutation.isPending,
+    updatePaymentStatus: updatePaymentStatusMutation.mutateAsync,
+    isUpdatingPaymentStatus: updatePaymentStatusMutation.isPending,
   }
 }

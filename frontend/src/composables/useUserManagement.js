@@ -61,6 +61,27 @@ async function fetchInstructors(token) {
 }
 
 /**
+ * Update own user basic info (name, email, password)
+ */
+async function updateOwnUserApi(userId, userData, token) {
+  const response = await fetch(`/api/users/${userId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(userData)
+  })
+  
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.error || 'Failed to update profile')
+  }
+  
+  return response.json()
+}
+
+/**
  * Create a new user
  */
 async function createUserApi(userData, token) {
@@ -256,6 +277,17 @@ export function useUserManagement() {
     enabled: computed(() => !!token.value),
   })
   
+  // Mutation: Update own user basic info
+  const updateOwnUserMutation = useMutation({
+    mutationFn: ({ userId, userData }) => updateOwnUserApi(userId, userData, token.value),
+    onSuccess: async () => {
+      // Refresh current user data
+      await userStore.fetchUser()
+      // Invalidate user-related queries
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+  
   // Mutation: Create user
   const createUserMutation = useMutation({
     mutationFn: (userData) => createUserApi(userData, token.value),
@@ -338,6 +370,10 @@ export function useUserManagement() {
   })
   
   return {
+    // Own user update
+    updateOwnUser: updateOwnUserMutation.mutateAsync,
+    isUpdatingOwnUser: updateOwnUserMutation.isPending,
+    
     // Users
     users,
     isLoadingUsers,

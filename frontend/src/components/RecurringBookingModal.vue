@@ -149,9 +149,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { usePaymentPlans } from '../composables/usePaymentPlans'
+import { useAvailability } from '../composables/useAvailability'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
@@ -173,7 +174,6 @@ const { createRecurringBooking, updateRecurringBooking } = usePaymentPlans()
 const loading = ref(false)
 const error = ref(null)
 const processing = ref(false)
-const loadingAvailability = ref(false)
 
 // Form data
 const instructors = ref([])
@@ -182,6 +182,12 @@ const selectedDuration = ref('30') // Default to 30 minutes
 const selectedDay = ref('')
 const selectedSlot = ref(null)
 const availableSlots = ref([])
+
+// Initialize availability composable
+const {
+    weeklyAvailability,
+    isLoadingWeeklyAvailability: loadingAvailability
+} = useAvailability(selectedInstructor, null)
 
 // Check if we're editing an existing booking
 const isEditing = computed(() => !!props.existingBooking)
@@ -220,8 +226,7 @@ const fetchInstructors = async () => {
             selectedInstructor.value = props.existingBooking.instructor_id
             selectedDuration.value = props.existingBooking.duration === 4 ? '60' : '30' // Convert slots to minutes
             selectedDay.value = props.existingBooking.day_of_week
-            // Manually fetch availability after setting both values to avoid race condition
-            await fetchAvailability()
+            // Watch will automatically fetch availability when values change
         } else if (result.selectedInstructor) {
             // Auto-select if only one instructor exists (when not editing)
             selectedInstructor.value = result.selectedInstructor.id
@@ -242,72 +247,52 @@ const handleInstructorChange = () => {
 }
 
 // Handle day change
-const handleDayChange = async () => {
+const handleDayChange = () => {
     selectedSlot.value = null
     error.value = null
-    if (selectedInstructor.value && selectedDay.value !== '') {
-        await fetchAvailability()
-    }
+    // Watch will automatically update availability
 }
 
 // Handle duration change
-const handleDurationChange = async () => {
+const handleDurationChange = () => {
     selectedSlot.value = null
     error.value = null
-    if (selectedInstructor.value && selectedDay.value !== '') {
-        await fetchAvailability()
-    }
+    // Watch will automatically update availability
 }
 
-// Fetch availability for selected instructor and day
-const fetchAvailability = async () => {
-    if (!selectedInstructor.value || selectedDay.value === '') return
-
-    try {
-        loadingAvailability.value = true
-        
-        // Get instructor's weekly availability
-        const availabilityResponse = await fetch(`/api/availability/${selectedInstructor.value}/weekly`, {
-            headers: { 'Authorization': `Bearer ${userStore.token}` }
-        })
-        
-        if (!availabilityResponse.ok) throw new Error('Failed to fetch availability')
-        
-        const weeklyAvailability = await availabilityResponse.json()
-        
-        // Filter for selected day
-        const dayAvailability = weeklyAvailability.filter(slot => 
-            slot.day_of_week === selectedDay.value
-        )
-        
-        // Convert to slots based on selected duration
-        const slotDuration = parseInt(selectedDuration.value) === 30 ? 2 : 4 // 30min=2 slots, 60min=4 slots
-        const slots = []
-        dayAvailability.forEach(slot => {
-            // Break down longer slots based on selected duration
-            for (let i = 0; i < slot.duration; i += slotDuration) {
-                if (i + slotDuration <= slot.duration) {
-                    slots.push({
-                        start_slot: slot.start_slot + i,
-                        duration: slotDuration,
-                        type: 'available'
-                    })
-                }
+// Watch for weekly availability changes and process slots
+watch([weeklyAvailability, selectedDay, selectedDuration], ([newAvailability, day, duration]) => {
+    if (!newAvailability || day === '') {
+        availableSlots.value = []
+        return
+    }
+    
+    // Filter for selected day
+    const dayAvailability = newAvailability.filter(slot => 
+        slot.day_of_week === day
+    )
+    
+    // Convert to slots based on selected duration
+    const slotDuration = parseInt(duration) === 30 ? 2 : 4 // 30min=2 slots, 60min=4 slots
+    const slots = []
+    dayAvailability.forEach(slot => {
+        // Break down longer slots based on selected duration
+        for (let i = 0; i < slot.duration; i += slotDuration) {
+            if (i + slotDuration <= slot.duration) {
+                slots.push({
+                    start_slot: slot.start_slot + i,
+                    duration: slotDuration,
+                    type: 'available'
+                })
             }
-        })
-        
-        // Sort by start time
-        slots.sort((a, b) => a.start_slot - b.start_slot)
-        
-        availableSlots.value = slots
-        
-    } catch (err) {
-        error.value = 'Error fetching availability: ' + err.message
-        console.error(err)
-    } finally {
-        loadingAvailability.value = false
-    }
-}
+        }
+    })
+    
+    // Sort by start time
+    slots.sort((a, b) => a.start_slot - b.start_slot)
+    
+    availableSlots.value = slots
+})
 
 // Select a time slot
 const selectSlot = (slot) => {

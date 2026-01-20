@@ -142,7 +142,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
       
@@ -175,7 +175,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -210,7 +210,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -233,7 +233,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -263,7 +263,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -287,7 +287,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -305,7 +305,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'student'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -327,7 +327,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -557,7 +557,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -606,7 +606,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -633,7 +633,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
@@ -663,7 +663,7 @@ describe('Attendance Tracking Frontend', () => {
           userRole: 'instructor'
         },
         global: {
-          plugins: [pinia]
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 

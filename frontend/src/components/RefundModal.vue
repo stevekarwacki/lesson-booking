@@ -213,7 +213,8 @@ const handleProcessRefund = async () => {
       bookingId: props.booking.id,
       refundType: selectedRefundType.value,
       reason: refundReason.value.trim() || null,
-      studentId: props.booking.student_id // For cache invalidation
+      studentId: props.booking.student_id, // For cache invalidation
+      instructorId: props.booking.instructor_id // For calendar refresh
     })
     
     emit('refund-processed', {

@@ -133,10 +133,12 @@ const formattedSelectedDate = computed(() => {
     return utcDate.toISOString().split('T')[0]
 })
 
-// Use calendar composable for events (Vue Query)
+// Use calendar composable for events and mutations (Vue Query)
 const {
     dailyEvents: rescheduleEvents,
     isLoadingDailyEvents: isLoadingRescheduleEvents,
+    updateBooking: updateBookingMutation,
+    cancelBooking: cancelBookingMutation,
 } = useCalendar(
     computed(() => props.booking.instructor_id),
     null, // no weekly start date needed
@@ -325,30 +327,12 @@ const updateBooking = async () => {
         const endSlot = parseInt(selectedSlot.value.startSlot) + parseInt(selectedSlot.value.duration)
         const endDate = createUTCDateFromSlot(utcDate, endSlot)
 
-        const response = await fetch(`/api/calendar/student/${props.booking.id}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
+        await updateBookingMutation({
+            bookingId: props.booking.id,
+            updateData: {
                 startTime: startDate.toISOString(),
                 endTime: endDate.toISOString()
-            })
-        })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to update booking')
-        }
-
-        // Invalidate Vue Query caches to reflect the updated booking
-        queryClient.invalidateQueries({ 
-            queryKey: ['calendar', 'events', props.booking.instructor_id] 
-        })
-        
-        queryClient.invalidateQueries({ 
-            queryKey: ['users', props.booking.student_id, 'bookings'] 
+            }
         })
 
         // Trigger schedule refresh for this instructor
@@ -376,33 +360,7 @@ const cancelBooking = async () => {
         loading.value = true
         error.value = null
 
-        const response = await fetch(`/api/calendar/student/${props.booking.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to cancel booking')
-        }
-
-        const result = await response.json()
-        
-        // Invalidate Vue Query caches to reflect the cancelled booking
-        queryClient.invalidateQueries({ 
-            queryKey: ['calendar', 'events', props.booking.instructor_id] 
-        })
-        
-        queryClient.invalidateQueries({ 
-            queryKey: ['users', props.booking.student_id, 'bookings'] 
-        })
-        
-        // Invalidate credits cache (credits are restored on cancellation)
-        queryClient.invalidateQueries({ 
-            queryKey: ['credits', props.booking.student_id] 
-        })
+        const result = await cancelBookingMutation(props.booking.id)
         
         // Trigger schedule refresh for this instructor
         scheduleStore.triggerInstructorRefresh(props.booking.instructor_id)
