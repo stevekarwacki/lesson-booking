@@ -220,7 +220,11 @@ const {
     refetchSubscriptions,
     refetchRecurringBookings,
     invalidateSubscriptions,
-    invalidateRecurringBookings
+    invalidateRecurringBookings,
+    deleteRecurringBooking: deleteRecurringBookingMutation,
+    cancelSubscription: cancelSubscriptionMutation,
+    isDeletingRecurringBooking,
+    isCancellingSubscription
 } = usePaymentPlans()
 
 // Use subscription update composable to sync with Stripe
@@ -284,20 +288,9 @@ const deleteRecurringBooking = async (recurringBookingId) => {
     }
 
     try {
-        const response = await fetch(`/api/recurring-bookings/${recurringBookingId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to delete recurring booking')
-        }
-
-        // Refresh recurring bookings data
-        invalidateRecurringBookings()
+        // Use the mutation from the composable
+        await deleteRecurringBookingMutation(recurringBookingId)
+        // Cache invalidation is handled by the mutation
     } catch (err) {
         error.value = 'Error deleting recurring booking: ' + err.message
         console.error('Error deleting recurring booking:', err)
@@ -343,23 +336,8 @@ const confirmCancellation = async () => {
 
     cancelling.value = true;
     try {
-        const response = await fetch('/api/subscriptions/cancel', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                subscriptionId: cancellationPreview.value.subscription.id
-            })
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Failed to cancel subscription');
-        }
-
-        const result = await response.json();
+        // Use the mutation from the composable
+        const result = await cancelSubscriptionMutation(cancellationPreview.value.subscription.id);
         
         // Handle different success scenarios
         if (result.cancellation.wasSyncIssue) {

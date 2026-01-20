@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/userStore'
 
 /**
@@ -77,6 +77,101 @@ async function fetchCancellationPreview(subscriptionId, token) {
     if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || 'Failed to fetch cancellation preview')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Delete recurring booking from API
+ * @param {number} recurringBookingId - Recurring booking ID
+ * @param {string} token - Auth token
+ * @returns {Promise<Object>} Deletion result
+ */
+async function deleteRecurringBookingApi(recurringBookingId, token) {
+    const response = await fetch(`/api/recurring-bookings/${recurringBookingId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    
+    if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete recurring booking')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Cancel subscription from API (student-initiated)
+ * @param {number} subscriptionId - Subscription ID
+ * @param {string} token - Auth token
+ * @returns {Promise<Object>} Cancellation result
+ */
+async function cancelSubscriptionApi(subscriptionId, token) {
+    const response = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ subscriptionId })
+    })
+    
+    if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to cancel subscription')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Create recurring booking from API
+ * @param {Object} bookingData - Recurring booking data
+ * @param {string} token - Auth token
+ * @returns {Promise<Object>} Created recurring booking
+ */
+async function createRecurringBookingApi(bookingData, token) {
+    const response = await fetch('/api/recurring-bookings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+    })
+    
+    if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to save recurring booking')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Update recurring booking from API
+ * @param {number} recurringBookingId - Recurring booking ID
+ * @param {Object} bookingData - Updated booking data
+ * @param {string} token - Auth token
+ * @returns {Promise<Object>} Updated recurring booking
+ */
+async function updateRecurringBookingApi(recurringBookingId, bookingData, token) {
+    const response = await fetch(`/api/recurring-bookings/${recurringBookingId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookingData)
+    })
+    
+    if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to save recurring booking')
     }
     
     return await response.json()
@@ -198,6 +293,46 @@ export function usePaymentPlans(userId = null) {
         invalidateRecurringBookings()
     }
     
+    // Mutation: Delete recurring booking
+    const deleteRecurringBookingMutation = useMutation({
+        mutationFn: (recurringBookingId) => deleteRecurringBookingApi(recurringBookingId, token.value),
+        onSuccess: () => {
+            // Invalidate recurring bookings to refetch the list
+            invalidateRecurringBookings()
+        }
+    })
+    
+    // Mutation: Cancel subscription
+    const cancelSubscriptionMutation = useMutation({
+        mutationFn: (subscriptionId) => cancelSubscriptionApi(subscriptionId, token.value),
+        onSuccess: () => {
+            // Invalidate subscriptions and recurring bookings
+            invalidateSubscriptions()
+            invalidateRecurringBookings()
+            // Also invalidate credits as cancellation may award credits
+            queryClient.invalidateQueries({ queryKey: ['credits', normalizedUserId.value] })
+        }
+    })
+    
+    // Mutation: Create recurring booking
+    const createRecurringBookingMutation = useMutation({
+        mutationFn: (bookingData) => createRecurringBookingApi(bookingData, token.value),
+        onSuccess: () => {
+            // Invalidate recurring bookings to refetch the list
+            invalidateRecurringBookings()
+        }
+    })
+    
+    // Mutation: Update recurring booking
+    const updateRecurringBookingMutation = useMutation({
+        mutationFn: ({ recurringBookingId, bookingData }) => 
+            updateRecurringBookingApi(recurringBookingId, bookingData, token.value),
+        onSuccess: () => {
+            // Invalidate recurring bookings to refetch the list
+            invalidateRecurringBookings()
+        }
+    })
+    
     // Return reactive state and methods
     return {
         // State
@@ -226,6 +361,16 @@ export function usePaymentPlans(userId = null) {
         refetchRecurringBookings,
         invalidateSubscriptions,
         invalidateRecurringBookings,
-        invalidateAll
+        invalidateAll,
+        
+        // Mutations
+        deleteRecurringBooking: deleteRecurringBookingMutation.mutateAsync,
+        cancelSubscription: cancelSubscriptionMutation.mutateAsync,
+        createRecurringBooking: createRecurringBookingMutation.mutateAsync,
+        updateRecurringBooking: updateRecurringBookingMutation.mutateAsync,
+        isDeletingRecurringBooking: deleteRecurringBookingMutation.isPending,
+        isCancellingSubscription: cancelSubscriptionMutation.isPending,
+        isCreatingRecurringBooking: createRecurringBookingMutation.isPending,
+        isUpdatingRecurringBooking: updateRecurringBookingMutation.isPending
     }
 }

@@ -151,6 +151,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { usePaymentPlans } from '../composables/usePaymentPlans'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
@@ -168,6 +169,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'booking-confirmed'])
 
 const userStore = useUserStore()
+const { createRecurringBooking, updateRecurringBooking } = usePaymentPlans()
 const loading = ref(false)
 const error = ref(null)
 const processing = ref(false)
@@ -329,35 +331,18 @@ const confirmRecurringBooking = async () => {
             duration: selectedSlot.value.duration
         }
 
-        let response
+        let result
         if (isEditing.value) {
-            // Update existing recurring booking
-            response = await fetch(`/api/recurring-bookings/${props.existingBooking.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userStore.token}`
-                },
-                body: JSON.stringify(requestData)
+            // Update existing recurring booking using mutation
+            result = await updateRecurringBooking({
+                recurringBookingId: props.existingBooking.id,
+                bookingData: requestData
             })
         } else {
-            // Create new recurring booking
-            response = await fetch('/api/recurring-bookings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userStore.token}`
-                },
-                body: JSON.stringify(requestData)
-            })
+            // Create new recurring booking using mutation
+            result = await createRecurringBooking(requestData)
         }
 
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to save recurring booking')
-        }
-
-        const result = await response.json()
         emit('booking-confirmed', result.recurringBooking)
 
     } catch (err) {
