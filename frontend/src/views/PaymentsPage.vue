@@ -192,6 +192,7 @@ import PaymentPlans from '../components/PaymentPlans.vue'
 import RecurringBookingModal from '../components/RecurringBookingModal.vue'
 import { useUserStore } from '../stores/userStore'
 import { useCredits } from '../composables/useCredits'
+import { usePaymentPlans } from '../composables/usePaymentPlans'
 import { useSubscriptionUpdate } from '../composables/useSubscriptionUpdate'
 import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
 import { getPaymentStatusColor, formatPaymentMethod, formatPaymentStatus } from '../utils/paymentUtils'
@@ -208,11 +209,22 @@ const {
     isLoadingTransactions
 } = useCredits()
 
+// Use payment plans composable for plans, subscriptions, and recurring bookings
+const {
+    lessonPlans,
+    membershipPlans,
+    activeSubscriptions,
+    recurringBookings,
+    getRecurringBooking,
+    fetchCancellationPreviewData,
+    refetchSubscriptions,
+    refetchRecurringBookings,
+    invalidateSubscriptions,
+    invalidateRecurringBookings
+} = usePaymentPlans()
+
 // Use subscription update composable to sync with Stripe
 const { updateSubscriptionPeriods } = useSubscriptionUpdate()
-const allPlans = ref([])
-const activeSubscriptions = ref([])
-const recurringBookings = ref([])
 const loading = ref(false)
 const error = ref(null)
 
@@ -226,8 +238,7 @@ const showCancellationModal = ref(false)
 const cancellationPreview = ref(null)
 const cancelling = ref(false)
 
-const lessonPlans = computed(() => allPlans.value.filter(plan => plan.type === 'one-time'))
-const membershipPlans = computed(() => allPlans.value.filter(plan => plan.type === 'membership'))
+// lessonPlans and membershipPlans are now provided by usePaymentPlans composable
 
 // Days of the week mapping
 const daysOfWeek = [
@@ -245,81 +256,7 @@ const getDayName = (dayValue) => {
     return day ? day.label : 'Unknown'
 }
 
-const getRecurringBooking = (subscriptionId) => {
-    return recurringBookings.value.find(booking => booking.subscription_id === subscriptionId)
-}
-
-// fetchCredits is now provided by the useCredits composable
-
-const fetchPaymentPlans = async () => {
-    try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch('/api/payments/plans', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch payment plans');
-        }
-        
-        const data = await response.json();
-        allPlans.value = data;
-    } catch (err) {
-        error.value = 'Error fetching payment plans: ' + err.message;
-        console.error('Error fetching payment plans:', err);
-    } finally {
-        loading.value = false;
-    }
-};
-
-// Transaction history is now provided by useCredits composable
-
-// Fetch user's active subscriptions
-const fetchSubscriptions = async () => {
-    try {
-        const response = await fetch(`/api/subscriptions/user/${userStore.user.id}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch subscriptions');
-        }
-        
-        const data = await response.json();
-        // Only show active membership subscriptions
-        activeSubscriptions.value = data.filter(sub => 
-            sub.status === 'active' && 
-            sub.PaymentPlan?.type === 'membership'
-        );
-    } catch (err) {
-        console.error('Error fetching subscriptions:', err);
-    }
-};
-
-// Fetch user's recurring bookings
-const fetchRecurringBookings = async () => {
-    try {
-        const response = await fetch(`/api/recurring-bookings/user/${userStore.user.id}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch recurring bookings');
-        }
-        
-        recurringBookings.value = await response.json();
-    } catch (err) {
-        console.error('Error fetching recurring bookings:', err);
-    }
-};
+// getRecurringBooking is now provided by usePaymentPlans composable
 
 // Modal management
 const openRecurringModal = (subscription, existingBooking = null) => {
@@ -337,7 +274,7 @@ const closeRecurringModal = () => {
 const handleRecurringBookingConfirmed = async (recurringBooking) => {
     closeRecurringModal()
     // Refresh recurring bookings data
-    await fetchRecurringBookings()
+    await refetchRecurringBookings()
 }
 
 // Delete recurring booking
@@ -360,7 +297,7 @@ const deleteRecurringBooking = async (recurringBookingId) => {
         }
 
         // Refresh recurring bookings data
-        await fetchRecurringBookings()
+        invalidateRecurringBookings()
     } catch (err) {
         error.value = 'Error deleting recurring booking: ' + err.message
         console.error('Error deleting recurring booking:', err)
@@ -372,18 +309,7 @@ const openCancellationModal = async (subscription) => {
     cancelling.value = false;
     showCancellationModal.value = true;
     try {
-        const response = await fetch(`/api/subscriptions/preview-cancellation/${subscription.id}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Failed to fetch cancellation preview');
-        }
-
-        cancellationPreview.value = await response.json();
+        cancellationPreview.value = await fetchCancellationPreviewData(subscription.id);
         
         // Handle automatic sync during preview
         if (cancellationPreview.value?.cancellationPreview?.creditCalculation?.wasSynced) {
@@ -455,11 +381,11 @@ const confirmCancellation = async () => {
 };
 
 const refreshData = async () => {
-    await Promise.all([
-        fetchCredits(), // This will also refresh transactions via Vue Query
-        fetchSubscriptions(),
-        fetchRecurringBookings()
-    ]);
+    // Invalidate all queries to trigger refetch
+    invalidateSubscriptions()
+    invalidateRecurringBookings()
+    // Credits will be refetched automatically when the query is invalidated
+    await fetchCredits()
 };
 
 onMounted(async () => {
@@ -467,12 +393,8 @@ onMounted(async () => {
     // This ensures we show accurate billing period dates
     await updateSubscriptionPeriods()
     
-    // Then fetch all payment data (credits and transactions are automatically fetched by useCredits)
-    await Promise.all([
-        fetchPaymentPlans(),
-        fetchSubscriptions(),
-        fetchRecurringBookings()
-    ])
+    // All payment data is automatically fetched by Vue Query composables
+    // (credits, transactions, payment plans, subscriptions, recurring bookings)
 })
 </script>
 

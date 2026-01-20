@@ -155,7 +155,7 @@ router.get('/packages', authorize('manage', 'all'), async (req, res) => {
 // Create new payment plan
 router.post('/packages', authorize('manage', 'all'), async (req, res) => {
     try {
-        const { name, price, credits, type, duration_days } = req.body;
+        const { name, price, credits, type, duration_days, lesson_duration_minutes } = req.body;
         
         if (!name || !price || !credits || !type) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -170,7 +170,8 @@ router.post('/packages', authorize('manage', 'all'), async (req, res) => {
             price,
             credits,
             type,
-            duration_days: type === 'membership' ? duration_days : null
+            duration_days: type === 'membership' ? duration_days : null,
+            lesson_duration_minutes: type === 'one-time' ? (lesson_duration_minutes || 30) : null
         });
 
         res.status(201).json(plan);
@@ -184,7 +185,7 @@ router.post('/packages', authorize('manage', 'all'), async (req, res) => {
 router.put('/packages/:id', authorize('manage', 'all'), async (req, res) => {
     try {
         const planId = parseInt(req.params.id, 10);
-        const { name, price, credits, type, duration_days } = req.body;
+        const { name, price, credits, type, duration_days, lesson_duration_minutes } = req.body;
 
         if (!name || !price || !credits || !type) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -204,7 +205,8 @@ router.put('/packages/:id', authorize('manage', 'all'), async (req, res) => {
             price,
             credits,
             type,
-            duration_days: type === 'membership' ? duration_days : null
+            duration_days: type === 'membership' ? duration_days : null,
+            lesson_duration_minutes: type === 'one-time' ? (lesson_duration_minutes || 30) : null
         });
 
         res.json(plan);

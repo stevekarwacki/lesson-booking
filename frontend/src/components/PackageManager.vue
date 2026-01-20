@@ -193,7 +193,11 @@ const deletePackageFromModal = async () => {
 }
 
 const openEditModal = (editPackage) => {
-    editingPackage.value = { ...editPackage }
+    editingPackage.value = { 
+        ...editPackage,
+        // Ensure lesson_duration_minutes is a number, default to 30 if not set
+        lesson_duration_minutes: editPackage.lesson_duration_minutes || 30
+    }
     showEditModal.value = true
 }
 
@@ -275,19 +279,18 @@ onMounted(fetchPackages)
                             <label class="form-label">Lesson Duration:</label>
                             <div class="form-input">
                                 <select 
-                                    v-model="newPackage.lesson_duration_minutes" 
+                                    v-model.number="newPackage.lesson_duration_minutes" 
                                     class="form-input"
                                     required
                                 >
-                                    <option value="30">30 Minutes</option>
-                                    <option value="60">60 Minutes</option>
+                                    <option :value="30">30 Minutes</option>
+                                    <option :value="60">60 Minutes</option>
                                 </select>
                             </div>
                             <small class="form-text">
                                 Duration of lessons this package provides credits for
                             </small>
                         </div>
-
                         <div class="form-group">
                             <label class="form-label">Type:</label>
                             <div class="form-input">
@@ -454,12 +457,12 @@ onMounted(fetchPackages)
                         <div class="form-input">
                             <select 
                                 id="editPackageLessonDuration"
-                                v-model="editingPackage.lesson_duration_minutes" 
+                                v-model.number="editingPackage.lesson_duration_minutes" 
                                 class="form-input"
                                 required
                             >
-                                <option value="30">30 Minutes</option>
-                                <option value="60">60 Minutes</option>
+                                <option :value="30">30 Minutes</option>
+                                <option :value="60">60 Minutes</option>
                             </select>
                             <small class="form-text">Duration of lessons this package provides credits for</small>
                         </div>
