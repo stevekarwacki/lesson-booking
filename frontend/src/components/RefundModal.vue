@@ -125,7 +125,7 @@
             <div class="modal-actions">
               <button @click="$emit('close')" class="button button-secondary">Cancel</button>
               <button 
-                @click="processRefund" 
+                @click="handleProcessRefund" 
                 class="button button-danger"
                 :disabled="!selectedRefundType || !confirmRefund || processing"
               >
@@ -153,9 +153,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
+import { useRefunds } from '../composables/useRefunds'
 
 const props = defineProps({
   booking: {
@@ -167,81 +167,64 @@ const props = defineProps({
 const emit = defineEmits(['close', 'refund-processed'])
 
 const userStore = useUserStore()
-const loading = ref(true)
+const {
+    refundInfo,
+    isLoadingRefundInfo,
+    refundInfoError,
+    processRefund,
+    isProcessingRefund
+} = useRefunds(computed(() => props.booking?.id))
+
+const loading = isLoadingRefundInfo
+const processing = isProcessingRefund
 const error = ref(null)
-const refundInfo = ref(null)
 const selectedRefundType = ref('')
 const refundReason = ref('')
 const confirmRefund = ref(false)
-const processing = ref(false)
 
-// Load refund information when component mounts
-onMounted(async () => {
-  await loadRefundInfo()
-})
-
-const loadRefundInfo = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    
-    const response = await axios.get(`/api/admin/refunds/${props.booking.id}/info`, {
-      headers: {
-        'Authorization': `Bearer ${userStore.token}`
-      }
-    })
-    
-    refundInfo.value = response.data
-    
-    // Auto-select default option if available
-    const defaultOption = refundInfo.value.refundOptions?.find(opt => opt.isDefault)
-    if (defaultOption) {
-      selectedRefundType.value = defaultOption.type
-    } else if (refundInfo.value.refundOptions?.length === 1) {
-      selectedRefundType.value = refundInfo.value.refundOptions[0].type
+// Watch for refundInfo to auto-select default option
+watch(refundInfo, (info) => {
+    if (info) {
+        const defaultOption = info.refundOptions?.find(opt => opt.isDefault)
+        if (defaultOption) {
+            selectedRefundType.value = defaultOption.type
+        } else if (info.refundOptions?.length === 1) {
+            selectedRefundType.value = info.refundOptions[0].type
+        }
     }
-    
-  } catch (err) {
-    console.error('Error loading refund info:', err)
-    if (err.response?.status === 403) {
-      error.value = 'You do not have permission to refund this booking. You can only refund bookings for your own students.'
-    } else {
-      error.value = err.response?.data?.error || 'Failed to load refund information'
-    }
-  } finally {
-    loading.value = false
-  }
-}
+}, { immediate: true })
 
-const processRefund = async () => {
+// Watch for refund info error
+watch(refundInfoError, (err) => {
+    if (err) {
+        error.value = err.message || 'Failed to load refund information'
+    }
+}, { immediate: true })
+
+// Refund info is automatically loaded via useRefunds composable
+
+const handleProcessRefund = async () => {
   if (!selectedRefundType.value || !confirmRefund.value) return
   
   try {
-    processing.value = true
+    error.value = null
     
-    const response = await axios.post('/api/admin/refunds', {
+    const result = await processRefund({
       bookingId: props.booking.id,
       refundType: selectedRefundType.value,
-      reason: refundReason.value.trim() || null
-    }, {
-      headers: {
-        'Authorization': `Bearer ${userStore.token}`
-      }
+      reason: refundReason.value.trim() || null,
+      studentId: props.booking.student_id // For cache invalidation
     })
     
-    if (response.data.success) {
-      emit('refund-processed', {
-        booking: props.booking,
-        refund: response.data.refund
-      })
-      emit('close')
-    }
+    emit('refund-processed', {
+      booking: props.booking,
+      refund: result.refund
+    })
+    emit('close')
     
   } catch (err) {
     console.error('Error processing refund:', err)
-    error.value = err.response?.data?.error || 'Failed to process refund'
-  } finally {
-    processing.value = false
+    error.value = err.message || 'Failed to process refund'
   }
 }
 

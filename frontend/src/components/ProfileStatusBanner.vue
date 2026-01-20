@@ -1,15 +1,13 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
+import { useBranding } from '../composables/useBranding'
 import { formatPhoneNumber } from '../utils/formValidation'
 
 const userStore = useUserStore()
 const router = useRouter()
-
-const businessInfo = ref({
-    phoneNumber: ''
-})
+const { businessInfo } = useBranding()
 
 const verificationStatus = computed(() => userStore.user?.verification_status)
 
@@ -34,7 +32,7 @@ const bannerMessage = computed(() => {
         }
     }
     if (verificationStatus.value?.needsApproval) {
-        const formattedPhone = formatPhoneNumber(businessInfo.value.phoneNumber)
+        const formattedPhone = formatPhoneNumber(businessInfo.value?.phoneNumber)
         const phoneText = formattedPhone 
             ? ` Please call ${formattedPhone} to complete verification.` 
             : ' Please contact us to complete verification.'
@@ -60,22 +58,7 @@ const isDismissed = computed(() => {
     return false
 })
 
-const loadBusinessInfo = async () => {
-    try {
-        const response = await fetch('/api/public/business-info')
-        if (response.ok) {
-            const data = await response.json()
-            businessInfo.value = data
-        }
-    } catch (error) {
-        console.error('Error loading business info for banner:', error)
-        // Fail silently - banner will show without phone number
-    }
-}
-
-onMounted(() => {
-    loadBusinessInfo()
-})
+// Business info is automatically loaded via useBranding composable
 </script>
 
 <template>

@@ -1,48 +1,26 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useBranding } from '../composables/useBranding'
 
 const router = useRouter()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const isMenuOpen = ref(false)
 
-// Logo state
-const logoBaseUrl = ref('')
-const companyName = ref('')
-const logoPosition = ref('left')
+// Branding composable
+const { branding } = useBranding()
+
+// Computed properties from branding data
+const logoBaseUrl = computed(() => branding.value?.logoUrl || '')
+const companyName = computed(() => branding.value?.companyName || '')
+const logoPosition = computed(() => branding.value?.logoPosition || 'left')
 
 // Computed property for versioned logo URL
 const logoUrl = computed(() => {
   return settingsStore.versionedLogoUrl(logoBaseUrl.value)
-})
-
-// Fetch branding information
-const fetchBrandingInfo = async () => {
-  try {
-    const response = await fetch('/api/branding')
-    if (response.ok) {
-      const branding = await response.json()
-      if (branding.logoUrl) {
-        logoBaseUrl.value = branding.logoUrl
-      }
-      if (branding.companyName) {
-        companyName.value = branding.companyName
-      }
-      if (branding.logoPosition) {
-        logoPosition.value = branding.logoPosition
-      }
-    }
-  } catch (error) {
-    console.warn('Could not fetch branding information:', error.message)
-  }
-}
-
-// Initialize on mount
-onMounted(() => {
-  fetchBrandingInfo()
 })
 
 // CASL-based permission checks

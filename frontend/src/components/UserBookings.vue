@@ -35,8 +35,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useUserBookings } from '../composables/useUserBookings'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 import BookingList from './BookingList.vue'
 import EditBookingModal from './EditBookingModal.vue'
@@ -44,8 +45,13 @@ import RefundModal from './RefundModal.vue'
 import { useMq } from 'vue3-mq'
 
 const userStore = useUserStore()
-const bookings = ref([])
-const loading = ref(true)
+const { 
+    bookings, 
+    isLoading: loading,
+    error: bookingsError,
+    refetch: refetchBookings
+} = useUserBookings(computed(() => userStore.user?.id))
+
 const error = ref(null)
 const showEditModal = ref(false)
 const showRefundModal = ref(false)
@@ -53,6 +59,7 @@ const selectedBooking = ref(null)
 
 // Transform bookings for BookingList component
 const formattedBookings = computed(() => {
+    if (!bookings.value) return []
     return bookings.value.map(booking => {
         return {
             id: booking.id,
@@ -71,30 +78,7 @@ const formattedBookings = computed(() => {
     })
 })
 
-const fetchBookings = async () => {
-    try {
-        loading.value = true
-        error.value = null
-        
-        const response = await fetch(`/api/calendar/student/${userStore.user.id}?includeAll=true`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch bookings')
-        }
-        
-        const data = await response.json()
-        bookings.value = data
-    } catch (err) {
-        error.value = 'Error fetching bookings: ' + err.message
-        console.error('Error fetching bookings:', err)
-    } finally {
-        loading.value = false
-    }
-}
+// Bookings are automatically fetched via useUserBookings composable
 
 const openEditModal = (booking) => {
     selectedBooking.value = booking
@@ -108,12 +92,12 @@ const closeEditModal = () => {
 
 const handleBookingUpdated = async () => {
     closeEditModal()
-    await fetchBookings()
+    await refetchBookings()
 }
 
 const handleBookingCancelled = async (result) => {
     closeEditModal()
-    await fetchBookings()
+    await refetchBookings()
 }
 
 // BookingList event handlers
@@ -144,12 +128,10 @@ const closeRefundModal = () => {
 
 const handleRefundProcessed = async (result) => {
     closeRefundModal()
-    await fetchBookings()
+    await refetchBookings()
 }
 
-onMounted(async () => {
-    await fetchBookings()
-})
+// Bookings are automatically fetched via useUserBookings composable
 </script>
 
 <style scoped>

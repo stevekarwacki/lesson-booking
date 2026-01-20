@@ -169,6 +169,7 @@ import { useCalendar } from '../composables/useCalendar'
 import { useAvailability } from '../composables/useAvailability'
 import { useInstructor } from '../composables/useInstructor'
 import { useStudents } from '../composables/useStudents'
+import { useAppSettings } from '../composables/useAppSettings'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
@@ -216,6 +217,9 @@ const {
     isLoadingStudents,
     isLoadingPaymentOptions
 } = useStudents()
+
+// Use app settings for lesson defaults
+const { defaultLessonDuration } = useAppSettings()
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay to allow click event on search results
@@ -475,23 +479,14 @@ onMounted(async () => {
                 }
                 showPaymentOptions.value = true
             }
-        })(),
-        // Instructor rate, students, and payment options fetched automatically by composables
-        (async () => {
-            try {
-                // Fetch lesson settings (public read-only endpoint)
-                const response = await fetch('/api/branding/lesson-settings')
-                if (response.ok) {
-                    const data = await response.json()
-                    selectedDuration.value = data.default_duration_minutes?.toString() || '30'
-                    cardPaymentOnBehalfEnabled.value = data.card_payment_on_behalf_enabled || false
-                }
-            } catch (err) {
-                console.error('Error fetching lesson settings:', err)
-                // Keep defaults
-            }
         })()
+        // Instructor rate, students, payment options, and lesson settings fetched automatically by composables
     ])
+    
+    // Set default duration from app settings
+    if (defaultLessonDuration.value) {
+        selectedDuration.value = defaultLessonDuration.value.toString()
+    }
     
     // Check for conflicts on initial load
     await checkTimeConflicts()

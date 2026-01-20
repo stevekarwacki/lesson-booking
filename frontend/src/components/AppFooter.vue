@@ -3,18 +3,18 @@
     <div class="footer-content">
       <!-- Company Info -->
       <div class="footer-section company-info">
-        <h3 v-if="businessInfo.companyName" class="company-name">
+        <h3 v-if="businessInfo?.companyName" class="company-name">
           {{ businessInfo.companyName }}
         </h3>
-        <p v-if="businessInfo.address" class="company-address">
+        <p v-if="businessInfo?.address" class="company-address">
           {{ businessInfo.address }}
         </p>
-        <p v-if="businessInfo.contactEmail" class="company-contact">
+        <p v-if="businessInfo?.contactEmail" class="company-contact">
           <a :href="`mailto:${businessInfo.contactEmail}`" class="contact-link">
             {{ businessInfo.contactEmail }}
           </a>
         </p>
-        <p v-if="businessInfo.phoneNumber" class="company-phone">
+        <p v-if="businessInfo?.phoneNumber" class="company-phone">
           <a :href="`tel:${businessInfo.phoneNumber}`" class="contact-link">
             {{ businessInfo.phoneNumber }}
           </a>
@@ -26,7 +26,7 @@
         <h4 class="section-title">Follow Us</h4>
         <div class="social-links">
           <a 
-            v-if="businessInfo.socialMedia?.facebook" 
+            v-if="businessInfo?.socialMedia?.facebook" 
             :href="businessInfo.socialMedia.facebook"
             target="_blank"
             rel="noopener noreferrer"
@@ -39,7 +39,7 @@
           </a>
 
           <a 
-            v-if="businessInfo.socialMedia?.twitter" 
+            v-if="businessInfo?.socialMedia?.twitter" 
             :href="businessInfo.socialMedia.twitter"
             target="_blank"
             rel="noopener noreferrer"
@@ -52,7 +52,7 @@
           </a>
 
           <a 
-            v-if="businessInfo.socialMedia?.instagram" 
+            v-if="businessInfo?.socialMedia?.instagram" 
             :href="businessInfo.socialMedia.instagram"
             target="_blank"
             rel="noopener noreferrer"
@@ -65,7 +65,7 @@
           </a>
 
           <a 
-            v-if="businessInfo.socialMedia?.linkedin" 
+            v-if="businessInfo?.socialMedia?.linkedin" 
             :href="businessInfo.socialMedia.linkedin"
             target="_blank"
             rel="noopener noreferrer"
@@ -78,7 +78,7 @@
           </a>
 
           <a 
-            v-if="businessInfo.socialMedia?.youtube" 
+            v-if="businessInfo?.socialMedia?.youtube" 
             :href="businessInfo.socialMedia.youtube"
             target="_blank"
             rel="noopener noreferrer"
@@ -91,7 +91,7 @@
           </a>
 
           <a 
-            v-if="businessInfo.website" 
+            v-if="businessInfo?.website" 
             :href="businessInfo.website"
             target="_blank"
             rel="noopener noreferrer"
@@ -107,55 +107,26 @@
 
       <!-- Copyright -->
       <div class="footer-section copyright">
-        <p>&copy; {{ currentYear }} {{ businessInfo.companyName || 'Lesson Booking' }}. All rights reserved.</p>
+        <p>&copy; {{ currentYear }} {{ businessInfo?.companyName || 'Lesson Booking' }}. All rights reserved.</p>
       </div>
     </div>
   </footer>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
+import { useBranding } from '../composables/useBranding'
 
 export default {
   name: 'AppFooter',
   setup() {
-    const businessInfo = ref({
-      companyName: '',
-      contactEmail: '',
-      phoneNumber: '',
-      website: '',
-      address: '',
-      socialMedia: {
-        facebook: '',
-        twitter: '',
-        instagram: '',
-        linkedin: '',
-        youtube: ''
-      }
-    })
+    const { businessInfo } = useBranding()
 
     const currentYear = computed(() => new Date().getFullYear())
 
     const hasSocialMedia = computed(() => {
-      const social = businessInfo.value.socialMedia
-      return social && (social.facebook || social.twitter || social.instagram || social.linkedin || social.youtube) || businessInfo.value.website
-    })
-
-    const loadBusinessInfo = async () => {
-      try {
-        const response = await fetch('/api/public/business-info')
-        if (response.ok) {
-          const data = await response.json()
-          businessInfo.value = data
-        }
-      } catch (error) {
-        console.error('Error loading business info for footer:', error)
-        // Fail silently - footer will just show minimal info
-      }
-    }
-
-    onMounted(() => {
-      loadBusinessInfo()
+      const social = businessInfo.value?.socialMedia
+      return (social && (social.facebook || social.twitter || social.instagram || social.linkedin || social.youtube)) || businessInfo.value?.website
     })
 
     return {
