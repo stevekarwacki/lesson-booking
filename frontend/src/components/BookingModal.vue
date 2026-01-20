@@ -168,6 +168,7 @@ import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
 import { useAvailability } from '../composables/useAvailability'
 import { useInstructor } from '../composables/useInstructor'
+import { useStudents } from '../composables/useStudents'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
@@ -200,8 +201,6 @@ const paymentMethod = ref('credits')
 const showPaymentOptions = ref(true)
 const currentSlot = ref(props.slot) // Create a reactive reference to the slot
 const selectedDuration = ref('30') // Will be updated from admin settings
-const canUseInPersonPayment = ref(false) // Will be fetched from user payment options
-const cardPaymentOnBehalfEnabled = ref(false) // Will be fetched from lesson settings
 
 // Use instructor composable for instructor rate (must come after currentSlot definition)
 const {
@@ -209,12 +208,20 @@ const {
     isLoadingInstructor
 } = useInstructor(computed(() => currentSlot.value?.instructorId))
 
+// Use students composable for student list and payment options
+const {
+    students: allStudents,
+    canUseInPersonPayment,
+    cardPaymentOnBehalfEnabled,
+    isLoadingStudents,
+    isLoadingPaymentOptions
+} = useStudents()
+
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay to allow click event on search results
 
 // Booking on behalf state
 const isBookingOnBehalf = computed(() => props.slot.bookingOnBehalf === true)
-const allStudents = ref([])
 const selectedStudent = ref(null)
 const studentSearchQuery = ref('')
 const showStudentResults = ref(false)
@@ -391,25 +398,7 @@ const isConfirmDisabled = computed(() => {
 })
 
 // Fetch all students for booking on behalf
-const fetchAllStudents = async () => {
-    try {
-        const response = await fetch('/api/users/students', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch students: ${response.statusText}`)
-        }
-        
-        const data = await response.json()
-        allStudents.value = data.users || []
-    } catch (err) {
-        console.error('Error fetching students:', err)
-        showError('Unable to load student list. Please try again.')
-    }
-}
+// Student list is now fetched via useStudents composable
 
 // Handle student selection
 const handleStudentSelect = async (student) => {
@@ -445,38 +434,18 @@ watch(selectedDuration, async () => {
 })
 
 // Instructor rate is now fetched via useInstructor composable
-
-// Fetch user's payment options (including in-person payment eligibility)
-const fetchPaymentOptions = async () => {
-    try {
-        const response = await fetch('/api/users/me/payment-options', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const data = await response.json()
-            canUseInPersonPayment.value = data.canUseInPersonPayment || false
-        }
-    } catch (err) {
-        console.error('Error fetching payment options:', err)
-        // Default to false if we can't fetch payment options
-        canUseInPersonPayment.value = false
-    }
-}
+// Payment options are now fetched via useStudents composable
 
 // Fetch user credits and instructor rate when modal opens
 onMounted(async () => {
-    // If booking on behalf, fetch all students
+    // If booking on behalf, set payment method to in-person (students list fetched automatically by useStudents)
     if (isBookingOnBehalf.value) {
-        await fetchAllStudents()
         // Default to in-person payment for booking on behalf
         paymentMethod.value = 'in-person'
-        canUseInPersonPayment.value = true
     }
     
-    // Fetch credits, instructor rate, payment options, and lesson settings in parallel
+    // Fetch credits and lesson settings in parallel
+    // (instructor rate, students, and payment options are fetched automatically by composables)
     await Promise.all([
         (async () => {
             // Skip credit fetching if booking on behalf (will fetch after student selection)
@@ -507,9 +476,7 @@ onMounted(async () => {
                 showPaymentOptions.value = true
             }
         })(),
-        // Instructor rate fetched automatically by useInstructor composable
-        // Only fetch payment options if not booking on behalf
-        isBookingOnBehalf.value ? Promise.resolve() : fetchPaymentOptions(),
+        // Instructor rate, students, and payment options fetched automatically by composables
         (async () => {
             try {
                 // Fetch lesson settings (public read-only endpoint)
