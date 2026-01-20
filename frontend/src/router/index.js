@@ -1,15 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ManageUsersPage from '../views/ManageUsersPage.vue'
-import ManagePackagesPage from '../views/ManagePackagesPage.vue'
-import AdminSettingsPage from '../views/AdminSettingsPage.vue'
-import AccountPage from '../views/AccountPage.vue'
-import CalendarPage from '../views/CalendarPage.vue'
-import BookLessonPage from '../views/BookLessonPage.vue'
-import PaymentsPage from '../views/PaymentsPage.vue'
-import GoogleAuthCallback from '../views/GoogleAuthCallback.vue'
 import { useUserStore } from '../stores/userStore'
 import { defineAbilitiesFor } from '../utils/abilities'
-// Import other views as needed
 
 const routes = [
     {
@@ -19,12 +10,12 @@ const routes = [
     },
     {
         path: '/account',
-        component: AccountPage,
+        component: () => import('../views/AccountPage.vue'),
         meta: { requiresAuth: true, bypassApprovalCheck: true }
     },
     {
         path: '/payments',
-        component: PaymentsPage,
+        component: () => import('../views/PaymentsPage.vue'),
         meta: { 
             requiresAuth: true,
             requiresApproval: true,
@@ -34,7 +25,7 @@ const routes = [
     {
         path: '/admin/users',
         name: 'manage-users',
-        component: ManageUsersPage,
+        component: () => import('../views/ManageUsersPage.vue'),
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'User' }
@@ -43,7 +34,7 @@ const routes = [
     {
         path: '/admin/packages',
         name: 'manage-packages',
-        component: ManagePackagesPage,
+        component: () => import('../views/ManagePackagesPage.vue'),
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'Package' }
@@ -52,7 +43,7 @@ const routes = [
     {
         path: '/admin/settings',
         name: 'admin-settings',
-        component: AdminSettingsPage,
+        component: () => import('../views/AdminSettingsPage.vue'),
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'User' }
@@ -61,7 +52,7 @@ const routes = [
     {
         path: '/calendar',
         name: 'calendar',
-        component: CalendarPage,
+        component: () => import('../views/CalendarPage.vue'),
         meta: { 
             requiresAuth: true,
             permission: { action: 'manage', subject: 'Calendar' }
@@ -70,7 +61,7 @@ const routes = [
     {
         path: '/book-lesson',
         name: 'book-lesson',
-        component: BookLessonPage,
+        component: () => import('../views/BookLessonPage.vue'),
         meta: { 
             requiresAuth: true,
             requiresApproval: true,
@@ -80,7 +71,7 @@ const routes = [
     {
         path: '/auth/google/callback',
         name: 'google-auth-callback',
-        component: GoogleAuthCallback,
+        component: () => import('../views/GoogleAuthCallback.vue'),
         meta: { requiresAuth: true }
     }
 ]
