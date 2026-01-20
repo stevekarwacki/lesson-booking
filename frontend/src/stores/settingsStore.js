@@ -142,43 +142,6 @@ export const useSettingsStore = defineStore('settings', {
       this.branding.logoVersion = Date.now()
     },
 
-    /**
-     * Save theme settings to backend and update local config
-     * @param {Object} themeConfig - Theme configuration to save
-     * @returns {Promise<Object>} Save result
-     */
-    async saveThemeSettings(themeConfig) {
-      try {
-        const response = await fetch('/api/admin/settings/theme', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(themeConfig)
-        })
-
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(result.details || result.error || 'Failed to save theme settings')
-        }
-
-        // Update local config immediately (optimistic update)
-        if (result.data) {
-          this.config.theme = getThemeDefaults({
-            primary_color: result.data.primaryColor,
-            secondary_color: result.data.secondaryColor,
-            palette_name: result.data.palette
-          })
-        }
-
-        return { success: true, message: result.message, data: result.data }
-      } catch (error) {
-        console.error('Error saving theme settings:', error)
-        return { success: false, error: error.message }
-      }
-    },
 
     /**
      * Update theme temporarily for preview (without saving)

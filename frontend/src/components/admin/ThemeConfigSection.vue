@@ -186,7 +186,8 @@
 <script>
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { CURATED_PALETTES } from '@/constants/themeDefaults'
+import { useAdminSettings } from '@/composables/useAdminSettings'
+import { CURATED_PALETTES, getThemeDefaults } from '@/constants/themeDefaults'
 
 export default {
   name: 'ThemeConfigSection',
@@ -205,6 +206,8 @@ export default {
   
   setup(props, { emit }) {
     const settingsStore = useSettingsStore()
+    const { saveThemeSettings, isSavingTheme } = useAdminSettings()
+    
     // Reactive state
     const selectedPalette = ref(null)
     const customPrimaryColor = ref('#28a745')
@@ -368,25 +371,30 @@ export default {
         // Emit loading start
         emitChange('save_start', { config })
         
-        // Save using the settingsStore
-        const result = await settingsStore.saveThemeSettings({
+        // Save using the useAdminSettings composable
+        const result = await saveThemeSettings({
           primaryColor: config.primaryColor,
           secondaryColor: config.secondaryColor,
           palette: config.palette
         })
         
-        if (result.success) {
-          // Update original data to reflect saved state
-          originalData.value = { ...config }
-          
-          // Emit success event
-          emitChange('theme_saved', { 
-            message: result.message,
-            config: config
+        // Update local config in settingsStore (optimistic update)
+        if (result.data) {
+          settingsStore.config.theme = getThemeDefaults({
+            primary_color: result.data.primaryColor,
+            secondary_color: result.data.secondaryColor,
+            palette_name: result.data.palette
           })
-        } else {
-          throw new Error(result.error)
         }
+        
+        // Update original data to reflect saved state
+        originalData.value = { ...config }
+        
+        // Emit success event
+        emitChange('theme_saved', { 
+          message: result.message,
+          config: config
+        })
       } catch (error) {
         // Emit error event
         emitChange('save_error', { error: error.message })

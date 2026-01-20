@@ -8,26 +8,26 @@
     </div>
 
     <!-- Current Configuration Display -->
-    <div class="config-display" v-if="currentConfig">
+    <div class="config-display" v-if="storageConfig">
       <div class="config-info">
         <h3>Current Storage Configuration</h3>
         <div class="info-grid">
           <div class="info-item">
             <span class="label">Storage Type:</span>
-            <span class="value">{{ currentConfig.storage_type || 'local' }}</span>
+            <span class="value">{{ storageConfig.storage_type || 'local' }}</span>
           </div>
-          <div class="info-item" v-if="currentConfig.storage_type === 'spaces'">
+          <div class="info-item" v-if="storageConfig.storage_type === 'spaces'">
             <span class="label">Bucket:</span>
-            <span class="value">{{ currentConfig.storage_bucket || 'Not configured' }}</span>
+            <span class="value">{{ storageConfig.storage_bucket || 'Not configured' }}</span>
           </div>
-          <div class="info-item" v-if="currentConfig.storage_type === 'spaces'">
+          <div class="info-item" v-if="storageConfig.storage_type === 'spaces'">
             <span class="label">Region:</span>
-            <span class="value">{{ currentConfig.storage_region || 'Not configured' }}</span>
+            <span class="value">{{ storageConfig.storage_region || 'Not configured' }}</span>
           </div>
           <div class="info-item">
             <span class="label">Credentials:</span>
-            <span class="value" :class="{ 'text-success': currentConfig.credentialsConfigured, 'text-danger': !currentConfig.credentialsConfigured }">
-              {{ currentConfig.credentialsConfigured ? 'Configured ✓' : 'Not configured' }}
+            <span class="value" :class="{ 'text-success': storageConfig.credentialsConfigured, 'text-danger': !storageConfig.credentialsConfigured }">
+              {{ storageConfig.credentialsConfigured ? 'Configured ✓' : 'Not configured' }}
             </span>
           </div>
         </div>
@@ -149,16 +149,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../../stores/userStore'
+import { useAdminSettings } from '../../composables/useAdminSettings'
 
 const userStore = useUserStore()
+const {
+    storageConfig,
+    isLoadingStorage,
+    saveStorageConfig,
+    testStorageConnection,
+    isSavingStorage,
+    isTestingConnection
+} = useAdminSettings()
 
-const loading = ref(false)
+const loading = computed(() => isLoadingStorage.value || isSavingStorage.value || isTestingConnection.value)
 const error = ref('')
 const success = ref('')
 const testSuccess = ref(false)
-const currentConfig = ref(null)
 
 const formData = ref({
   storage_type: 'local',
@@ -168,42 +176,20 @@ const formData = ref({
   storage_cdn_url: ''
 })
 
-onMounted(() => {
-  loadConfiguration()
-})
+// Watch for storageConfig changes and update form
+watch(storageConfig, (config) => {
+    if (config) {
+        formData.value = {
+            storage_type: config.storage_type || 'local',
+            storage_endpoint: config.storage_endpoint || '',
+            storage_region: config.storage_region || '',
+            storage_bucket: config.storage_bucket || '',
+            storage_cdn_url: config.storage_cdn_url || ''
+        }
+    }
+}, { immediate: true })
 
-const loadConfiguration = async () => {
-  try {
-    loading.value = true
-    error.value = ''
-    const response = await fetch('/api/admin/settings/storage', {
-      headers: {
-        'Authorization': `Bearer ${userStore.token}`
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error('Failed to load storage configuration')
-    }
-    
-    const data = await response.json()
-    currentConfig.value = data
-    
-    // Load current config into form
-    formData.value = {
-      storage_type: data.storage_type || 'local',
-      storage_endpoint: data.storage_endpoint || '',
-      storage_region: data.storage_region || '',
-      storage_bucket: data.storage_bucket || '',
-      storage_cdn_url: data.storage_cdn_url || ''
-    }
-  } catch (err) {
-    error.value = 'Error loading configuration: ' + err.message
-    console.error('Error:', err)
-  } finally {
-    loading.value = false
-  }
-}
+// Storage configuration is now loaded via useAdminSettings composable
 
 const onStorageTypeChange = () => {
   testSuccess.value = false
@@ -212,81 +198,36 @@ const onStorageTypeChange = () => {
 
 const testConnection = async () => {
   try {
-    loading.value = true
     error.value = ''
     testSuccess.value = false
 
-    const response = await fetch('/api/admin/settings/storage/test-connection', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    const data = await testStorageConnection({
         storage_type: formData.value.storage_type,
         storage_endpoint: formData.value.storage_endpoint,
         storage_region: formData.value.storage_region,
         storage_bucket: formData.value.storage_bucket
-      })
     })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      error.value = data.error || 'Connection test failed'
-      if (data.details) {
-        error.value += ': ' + data.details
-      }
-      return
-    }
 
     testSuccess.value = true
     success.value = data.message
   } catch (err) {
     error.value = 'Error testing connection: ' + err.message
     console.error('Error:', err)
-  } finally {
-    loading.value = false
   }
 }
 
 const testAndSaveConfiguration = async () => {
   try {
-    loading.value = true
     error.value = ''
     success.value = ''
 
-    const response = await fetch('/api/admin/settings/storage', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formData.value)
-    })
+    const data = await saveStorageConfig(formData.value)
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      error.value = data.error || 'Failed to save configuration'
-      if (data.details) {
-        error.value += ': ' + data.details
-      }
-      return
-    }
-
-    success.value = data.message
+    success.value = data.message || 'Configuration saved successfully'
     testSuccess.value = false
-    
-    // Reload configuration to show updates
-    setTimeout(() => {
-      loadConfiguration()
-    }, 1000)
   } catch (err) {
     error.value = 'Error saving configuration: ' + err.message
     console.error('Error:', err)
-  } finally {
-    loading.value = false
   }
 }
 </script>

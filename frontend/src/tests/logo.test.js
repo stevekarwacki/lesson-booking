@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import ThemeConfigSection from '../components/admin/ThemeConfigSection.vue'
 
 // Mock fetch globally
@@ -9,10 +10,20 @@ global.fetch = vi.fn()
 
 describe('Logo Upload Feature', () => {
   let wrapper
+  let queryClient
+  let pinia
 
   beforeEach(() => {
     // Set up Pinia for each test
-    setActivePinia(createPinia())
+    pinia = createPinia()
+    setActivePinia(pinia)
+    
+    // Set up QueryClient
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    })
     
     // Reset fetch mock
     global.fetch.mockReset()
@@ -40,6 +51,9 @@ describe('Logo Upload Feature', () => {
     })
 
     wrapper = mount(ThemeConfigSection, {
+      global: {
+        plugins: [pinia, [VueQueryPlugin, { queryClient }]]
+      },
       props: {
         clearErrors: null
       }
@@ -167,6 +181,9 @@ describe('Logo Upload Feature', () => {
       
       // Create new wrapper to trigger mount with error
       const errorWrapper = mount(ThemeConfigSection, {
+        global: {
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
+        },
         props: { clearErrors: null }
       })
       
@@ -191,6 +208,9 @@ describe('Logo Upload Feature', () => {
       })
       
       const noConfigWrapper = mount(ThemeConfigSection, {
+        global: {
+          plugins: [pinia, [VueQueryPlugin, { queryClient }]]
+        },
         props: { clearErrors: null }
       })
       
