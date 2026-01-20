@@ -1,17 +1,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { usePackages } from '../composables/usePackages'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 
 const userStore = useUserStore()
-const packages = ref([])
-const error = ref('')
-const success = ref('')
+const { showSuccess, showError } = useFormFeedback()
+const {
+    packages,
+    isLoadingPackages,
+    createPackage,
+    updatePackage,
+    deletePackage,
+    isCreatingPackage,
+    isUpdatingPackage,
+    isDeletingPackage
+} = usePackages()
+
 const showAddForm = ref(false)
 const showEditModal = ref(false)
 const editingPackage = ref(null)
-const loading = ref(true)
+const loading = isLoadingPackages
 
 // New package form data
 const newPackage = ref({
@@ -34,135 +45,72 @@ const resetNewPackage = () => {
     }
 }
 
-const fetchPackages = async () => {
-    try {
-        loading.value = true
-        error.value = null
-        
-        const response = await fetch('/api/admin/packages', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch packages')
-        }
-        
-        const data = await response.json()
-        packages.value = data
-    } catch (err) {
-        error.value = 'Error fetching packages: ' + err.message
-        console.error('Error fetching packages:', err)
-    } finally {
-        loading.value = false
-    }
-}
+// Packages are automatically fetched via usePackages composable
 
 const addPackage = async () => {
     if (!newPackage.value.name || !newPackage.value.price) {
-        error.value = 'Name and price are required'
+        showError('Name and price are required')
         return
     }
 
     if (newPackage.value.type === 'one-time' && !newPackage.value.credits) {
-        error.value = 'Credits are required for one-time packages'
+        showError('Credits are required for one-time packages')
         return
     }
 
     if (newPackage.value.type === 'membership' && !newPackage.value.duration_days) {
-        error.value = 'Duration days is required for membership packages'
+        showError('Duration days is required for membership packages')
         return
     }
 
     try {
-        const response = await fetch('/api/admin/packages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify(newPackage.value)
-        })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create package')
-        }
-
-        success.value = 'Package created successfully'
+        await createPackage(newPackage.value)
+        
+        showSuccess('Package created successfully')
         showAddForm.value = false
         resetNewPackage()
-        await fetchPackages()
     } catch (err) {
-        error.value = 'Error creating package: ' + err.message
+        showError(err.message || 'Failed to create package')
     }
 }
 
-const updatePackage = async () => {
+const handleUpdatePackage = async () => {
     if (!editingPackage.value.name || !editingPackage.value.price) {
-        error.value = 'Name and price are required'
+        showError('Name and price are required')
         return
     }
 
     if (editingPackage.value.type === 'one-time' && !editingPackage.value.credits) {
-        error.value = 'Credits are required for one-time packages'
+        showError('Credits are required for one-time packages')
         return
     }
 
     if (editingPackage.value.type === 'membership' && !editingPackage.value.duration_days) {
-        error.value = 'Duration days is required for membership packages'
+        showError('Duration days is required for membership packages')
         return
     }
 
     try {
-        const response = await fetch(`/api/admin/packages/${editingPackage.value.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify(editingPackage.value)
+        await updatePackage({
+            packageId: editingPackage.value.id,
+            packageData: editingPackage.value
         })
-
-        if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to update package')
-        }
-
-        success.value = 'Package updated successfully'
+        
+        showSuccess('Package updated successfully')
         showEditModal.value = false
-        await fetchPackages()
     } catch (err) {
-        error.value = 'Error updating package: ' + err.message
+        showError(err.message || 'Failed to update package')
     }
 }
 
-const deletePackage = async (packageId) => {
+const handleDeletePackage = async (packageId) => {
     if (!confirm('Are you sure you want to delete this package?')) return
     
     try {
-        loading.value = true
-        error.value = null
-        
-        const response = await fetch(`/api/admin/packages/${packageId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to delete package')
-        }
-        
-        await fetchPackages()
-        success.value = 'Package deleted successfully'
+        await deletePackage(packageId)
+        showSuccess('Package deleted successfully')
     } catch (err) {
-        error.value = 'Error deleting package: ' + err.message
-        console.error('Error deleting package:', err)
-    } finally {
-        loading.value = false
+        showError(err.message || 'Failed to delete package')
     }
 }
 
@@ -172,23 +120,12 @@ const deletePackageFromModal = async () => {
     }
     
     try {
-        const response = await fetch(`/api/admin/packages/${editingPackage.value.id}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
+        await deletePackage(editingPackage.value.id)
         
-        if (!response.ok) {
-            throw new Error('Failed to delete package')
-        }
-        
-        success.value = 'Package deleted successfully'
+        showSuccess('Package deleted successfully')
         closeEditModal()
-        await fetchPackages()
     } catch (err) {
-        error.value = 'Error deleting package: ' + err.message
-        console.error('Error deleting package:', err)
+        showError(err.message || 'Failed to delete package')
     }
 }
 
@@ -206,7 +143,7 @@ const closeEditModal = () => {
     showEditModal.value = false
 }
 
-onMounted(fetchPackages)
+// Packages are automatically fetched by usePackages composable
 </script>
 
 <template>
@@ -379,7 +316,7 @@ onMounted(fetchPackages)
             @close="closeEditModal"
         >
             <TabbedModalTab label="Package Details">
-                <form @submit.prevent="updatePackage">
+                <form @submit.prevent="handleUpdatePackage">
                     <div class="form-group">
                         <label class="form-label" for="editPackageName">Package Name:</label>
                         <div class="form-input">
