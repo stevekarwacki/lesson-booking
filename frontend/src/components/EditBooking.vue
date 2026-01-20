@@ -94,9 +94,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useCalendar } from '../composables/useCalendar'
+import { useAvailability } from '../composables/useAvailability'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -123,6 +125,34 @@ const selectedDate = ref('')
 const dailySchedule = ref(null)
 const selectedSlot = ref(null)
 
+// Computed date for queries
+const formattedSelectedDate = computed(() => {
+    if (!selectedDate.value) return null
+    const localDate = new Date(selectedDate.value)
+    const utcDate = new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000)
+    return utcDate.toISOString().split('T')[0]
+})
+
+// Use calendar composable for events (Vue Query)
+const {
+    dailyEvents: rescheduleEvents,
+    isLoadingDailyEvents: isLoadingRescheduleEvents,
+} = useCalendar(
+    computed(() => props.booking.instructor_id),
+    null, // no weekly start date needed
+    null, // no weekly end date needed
+    formattedSelectedDate
+)
+
+// Use availability composable (Vue Query)
+const {
+    dailyAvailability: rescheduleAvailability,
+    isLoadingDailyAvailability: isLoadingRescheduleAvailability,
+} = useAvailability(
+    computed(() => props.booking.instructor_id),
+    formattedSelectedDate
+)
+
 // Get today's date in YYYY-MM-DD format
 const today = new Date().toISOString().split('T')[0]
 
@@ -132,9 +162,14 @@ onMounted(() => {
     const date = new Date(props.booking.date + 'T00:00:00')
     // Format it as YYYY-MM-DD
     selectedDate.value = date.toISOString().split('T')[0]
-    // Trigger the date change handler to load the schedule
-    handleDateChange()
 })
+
+// Watch for Vue Query data changes and update schedule
+watch([rescheduleAvailability, rescheduleEvents], () => {
+    if (rescheduleAvailability.value && rescheduleEvents.value) {
+        handleDateChange()
+    }
+}, { immediate: true })
 
 const selectedDay = computed(() => {
     if (!selectedDate.value) return null
@@ -151,31 +186,14 @@ const handleDateChange = async () => {
     if (!selectedDate.value) return
 
     try {
-        // Create a date object and adjust for timezone
-        const localDate = new Date(selectedDate.value)
-        const utcDate = new Date(localDate.getTime() + localDate.getTimezoneOffset() * 60000)
-        const formattedDate = utcDate.toISOString().split('T')[0]
-
-        // Fetch both availability and booked events
-        const [availabilityResponse, eventsResponse] = await Promise.all([
-            fetch(`/api/availability/${props.booking.instructor_id}/daily/${formattedDate}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            }),
-            fetch(`/api/calendar/dailyEvents/${props.booking.instructor_id}/${formattedDate}`, {
-                headers: { 'Authorization': `Bearer ${userStore.token}` }
-            })
-        ])
-
-        if (!availabilityResponse.ok || !eventsResponse.ok) {
-            throw new Error('Failed to fetch data')
-        }
-
+        // Use Vue Query data
+        const availabilityData = rescheduleAvailability.value || []
+        const bookedEvents = rescheduleEvents.value || []
+        
+        const formattedDate = formattedSelectedDate.value
+        if (!formattedDate) return
+        
         const scheduleDate = new Date(formattedDate)
-
-        const [availabilityData, bookedEvents] = await Promise.all([
-            availabilityResponse.json(),
-            eventsResponse.json()
-        ])
 
         const formattedSchedule = {}
 

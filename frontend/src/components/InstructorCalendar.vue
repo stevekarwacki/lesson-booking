@@ -122,6 +122,7 @@ import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useCalendar } from '../composables/useCalendar'
+import { useAvailability } from '../composables/useAvailability'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import BookingList from './BookingList.vue'
@@ -180,6 +181,19 @@ const {
     computed(() => instructor.id),
     weekStartDate,
     weekEndDate,
+    selectedDate
+)
+
+// Use availability composable (Vue Query)
+const {
+    weeklyAvailability,
+    isLoadingWeeklyAvailability,
+    weeklyAvailabilityError,
+    dailyAvailability,
+    isLoadingDailyAvailability,
+    dailyAvailabilityError,
+} = useAvailability(
+    computed(() => instructor.id),
     selectedDate
 )
 
@@ -391,18 +405,8 @@ const fetchWeeklySchedule = async () => {
     if (!instructor.id) return
 
     try {
-        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
-        const availabilityResponse = await fetch(`/api/availability/${instructor.id}/weekly`, {
-            headers: { 'Authorization': `Bearer ${userStore.token}` }
-        })
-
-        if (!availabilityResponse.ok) {
-            throw new Error('Failed to fetch data')
-        }
-
-        const availabilityData = await availabilityResponse.json()
-        
-        // Use events from Vue Query (weeklyEvents will be undefined if not loaded yet)
+        // Use availability and events from Vue Query
+        const availabilityData = weeklyAvailability.value || []
         const bookedEvents = weeklyEvents.value || []
 
         // Initialize schedule with dates
@@ -534,20 +538,10 @@ const fetchDailySchedule = async () => {
     dailyScheduleLoaded.value = false
 
     try {
-        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
-        const availabilityResponse = await fetch(`/api/availability/${instructor.id}/daily/${selectedDate.value}`, {
-            headers: { 'Authorization': `Bearer ${userStore.token}` }
-        })
-
-        if (!availabilityResponse.ok) {
-            throw new Error('Failed to fetch data')
-        }
-
         const scheduleDate = new Date(selectedDate.value)
 
-        const availabilityData = await availabilityResponse.json()
-        
-        // Use events from Vue Query (dailyEvents will be undefined if not loaded yet)
+        // Use availability and events from Vue Query
+        const availabilityData = dailyAvailability.value || []
         const bookedEvents = dailyEvents.value || []
 
         const formattedSchedule = {}
@@ -682,6 +676,18 @@ watch(weeklyEvents, () => {
 
 watch(dailyEvents, () => {
     if (dailyEvents.value) {
+        fetchDailySchedule()
+    }
+})
+
+watch(weeklyAvailability, () => {
+    if (weeklyAvailability.value) {
+        fetchWeeklySchedule()
+    }
+})
+
+watch(dailyAvailability, () => {
+    if (dailyAvailability.value) {
         fetchDailySchedule()
     }
 })

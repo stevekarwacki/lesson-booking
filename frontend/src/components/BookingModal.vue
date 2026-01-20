@@ -166,6 +166,7 @@ import { useTimezoneStore } from '../stores/timezoneStore'
 import { useCredits } from '../composables/useCredits'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
+import { useAvailability } from '../composables/useAvailability'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
@@ -228,6 +229,15 @@ const {
     conflictCheckDate
 )
 
+// Use availability composable for conflict checking (Vue Query)
+const {
+    dailyAvailability: conflictCheckAvailability,
+    isLoadingDailyAvailability: isLoadingAvailabilityCheck,
+} = useAvailability(
+    computed(() => currentSlot.value?.instructorId),
+    conflictCheckDate
+)
+
 // Computed search results for student selector
 const searchResults = computed(() => {
     if (!studentSearchQuery.value || studentSearchQuery.value.length < 1) {
@@ -262,23 +272,8 @@ const checkTimeConflicts = async () => {
     }
 
     try {
-        // For 60-minute lessons, fetch availability and use Vue Query events to check conflicts
-        const formattedDate = currentSlot.value.date.toISOString().split('T')[0]
-        
-        // Fetch availability (direct fetch - will be migrated in Chunk 1B)
-        const availabilityResponse = await fetch(`/api/availability/${currentSlot.value.instructorId}/daily/${formattedDate}`, {
-            headers: { 'Authorization': `Bearer ${userStore.token}` }
-        })
-
-        if (!availabilityResponse.ok) {
-            hasTimeConflict.value = true
-            conflictMessage.value = 'Unable to check availability'
-            return
-        }
-
-        const availabilityData = await availabilityResponse.json()
-        
-        // Use events from Vue Query (will be undefined if not loaded yet)
+        // For 60-minute lessons, use Vue Query data to check conflicts
+        const availabilityData = conflictCheckAvailability.value || []
         const bookedEvents = conflictCheckEvents.value || []
 
         // Check if the extended duration (60 minutes = 4 slots) would conflict
