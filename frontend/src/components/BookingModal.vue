@@ -185,10 +185,11 @@ const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
 const { showSuccess, showError } = useFormFeedback()
 
-// Use credits composable for credit state management
+// Use credits composable for credit state management (current user)
 const { 
     getAvailableCredits,
-    fetchCredits
+    fetchCredits,
+    invalidateCredits
 } = useCredits()
 
 const loading = ref(false)
@@ -210,7 +211,19 @@ const allStudents = ref([])
 const selectedStudent = ref(null)
 const studentSearchQuery = ref('')
 const showStudentResults = ref(false)
-const selectedStudentCredits = ref(0)
+
+// Use separate credits instance for selected student
+const selectedStudentId = computed(() => selectedStudent.value?.id || null)
+const { 
+    getAvailableCredits: getStudentAvailableCredits,
+    fetchCredits: fetchStudentCreditsQuery
+} = useCredits(selectedStudentId)
+
+// Computed: Get available credits for the selected student based on duration
+const selectedStudentCredits = computed(() => {
+    if (!selectedStudent.value) return 0
+    return getStudentAvailableCredits.value(selectedDuration.value)
+})
 
 // Computed date for conflict checking
 const conflictCheckDate = computed(() => {
@@ -398,7 +411,7 @@ const handleStudentSelect = async (student) => {
     showStudentResults.value = false
     
     // Fetch the selected student's credit balance
-    await fetchStudentCredits(student.id)
+    await fetchStudentCreditsQuery()
 }
 
 // Handle search blur with delay to allow click event
@@ -406,31 +419,6 @@ const handleSearchBlur = () => {
     setTimeout(() => {
         showStudentResults.value = false
     }, SEARCH_BLUR_DELAY_MS)
-}
-
-// Fetch credit balance for selected student
-const fetchStudentCredits = async (studentId) => {
-    try {
-        const response = await fetch(`/api/users/${studentId}/credits?duration=${selectedDuration.value}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch student credits: ${response.statusText}`)
-        }
-        
-        const data = await response.json()
-        selectedStudentCredits.value = data.availableCredits || 0
-        
-        // Update payment method based on credits and settings
-        updatePaymentMethodForBookingOnBehalf()
-    } catch (err) {
-        console.error('Error fetching student credits:', err)
-        selectedStudentCredits.value = 0
-        showError('Unable to load student credit balance.')
-    }
 }
 
 // Update payment method when booking on behalf
@@ -445,7 +433,7 @@ const updatePaymentMethodForBookingOnBehalf = () => {
 // Watch for duration changes to update student credits
 watch(selectedDuration, async () => {
     if (isBookingOnBehalf.value && selectedStudent.value) {
-        await fetchStudentCredits(selectedStudent.value.id)
+        await fetchStudentCreditsQuery()
     }
 })
 
@@ -655,11 +643,11 @@ const confirmBooking = async () => {
             queryKey: ['users', studentId, 'bookings'] 
         })
         
-        // Credits are automatically deducted by the backend, so we refresh to get accurate count
+        // Credits are automatically deducted by the backend, so invalidate cache to get accurate count
         if (paymentMethod.value === 'credits') {
             try {
                 if (isBookingOnBehalf.value && selectedStudent.value) {
-                    await fetchStudentCredits(selectedStudent.value.id)
+                    await fetchStudentCreditsQuery()
                 } else {
                     await fetchCredits()
                 }

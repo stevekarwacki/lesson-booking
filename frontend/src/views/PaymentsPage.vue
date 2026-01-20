@@ -86,8 +86,8 @@
 
         <div class="transaction-history card">
             <h2>Transaction History</h2>
-            <div v-if="transactions.length === 0" class="empty-state">
-                <p>No transactions yet</p>
+            <div v-if="!transactions || transactions.length === 0" class="empty-state">
+                <p>{{ isLoadingTransactions ? 'Loading...' : 'No transactions yet' }}</p>
             </div>
             <div v-else class="transactions-list">
                 <div v-for="transaction in transactions" :key="transaction.id" class="transaction-item">
@@ -203,12 +203,13 @@ const {
     userCredits, 
     creditBreakdown, 
     nextExpiry,
-    fetchCredits 
+    fetchCredits,
+    transactions,
+    isLoadingTransactions
 } = useCredits()
 
 // Use subscription update composable to sync with Stripe
 const { updateSubscriptionPeriods } = useSubscriptionUpdate()
-const transactions = ref([])
 const allPlans = ref([])
 const activeSubscriptions = ref([])
 const recurringBookings = ref([])
@@ -275,30 +276,7 @@ const fetchPaymentPlans = async () => {
     }
 };
 
-const fetchTransactions = async () => {
-    try {
-        loading.value = true;
-        error.value = null;
-        
-        const response = await fetch('/api/payments/transactions', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch transactions');
-        }
-        
-        const data = await response.json();
-        transactions.value = data;
-    } catch (err) {
-        error.value = 'Error fetching transactions: ' + err.message;
-        console.error('Error fetching transactions:', err);
-    } finally {
-        loading.value = false;
-    }
-};
+// Transaction history is now provided by useCredits composable
 
 // Fetch user's active subscriptions
 const fetchSubscriptions = async () => {
@@ -478,8 +456,7 @@ const confirmCancellation = async () => {
 
 const refreshData = async () => {
     await Promise.all([
-        fetchCredits(),
-        fetchTransactions(),
+        fetchCredits(), // This will also refresh transactions via Vue Query
         fetchSubscriptions(),
         fetchRecurringBookings()
     ]);
@@ -490,11 +467,9 @@ onMounted(async () => {
     // This ensures we show accurate billing period dates
     await updateSubscriptionPeriods()
     
-    // Then fetch all payment data
+    // Then fetch all payment data (credits and transactions are automatically fetched by useCredits)
     await Promise.all([
-        fetchCredits(),
         fetchPaymentPlans(),
-        fetchTransactions(),
         fetchSubscriptions(),
         fetchRecurringBookings()
     ])

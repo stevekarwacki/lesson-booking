@@ -1,24 +1,101 @@
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '@/stores/userStore'
 
 /**
- * Composable for managing user credit data and operations
+ * Fetch user credits from API
+ * @param {string} userId - User ID
+ * @param {string} token - Auth token
+ * @returns {Promise<Object>} Credits data
+ */
+async function fetchUserCredits(userId, token) {
+    const response = await fetch('/api/payments/credits', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    
+    if (!response.ok) {
+        throw new Error('Failed to fetch credits')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Fetch credit transaction history
+ * @param {string} token - Auth token
+ * @returns {Promise<Array>} Transaction history
+ */
+async function fetchTransactionHistory(token) {
+    const response = await fetch('/api/payments/transactions', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    
+    if (!response.ok) {
+        throw new Error('Failed to fetch transaction history')
+    }
+    
+    return await response.json()
+}
+
+/**
+ * Composable for managing user credit data and operations using Vue Query
+ * @param {Ref<string>|string} userId - Optional user ID (defaults to current user)
  * @returns {Object} Credit state and methods
  */
-export function useCredits() {
+export function useCredits(userId = null) {
     const userStore = useUserStore()
+    const queryClient = useQueryClient()
     
-    // Reactive state
-    const userCredits = ref(0)
-    const creditBreakdown = ref({
+    // Normalize userId parameter to support both refs and raw values
+    const normalizedUserId = computed(() => {
+        if (!userId) return userStore.user?.id
+        return typeof userId === 'object' && 'value' in userId ? userId.value : userId
+    })
+    
+    const token = computed(() => userStore.token)
+    
+    // Query: Fetch user credits
+    const {
+        data: creditsData,
+        isLoading: isLoadingCredits,
+        error: creditsError,
+        refetch: refetchCredits
+    } = useQuery({
+        queryKey: ['credits', normalizedUserId],
+        queryFn: () => fetchUserCredits(normalizedUserId.value, token.value),
+        enabled: computed(() => !!token.value && !!normalizedUserId.value),
+        staleTime: 1 * 60 * 1000, // 1 minute (financial data)
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+    })
+    
+    // Query: Fetch transaction history
+    const {
+        data: transactions,
+        isLoading: isLoadingTransactions,
+        error: transactionsError,
+        refetch: refetchTransactions
+    } = useQuery({
+        queryKey: ['credits', normalizedUserId, 'history'],
+        queryFn: () => fetchTransactionHistory(token.value),
+        enabled: computed(() => !!token.value),
+        staleTime: 1 * 60 * 1000, // 1 minute
+        cacheTime: 5 * 60 * 1000, // 5 minutes
+    })
+    
+    // Computed properties for easy access to credit data
+    const userCredits = computed(() => creditsData.value?.total_credits || 0)
+    
+    const creditBreakdown = computed(() => creditsData.value?.breakdown || {
         30: { credits: 0, next_expiry: null },
         60: { credits: 0, next_expiry: null }
     })
-    const loading = ref(false)
-    const error = ref(null)
-    const nextExpiry = ref(null)
     
-    // Computed properties
+    const nextExpiry = computed(() => creditsData.value?.next_expiry || null)
+    
     const getAvailableCredits = computed(() => {
         return (duration) => {
             const durationInt = parseInt(duration)
@@ -26,53 +103,18 @@ export function useCredits() {
         }
     })
     
+    // Loading and error states
+    const loading = computed(() => isLoadingCredits.value || isLoadingTransactions.value)
+    const error = computed(() => creditsError.value || transactionsError.value)
+    
     // Methods
-    const fetchCredits = async () => {
-        try {
-            loading.value = true
-            error.value = null
-            
-            const response = await fetch('/api/payments/credits', {
-                headers: {
-                    'Authorization': `Bearer ${userStore.token}`
-                }
-            })
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch credits')
-            }
-            
-            const data = await response.json()
-            
-            // Update reactive state
-            userCredits.value = data.total_credits || 0
-            nextExpiry.value = data.next_expiry || null
-            creditBreakdown.value = data.breakdown || {
-                30: { credits: 0, next_expiry: null },
-                60: { credits: 0, next_expiry: null }
-            }
-            
-            return data
-        } catch (err) {
-            error.value = err.message
-            console.error('Error fetching credits:', err)
-            throw err
-        } finally {
-            loading.value = false
-        }
-    }
+    const fetchCredits = refetchCredits // Alias for backward compatibility
+    const refreshCredits = refetchCredits // Alias for clarity
     
-    // Refresh credits (alias for fetchCredits for clarity)
-    const refreshCredits = fetchCredits
-    
-    // Optimistically update credits (for immediate UI feedback)
-    const updateCreditsOptimistically = (duration, creditChange) => {
-        const durationInt = parseInt(duration)
-        if (creditBreakdown.value[durationInt]) {
-            creditBreakdown.value[durationInt].credits += creditChange
-            // Also update total credits
-            userCredits.value += creditChange
-        }
+    // Invalidate credits cache (useful after purchases/bookings)
+    const invalidateCredits = () => {
+        queryClient.invalidateQueries({ queryKey: ['credits', normalizedUserId.value] })
+        queryClient.invalidateQueries({ queryKey: ['credits', normalizedUserId.value, 'history'] })
     }
     
     // Return reactive state and methods
@@ -83,6 +125,11 @@ export function useCredits() {
         loading,
         error,
         nextExpiry,
+        transactions,
+        isLoadingCredits,
+        isLoadingTransactions,
+        creditsError,
+        transactionsError,
         
         // Computed
         getAvailableCredits,
@@ -90,6 +137,7 @@ export function useCredits() {
         // Methods
         fetchCredits,
         refreshCredits,
-        updateCreditsOptimistically
+        refetchTransactions,
+        invalidateCredits
     }
 }
