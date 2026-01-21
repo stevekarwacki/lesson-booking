@@ -23,14 +23,13 @@
             
             <div ref="paymentElement" class="payment-element"></div>
             
-            <button 
+            <Button 
                 type="submit"
-                class="form-button"
                 @click="handleSubmit"
                 :disabled="processing || !stripe || !elements"
             >
                 {{ processing ? 'Processing...' : 'Pay Now' }}
-            </button>
+            </Button>
         </div>
     </div>
 </template>
@@ -40,6 +39,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useStripe } from '../composables/useStripe'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     amount: {

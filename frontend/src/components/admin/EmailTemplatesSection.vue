@@ -45,29 +45,28 @@
           </div>
           
           <div class="template-actions">
-            <button 
+            <Button 
               @click="editTemplate(template)" 
-              class="btn primary"
               :disabled="loading"
             >
               Edit Template
-            </button>
-            <button 
+            </Button>
+            <Button 
               @click="testTemplate(template)" 
-              class="btn secondary"
+              variant="outline"
               :disabled="loading || testingTemplate === template.template_key"
             >
               <span v-if="testingTemplate === template.template_key" class="loading-spinner small"></span>
               {{ testingTemplate === template.template_key ? 'Sending...' : 'Test Send' }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               v-if="isModified(template)"
               @click="resetTemplate(template)" 
-              class="btn warning"
+              variant="destructive"
               :disabled="loading"
             >
               Reset
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -82,22 +81,21 @@
             Editing: {{ activeTemplate.name }}
           </h3>
           <div class="editor-actions">
-            <button 
+            <Button 
               @click="testTemplate(activeTemplate)" 
-              class="btn secondary"
+              variant="outline"
               :disabled="loading || testingTemplate === activeTemplate.template_key"
             >
               <span v-if="testingTemplate === activeTemplate.template_key" class="loading-spinner small"></span>
               {{ testingTemplate === activeTemplate.template_key ? 'Sending...' : 'Test Send' }}
-            </button>
-            <button 
+            </Button>
+            <Button 
               @click="saveTemplate" 
-              class="btn primary"
               :disabled="loading || !hasUnsavedChanges"
             >
               <span v-if="saving" class="loading-spinner small"></span>
               {{ saving ? 'Saving...' : 'Save Changes' }}
-            </button>
+            </Button>
           </div>
         </div>
         
@@ -178,6 +176,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useEmailTemplates } from '../../composables/useEmailTemplates'
 import { useFormFeedback } from '../../composables/useFormFeedback'
+import { Button } from '@/components/ui/button'
 
 export default {
   name: 'EmailTemplatesSection',

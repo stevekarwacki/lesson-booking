@@ -280,8 +280,10 @@ describe('Theme System', () => {
       
       expect(wrapper.vm.customPrimaryColor).toBe('#6f42c1')
       
-      // Reset to defaults
-      const resetButton = wrapper.find('.btn.secondary')
+      // Reset to defaults (now using shadcn Button component)
+      const buttons = wrapper.findAll('button')
+      const resetButton = buttons.find(btn => btn.text().includes('Reset'))
+      expect(resetButton).toBeDefined()
       await resetButton.trigger('click')
       
       expect(wrapper.vm.selectedPalette.name).toBe('Forest Green')
@@ -314,8 +316,10 @@ describe('Theme System', () => {
       // Should detect changes after palette selection
       expect(wrapper.vm.hasChanges).toBe(true)
       
-      // Reset should clear changes
-      const resetButton = wrapper.find('.btn.secondary')
+      // Reset should clear changes (now using shadcn Button component)
+      const buttons = wrapper.findAll('button')
+      const resetButton = buttons.find(btn => btn.text().includes('Reset'))
+      expect(resetButton).toBeDefined()
       await resetButton.trigger('click')
       await wrapper.vm.$nextTick()
       

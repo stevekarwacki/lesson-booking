@@ -11,7 +11,7 @@
                 <div class="success-icon">✅</div>
                 <h2>Google Calendar Connected Successfully!</h2>
                 <p>You can now close this window and return to your availability settings.</p>
-                <button @click="closeWindow" class="btn btn-primary">Close Window</button>
+                <Button @click="closeWindow">Close Window</Button>
             </div>
             
             <div v-else-if="error" class="error">
@@ -21,7 +21,7 @@
                 <p class="help-text">
                     Please close this window and try connecting again from your availability settings.
                 </p>
-                <button @click="closeWindow" class="btn btn-secondary">Close Window</button>
+                <Button @click="closeWindow" variant="outline">Close Window</Button>
             </div>
         </div>
     </div>
@@ -34,6 +34,7 @@ import { useUserStore } from '../stores/userStore'
 import axios from 'axios'
 import { OAUTH_ERRORS, OAUTH_MESSAGE_TYPES } from '../constants/oauthConstants'
 import { extractErrorMessage } from '../utils/errorHelpers'
+import { Button } from '@/components/ui/button'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -211,35 +212,4 @@ p {
     margin-top: 0.5rem;
 }
 
-.btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    font-weight: 500;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 1rem;
-}
-
-.btn-primary {
-    background-color: #3b82f6;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #2563eb;
-}
-
-.btn-secondary {
-    background-color: #6b7280;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #4b5563;
-}
 </style> 

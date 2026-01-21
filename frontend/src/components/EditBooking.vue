@@ -64,30 +64,29 @@
         </div>
 
         <div class="edit-booking-actions">
-            <button 
+            <Button 
                 type="button"
-                class="form-button form-button-cancel" 
+                variant="outline"
                 @click="$emit('close')"
                 :disabled="loading"
             >
                 Close
-            </button>
+            </Button>
             <div class="button-group">
-                <button 
+                <Button 
                     type="button"
-                    class="form-button form-button-danger" 
+                    variant="destructive"
                     @click="cancelBooking"
                     :disabled="loading"
                 >
                     Cancel Booking
-                </button>
-                <button 
-                    class="form-button" 
+                </Button>
+                <Button 
                     @click="updateBooking"
                     :disabled="loading || !selectedSlot"
                 >
                     Update Booking
-                </button>
+                </Button>
             </div>
         </div>
     </div>
@@ -104,6 +103,7 @@ import { useScheduleStore } from '../stores/scheduleStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     booking: {

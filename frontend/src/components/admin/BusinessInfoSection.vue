@@ -263,22 +263,21 @@
       
       <!-- Action Buttons -->
       <div class="section-actions">
-        <button 
+        <Button 
           type="button"
           @click="resetForm" 
-          class="btn secondary"
+          variant="outline"
           :disabled="loading"
         >
           Reset Changes
-        </button>
-        <button 
+        </Button>
+        <Button 
           type="submit"
-          class="btn primary"
           :disabled="loading || !hasChanges || !isFormValid"
         >
           <span v-if="loading" class="loading-spinner"></span>
           {{ loading ? 'Saving...' : 'Save Business Information' }}
-        </button>
+        </Button>
       </div>
     </form>
   </div>
@@ -286,6 +285,7 @@
 
 <script>
 import { ref, computed, watch, reactive } from 'vue'
+import { Button } from '@/components/ui/button'
 
 export default {
   name: 'BusinessInfoSection',

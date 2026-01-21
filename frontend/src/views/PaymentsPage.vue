@@ -45,27 +45,27 @@
                             <p><strong>Instructor:</strong> {{ getRecurringBooking(subscription.id).Instructor?.User?.name }}</p>
                         </div>
                         <div class="recurring-booking-actions">
-                            <button class="form-button form-button-secondary" @click="openRecurringModal(subscription, getRecurringBooking(subscription.id))">
+                            <Button variant="secondary" @click="openRecurringModal(subscription, getRecurringBooking(subscription.id))">
                                 Change Time
-                            </button>
-                            <button class="form-button form-button-danger" @click="deleteRecurringBooking(getRecurringBooking(subscription.id).id)">
+                            </Button>
+                            <Button variant="destructive" @click="deleteRecurringBooking(getRecurringBooking(subscription.id).id)">
                                 Remove Weekly Schedule
-                            </button>
+                            </Button>
                         </div>
                     </div>
                     <div v-else class="no-recurring-booking">
                         <p>No weekly lesson time set</p>
-                        <button class="form-button" @click="openRecurringModal(subscription)">
+                        <Button @click="openRecurringModal(subscription)">
                             Set Weekly Time
-                        </button>
+                        </Button>
                     </div>
                 </div>
                 
                 <!-- Subscription Management Actions -->
                 <div class="subscription-actions">
-                    <button class="form-button form-button-danger" @click="openCancellationModal(subscription)">
+                    <Button variant="destructive" @click="openCancellationModal(subscription)">
                         Cancel Subscription
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -169,17 +169,17 @@
                 </div>
                 
                 <div class="modal-footer">
-                    <button class="form-button form-button-secondary" @click="closeCancellationModal" :disabled="cancelling">
+                    <Button variant="outline" @click="closeCancellationModal" :disabled="cancelling">
                         {{ cancellationPreview?.cancellationPreview?.creditCalculation?.alreadyCancelled ? 'Close' : 'Keep Subscription' }}
-                    </button>
-                    <button 
+                    </Button>
+                    <Button 
                         v-if="cancellationPreview?.cancellationPreview?.creditCalculation?.eligible"
-                        class="form-button form-button-danger" 
+                        variant="destructive"
                         @click="confirmCancellation"
                         :disabled="cancelling"
                     >
                         {{ cancelling ? 'Cancelling...' : 'Confirm Cancellation' }}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -196,6 +196,7 @@ import { usePaymentPlans } from '../composables/usePaymentPlans'
 import { useSubscriptionUpdate } from '../composables/useSubscriptionUpdate'
 import { formatDate, formatTime, slotToTime } from '../utils/timeFormatting'
 import { getPaymentStatusColor, formatPaymentMethod, formatPaymentStatus } from '../utils/paymentUtils'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 

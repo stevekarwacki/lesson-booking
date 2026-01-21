@@ -26,14 +26,13 @@
                 />
             </div>
 
-            <button 
+            <Button 
                 v-else
-                class="form-button"
                 @click="selectPlan(plan)"
                 :disabled="processing"
             >
                 {{ processing ? 'Processing...' : 'Purchase' }}
-            </button>
+            </Button>
         </div>
     </div>
 </template>
@@ -41,6 +40,7 @@
 <script setup>
 import { ref } from 'vue'
 import StripePaymentForm from './StripePaymentForm.vue'
+import { Button } from '@/components/ui/button'
 
 const processing = ref(false)
 const error = ref(null)

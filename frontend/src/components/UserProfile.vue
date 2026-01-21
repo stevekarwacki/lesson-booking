@@ -54,9 +54,9 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="form-button">
+                    <Button type="submit">
                         Save Changes
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>
@@ -66,6 +66,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 const errorMessage = ref('')

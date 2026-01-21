@@ -23,31 +23,31 @@
         <div class="card-body time-selection-container">
             <!-- Week navigation - only show when no specific date is selected -->
             <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
-                <button 
-                    class="form-button form-button-secondary"
+                <Button 
+                    variant="outline"
                     @click="previousWeek"
                     :disabled="isPreviousWeekInPast"
                 >
                     Previous Week
-                </button>
+                </Button>
                 <span class="week-display">
                     Week of {{ weekStart.toLocaleDateString() }}
                 </span>
-                <button 
-                    class="form-button form-button-secondary"
+                <Button 
+                    variant="outline"
                     @click="nextWeek"
                 >
                     Next Week
-                </button>
+                </Button>
             </div>
 
-            <button 
+            <Button 
                 v-if="selectedDate && $mq.lgPlus" 
-                class="form-button form-button-secondary"
+                variant="outline"
                 @click="clearSelectedDate"
             >
                 Back to Weekly View
-            </button>
+            </Button>
 
             <!-- Date selection -->
             <div class="form-group date-select-group">
@@ -130,6 +130,7 @@ import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import BookingModal from './BookingModal.vue'
 import EditBookingModal from './EditBookingModal.vue'
 import { today } from '../utils/dateHelpers.js'
+import { Button } from '@/components/ui/button'
 
 const { instructor } = defineProps({
     instructor: {

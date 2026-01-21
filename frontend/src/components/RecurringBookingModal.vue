@@ -128,21 +128,20 @@
             </div>
 
             <div class="modal-footer">
-                <button 
+                <Button 
                     type="button"
-                    class="form-button form-button-cancel" 
+                    variant="outline"
                     @click="$emit('close')"
                     :disabled="processing"
                 >
                     Cancel
-                </button>
-                <button 
-                    class="form-button" 
+                </Button>
+                <Button 
                     @click="confirmRecurringBooking"
                     :disabled="!selectedSlot || processing"
                 >
                     {{ processing ? 'Processing...' : 'Confirm Weekly Time' }}
-                </button>
+                </Button>
             </div>
         </div>
     </div>
@@ -155,6 +154,7 @@ import { usePaymentPlans } from '../composables/usePaymentPlans'
 import { useAvailability } from '../composables/useAvailability'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     subscription: {

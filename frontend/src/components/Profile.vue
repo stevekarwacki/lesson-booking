@@ -191,7 +191,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Update Profile</button>
+                <Button type="submit">Update Profile</Button>
             </form>
         </div>
     </div>
@@ -204,6 +204,7 @@ import { validateProfileData, validatePasswordsMatch, validatePasswordStrength }
 import { useProfileUpdate } from '../composables/useProfileUpdate'
 import { useUserManagement } from '../composables/useUserManagement'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { Button } from '@/components/ui/button'
 
 // Props for admin editing mode
 const props = defineProps({

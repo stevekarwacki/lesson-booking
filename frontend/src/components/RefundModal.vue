@@ -20,7 +20,7 @@
             <p>{{ error }}</p>
           </div>
           <div class="modal-actions">
-            <button @click="$emit('close')" class="button button-secondary">Close</button>
+            <Button @click="$emit('close')" variant="outline">Close</Button>
           </div>
         </div>
         
@@ -62,7 +62,7 @@
               </div>
             </div>
             <div class="modal-actions">
-              <button @click="$emit('close')" class="button button-secondary">Close</button>
+              <Button @click="$emit('close')" variant="outline">Close</Button>
             </div>
           </div>
           
@@ -123,15 +123,15 @@
             
             <!-- Actions -->
             <div class="modal-actions">
-              <button @click="$emit('close')" class="button button-secondary">Cancel</button>
-              <button 
+              <Button @click="$emit('close')" variant="outline">Cancel</Button>
+              <Button 
                 @click="handleProcessRefund" 
-                class="button button-danger"
+                variant="destructive"
                 :disabled="!selectedRefundType || !confirmRefund || processing"
               >
                 <span v-if="processing">Processing...</span>
                 <span v-else>Process Refund</span>
-              </button>
+              </Button>
             </div>
           </div>
           
@@ -143,7 +143,7 @@
               <p v-else-if="refundInfo.refundOptions.length === 0">No refund options are available for this lesson.</p>
             </div>
             <div class="modal-actions">
-              <button @click="$emit('close')" class="button button-secondary">Close</button>
+              <Button @click="$emit('close')" variant="outline">Close</Button>
             </div>
           </div>
         </div>
@@ -156,6 +156,7 @@
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/userStore'
 import { useRefunds } from '../composables/useRefunds'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
   booking: {
@@ -550,38 +551,5 @@ const formatTimeSlot = (startSlot, duration) => {
   gap: 12px;
   padding-top: 16px;
   border-top: 1px solid #e5e7eb;
-}
-
-.button {
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
-}
-
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.button-secondary {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.button-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
-}
-
-.button-danger {
-  background: #dc2626;
-  color: white;
-}
-
-.button-danger:hover:not(:disabled) {
-  background: #b91c1c;
 }
 </style>

@@ -123,22 +123,21 @@
       
       <!-- Action Buttons -->
       <div class="form-actions">
-        <button
+        <Button
           type="button"
           @click="resetForm"
-          class="form-button form-button-secondary"
+          variant="outline"
           :disabled="loading || !hasChanges"
         >
           Reset Changes
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
-          class="form-button form-button-primary"
           :disabled="loading || !hasChanges"
         >
           <span v-if="loading">Saving...</span>
           <span v-else>Save Lesson Settings</span>
-        </button>
+        </Button>
       </div>
     </form>
   </div>
@@ -146,6 +145,7 @@
 
 <script>
 import { ref, computed, watch, reactive } from 'vue'
+import { Button } from '@/components/ui/button'
 
 export default {
   name: 'LessonsSection',

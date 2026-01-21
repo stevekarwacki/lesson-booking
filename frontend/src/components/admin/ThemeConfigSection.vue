@@ -104,9 +104,9 @@
         <div class="logo-upload-section">
           <div class="current-logo" v-if="currentLogoUrl">
             <img :src="currentLogoUrl" alt="Current logo" class="logo-preview" />
-            <button @click="removeLogo" class="remove-logo-btn" :disabled="loading">
+            <Button @click="removeLogo" variant="destructive" size="sm" :disabled="loading">
               Remove Logo
-            </button>
+            </Button>
           </div>
           
           <div class="logo-upload">
@@ -164,21 +164,20 @@
     
     <!-- Action Buttons -->
     <div class="section-actions">
-      <button 
+      <Button 
         @click="resetToDefaults" 
-        class="btn secondary"
+        variant="outline"
         :disabled="loading"
       >
         Reset to Defaults
-      </button>
-      <button 
+      </Button>
+      <Button 
         @click="saveThemeConfig" 
-        class="btn primary"
         :disabled="loading || (!hasChanges)"
       >
         <span v-if="loading" class="loading-spinner"></span>
         {{ loading ? 'Saving...' : 'Save Changes' }}
-      </button>
+      </Button>
     </div>
   </div>
 </template>
@@ -188,6 +187,7 @@ import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useAdminSettings } from '@/composables/useAdminSettings'
 import { CURATED_PALETTES, getThemeDefaults } from '@/constants/themeDefaults'
+import { Button } from '@/components/ui/button'
 
 export default {
   name: 'ThemeConfigSection',

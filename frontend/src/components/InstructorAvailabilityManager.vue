@@ -45,7 +45,7 @@
                         placeholder="e.g., Vacation, Personal Day"
                     >
                 </div>
-                <button type="submit" class="btn btn-primary">Add Blocked Time</button>
+                <Button type="submit">Add Blocked Time</Button>
             </form>
 
             <!-- Existing Blocked Times -->
@@ -64,12 +64,13 @@
                             ({{ block.reason }})
                         </span>
                     </div>
-                    <button 
+                    <Button 
                         @click="removeBlockedTime(block.id)" 
-                        class="btn btn-danger btn-sm"
+                        variant="destructive"
+                        size="sm"
                     >
                         Remove
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -83,6 +84,7 @@ import { useTimezoneStore } from '../stores/timezoneStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useAvailability } from '../composables/useAvailability'
 import InstructorAvailabilityView from './InstructorAvailabilityView.vue'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()

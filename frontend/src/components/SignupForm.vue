@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 const { showSuccess, showError } = useFormFeedback()
@@ -113,7 +114,7 @@ const handleSubmit = async () => {
                 >
             </div>
 
-            <button type="submit" class="form-button-full">Sign Up</button>
+            <Button type="submit" class="w-full">Sign Up</Button>
         </form>
     </div>
 </template>

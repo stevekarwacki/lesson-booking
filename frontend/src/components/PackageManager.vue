@@ -5,6 +5,7 @@ import { usePackages } from '../composables/usePackages'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 const { showSuccess, showError } = useFormFeedback()
@@ -158,12 +159,11 @@ const closeEditModal = () => {
 
         <!-- Add Package Button -->
         <div class="actions">
-            <button 
-                class="form-button"
+            <Button 
                 @click="showAddForm = true"
             >
                 Add New Package
-            </button>
+            </Button>
         </div>
 
         <!-- Add Package Modal -->
@@ -255,19 +255,18 @@ const closeEditModal = () => {
                         </div>
 
                         <div class="modal-footer">
-                            <button 
+                            <Button 
                                 type="button"
-                                class="form-button form-button-cancel"
+                                variant="outline"
                                 @click="showAddForm = false"
                             >
                                 Cancel
-                            </button>
-                            <button 
+                            </Button>
+                            <Button 
                                 type="submit"
-                                class="form-button"
                             >
                                 Create Package
-                            </button>
+                            </Button>
                         </div>
                     </form>
                 </div>
@@ -298,12 +297,12 @@ const closeEditModal = () => {
                         </p>
                     </div>
                     <div class="package-actions">
-                        <button 
-                            class="form-button form-button-edit"
+                        <Button 
+                            variant="secondary"
                             @click="openEditModal(pkg)"
                         >
                             Manage
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -453,19 +452,18 @@ const closeEditModal = () => {
                     </div>
                     
                     <div class="form-actions">
-                        <button 
+                        <Button 
                             type="button"
-                            class="form-button form-button-cancel"
+                            variant="outline"
                             @click="closeEditModal"
                         >
                             Cancel
-                        </button>
-                        <button 
+                        </Button>
+                        <Button 
                             type="submit"
-                            class="form-button"
                         >
                             Save Changes
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </TabbedModalTab>
@@ -512,13 +510,13 @@ const closeEditModal = () => {
                                     </ul>
                                     <p><strong>Note:</strong> If users have active subscriptions with this package, consider deactivating instead of deleting.</p>
                                 </div>
-                                <button 
+                                <Button 
                                     type="button"
-                                    class="form-button form-button-danger"
+                                    variant="destructive"
                                     @click="deletePackageFromModal"
                                 >
                                     Delete Package
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>

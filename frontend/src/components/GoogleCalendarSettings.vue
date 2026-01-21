@@ -10,7 +10,7 @@
     <!-- Error State -->
     <div v-if="error" class="error">
       <p>{{ error }}</p>
-      <button @click="loadSettings" class="btn btn-secondary">Retry</button>
+      <Button @click="loadSettings" variant="outline">Retry</Button>
     </div>
     
     <!-- Settings Form -->
@@ -44,12 +44,12 @@
           </ul>
           
           <div class="oauth-actions">
-            <button @click="disconnectOAuth" :disabled="disconnecting" class="btn btn-danger">
+            <Button @click="disconnectOAuth" :disabled="disconnecting" variant="destructive">
               {{ disconnecting ? 'Disconnecting...' : 'Disconnect OAuth' }}
-            </button>
-            <button @click="handleTestConnection" :disabled="testing" class="btn btn-secondary">
+            </Button>
+            <Button @click="handleTestConnection" :disabled="testing" variant="outline">
               {{ testing ? 'Testing...' : 'Test Connection' }}
-            </button>
+            </Button>
           </div>
         </div>
         
@@ -61,9 +61,9 @@
           <p>{{ setupInfo.oauth.message }}</p>
           
           <div class="oauth-actions">
-            <button @click="connectOAuth" :disabled="connecting" class="btn btn-success">
+            <Button @click="connectOAuth" :disabled="connecting">
               {{ connecting ? 'Connecting...' : 'Connect with Google' }}
-            </button>
+            </Button>
           </div>
         </div>
         
@@ -130,22 +130,21 @@
       
       <!-- Action Buttons -->
       <div class="button-group">
-        <button
+        <Button
           @click="saveSettings"
           :disabled="saving || (!calendarId && !setupInfo?.oauth?.connected)"
-          class="btn btn-primary"
         >
           {{ saving ? 'Saving...' : 'Save Settings' }}
-        </button>
+        </Button>
         
-        <button
+        <Button
           v-if="!setupInfo?.oauth?.connected"
           @click="handleTestConnection"
           :disabled="testing || !calendarId"
-          class="btn btn-secondary"
+          variant="outline"
         >
           {{ testing ? 'Testing...' : 'Test Connection' }}
-        </button>
+        </Button>
       </div>
     </div>
   </div>
@@ -157,6 +156,7 @@ import { useUserStore } from '../stores/userStore'
 import { useOAuth } from '../composables/useOAuth'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useGoogleCalendar } from '../composables/useGoogleCalendar'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     instructorId: {

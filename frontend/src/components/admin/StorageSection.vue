@@ -126,22 +126,21 @@
 
         <!-- Action Buttons -->
         <div class="button-group">
-          <button 
+          <Button 
             v-if="formData.storage_type === 'spaces'"
             type="button"
             @click="testConnection"
             :disabled="loading"
-            class="btn btn-secondary"
+            variant="outline"
           >
             {{ loading ? 'Testing...' : 'Test Connection' }}
-          </button>
-          <button 
+          </Button>
+          <Button 
             type="submit"
             :disabled="loading"
-            class="btn btn-primary"
           >
             {{ loading ? 'Saving...' : 'Save Configuration' }}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -152,6 +151,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useAdminSettings } from '../../composables/useAdminSettings'
+import { Button } from '@/components/ui/button'
 
 const userStore = useUserStore()
 const {

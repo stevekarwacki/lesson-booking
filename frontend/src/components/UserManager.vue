@@ -14,6 +14,7 @@ import RefundModal from './RefundModal.vue'
 import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
+import { Button } from '@/components/ui/button'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 import Profile from './Profile.vue'
 import { formatAddress } from '../utils/formValidation'
@@ -648,12 +649,11 @@ const formatDate = (dateString) => {
 <template>
     <div class="user-manager card">
         <div class="header-actions">
-            <button 
-                class="form-button"
+            <Button 
                 @click="showAddForm = true"
             >
                 Add New User
-            </button>
+            </Button>
         </div>
 
         <div v-if="error" class="error-message">{{ error }}</div>
@@ -746,19 +746,18 @@ const formatDate = (dateString) => {
                         </div>
 
                         <div class="modal-footer">
-                            <button 
+                            <Button 
                                 type="button"
-                                class="form-button form-button-cancel"
+                                variant="outline"
                                 @click="showAddForm = false"
                             >
                                 Cancel
-                            </button>
-                            <button 
+                            </Button>
+                            <Button 
                                 type="submit"
-                                class="form-button"
                             >
                                 Create User
-                            </button>
+                            </Button>
                         </div>
                     </form>
                 </div>
@@ -783,12 +782,13 @@ const formatDate = (dateString) => {
                         <td v-if="$mq.lgPlus">{{ user.email }}</td>
                         <td v-if="$mq.lgPlus">{{ user.role }}</td>
                         <td class="user-actions">
-                            <button 
-                                class="form-button form-button-edit"
+                            <Button 
+                                variant="secondary"
+                                size="sm"
                                 @click="openEditModal(user)"
                             >
                                 Manage
-                            </button>
+                            </Button>
                         </td>
                     </tr>
                 </tbody>
@@ -854,13 +854,12 @@ const formatDate = (dateString) => {
                                 />
                             </div>
 
-                            <button 
+                            <Button 
                                 type="submit"
                                 :disabled="isCreatingInstructor"
-                                class="form-button"
                             >
                                 {{ isCreatingInstructor ? 'Creating...' : 'Create Instructor Profile' }}
-                            </button>
+                            </Button>
                         </form>
                     </div>
 
@@ -893,12 +892,11 @@ const formatDate = (dateString) => {
                             </div>
 
                             <div class="form-actions">
-                                <button 
+                                <Button 
                                     @click="isEditingInstructor = true"
-                                    class="form-button"
                                 >
                                     Edit Profile
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -935,21 +933,20 @@ const formatDate = (dateString) => {
                                 </div>
 
                                 <div class="form-actions">
-                                    <button 
+                                    <Button 
                                         type="submit"
                                         :disabled="isUpdatingInstructor"
-                                        class="form-button"
                                     >
                                         {{ isUpdatingInstructor ? 'Saving...' : 'Save Changes' }}
-                                    </button>
+                                    </Button>
                                     
-                                    <button 
+                                    <Button 
                                         type="button"
+                                        variant="outline"
                                         @click="isEditingInstructor = false"
-                                        class="form-button form-button-cancel"
                                     >
                                         Cancel
-                                    </button>
+                                    </Button>
                                 </div>
                             </form>
                         </div>
@@ -1070,35 +1067,33 @@ const formatDate = (dateString) => {
                         </div>
                         
                         <div class="subscription-actions">
-                            <button 
+                            <Button 
                                 v-if="!userSubscription.cancel_at_period_end && (userSubscription.status === 'active' || userSubscription.status === 'trialing')"
                                 type="button"
-                                class="form-button form-button-cancel"
+                                variant="outline"
                                 @click="handleCancelSubscription"
                                 :disabled="isCancellingSubscription"
                             >
                                 {{ isCancellingSubscription ? 'Cancelling...' : 'Cancel Subscription' }}
-                            </button>
+                            </Button>
                             
-                            <button 
+                            <Button 
                                 v-if="userSubscription.cancel_at_period_end"
                                 type="button"
-                                class="form-button"
                                 @click="handleReactivateSubscription"
                                 :disabled="isReactivatingSubscription"
                             >
                                 {{ isReactivatingSubscription ? 'Reactivating...' : 'Reactivate Subscription' }}
-                            </button>
+                            </Button>
                             
-                            <button 
+                            <Button 
                                 v-if="userSubscription.status === 'cancelled' || userSubscription.status === 'canceled'"
                                 type="button"
-                                class="form-button"
                                 @click="handleOpenCreateSubscription"
                                 :disabled="isLoadingPlans"
                             >
                                 {{ isLoadingPlans ? 'Loading...' : 'Create New Subscription' }}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                     
@@ -1106,14 +1101,13 @@ const formatDate = (dateString) => {
                         <p>This user does not have a membership.</p>
                         
                         <div class="subscription-actions">
-                            <button 
+                            <Button 
                                 type="button"
-                                class="form-button"
                                 @click="handleOpenCreateSubscription"
                                 :disabled="isLoadingPlans"
                             >
                                 {{ isLoadingPlans ? 'Loading...' : 'Create Subscription' }}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -1142,13 +1136,13 @@ const formatDate = (dateString) => {
                                     >
                                     <span>Grant account access</span>
                                 </label>
-                                <button 
+                                <Button 
+                                    size="sm"
                                     @click="saveUserEdit"
                                     :disabled="isUpdatingUser"
-                                    class="form-button form-button-sm"
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -1206,13 +1200,13 @@ const formatDate = (dateString) => {
                                     <option value="instructor">Instructor</option>
                                     <option value="admin">Admin</option>
                                 </select>
-                                <button 
+                                <Button 
+                                    size="sm"
                                     @click="saveRoleChange"
                                     :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
-                                    class="form-button form-button-sm"
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -1234,13 +1228,13 @@ const formatDate = (dateString) => {
                                     Override the global in-person payment setting for this user. 
                                     "Use Global Setting" means they follow the system-wide preference.
                                 </small>
-                                <button 
+                                <Button 
+                                    size="sm"
                                     @click="saveUserEdit"
                                     :disabled="isUpdatingUser"
-                                    class="form-button form-button-sm"
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -1251,14 +1245,14 @@ const formatDate = (dateString) => {
                             </div>
                             <div class="action-content">
                                 <p class="danger-description">Permanently delete this user and all associated data. This cannot be undone.</p>
-                                <button 
+                                <Button 
                                     type="button"
-                                    class="form-button form-button-danger"
+                                    variant="destructive"
                                     @click="deleteUserFromModal"
                                     :disabled="editingUser?.id === currentUserId"
                                 >
                                     {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User' }}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -1316,20 +1310,19 @@ const formatDate = (dateString) => {
             </div>
             
             <div class="modal-footer">
-                <button 
-                    class="form-button form-button-secondary" 
+                <Button 
+                    variant="outline"
                     @click="closeCreateSubscriptionModal"
                     :disabled="creatingSubscription"
                 >
                     Cancel
-                </button>
-                <button 
-                    class="form-button" 
+                </Button>
+                <Button 
                     @click="handleCreateSubscription"
                     :disabled="isCreatingSubscription || !selectedPlan"
                 >
                     {{ isCreatingSubscription ? 'Creating...' : 'Create Subscription' }}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

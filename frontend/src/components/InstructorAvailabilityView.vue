@@ -2,20 +2,18 @@
     <div class="weekly-schedule-view">
         <div class="schedule-header-container">
             <div class="schedule-controls">
-                <button 
-                    class="btn"
-                    :class="{ 'btn-primary': isEditing }"
+                <Button 
                     @click="toggleEditing"
                 >
                     {{ isEditing ? 'Save Changes' : 'Edit Schedule' }}
-                </button>
-                <button 
+                </Button>
+                <Button 
                     v-if="isEditing"
-                    class="form-button form-button-cancel"
+                    variant="outline"
                     @click="cancelEditing"
                 >
                     Cancel
-                </button>
+                </Button>
             </div>
             <div class="timezone-info">
                 <span class="timezone-label">
@@ -78,6 +76,7 @@ import { ref, computed, watch } from 'vue'
 import { timeToSlot, slotToTime } from '../utils/timeFormatting'
 import { useTimezoneStore } from '../stores/timezoneStore'
 import { useAppSettings } from '../composables/useAppSettings'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     weeklySchedule: {

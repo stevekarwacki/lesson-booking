@@ -138,21 +138,20 @@
             </div>
 
             <div class="modal-footer">
-                <button 
-                    class="form-button form-button-cancel"
+                <Button 
+                    variant="outline"
                     @click="$emit('close')"
                     :disabled="loading"
                 >
                     Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                     v-if="paymentMethod !== 'direct'"
-                    class="form-button" 
                     @click="confirmBooking"
                     :disabled="isConfirmDisabled"
                 >
                     {{ loading ? 'Processing...' : hasTimeConflict ? 'Booking Conflict' : isBookingOnBehalf && !selectedStudent ? 'Select Student' : 'Confirm Booking' }}
-                </button>
+                </Button>
             </div>
         </div>
     </div>
@@ -173,6 +172,7 @@ import { useAppSettings } from '../composables/useAppSettings'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
+import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     slot: {

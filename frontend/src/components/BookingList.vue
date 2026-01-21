@@ -89,44 +89,47 @@
 
             <!-- Payment Status Controls for Instructors -->
             <div v-if="(userRole === 'instructor' || userRole === 'admin') && booking.paymentMethod === 'in-person' && booking.paymentStatus === 'outstanding' && (!booking.refundStatus || booking.refundStatus.status === 'none')" class="payment-controls">
-              <button 
+              <Button 
                 @click="handlePaymentStatusUpdate(booking, 'completed')"
-                class="action-button action-button-success payment-received-btn"
+                size="sm"
                 :disabled="updatingPayment === booking.id"
               >
                 {{ updatingPayment === booking.id ? 'Updating...' : 'Mark as Paid' }}
-              </button>
+              </Button>
             </div>
             
             <!-- Action buttons - always present to maintain consistent layout -->
             <div class="action-buttons">
               <!-- Admin/Instructor actions -->
               <template v-if="userRole === 'admin' || userRole === 'instructor'">
-                <button 
+                <Button 
                   @click="handleViewBooking(booking)"
-                  class="action-button action-button-secondary"
+                  variant="outline"
+                  size="sm"
                 >
                   Reschedule ›
-                </button>
+                </Button>
                 <!-- Refund button for admins and instructors -->
-                <button 
+                <Button 
                   v-if="canRefundBooking(booking)"
                   @click="handleRefundBooking(booking)"
-                  class="action-button action-button-warning"
+                  variant="destructive"
+                  size="sm"
                   title="Process refund for this booking"
                 >
                   Refund
-                </button>
+                </Button>
               </template>
               
               <!-- Student actions -->
               <template v-else-if="userRole === 'student'">
-                <button 
+                <Button 
                   @click="handleViewBooking(booking)"
-                  class="action-button action-button-secondary"
+                  variant="outline"
+                  size="sm"
                 >
                   Reschedule ›
-                </button>
+                </Button>
               </template>
             </div>
           </div>
@@ -138,26 +141,28 @@
         v-if="showPagination" 
         class="pagination-controls"
       >
-        <button 
+        <Button 
           @click="goToPreviousPage"
           :disabled="currentPage === 1"
-          class="pagination-button"
+          variant="outline"
+          size="sm"
         >
           ‹ Previous
-        </button>
+        </Button>
         
         <span class="pagination-info">
           Page {{ currentPage }} of {{ totalPages }}
           ({{ totalBookings }} total)
         </span>
         
-        <button 
+        <Button 
           @click="goToNextPage"
           :disabled="currentPage === totalPages"
-          class="pagination-button"
+          variant="outline"
+          size="sm"
         >
           Next ›
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -181,11 +186,13 @@ import { useCalendar } from '../composables/useCalendar.js'
 import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
 import { useUserStore } from '../stores/userStore'
 import { fromString, filterToday, filterPast, filterFuture, today, createDateHelper } from '../utils/dateHelpers.js'
+import { Button } from '@/components/ui/button'
 
 export default {
   name: 'BookingList',
   components: {
-    FilterTabs
+    FilterTabs,
+    Button
   },
   props: {
     bookings: {

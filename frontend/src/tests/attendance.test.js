@@ -331,8 +331,10 @@ describe('Attendance Tracking Frontend', () => {
         }
       })
 
-      const rescheduleButton = wrapper.find('.action-button-secondary')
-      expect(rescheduleButton.exists()).toBe(true)
+      // Find reschedule button (now using shadcn Button component)
+      const buttons = wrapper.findAll('button')
+      const rescheduleButton = buttons.find(btn => btn.text().includes('Reschedule'))
+      expect(rescheduleButton).toBeDefined()
       expect(rescheduleButton.text()).toContain('Reschedule')
 
       await rescheduleButton.trigger('click')

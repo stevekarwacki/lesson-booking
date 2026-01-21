@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    /* Shadcn CSS Variables */
+    /* Shadcn CSS Variables - Fallback values (overridden dynamically by useTheme) */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 210 29% 24%;  /* Default: #2c3e50 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 29% 24%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 166 60% 49%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 210 29% 24%;
+    --primary: 151 47% 49%;  /* Default: #42b883 (Vue green), updated dynamically */
+    --primary-foreground: 0 0% 100%;  /* White text, calculated dynamically for contrast */
+    --secondary: 210 40% 96.1%;  /* Light gray background */
+    --secondary-foreground: 210 29% 24%;  /* Dark text */
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent-foreground: 210 29% 24%;
+    --destructive: 354 70% 54%;  /* Default: #dc3545, updated dynamically */
+    --destructive-foreground: 0 0% 100%;  /* White text on destructive buttons */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 166 60% 49%;
+    --ring: 151 47% 49%;  /* Focus ring, matches primary, updated dynamically */
     --radius: 0.5rem;
   }
 }
