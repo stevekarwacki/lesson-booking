@@ -15,6 +15,7 @@ import SearchBar from './SearchBar.vue'
 import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 import Profile from './Profile.vue'
 import { formatAddress } from '../utils/formValidation'
@@ -695,74 +696,58 @@ const formatDate = (dateString) => {
         </div>
 
         <!-- Add User Modal -->
-        <div v-if="showAddForm" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Add New User</h3>
-                    <button class="modal-close" @click="showAddForm = false">&times;</button>
+        <Modal
+            v-model:open="showAddForm"
+            title="Add New User"
+            description="Create a new user account with a name, email, password, and role."
+            save-text="Create User"
+            @save="addUser"
+            @cancel="showAddForm = false"
+        >
+            <form @submit.prevent="addUser">
+                <div class="form-group">
+                    <label class="form-label">Name:</label>
+                    <input 
+                        v-model="newUser.name"
+                        type="text"
+                        class="form-input"
+                        required
+                    />
                 </div>
-                <div class="modal-body">
-                    <form @submit.prevent="addUser">
-                        <div class="form-group">
-                            <label class="form-label">Name:</label>
-                            <input 
-                                v-model="newUser.name"
-                                type="text"
-                                class="form-input"
-                                required
-                            />
-                        </div>
 
-                        <div class="form-group">
-                            <label class="form-label">Email:</label>
-                            <input 
-                                v-model="newUser.email"
-                                type="email"
-                                class="form-input"
-                                required
-                            />
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Password:</label>
-                            <input 
-                                v-model="newUser.password"
-                                type="password"
-                                class="form-input"
-                                required
-                            />
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Role:</label>
-                            <select 
-                                v-model="newUser.role"
-                                class="form-input"
-                            >
-                                <option value="student">Student</option>
-                                <option value="instructor">Instructor</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-
-                        <div class="modal-footer">
-                            <Button 
-                                type="button"
-                                variant="outline"
-                                @click="showAddForm = false"
-                            >
-                                Cancel
-                            </Button>
-                            <Button 
-                                type="submit"
-                            >
-                                Create User
-                            </Button>
-                        </div>
-                    </form>
+                <div class="form-group">
+                    <label class="form-label">Email:</label>
+                    <input 
+                        v-model="newUser.email"
+                        type="email"
+                        class="form-input"
+                        required
+                    />
                 </div>
-            </div>
-        </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password:</label>
+                    <input 
+                        v-model="newUser.password"
+                        type="password"
+                        class="form-input"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Role:</label>
+                    <select 
+                        v-model="newUser.role"
+                        class="form-input"
+                    >
+                        <option value="student">Student</option>
+                        <option value="instructor">Instructor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </form>
+        </Modal>
 
         <div v-if="loading" class="loading">Loading users...</div>
 
