@@ -43,12 +43,20 @@ async function fetchPaymentOptions(token) {
 
 /**
  * Composable for managing student data using Vue Query
+ * @param {Ref|Boolean} enabled - Whether to enable student fetching (for permission control)
  * @returns {Object} Student state and methods
  */
-export function useStudents() {
+export function useStudents(enabled = true) {
     const userStore = useUserStore()
     const queryClient = useQueryClient()
     const token = computed(() => userStore.token)
+    
+    // Compute enabled state properly
+    const isEnabled = computed(() => {
+        if (typeof enabled === 'boolean') return enabled && !!token.value
+        if (enabled && enabled.value !== undefined) return enabled.value && !!token.value
+        return !!token.value
+    })
     
     // Query: Fetch all students
     const {
@@ -59,7 +67,7 @@ export function useStudents() {
     } = useQuery({
         queryKey: ['students'],
         queryFn: () => fetchStudents(token.value),
-        enabled: computed(() => !!token.value),
+        enabled: isEnabled,
         staleTime: 5 * 60 * 1000, // 5 minutes (student list changes rarely)
         cacheTime: 30 * 60 * 1000, // 30 minutes
     })

@@ -24,18 +24,19 @@
             <div ref="paymentElement" class="payment-element"></div>
             
             <Button 
+                v-if="!hideButton"
                 type="submit"
                 @click="handleSubmit"
                 :disabled="processing || !stripe || !elements"
             >
-                {{ processing ? 'Processing...' : 'Pay Now' }}
+                {{ processing ? 'Processing...' : buttonText }}
             </Button>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStripe } from '../composables/useStripe'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
@@ -49,13 +50,26 @@ const props = defineProps({
     planId: {
         type: String,
         required: false
+    },
+    buttonText: {
+        type: String,
+        default: 'Pay Now'
+    },
+    hideButton: {
+        type: Boolean,
+        default: false
     }
 })
 
-const emit = defineEmits(['payment-success', 'payment-error'])
+const emit = defineEmits(['payment-success', 'payment-error', 'processing-change'])
 const paymentElement = ref(null)
 const processing = ref(false)
 const paymentSuccess = ref(false)
+
+// Emit processing state changes
+watch(processing, (value) => {
+    emit('processing-change', value)
+})
 
 const { 
     stripe, 
@@ -298,6 +312,12 @@ const handleSubmit = async () => {
         processing.value = false
     }
 }
+
+// Expose handleSubmit so parent can trigger it
+defineExpose({
+    handleSubmit,
+    processing
+})
 </script>
 
 <style scoped>

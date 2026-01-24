@@ -99,20 +99,38 @@
 
     <div v-if="error" class="form-message error-message">{{ error }}</div>
 
-    <BookingModal
-        v-if="showBookingModal"
-        :slot="selectedSlot"
-        @close="showBookingModal = false"
-        @booking-confirmed="handleBookingConfirmed"
-    />
+    <!-- Booking Modal -->
+    <Modal
+        v-model:open="showBookingModal"
+        :title="selectedSlot?.bookingOnBehalf ? 'Book Lesson for Student' : 'Confirm Booking'"
+        @save="handleBookingSave"
+        @cancel="showBookingModal = false"
+    >
+        <Booking
+            v-if="selectedSlot"
+            ref="bookingRef"
+            :slot="selectedSlot"
+            @close="showBookingModal = false"
+            @booking-confirmed="handleBookingConfirmed"
+        />
+    </Modal>
     
-    <EditBookingModal
-        v-if="showEditBookingModal && selectedSlot"
-        :booking="selectedSlot"
-        @close="closeEditBookingModal"
-        @booking-updated="handleBookingUpdated"
-        @booking-cancelled="handleBookingCancelled"
-    />
+    <!-- Edit Booking Modal -->
+    <Modal
+        v-model:open="showEditBookingModal"
+        title="Reschedule Lesson"
+        hide-save
+        hide-cancel
+        @cancel="closeEditBookingModal"
+    >
+        <EditBooking
+            v-if="selectedSlot"
+            :booking="selectedSlot"
+            @close="closeEditBookingModal"
+            @booking-updated="handleBookingUpdated"
+            @booking-cancelled="handleBookingCancelled"
+        />
+    </Modal>
 </template>
 
 <script setup>
@@ -127,8 +145,9 @@ import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import BookingList from './BookingList.vue'
 import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
-import BookingModal from './BookingModal.vue'
-import EditBookingModal from './EditBookingModal.vue'
+import Booking from './Booking.vue'
+import EditBooking from './EditBooking.vue'
+import { Modal } from '@/components/ui/modal'
 import { today } from '../utils/dateHelpers.js'
 import { Button } from '@/components/ui/button'
 
@@ -235,6 +254,14 @@ const handleDateChange = () => {
 const showBookingModal = ref(false)
 const showEditBookingModal = ref(false)
 const selectedSlot = ref(null)
+const bookingRef = ref(null)
+
+const handleBookingSave = () => {
+    // Trigger booking confirmation via the Booking component
+    if (bookingRef.value) {
+        bookingRef.value.handleSaveClick()
+    }
+}
 
 const handleSlotSelected = (slot) => {
     // Handle available slot clicks

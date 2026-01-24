@@ -17,13 +17,22 @@
             />
         </div>
 
-        <EditBookingModal
-            v-if="showEditModal"
-            :booking="selectedBooking"
-            @close="closeEditModal"
-            @booking-updated="handleBookingUpdated"
-            @booking-cancelled="handleBookingCancelled"
-        />
+        <!-- Edit Booking Modal -->
+        <Modal
+            v-model:open="showEditModal"
+            title="Reschedule Lesson"
+            hide-save
+            hide-cancel
+            @cancel="closeEditModal"
+        >
+            <EditBooking
+                v-if="selectedBooking"
+                :booking="selectedBooking"
+                @close="closeEditModal"
+                @booking-updated="handleBookingUpdated"
+                @booking-cancelled="handleBookingCancelled"
+            />
+        </Modal>
 
         <RefundModal
             v-if="showRefundModal"
@@ -40,8 +49,9 @@ import { useUserStore } from '../stores/userStore'
 import { useUserBookings } from '../composables/useUserBookings'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 import BookingList from './BookingList.vue'
-import EditBookingModal from './EditBookingModal.vue'
+import EditBooking from './EditBooking.vue'
 import RefundModal from './RefundModal.vue'
+import { Modal } from '@/components/ui/modal'
 import { useMq } from 'vue3-mq'
 
 const userStore = useUserStore()
@@ -49,7 +59,7 @@ const {
     bookings, 
     isLoading: loading,
     error: bookingsError,
-    refetch: refetchBookings
+    refetchBookings
 } = useUserBookings(computed(() => userStore.user?.id))
 
 const error = ref(null)

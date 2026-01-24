@@ -103,7 +103,7 @@
               <!-- Admin/Instructor actions -->
               <template v-if="userRole === 'admin' || userRole === 'instructor'">
                 <Button 
-                  @click="handleViewBooking(booking)"
+                  @click="handleEditBooking(booking)"
                   variant="outline"
                   size="sm"
                 >
@@ -124,7 +124,7 @@
               <!-- Student actions -->
               <template v-else-if="userRole === 'student'">
                 <Button 
-                  @click="handleViewBooking(booking)"
+                  @click="handleEditBooking(booking)"
                   variant="outline"
                   size="sm"
                 >

@@ -1,164 +1,141 @@
 <template>
-    <div class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>{{ isBookingOnBehalf ? 'Book Lesson for Student' : 'Confirm Booking' }}</h2>
-            </div>
-            
-            <div class="modal-body">
-                <!-- Student Selector (only for booking on behalf) -->
-                <div v-if="isBookingOnBehalf" class="student-selector">
-                    <h3>Select Student</h3>
-                    <SearchBar
-                        v-model="studentSearchQuery"
-                        :results="searchResults"
-                        :show-results="showStudentResults"
-                        :min-chars="1"
-                        placeholder="Search for a student..."
-                        @select="handleStudentSelect"
-                        @focus="showStudentResults = true"
-                        @blur="handleSearchBlur"
+    <!-- Student Selector (only for booking on behalf) -->
+    <div v-if="isBookingOnBehalf" class="student-selector">
+        <h3>Select Student</h3>
+        <SearchBar
+            v-model="studentSearchQuery"
+            :results="searchResults"
+            :show-results="showStudentResults"
+            :min-chars="1"
+            placeholder="Search for a student..."
+            @select="handleStudentSelect"
+            @focus="showStudentResults = true"
+            @blur="handleSearchBlur"
+        >
+            <template #result="{ result }">
+                <div class="result-content">
+                    <div class="result-primary">{{ result.name }}</div>
+                    <div class="result-secondary">{{ result.email }}</div>
+                </div>
+            </template>
+        </SearchBar>
+        <div v-if="selectedStudent" class="selected-student">
+            <strong>Selected:</strong> {{ selectedStudent.name }} ({{ selectedStudent.email }})
+        </div>
+        <div v-if="!selectedStudent && error" class="form-message error-message">
+            Please select a student before booking.
+        </div>
+    </div>
+
+    <div class="booking-details">
+        <p>Date: {{ currentSlot.date.toISOString().split('T')[0] }}</p>
+        <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ displayEndTime }}</p>
+    </div>
+
+    <div class="duration-selection">
+        <h3>Lesson Duration</h3>
+        <div class="form-group">
+            <div class="form-input-group">
+                <div class="form-radio-group">
+                    <input 
+                        type="radio" 
+                        id="duration30" 
+                        v-model="selectedDuration" 
+                        value="30"
+                        class="form-input"
                     >
-                        <template #result="{ result }">
-                            <div class="result-content">
-                                <div class="result-primary">{{ result.name }}</div>
-                                <div class="result-secondary">{{ result.email }}</div>
-                            </div>
-                        </template>
-                    </SearchBar>
-                    <div v-if="selectedStudent" class="selected-student">
-                        <strong>Selected:</strong> {{ selectedStudent.name }} ({{ selectedStudent.email }})
-                    </div>
-                    <div v-if="!selectedStudent && error" class="form-message error-message">
-                        Please select a student before booking.
-                    </div>
+                    <label for="duration30" class="form-radio-label">
+                        30 minutes
+                    </label>
                 </div>
-
-                <div class="booking-details">
-                    <p>Date: {{ currentSlot.date.toISOString().split('T')[0] }}</p>
-                    <p>Time: {{ slotToTime(currentSlot.startSlot) }} - {{ displayEndTime }}</p>
+                <div class="form-radio-group">
+                    <input 
+                        type="radio" 
+                        id="duration60" 
+                        v-model="selectedDuration" 
+                        value="60"
+                        class="form-input"
+                    >
+                    <label for="duration60" class="form-radio-label">
+                        60 minutes
+                    </label>
                 </div>
-
-                <div class="duration-selection">
-                    <h3>Lesson Duration</h3>
-                    <div class="form-group">
-                        <div class="form-input-group">
-                            <div class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="duration30" 
-                                    v-model="selectedDuration" 
-                                    value="30"
-                                    class="form-input"
-                                >
-                                <label for="duration30" class="form-radio-label">
-                                    30 minutes
-                                </label>
-                            </div>
-                            <div class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="duration60" 
-                                    v-model="selectedDuration" 
-                                    value="60"
-                                    class="form-input"
-                                >
-                                <label for="duration60" class="form-radio-label">
-                                    60 minutes
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="booking-options">
-                    <h3>Single Lesson</h3>
-                    <p>{{ selectedDuration }} minutes - ${{ lessonPrice }}</p>
-                </div>
-
-                <!-- Conflict Warning -->
-                <div v-if="hasTimeConflict" class="conflict-warning">
-                    <h3>Time Conflict</h3>
-                    <p>{{ conflictMessage }}</p>
-                    <p><strong>Please select a different time or choose 30 minutes instead.</strong></p>
-                </div>
-
-                <div v-if="showPaymentOptions && !hasTimeConflict && (!isBookingOnBehalf || selectedStudent)" class="payment-options">
-                    <h3>Payment Method</h3>
-                    <div class="form-group">
-                        <div class="form-input-group">
-                            <div v-if="availableCredits > 0" class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="useCredits" 
-                                    v-model="paymentMethod" 
-                                    value="credits"
-                                    class="form-input"
-                                >
-                                <label for="useCredits" class="form-radio-label">
-                                    Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
-                                </label>
-                            </div>
-                            <div v-if="showCardPaymentOption" class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="payNow" 
-                                    v-model="paymentMethod" 
-                                    value="direct"
-                                    class="form-input"
-                                >
-                                <label for="payNow" class="form-radio-label">Pay Now (${{ lessonPrice }})</label>
-                            </div>
-                            <div v-if="canUseInPersonPayment" class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="payInPerson" 
-                                    v-model="paymentMethod" 
-                                    value="in-person"
-                                    class="form-input"
-                                >
-                                <label for="payInPerson" class="form-radio-label">Pay In-Person (${{ lessonPrice }})</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Stripe Payment Form -->
-                    <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
-                        <StripePaymentForm
-                            :amount="lessonPrice"
-                            @payment-success="handleStripeSuccess"
-                            @payment-error="handleStripeError"
-                        />
-                    </div>
-                </div>
-
-                <div v-if="error" class="form-message error-message">
-                    {{ error }}
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <Button 
-                    variant="outline"
-                    @click="$emit('close')"
-                    :disabled="loading"
-                >
-                    Cancel
-                </Button>
-                <Button 
-                    v-if="paymentMethod !== 'direct'"
-                    @click="confirmBooking"
-                    :disabled="isConfirmDisabled"
-                >
-                    {{ loading ? 'Processing...' : hasTimeConflict ? 'Booking Conflict' : isBookingOnBehalf && !selectedStudent ? 'Select Student' : 'Confirm Booking' }}
-                </Button>
             </div>
         </div>
+    </div>
+
+    <div class="booking-options">
+        <h3>Single Lesson</h3>
+        <p>{{ selectedDuration }} minutes - ${{ lessonPrice }}</p>
+    </div>
+
+    <!-- Conflict Warning -->
+    <div v-if="hasTimeConflict" class="conflict-warning">
+        <h3>Time Conflict</h3>
+        <p>{{ conflictMessage }}</p>
+        <p><strong>Please select a different time or choose 30 minutes instead.</strong></p>
+    </div>
+
+    <div v-if="showPaymentOptions && !hasTimeConflict && (!isBookingOnBehalf || selectedStudent)" class="payment-options">
+        <h3>Payment Method</h3>
+        <div class="form-group">
+            <div class="form-input-group">
+                <div v-if="availableCredits > 0" class="form-radio-group">
+                    <input 
+                        type="radio" 
+                        id="useCredits" 
+                        v-model="paymentMethod" 
+                        value="credits"
+                        class="form-input"
+                    >
+                    <label for="useCredits" class="form-radio-label">
+                        Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
+                    </label>
+                </div>
+                <div v-if="showCardPaymentOption" class="form-radio-group">
+                    <input 
+                        type="radio" 
+                        id="payNow" 
+                        v-model="paymentMethod" 
+                        value="direct"
+                        class="form-input"
+                    >
+                    <label for="payNow" class="form-radio-label">Pay Now (${{ lessonPrice }})</label>
+                </div>
+                <div v-if="canUseInPersonPayment" class="form-radio-group">
+                    <input 
+                        type="radio" 
+                        id="payInPerson" 
+                        v-model="paymentMethod" 
+                        value="in-person"
+                        class="form-input"
+                    >
+                    <label for="payInPerson" class="form-radio-label">Pay In-Person (${{ lessonPrice }})</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stripe Payment Form -->
+        <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
+            <StripePaymentForm
+                ref="stripeFormRef"
+                :amount="lessonPrice"
+                button-text="Pay and Confirm Booking"
+                :hide-button="!!actionControl"
+                @payment-success="handleStripeSuccess"
+                @payment-error="handleStripeError"
+                @processing-change="handleStripeProcessing"
+            />
+        </div>
+    </div>
+
+    <div v-if="error" class="form-message error-message">
+        {{ error }}
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, inject } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useUserStore } from '../stores/userStore'
 import { useTimezoneStore } from '../stores/timezoneStore'
@@ -172,7 +149,6 @@ import { useAppSettings } from '../composables/useAppSettings'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
-import { Button } from '@/components/ui/button'
 
 const props = defineProps({
     slot: {
@@ -187,6 +163,12 @@ const queryClient = useQueryClient()
 const userStore = useUserStore()
 const timezoneStore = useTimezoneStore()
 const { showSuccess, showError } = useFormFeedback()
+
+// Optional action control from parent (e.g., Modal component)
+const actionControl = inject('actionControl', null)
+
+// Ref to Stripe form for triggering payment
+const stripeFormRef = ref(null)
 
 // Use credits composable for credit state management (current user)
 const { 
@@ -209,14 +191,16 @@ const {
     isLoadingInstructor
 } = useInstructor(computed(() => currentSlot.value?.instructorId))
 
-// Use students composable for student list and payment options
+// Use students composable for student list and payment options (only for booking on behalf)
+// For regular users, we only need payment options
+const shouldFetchStudents = computed(() => props.slot.bookingOnBehalf === true)
 const {
     students: allStudents,
     canUseInPersonPayment,
     cardPaymentOnBehalfEnabled,
     isLoadingStudents,
     isLoadingPaymentOptions
-} = useStudents()
+} = useStudents(shouldFetchStudents)
 
 // Use app settings for lesson defaults
 const { defaultLessonDuration } = useAppSettings()
@@ -401,6 +385,14 @@ const isConfirmDisabled = computed(() => {
     return false
 })
 
+// Computed property for save button text
+const getSaveButtonText = computed(() => {
+    if (loading.value) return 'Processing...'
+    if (hasTimeConflict.value) return 'Booking Conflict'
+    if (isBookingOnBehalf.value && !selectedStudent.value) return 'Select Student'
+    return 'Confirm Booking'
+})
+
 // Fetch all students for booking on behalf
 // Student list is now fetched via useStudents composable
 
@@ -439,6 +431,38 @@ watch(selectedDuration, async () => {
 
 // Instructor rate is now fetched via useInstructor composable
 // Payment options are now fetched via useStudents composable
+
+// Watch loading state and update action control
+watch(loading, (isLoading) => {
+    if (actionControl) {
+        actionControl.setSaveLoading(isLoading)
+        // Disable cancel button during loading
+        // Note: We'll need to add a method for this if needed
+    }
+})
+
+// Watch payment method to hide/show save button and update text
+watch(paymentMethod, (method) => {
+    if (actionControl) {
+        if (method === 'direct') {
+            // Show the save button for Stripe, but with different text
+            actionControl.showSave()
+            actionControl.setSaveText('Pay and Confirm Booking')
+        } else {
+            // Show the modal's save button for other payment methods
+            actionControl.showSave()
+            actionControl.setSaveText(getSaveButtonText.value)
+        }
+    }
+})
+
+// Watch conflict and student selection state to update button text and disabled state
+watch([hasTimeConflict, () => selectedStudent.value, isBookingOnBehalf], () => {
+    if (actionControl) {
+        actionControl.setSaveDisabled(isConfirmDisabled.value)
+        actionControl.setSaveText(getSaveButtonText.value)
+    }
+})
 
 // Fetch user credits and instructor rate when modal opens
 onMounted(async () => {
@@ -490,6 +514,15 @@ onMounted(async () => {
     
     // Check for conflicts on initial load
     await checkTimeConflicts()
+    
+    // Initialize action control if available
+    if (actionControl) {
+        actionControl.setSaveDisabled(isConfirmDisabled.value)
+        const initialText = paymentMethod.value === 'direct' 
+            ? 'Pay and Confirm Booking' 
+            : getSaveButtonText.value
+        actionControl.setSaveText(initialText)
+    }
 })
 
 const handleStripeSuccess = async () => {
@@ -511,6 +544,29 @@ const handleStripeSuccess = async () => {
 const handleStripeError = (err) => {
     error.value = err.message || 'Payment failed'
     console.error('Stripe payment error:', err)
+}
+
+const handleStripeProcessing = (isProcessing) => {
+    if (actionControl) {
+        if (isProcessing) {
+            actionControl.setSaveDisabled(true)
+            actionControl.setSaveText('Processing Payment...')
+        } else {
+            actionControl.setSaveDisabled(isConfirmDisabled.value)
+            actionControl.setSaveText('Pay and Confirm Booking')
+        }
+    }
+}
+
+// Handle save button click when using Stripe
+const handleSaveClick = async () => {
+    if (paymentMethod.value === 'direct' && stripeFormRef.value) {
+        // Trigger Stripe payment
+        await stripeFormRef.value.handleSubmit()
+    } else {
+        // Regular booking confirmation
+        await confirmBooking()
+    }
 }
 
 const confirmBooking = async () => {
@@ -625,6 +681,15 @@ const confirmBooking = async () => {
 watch(() => props.slot, (newSlot) => {
     currentSlot.value = newSlot
 }, { immediate: true })
+
+// Expose confirmBooking and handleSaveClick so parent can call it
+defineExpose({
+    confirmBooking,
+    handleSaveClick,
+    isConfirmDisabled,
+    getSaveButtonText,
+    loading
+})
 </script>
 
 <style scoped>
@@ -736,18 +801,4 @@ watch(() => props.slot, (newSlot) => {
 .conflict-warning p {
     margin: var(--spacing-sm) 0 0 0;
 }
-
-.modal-footer {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-sm);
-    justify-content: flex-end;
-}
-
-/* Remove old button styles since we're using form-button classes */
-.modal-button,
-.modal-button-secondary,
-.modal-button-primary {
-    display: none;
-}
-</style> 
+</style>

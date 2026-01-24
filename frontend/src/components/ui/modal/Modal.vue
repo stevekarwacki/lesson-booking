@@ -49,7 +49,7 @@ watch(() => props.hideSave, (val) => { internalSaveHidden.value = val })
 watch(() => props.saveLoading, (val) => { internalSaveLoading.value = val })
 
 // Provide control interface for child components
-const modalControl = {
+const actionControl = {
   setSaveDisabled: (disabled) => { internalSaveDisabled.value = disabled },
   setSaveText: (text) => { internalSaveText.value = text },
   setSaveLoading: (loading) => { internalSaveLoading.value = loading },
@@ -57,7 +57,7 @@ const modalControl = {
   showSave: () => { internalSaveHidden.value = false },
   close: () => handleClose()
 }
-provide('modalControl', modalControl)
+provide('actionControl', actionControl)
 
 // Computed values for button state
 const finalSaveDisabled = computed(() => internalSaveDisabled.value || internalSaveLoading.value)
@@ -90,7 +90,7 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="handleClose">
+  <Dialog :open="open" @update:open="(val) => { emit('update:open', val); if (!val) emit('close'); }">
     <DialogContent :class="sizeClasses[size]">
       <!-- Header (title and description) -->
       <DialogHeader v-if="!hideHeader && (title || description || $slots.header)">

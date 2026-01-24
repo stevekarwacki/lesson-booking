@@ -57,13 +57,21 @@
         />
 
         <!-- Edit Booking Modal -->
-        <EditBookingModal
-            v-if="showEditModal"
-            :booking="selectedBooking"
-            @close="closeEditModal"
-            @booking-updated="handleBookingUpdated"
-            @booking-cancelled="handleBookingCancelled"
-        />
+        <Modal
+            v-model:open="showEditModal"
+            title="Reschedule Lesson"
+            hide-save
+            hide-cancel
+            @cancel="closeEditModal"
+        >
+            <EditBooking
+                v-if="selectedBooking"
+                :booking="selectedBooking"
+                @close="closeEditModal"
+                @booking-updated="handleBookingUpdated"
+                @booking-cancelled="handleBookingCancelled"
+            />
+        </Modal>
 
         <!-- Refund Modal -->
         <RefundModal
@@ -78,9 +86,10 @@
 <script setup>
 import InstructorCalendar from '../components/InstructorCalendar.vue'
 import BookingList from '../components/BookingList.vue'
-import EditBookingModal from '../components/EditBookingModal.vue'
+import EditBooking from '../components/EditBooking.vue'
 import RefundModal from '../components/RefundModal.vue'
 import SearchBar from '../components/SearchBar.vue'
+import { Modal } from '@/components/ui/modal'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
