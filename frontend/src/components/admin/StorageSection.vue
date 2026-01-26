@@ -41,7 +41,7 @@
       <form @submit.prevent="testAndSaveConfiguration" class="storage-form">
         <!-- Storage Type Selection -->
         <div class="form-group">
-          <label for="storage-type">Storage Type</label>
+          <Label for="storage-type">Storage Type</Label>
           <select 
             id="storage-type"
             v-model="formData.storage_type"
@@ -60,53 +60,49 @@
         <!-- Spaces Configuration (conditional) -->
         <div v-if="formData.storage_type === 'spaces'" class="spaces-config">
           <div class="form-group">
-            <label for="storage-endpoint">Spaces Endpoint</label>
-            <input 
+            <Label for="storage-endpoint">Spaces Endpoint</Label>
+            <Input 
               id="storage-endpoint"
               v-model="formData.storage_endpoint"
               type="text"
               placeholder="nyc3.digitaloceanspaces.com"
               :disabled="loading"
-              class="form-control"
             />
             <small class="form-text">Example: nyc3.digitaloceanspaces.com</small>
           </div>
 
           <div class="form-group">
-            <label for="storage-region">Region</label>
-            <input 
+            <Label for="storage-region">Region</Label>
+            <Input 
               id="storage-region"
               v-model="formData.storage_region"
               type="text"
               placeholder="nyc3"
               :disabled="loading"
-              class="form-control"
             />
             <small class="form-text">Example: nyc3, sfo3, etc.</small>
           </div>
 
           <div class="form-group">
-            <label for="storage-bucket">Bucket Name</label>
-            <input 
+            <Label for="storage-bucket">Bucket Name</Label>
+            <Input 
               id="storage-bucket"
               v-model="formData.storage_bucket"
               type="text"
               placeholder="my-app-media"
               :disabled="loading"
-              class="form-control"
             />
             <small class="form-text">Bucket must exist in Spaces</small>
           </div>
 
           <div class="form-group">
-            <label for="storage-cdn-url">CDN URL (Optional)</label>
-            <input 
+            <Label for="storage-cdn-url">CDN URL (Optional)</Label>
+            <Input 
               id="storage-cdn-url"
               v-model="formData.storage_cdn_url"
               type="text"
               placeholder="https://cdn.example.com"
               :disabled="loading"
-              class="form-control"
             />
             <small class="form-text">Optional: Use CDN URL for faster delivery</small>
           </div>
@@ -137,6 +133,7 @@
           </Button>
           <Button 
             type="submit"
+            variant="default"
             :disabled="loading"
           >
             {{ loading ? 'Saving...' : 'Save Configuration' }}
@@ -152,6 +149,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useAdminSettings } from '../../composables/useAdminSettings'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const userStore = useUserStore()
 const {
@@ -239,7 +238,6 @@ const testAndSaveConfiguration = async () => {
 
 .section-header {
   margin-bottom: var(--spacing-xl, 30px);
-  text-align: center;
 }
 
 .section-header h2 {
@@ -252,8 +250,8 @@ const testAndSaveConfiguration = async () => {
 .section-description {
   color: var(--text-secondary, #666);
   font-size: var(--font-size-base, 14px);
-  margin-top: 4px;
-  line-height: 1.5;
+  margin: 0;
+  line-height: 1.6;
 }
 
 .config-display {

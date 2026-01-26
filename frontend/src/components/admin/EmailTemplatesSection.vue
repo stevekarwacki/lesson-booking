@@ -47,6 +47,7 @@
           <div class="template-actions">
             <Button 
               @click="editTemplate(template)" 
+              variant="default"
               :disabled="loading"
             >
               Edit Template
@@ -74,12 +75,17 @@
       <!-- Active editor: Show template editor -->
       <div v-else class="template-editor">
         <div class="editor-header">
-          <h3>
-            <button @click="closeEditor" class="back-button" aria-label="Back to list">
+          <div class="editor-title">
+            <Button 
+              @click="closeEditor" 
+              variant="ghost" 
+              size="sm"
+              class="back-button"
+            >
               ← Back
-            </button>
-            Editing: {{ activeTemplate.name }}
-          </h3>
+            </Button>
+            <h3>Editing: {{ activeTemplate.name }}</h3>
+          </div>
           <div class="editor-actions">
             <Button 
               @click="testTemplate(activeTemplate)" 
@@ -90,7 +96,8 @@
               {{ testingTemplate === activeTemplate.template_key ? 'Sending...' : 'Test Send' }}
             </Button>
             <Button 
-              @click="saveTemplate" 
+              @click="saveTemplate"
+              variant="default"
               :disabled="loading || !hasUnsavedChanges"
             >
               <span v-if="saving" class="loading-spinner small"></span>
@@ -103,7 +110,7 @@
           <div class="editor-main">
             <!-- Subject Line Editor -->
             <div class="form-group">
-              <label for="subject-editor" class="form-label">
+              <Label for="subject-editor">
                 Subject Line
                 <button 
                   @click="showVariables = !showVariables" 
@@ -113,7 +120,7 @@
                 >
                   {{ showVariables ? '▼' : '▶' }} Variables
                 </button>
-              </label>
+              </Label>
               <textarea
                 id="subject-editor"
                 v-model="editingSubject"
@@ -126,9 +133,9 @@
             
             <!-- Body Content Editor -->
             <div class="form-group">
-              <label for="body-editor" class="form-label">
+              <Label for="body-editor">
                 Email Body Content
-              </label>
+              </Label>
               <textarea
                 id="body-editor"
                 v-model="editingBody"
@@ -177,9 +184,14 @@ import { useUserStore } from '../../stores/userStore'
 import { useEmailTemplates } from '../../composables/useEmailTemplates'
 import { useFormFeedback } from '../../composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 export default {
   name: 'EmailTemplatesSection',
+  components: {
+    Button,
+    Label
+  },
   props: {
     initialData: {
       type: Object,
@@ -405,7 +417,6 @@ export default {
 
 .section-header {
   margin-bottom: var(--spacing-xl);
-  text-align: center;
 }
 
 .section-header h2 {
@@ -420,9 +431,6 @@ export default {
   font-size: var(--font-size-base);
   line-height: 1.6;
   margin: 0;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* Loading State */
@@ -592,6 +600,14 @@ export default {
   display: flex;
   gap: var(--spacing-sm);
   flex-wrap: wrap;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.template-actions button {
+  flex: 1;
+  min-width: 120px;
 }
 
 /* Template Editor */
@@ -612,30 +628,18 @@ export default {
   gap: var(--spacing-md);
 }
 
-.editor-header h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  margin: 0;
+.editor-title {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   flex: 1;
 }
 
-.back-button {
-  background: none;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  font-size: var(--font-size-base);
-  padding: var(--spacing-xs);
-  border-radius: var(--border-radius-sm);
-  transition: background var(--transition-normal);
-}
-
-.back-button:hover {
-  background: var(--background-hover);
+.editor-title h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
 }
 
 .editor-actions {
@@ -868,8 +872,18 @@ export default {
     align-items: stretch;
   }
   
+  .editor-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
   .editor-actions {
-    justify-content: flex-end;
+    width: 100%;
+    flex-direction: column;
+  }
+  
+  .editor-actions button {
+    width: 100%;
   }
 }
 
@@ -898,12 +912,12 @@ export default {
     flex-direction: column;
   }
   
-  .editor-header h3 {
-    font-size: var(--font-size-base);
+  .template-actions button {
+    width: 100%;
   }
   
-  .editor-actions {
-    flex-direction: column;
+  .editor-title h3 {
+    font-size: var(--font-size-base);
   }
   
   .variables-sidebar {

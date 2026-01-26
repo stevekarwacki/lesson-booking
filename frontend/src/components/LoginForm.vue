@@ -4,6 +4,8 @@ import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -66,27 +68,25 @@ const handleSubmit = async () => {
 
         <form @submit.prevent="handleSubmit">
             <div class="form-group">
-                <label for="email" class="form-label">Email</label>
-                <input 
+                <Label for="email">Email</Label>
+                <Input 
                     id="email"
                     v-model="email"
                     type="email"
                     placeholder="Enter your email"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <div class="form-group">
-                <label for="password" class="form-label">Password</label>
-                <input 
+                <Label for="password">Password</Label>
+                <Input 
                     id="password"
                     v-model="password"
                     type="password"
                     placeholder="Enter your password"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <Button type="submit" class="w-full">Login</Button>

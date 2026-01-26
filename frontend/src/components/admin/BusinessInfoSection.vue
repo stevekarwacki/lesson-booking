@@ -8,17 +8,16 @@
     </div>
     
     <form @submit.prevent="saveBusinessInfo" class="business-form">
-      <div class="form-grid">
+      <div class="form-grid-2col">
         <!-- Company Name -->
-        <div class="form-group full-width">
-          <label for="companyName" class="form-label">
+        <div class="form-item">
+          <Label for="companyName">
             Company Name <span class="required">*</span>
-          </label>
-          <input
+          </Label>
+          <Input
             id="companyName"
             v-model="formData.companyName"
             type="text"
-            class="form-input"
             :class="{ error: errors.companyName }"
             placeholder="Enter your company name"
             required
@@ -29,16 +28,33 @@
           </span>
         </div>
         
+        <!-- Base URL -->
+        <div class="form-item">
+          <Label for="website">
+            Base URL
+          </Label>
+          <Input
+            id="website"
+            v-model="formData.website"
+            type="url"
+            :class="{ error: errors.website }"
+            placeholder="https://www.company.com"
+            :disabled="loading"
+          />
+          <span v-if="errors.website" class="error-message">
+            {{ errors.website }}
+          </span>
+        </div>
+        
         <!-- Contact Email -->
-        <div class="form-group">
-          <label for="contactEmail" class="form-label">
+        <div class="form-item">
+          <Label for="contactEmail">
             Contact Email <span class="required">*</span>
-          </label>
-          <input
+          </Label>
+          <Input
             id="contactEmail"
             v-model="formData.contactEmail"
             type="email"
-            class="form-input"
             :class="{ error: errors.contactEmail }"
             placeholder="contact@company.com"
             required
@@ -50,15 +66,14 @@
         </div>
         
         <!-- Phone Number -->
-        <div class="form-group">
-          <label for="phoneNumber" class="form-label">
+        <div class="form-item">
+          <Label for="phoneNumber">
             Phone Number
-          </label>
-          <input
+          </Label>
+          <Input
             id="phoneNumber"
             v-model="formData.phoneNumber"
             type="tel"
-            class="form-input"
             :class="{ error: errors.phoneNumber }"
             placeholder="+1 (555) 123-4567"
             :disabled="loading"
@@ -68,35 +83,15 @@
           </span>
         </div>
         
-        <!-- Base URL -->
-        <div class="form-group">
-          <label for="website" class="form-label">
-            Base URL
-          </label>
-          <input
-            id="website"
-            v-model="formData.website"
-            type="url"
-            class="form-input"
-            :class="{ error: errors.website }"
-            placeholder="https://www.company.com"
-            :disabled="loading"
-          />
-          <span v-if="errors.website" class="error-message">
-            {{ errors.website }}
-          </span>
-        </div>
-        
         <!-- Business Address -->
-        <div class="form-group">
-          <label for="address" class="form-label">
+        <div class="form-item-full">
+          <Label for="address">
             Business Address
-          </label>
-          <input
+          </Label>
+          <Input
             id="address"
             v-model="formData.address"
             type="text"
-            class="form-input"
             :class="{ error: errors.address }"
             placeholder="123 Main Street, City, State 12345"
             :disabled="loading"
@@ -107,10 +102,10 @@
         </div>
         
         <!-- Business Timezone -->
-        <div class="form-group">
-          <label for="timezone" class="form-label">
+        <div class="form-item-full">
+          <Label for="timezone">
             Business Timezone <span class="required">*</span>
-          </label>
+          </Label>
           <select
             id="timezone"
             v-model="formData.timezone"
@@ -147,70 +142,65 @@
         
         <div class="social-grid">
           <div class="form-group">
-            <label for="facebook" class="form-label">
+            <Label for="facebook">
               Facebook
-            </label>
-            <input
+            </Label>
+            <Input
               id="facebook"
               v-model="formData.socialMedia.facebook"
               type="url"
-              class="form-input"
               placeholder="https://facebook.com/yourcompany"
               :disabled="loading"
             />
           </div>
           
           <div class="form-group">
-            <label for="twitter" class="form-label">
+            <Label for="twitter">
               Twitter
-            </label>
-            <input
+            </Label>
+            <Input
               id="twitter"
               v-model="formData.socialMedia.twitter"
               type="url"
-              class="form-input"
               placeholder="https://twitter.com/yourcompany"
               :disabled="loading"
             />
           </div>
           
           <div class="form-group">
-            <label for="instagram" class="form-label">
+            <Label for="instagram">
               Instagram
-            </label>
-            <input
+            </Label>
+            <Input
               id="instagram"
               v-model="formData.socialMedia.instagram"
               type="url"
-              class="form-input"
               placeholder="https://instagram.com/yourcompany"
               :disabled="loading"
             />
           </div>
           
           <div class="form-group">
-            <label for="linkedin" class="form-label">
+            <Label for="linkedin">
               LinkedIn
-            </label>
-            <input
+            </Label>
+            <Input
               id="linkedin"
               v-model="formData.socialMedia.linkedin"
               type="url"
-              class="form-input"
               placeholder="https://linkedin.com/company/yourcompany"
               :disabled="loading"
             />
           </div>
           
           <div class="form-group">
-            <label for="youtube" class="form-label">
+            <Label for="youtube">
               YouTube
-            </label>
-            <input
+            </Label>
+            <Input
               id="youtube"
               v-model="formData.socialMedia.youtube"
               type="url"
-              class="form-input"
               placeholder="https://youtube.com/yourchannel"
               :disabled="loading"
             />
@@ -286,6 +276,8 @@
 <script>
 import { ref, computed, watch, reactive } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export default {
   name: 'BusinessInfoSection',
@@ -544,7 +536,6 @@ export default {
 
 .section-header {
   margin-bottom: var(--spacing-xl);
-  text-align: center;
 }
 
 .section-header h2 {
@@ -559,9 +550,6 @@ export default {
   font-size: var(--font-size-base);
   line-height: 1.6;
   margin: 0;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .business-form {
@@ -569,88 +557,8 @@ export default {
   margin: 0 auto;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg) var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
-  align-items: start;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  min-height: 80px;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-  min-height: auto;
-}
-
-.form-label {
-  font-weight: 500;
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
 .required {
   color: var(--error-color);
-}
-
-
-.form-input,
-.form-textarea {
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-base);
-  transition: border-color var(--transition-normal);
-  font-family: var(--font-family);
-  min-height: 44px;
-  flex: 1;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
-}
-
-.form-input.error,
-.form-textarea.error {
-  border-color: var(--error-color);
-}
-
-.form-input:disabled,
-.form-textarea:disabled {
-  background: var(--background-hover);
-  opacity: 0.6;
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 100px;
-  line-height: 1.5;
-}
-
-
-.error-message {
-  color: var(--error-color);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
-}
-
-.field-help {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
-  line-height: 1.4;
 }
 
 /* Social Media Section */
@@ -840,13 +748,7 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
-  }
-  
   .social-grid {
     grid-template-columns: 1fr;
   }
@@ -858,7 +760,7 @@ export default {
   }
   
   .time-inputs {
-    justify-content: center;
+    justify-content: flex-start;
   }
   
   .section-actions {

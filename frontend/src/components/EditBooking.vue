@@ -31,16 +31,14 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="date-select" class="form-label">Select a date:</label>
-                <input 
-                    type="date" 
-                    id="date-select"
+            <div class="form-group-inline">
+                <Label for="date-select">Select a date:</Label>
+                <DatePicker
                     v-model="selectedDate"
-                    :min="today"
-                    @change="handleDateChange"
-                    class="form-input"
-                >
+                    :min-value="today"
+                    placeholder="Pick a date"
+                    class="w-[280px]"
+                />
             </div>
 
             <div v-if="dailySchedule" class="schedule-view">
@@ -97,6 +95,8 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Label } from '@/components/ui/label'
 import { useAvailability } from '../composables/useAvailability'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'

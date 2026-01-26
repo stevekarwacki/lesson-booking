@@ -16,6 +16,8 @@ import FilterTabs from './FilterTabs.vue'
 import GoogleCalendarSettings from './GoogleCalendarSettings.vue'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 import Profile from './Profile.vue'
 import { formatAddress } from '../utils/formValidation'
@@ -706,38 +708,39 @@ const formatDate = (dateString) => {
         >
             <form @submit.prevent="addUser">
                 <div class="form-group">
-                    <label class="form-label">Name:</label>
-                    <input 
+                    <Label for="name">Name:</Label>
+                    <Input 
+                        id="name"
                         v-model="newUser.name"
                         type="text"
-                        class="form-input"
                         required
                     />
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Email:</label>
-                    <input 
+                    <Label for="email">Email:</Label>
+                    <Input 
+                        id="email"
                         v-model="newUser.email"
                         type="email"
-                        class="form-input"
                         required
                     />
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Password:</label>
-                    <input 
+                    <Label for="password">Password:</Label>
+                    <Input 
+                        id="password"
                         v-model="newUser.password"
                         type="password"
-                        class="form-input"
                         required
                     />
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Role:</label>
+                    <Label for="role">Role:</Label>
                     <select 
+                        id="role"
                         v-model="newUser.role"
                         class="form-input"
                     >
@@ -808,7 +811,7 @@ const formatDate = (dateString) => {
                         
                         <form @submit.prevent="createInstructorProfile" class="create-profile-form">
                             <div class="form-group">
-                                <label class="form-label">Bio:</label>
+                                <Label>Bio:</Label>
                                 <textarea
                                     v-model="instructorFormData.bio"
                                     class="form-input"
@@ -818,23 +821,21 @@ const formatDate = (dateString) => {
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Specialties:</label>
-                                <input 
+                                <Label>Specialties:</Label>
+                                <Input 
                                     v-model="instructorFormData.specialties"
                                     type="text"
-                                    class="form-input"
                                     placeholder="e.g., Piano, Guitar, Voice"
                                 />
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Hourly Rate ($):</label>
-                                <input 
+                                <Label>Hourly Rate ($):</Label>
+                                <Input 
                                     v-model="instructorFormData.hourly_rate"
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    class="form-input"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -889,7 +890,7 @@ const formatDate = (dateString) => {
                         <div v-else class="profile-edit">
                             <form @submit.prevent="saveInstructorProfile">
                                 <div class="form-group">
-                                    <label class="form-label">Bio:</label>
+                                    <Label>Bio:</Label>
                                     <textarea
                                         v-model="instructorFormData.bio"
                                         class="form-input"
@@ -898,22 +899,20 @@ const formatDate = (dateString) => {
                                 </div>
 
                                 <div class="form-group">
-                                    <label class="form-label">Specialties:</label>
-                                    <input 
+                                    <Label>Specialties:</Label>
+                                    <Input 
                                         v-model="instructorFormData.specialties"
                                         type="text"
-                                        class="form-input"
                                     />
                                 </div>
 
                                 <div class="form-group">
-                                    <label class="form-label">Hourly Rate ($):</label>
-                                    <input 
+                                    <Label>Hourly Rate ($):</Label>
+                                    <Input 
                                         v-model="instructorFormData.hourly_rate"
                                         type="number"
                                         step="0.01"
                                         min="0"
-                                        class="form-input"
                                     />
                                 </div>
 
@@ -1256,7 +1255,7 @@ const formatDate = (dateString) => {
             
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="plan-select" class="form-label">Select Membership Plan:</label>
+                    <Label for="plan-select">Select Membership Plan:</Label>
                     <select 
                         id="plan-select" 
                         v-model="selectedPlan" 
@@ -1275,7 +1274,7 @@ const formatDate = (dateString) => {
                 </div>
                 
                 <div class="form-group">
-                    <label for="admin-note" class="form-label">Admin Note (optional):</label>
+                    <Label for="admin-note">Admin Note (optional):</Label>
                     <textarea 
                         id="admin-note"
                         v-model="adminNote"

@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const userStore = useUserStore()
 const { showSuccess, showError } = useFormFeedback()
@@ -67,51 +69,47 @@ const handleSubmit = async () => {
 
         <form @submit.prevent="handleSubmit">
             <div class="form-group">
-                <label for="name" class="form-label">Name</label>
-                <input 
+                <Label for="name">Name</Label>
+                <Input 
                     id="name"
                     v-model="name"
                     type="text"
                     placeholder="Enter your name"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <div class="form-group">
-                <label for="email" class="form-label">Email</label>
-                <input 
+                <Label for="email">Email</Label>
+                <Input 
                     id="email"
                     v-model="email"
                     type="email"
                     placeholder="Enter your email"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <div class="form-group">
-                <label for="password" class="form-label">Password</label>
-                <input 
+                <Label for="password">Password</Label>
+                <Input 
                     id="password"
                     v-model="password"
                     type="password"
                     placeholder="Enter your password"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <div class="form-group">
-                <label for="confirm-password" class="form-label">Confirm Password</label>
-                <input 
+                <Label for="confirm-password">Confirm Password</Label>
+                <Input 
                     id="confirm-password"
                     v-model="confirmPassword"
                     type="password"
                     placeholder="Confirm your password"
                     required
-                    class="form-input"
-                >
+                />
             </div>
 
             <Button type="submit" class="w-full">Sign Up</Button>

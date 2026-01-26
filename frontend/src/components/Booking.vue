@@ -34,34 +34,16 @@
 
     <div class="duration-selection">
         <h3>Lesson Duration</h3>
-        <div class="form-group">
-            <div class="form-input-group">
-                <div class="form-radio-group">
-                    <input 
-                        type="radio" 
-                        id="duration30" 
-                        v-model="selectedDuration" 
-                        value="30"
-                        class="form-input"
-                    >
-                    <label for="duration30" class="form-radio-label">
-                        30 minutes
-                    </label>
-                </div>
-                <div class="form-radio-group">
-                    <input 
-                        type="radio" 
-                        id="duration60" 
-                        v-model="selectedDuration" 
-                        value="60"
-                        class="form-input"
-                    >
-                    <label for="duration60" class="form-radio-label">
-                        60 minutes
-                    </label>
-                </div>
+        <RadioGroup v-model="selectedDuration" class="flex gap-4">
+            <div class="flex items-center space-x-2">
+                <RadioGroupItem id="duration30" value="30" class="w-5 h-5 border-2" />
+                <Label for="duration30" class="font-normal cursor-pointer">30 minutes</Label>
             </div>
-        </div>
+            <div class="flex items-center space-x-2">
+                <RadioGroupItem id="duration60" value="60" class="w-5 h-5 border-2" />
+                <Label for="duration60" class="font-normal cursor-pointer">60 minutes</Label>
+            </div>
+        </RadioGroup>
     </div>
 
     <div class="booking-options">
@@ -78,42 +60,26 @@
 
     <div v-if="showPaymentOptions && !hasTimeConflict && (!isBookingOnBehalf || selectedStudent)" class="payment-options">
         <h3>Payment Method</h3>
-        <div class="form-group">
-            <div class="form-input-group">
-                <div v-if="availableCredits > 0" class="form-radio-group">
-                    <input 
-                        type="radio" 
-                        id="useCredits" 
-                        v-model="paymentMethod" 
-                        value="credits"
-                        class="form-input"
-                    >
-                    <label for="useCredits" class="form-radio-label">
-                        Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
-                    </label>
-                </div>
-                <div v-if="showCardPaymentOption" class="form-radio-group">
-                    <input 
-                        type="radio" 
-                        id="payNow" 
-                        v-model="paymentMethod" 
-                        value="direct"
-                        class="form-input"
-                    >
-                    <label for="payNow" class="form-radio-label">Pay Now (${{ lessonPrice }})</label>
-                </div>
-                <div v-if="canUseInPersonPayment" class="form-radio-group">
-                    <input 
-                        type="radio" 
-                        id="payInPerson" 
-                        v-model="paymentMethod" 
-                        value="in-person"
-                        class="form-input"
-                    >
-                    <label for="payInPerson" class="form-radio-label">Pay In-Person (${{ lessonPrice }})</label>
-                </div>
+        <RadioGroup v-model="paymentMethod" class="flex flex-col gap-3">
+            <div v-if="availableCredits > 0" class="flex items-start space-x-2">
+                <RadioGroupItem id="useCredits" value="credits" class="w-5 h-5 border-2 mt-0.5" />
+                <Label for="useCredits" class="font-normal cursor-pointer leading-tight">
+                    Use Pre-paid {{ selectedDuration }}-Minute Lessons ({{ availableCredits }} remaining)
+                </Label>
             </div>
-        </div>
+            <div v-if="showCardPaymentOption" class="flex items-start space-x-2">
+                <RadioGroupItem id="payNow" value="direct" class="w-5 h-5 border-2 mt-0.5" />
+                <Label for="payNow" class="font-normal cursor-pointer leading-tight">
+                    Pay Now (${{ lessonPrice }})
+                </Label>
+            </div>
+            <div v-if="canUseInPersonPayment" class="flex items-start space-x-2">
+                <RadioGroupItem id="payInPerson" value="in-person" class="w-5 h-5 border-2 mt-0.5" />
+                <Label for="payInPerson" class="font-normal cursor-pointer leading-tight">
+                    Pay In-Person (${{ lessonPrice }})
+                </Label>
+            </div>
+        </RadioGroup>
 
         <!-- Stripe Payment Form -->
         <div v-if="paymentMethod === 'direct'" class="stripe-form-container">
@@ -147,6 +113,8 @@ import { useInstructor } from '../composables/useInstructor'
 import { useStudents } from '../composables/useStudents'
 import { useAppSettings } from '../composables/useAppSettings'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot } from '../utils/timeFormatting'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 import StripePaymentForm from './StripePaymentForm.vue'
 import SearchBar from './SearchBar.vue'
 

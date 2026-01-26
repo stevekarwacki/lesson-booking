@@ -6,29 +6,27 @@
         <div class="card-body">
             <form @submit.prevent="saveProfile">
                 <div class="form-group">
-                    <label for="name" class="form-label">Name:</label>
-                    <input 
+                    <Label for="name">Name:</Label>
+                    <Input 
                         type="text" 
                         id="name" 
-                        v-model="form.name" 
-                        class="form-input"
+                        v-model="form.name"
                         required
-                    >
+                    />
                 </div>
 
                 <div class="form-group">
-                    <label for="email" class="form-label">Email:</label>
-                    <input 
+                    <Label for="email">Email:</Label>
+                    <Input 
                         type="email" 
                         id="email" 
-                        v-model="form.email" 
-                        class="form-input"
+                        v-model="form.email"
                         required
-                    >
+                    />
                 </div>
 
                 <div v-if="userStore.canEditUserRole" class="form-group">
-                    <label for="role" class="form-label">Role:</label>
+                    <Label for="role">Role:</Label>
                     <div class="form-input-group">
                         <select 
                             id="role" 
@@ -67,6 +65,8 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const userStore = useUserStore()
 const errorMessage = ref('')

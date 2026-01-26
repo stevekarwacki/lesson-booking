@@ -190,9 +190,6 @@ onMounted(() => {
   <div class="admin-settings-page">
     <div class="page-header">
       <h1>Settings</h1>
-      <p class="page-description">
-        Manage your application's theme, branding, and configuration
-      </p>
     </div>
     
     <!-- Settings Tabs -->
@@ -212,30 +209,15 @@ onMounted(() => {
 .admin-settings-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--spacing-lg);
-  min-height: calc(100vh - 70px);
 }
 
 .page-header {
   margin-bottom: var(--spacing-lg);
-  text-align: center;
 }
 
 .page-header h1 {
   color: var(--text-primary);
   font-size: var(--font-size-3xl);
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 700;
-}
-
-.page-description {
-  color: var(--text-secondary);
-  font-size: var(--font-size-lg);
-  margin: 0;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.5;
 }
 
 .settings-container {
@@ -255,10 +237,6 @@ onMounted(() => {
   
   .page-header h1 {
     font-size: var(--font-size-2xl);
-  }
-  
-  .page-description {
-    font-size: var(--font-size-base);
   }
   
   .settings-container {

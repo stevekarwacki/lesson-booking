@@ -11,9 +11,9 @@
       <div class="form-grid">
         <!-- Default Lesson Duration -->
         <div class="form-group full-width">
-          <label for="defaultDuration" class="form-label">
+          <Label for="defaultDuration">
             Default Lesson Duration <span class="required">*</span>
-          </label>
+          </Label>
           <div class="duration-input-group">
             <select
               id="defaultDuration"
@@ -46,9 +46,9 @@
         <h3 class="subsection-header">Payment Methods</h3>
         
         <div class="form-group full-width">
-          <label for="inPersonPayment" class="form-label">
+          <Label for="inPersonPayment">
             Allow In-Person Payments
-          </label>
+          </Label>
           <div class="toggle-input-group">
             <label class="toggle-switch">
               <input
@@ -73,9 +73,9 @@
         </div>
         
         <div class="form-group full-width">
-          <label for="cardPaymentOnBehalf" class="form-label">
+          <Label for="cardPaymentOnBehalf">
             Allow Card Payment in Order-on-Behalf-Of
-          </label>
+          </Label>
           <div class="toggle-input-group">
             <label class="toggle-switch">
               <input
@@ -133,6 +133,7 @@
         </Button>
         <Button
           type="submit"
+          variant="default"
           :disabled="loading || !hasChanges"
         >
           <span v-if="loading">Saving...</span>
@@ -146,9 +147,14 @@
 <script>
 import { ref, computed, watch, reactive } from 'vue'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 export default {
   name: 'LessonsSection',
+  components: {
+    Button,
+    Label
+  },
   props: {
     initialData: {
       type: Object,
@@ -280,7 +286,6 @@ export default {
 <style scoped>
 .section-header {
   margin-bottom: var(--spacing-xl, 2rem);
-  text-align: center;
 }
 
 .section-header h2 {
@@ -294,7 +299,7 @@ export default {
   margin: 0;
   color: var(--text-secondary, var(--color-text-muted, #666));
   font-size: var(--font-size-base, 0.9rem, 14px);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .lessons-form {

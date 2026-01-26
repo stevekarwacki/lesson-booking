@@ -7,7 +7,7 @@
         <div class="card-body">
             <!-- Instructor selection -->
             <div class="form-group" v-if="instructors.length > 1">
-                <label for="instructor-select" class="form-label">Select Instructor:</label>
+                <Label for="instructor-select">Select Instructor:</Label>
                 <select id="instructor-select" v-model="selectedInstructor" class="form-input">
                     <option value="">Choose an instructor</option>
                     <option 
@@ -32,6 +32,7 @@ import { ref, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import InstructorCalendar from './InstructorCalendar.vue'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
+import { Label } from '@/components/ui/label'
 
 const userStore = useUserStore()
 const instructors = ref([])

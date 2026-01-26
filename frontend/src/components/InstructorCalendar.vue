@@ -50,16 +50,14 @@
             </Button>
 
             <!-- Date selection -->
-            <div class="form-group date-select-group">
-                <label for="date-select" class="form-label">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</label>
-                <input 
-                    type="date" 
-                    id="date-select"
+            <div class="form-group-inline date-select-group">
+                <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
+                <DatePicker
                     v-model="selectedDate"
-                    :min="today"
-                    @change="handleDateChange"
-                    class="form-input"
-                >
+                    :min-value="today"
+                    placeholder="Pick a date"
+                    class="w-[280px]"
+                />
             </div>
         </div>
     </div>
@@ -150,6 +148,8 @@ import EditBooking from './EditBooking.vue'
 import { Modal } from '@/components/ui/modal'
 import { today } from '../utils/dateHelpers.js'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Label } from '@/components/ui/label'
 
 const { instructor } = defineProps({
     instructor: {

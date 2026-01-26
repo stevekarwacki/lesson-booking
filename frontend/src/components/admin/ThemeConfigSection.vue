@@ -172,7 +172,8 @@
         Reset to Defaults
       </Button>
       <Button 
-        @click="saveThemeConfig" 
+        @click="saveThemeConfig"
+        variant="default"
         :disabled="loading || (!hasChanges)"
       >
         <span v-if="loading" class="loading-spinner"></span>
@@ -578,7 +579,6 @@ export default {
 
 .section-header {
   margin-bottom: var(--spacing-xl);
-  text-align: center;
 }
 
 .section-header h2 {
@@ -593,9 +593,6 @@ export default {
   font-size: var(--font-size-base);
   line-height: 1.6;
   margin: 0;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .config-grid {

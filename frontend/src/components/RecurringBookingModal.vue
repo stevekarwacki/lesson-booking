@@ -29,7 +29,7 @@
 
                     <!-- Instructor Selection -->
                     <div class="form-group">
-                        <label for="instructor-select" class="form-label">Select Instructor:</label>
+                        <Label for="instructor-select">Select Instructor:</Label>
                         <select 
                             id="instructor-select" 
                             v-model="selectedInstructor" 
@@ -49,40 +49,22 @@
 
                     <!-- Duration Selection -->
                     <div class="form-group" v-if="selectedInstructor">
-                        <label class="form-label">Lesson Duration:</label>
-                        <div class="form-input-group">
-                            <div class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="duration30-recurring" 
-                                    v-model="selectedDuration" 
-                                    value="30"
-                                    class="form-input"
-                                    @change="handleDurationChange"
-                                >
-                                <label for="duration30-recurring" class="form-radio-label">
-                                    30 minutes
-                                </label>
+                        <Label>Lesson Duration:</Label>
+                        <RadioGroup v-model="selectedDuration" @update:modelValue="handleDurationChange" class="flex gap-4">
+                            <div class="flex items-center space-x-2">
+                                <RadioGroupItem id="duration30-recurring" value="30" class="w-5 h-5 border-2" />
+                                <Label for="duration30-recurring" class="font-normal cursor-pointer">30 minutes</Label>
                             </div>
-                            <div class="form-radio-group">
-                                <input 
-                                    type="radio" 
-                                    id="duration60-recurring" 
-                                    v-model="selectedDuration" 
-                                    value="60"
-                                    class="form-input"
-                                    @change="handleDurationChange"
-                                >
-                                <label for="duration60-recurring" class="form-radio-label">
-                                    60 minutes
-                                </label>
+                            <div class="flex items-center space-x-2">
+                                <RadioGroupItem id="duration60-recurring" value="60" class="w-5 h-5 border-2" />
+                                <Label for="duration60-recurring" class="font-normal cursor-pointer">60 minutes</Label>
                             </div>
-                        </div>
+                        </RadioGroup>
                     </div>
 
                     <!-- Day Selection -->
                     <div class="form-group" v-if="selectedInstructor && selectedDuration">
-                        <label for="day-select" class="form-label">Select Day:</label>
+                        <Label for="day-select">Select Day:</Label>
                         <select 
                             id="day-select" 
                             v-model="selectedDay" 
@@ -102,7 +84,7 @@
 
                     <!-- Time Selection -->
                     <div class="form-group mb-0" v-if="selectedInstructor && selectedDay !== ''">
-                        <label class="form-label">Select Time:</label>
+                        <Label>Select Time:</Label>
                         <div v-if="loadingAvailability" class="loading-state">
                             Loading available times...
                         </div>
@@ -151,6 +133,8 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { usePaymentPlans } from '../composables/usePaymentPlans'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useAvailability } from '../composables/useAvailability'
 import { formatTime, slotToTime } from '../utils/timeFormatting'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
