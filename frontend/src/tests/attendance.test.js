@@ -339,8 +339,8 @@ describe('Attendance Tracking Frontend', () => {
 
       await rescheduleButton.trigger('click')
 
-      // Should emit view-booking event for reschedule modal
-      const emittedEvents = wrapper.emitted('view-booking')
+      // Should emit edit-booking event for reschedule modal
+      const emittedEvents = wrapper.emitted('edit-booking')
       expect(emittedEvents).toBeTruthy()
     })
   })

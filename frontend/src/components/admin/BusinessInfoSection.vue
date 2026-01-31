@@ -281,6 +281,11 @@ import { Label } from '@/components/ui/label'
 
 export default {
   name: 'BusinessInfoSection',
+  components: {
+    Button,
+    Input,
+    Label
+  },
   props: {
     initialData: {
       type: Object,

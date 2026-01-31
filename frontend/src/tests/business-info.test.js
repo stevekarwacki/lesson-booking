@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
 import AdminSettingsPage from '../views/AdminSettingsPage.vue'
@@ -146,9 +146,7 @@ describe('BusinessInfoSection Component', () => {
     // Set valid company name but invalid email
     await wrapper.find('#companyName').setValue('Test Company')
     await wrapper.find('#contactEmail').setValue('invalid-email')
-    
-    // Trigger validation by changing focus
-    await wrapper.find('#contactEmail').trigger('blur')
+    await flushPromises()
     await nextTick()
 
     expect(wrapper.text()).toContain('Please enter a valid email address')
@@ -158,7 +156,7 @@ describe('BusinessInfoSection Component', () => {
     wrapper = createWrapper()
 
     await wrapper.find('#website').setValue('not-a-url')
-    await wrapper.find('#website').trigger('blur')
+    await flushPromises()
     await nextTick()
 
     expect(wrapper.text()).toContain('Please enter a valid website URL')
@@ -205,6 +203,8 @@ describe('BusinessInfoSection Component', () => {
     await wrapper.find('#instagram').setValue('https://instagram.com/testcompany')
     await wrapper.find('#linkedin').setValue('https://linkedin.com/company/testcompany')
     await wrapper.find('#youtube').setValue('https://youtube.com/testchannel')
+    await flushPromises()
+    await nextTick()
 
     // Submit form
     await wrapper.find('form').trigger('submit.prevent')
@@ -244,6 +244,8 @@ describe('BusinessInfoSection Component', () => {
     await wrapper.find('#website').setValue('https://test.com')
     await wrapper.find('#address').setValue('123 Test St')
     await wrapper.find('#timezone').setValue('America/Los_Angeles')
+    await flushPromises()
+    await nextTick()
 
     // Submit form
     await wrapper.find('form').trigger('submit.prevent')
@@ -271,7 +273,7 @@ describe('BusinessInfoSection Component', () => {
 
     // Create validation errors
     await wrapper.find('#companyName').setValue('a') // Too short
-    await wrapper.find('#companyName').trigger('blur')
+    await flushPromises()
     await nextTick()
 
     expect(wrapper.text()).toContain('Company name must be at least 2 characters')
@@ -454,6 +456,8 @@ describe('Integration Tests', () => {
     await businessSection.find('#companyName').setValue('Integration Test Company')
     await businessSection.find('#contactEmail').setValue('integration@test.com')
     await businessSection.find('#timezone').setValue('America/Los_Angeles')
+    await flushPromises()
+    await nextTick()
 
     // Submit the form
     await businessSection.find('form').trigger('submit.prevent')
