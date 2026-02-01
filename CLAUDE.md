@@ -70,7 +70,7 @@ cd frontend && npm run test -- booking-modal.test.js
 - `recurringBookings.js` - Recurring booking patterns
 
 **Services** (`/services/`):
-- `EmailService.js` - Handlebars template rendering, Nodemailer integration
+- `EmailService.js` - Handlebars template rendering, Nodemailer integration with database-backed SMTP configuration
 - `GoogleCalendarService.js` - OAuth flow, event sync to instructor calendars
 - `RefundService.js` - Stripe refunds, credit restoration logic
 - `CronJobService.js` - Scheduled tasks (email reminders, credit expiry)
@@ -211,8 +211,9 @@ After merging to main:
 
 ### Environment Variables
 - Copy `.env.example` to `.env`
-- Required: `DATABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`
+- Required: `DATABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`, `ENCRYPTION_KEY`
 - Optional: `REDIS_URL`, `EMAIL_USER`, `EMAIL_APP_PASSWORD`, `GOOGLE_CLIENT_ID`
+- SMTP can be configured via admin UI (preferred) or environment variables (fallback)
 - Cache falls back to memory if Redis not configured
 - Email service logs attempts if not configured
 
@@ -268,6 +269,7 @@ For in-depth guides on specific features:
 - `/docs/REFUND_SYSTEM.md` - Refund workflows and credit restoration
 - `/docs/IN_PERSON_PAYMENT_FEATURE.md` - In-person payment configuration
 - `/docs/STRIPE_INTEGRATION_GUIDE.md` - Payment processing setup
+- `/docs/SMTP_CONFIGURATION_GUIDE.md` - Self-service SMTP email setup
 - `/docs/LOGO_UPLOAD_FEATURE.md` - Branding and file upload handling
 - `/docs/ATTENDANCE_TRACKING_FEATURE.md` - Attendance marking system
 - `/docs/BUSINESS_INFORMATION_FEATURE.md` - Business settings management
