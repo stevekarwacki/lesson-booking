@@ -346,7 +346,7 @@ describe('AdminSettingsPage Component', () => {
     
     expect(wrapper.text()).toContain('Business Information')
     expect(wrapper.text()).toContain('Theme & Branding')
-    expect(wrapper.text()).toContain('Email Templates')
+    expect(wrapper.text()).toContain('Email Settings')
   })
 
 
