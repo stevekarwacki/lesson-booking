@@ -2027,13 +2027,14 @@ router.post('/settings/smtp/test', authorize('manage', 'User'), async (req, res)
             auth: {
                 user: smtpSettings.email_user,
                 pass: decryptedPassword
-            }
+            },
+            // Add timeout and connection options
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 5000, // 5 seconds
+            socketTimeout: 10000 // 10 seconds
         });
         
-        // Verify connection
-        await transporter.verify();
-        
-        // Send test email
+        // Try to send test email directly (verify() can be unreliable)
         const fromAddress = smtpSettings.email_from_name 
             ? `"${smtpSettings.email_from_name}" <${smtpSettings.email_from_address || smtpSettings.email_user}>`
             : smtpSettings.email_from_address || smtpSettings.email_user;
