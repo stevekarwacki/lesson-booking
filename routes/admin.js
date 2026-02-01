@@ -1843,4 +1843,253 @@ router.post('/settings/storage/test-connection', authorize('manage', 'User'), as
     }
 });
 
+// ============================================================================
+// SMTP Configuration Routes
+// ============================================================================
+
+/**
+ * GET /api/admin/settings/smtp
+ * Get current SMTP configuration (passwords are excluded)
+ */
+router.get('/settings/smtp', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { encrypt, decrypt } = require('../utils/encryption');
+        
+        // Get SMTP settings from email category
+        const smtpSettings = await AppSettings.getSettingsByCategory('email');
+        
+        // Prepare response (exclude sensitive data)
+        const config = {
+            email_host: smtpSettings.email_host || null,
+            email_port: smtpSettings.email_port ? parseInt(smtpSettings.email_port) : null,
+            email_secure: smtpSettings.email_secure === 'true',
+            email_user: smtpSettings.email_user || null,
+            email_from_name: smtpSettings.email_from_name || null,
+            email_from_address: smtpSettings.email_from_address || null,
+            is_configured: !!(smtpSettings.email_host && smtpSettings.email_user && smtpSettings.email_password),
+            // Never send password to frontend
+            has_password: !!smtpSettings.email_password
+        };
+        
+        res.json(config);
+    } catch (error) {
+        console.error('Error fetching SMTP settings:', error);
+        res.status(500).json({ 
+            error: 'Error fetching SMTP settings',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/smtp
+ * Save SMTP configuration
+ */
+router.post('/settings/smtp', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { smtpConfigSchema } = await import('../common/schemas/index.mjs');
+        const { encrypt } = require('../utils/encryption');
+        
+        // Validate request body
+        const validationResult = smtpConfigSchema.safeParse(req.body);
+        
+        if (!validationResult.success) {
+            const fieldErrors = {};
+            validationResult.error.issues.forEach(issue => {
+                const field = issue.path.join('.');
+                fieldErrors[field] = issue.message;
+            });
+            
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: fieldErrors
+            });
+        }
+        
+        const {
+            email_host,
+            email_port,
+            email_secure,
+            email_user,
+            email_password,
+            email_from_name,
+            email_from_address
+        } = validationResult.data;
+        
+        // Encrypt password before storing
+        const encryptedPassword = encrypt(email_password);
+        
+        // Save to database
+        await AppSettings.setMultipleSettings('email', {
+            email_host,
+            email_port: email_port.toString(),
+            email_secure: email_secure.toString(),
+            email_user,
+            email_password: encryptedPassword,
+            email_from_name: email_from_name || '',
+            email_from_address: email_from_address || email_user // Default to email_user if not provided
+        }, req.user.id);
+        
+        // Return success (without sensitive data)
+        res.json({
+            success: true,
+            message: 'SMTP configuration saved successfully',
+            config: {
+                email_host,
+                email_port,
+                email_secure,
+                email_user,
+                email_from_name,
+                email_from_address: email_from_address || email_user,
+                is_configured: true
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error saving SMTP settings:', error);
+        res.status(500).json({ 
+            error: 'Error saving SMTP settings',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * DELETE /api/admin/settings/smtp
+ * Delete SMTP configuration
+ */
+router.delete('/settings/smtp', authorize('manage', 'User'), async (req, res) => {
+    try {
+        // Delete all SMTP-related settings
+        await Promise.all([
+            AppSettings.deleteSetting('email', 'email_host'),
+            AppSettings.deleteSetting('email', 'email_port'),
+            AppSettings.deleteSetting('email', 'email_secure'),
+            AppSettings.deleteSetting('email', 'email_user'),
+            AppSettings.deleteSetting('email', 'email_password'),
+            AppSettings.deleteSetting('email', 'email_from_name'),
+            AppSettings.deleteSetting('email', 'email_from_address')
+        ]);
+        
+        res.json({
+            success: true,
+            message: 'SMTP configuration deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error deleting SMTP settings:', error);
+        res.status(500).json({ 
+            error: 'Error deleting SMTP settings',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/smtp/test
+ * Test SMTP connection by sending a test email to the admin
+ */
+router.post('/settings/smtp/test', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { smtpTestSchema } = await import('../common/schemas/index.mjs');
+        const { decrypt } = require('../utils/encryption');
+        const nodemailer = require('nodemailer');
+        
+        // Validate recipient email
+        const validationResult = smtpTestSchema.safeParse(req.body);
+        
+        if (!validationResult.success) {
+            return res.status(400).json({
+                error: 'Invalid recipient email address'
+            });
+        }
+        
+        const { recipient_email } = validationResult.data;
+        
+        // Get SMTP settings from database
+        const smtpSettings = await AppSettings.getSettingsByCategory('email');
+        
+        if (!smtpSettings.email_host || !smtpSettings.email_user || !smtpSettings.email_password) {
+            return res.status(400).json({
+                error: 'SMTP not configured',
+                details: 'Please configure SMTP settings before testing'
+            });
+        }
+        
+        // Decrypt password
+        const decryptedPassword = decrypt(smtpSettings.email_password);
+        
+        // Create transporter with provided settings
+        const transporter = nodemailer.createTransport({
+            host: smtpSettings.email_host,
+            port: parseInt(smtpSettings.email_port),
+            secure: smtpSettings.email_secure === 'true',
+            auth: {
+                user: smtpSettings.email_user,
+                pass: decryptedPassword
+            }
+        });
+        
+        // Verify connection
+        await transporter.verify();
+        
+        // Send test email
+        const fromAddress = smtpSettings.email_from_name 
+            ? `"${smtpSettings.email_from_name}" <${smtpSettings.email_from_address || smtpSettings.email_user}>`
+            : smtpSettings.email_from_address || smtpSettings.email_user;
+        
+        await transporter.sendMail({
+            from: fromAddress,
+            to: recipient_email,
+            subject: 'SMTP Test Email - Lesson Booking System',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <h2 style="color: #28a745; margin-bottom: 20px;">✓ SMTP Connection Successful</h2>
+                    <p style="color: #333; font-size: 16px; line-height: 1.5;">
+                        This is a test email from your Lesson Booking System.
+                    </p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.5; margin-top: 20px;">
+                        If you received this email, your SMTP configuration is working correctly.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+                    <p style="color: #999; font-size: 12px;">
+                        <strong>SMTP Server:</strong> ${smtpSettings.email_host}:${smtpSettings.email_port}<br>
+                        <strong>Username:</strong> ${smtpSettings.email_user}<br>
+                        <strong>Secure:</strong> ${smtpSettings.email_secure === 'true' ? 'Yes (SSL/TLS)' : 'No'}
+                    </p>
+                </div>
+            `,
+            text: `SMTP Connection Successful\n\nThis is a test email from your Lesson Booking System.\n\nIf you received this email, your SMTP configuration is working correctly.\n\nSMTP Server: ${smtpSettings.email_host}:${smtpSettings.email_port}\nUsername: ${smtpSettings.email_user}\nSecure: ${smtpSettings.email_secure === 'true' ? 'Yes (SSL/TLS)' : 'No'}`
+        });
+        
+        res.json({
+            success: true,
+            message: `Test email sent successfully to ${recipient_email}`
+        });
+        
+    } catch (error) {
+        console.error('Error testing SMTP connection:', error);
+        
+        // Provide specific error messages
+        let errorMessage = 'SMTP connection test failed';
+        let errorDetails = error.message;
+        
+        if (error.code === 'EAUTH') {
+            errorMessage = 'Authentication failed';
+            errorDetails = 'Check your username and password';
+        } else if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT') {
+            errorMessage = 'Connection failed';
+            errorDetails = 'Check your host and port settings';
+        } else if (error.code === 'ESOCKET') {
+            errorMessage = 'Network error';
+            errorDetails = 'Check your internet connection and firewall settings';
+        }
+        
+        res.status(400).json({
+            error: errorMessage,
+            details: errorDetails
+        });
+    }
+});
+
 module.exports = router;

@@ -12,6 +12,11 @@ export {
   profileSchemaNested
 } from './profile.schema.mjs'
 
+export {
+  smtpConfigSchema,
+  smtpTestSchema
+} from './smtp.schema.mjs'
+
 // Future schemas will be exported here:
 // export { signupSchema, loginSchema } from './auth.schema.mjs'
 // export { passwordSchema } from './password.schema.mjs'
