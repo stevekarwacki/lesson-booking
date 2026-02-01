@@ -1,5 +1,12 @@
 <template>
-  <div class="email-templates-section">
+  <div class="email-settings-section">
+    <!-- SMTP Configuration Section -->
+    <SMTPSettingsSection />
+    
+    <!-- Divider -->
+    <div class="section-divider"></div>
+    
+    <!-- Email Templates Section -->
     <div class="section-header">
       <h2>Email Templates</h2>
       <p class="section-description">
@@ -185,12 +192,14 @@ import { useEmailTemplates } from '../../composables/useEmailTemplates'
 import { useFormFeedback } from '../../composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import SMTPSettingsSection from './SMTPSettingsSection.vue'
 
 export default {
   name: 'EmailTemplatesSection',
   components: {
     Button,
-    Label
+    Label,
+    SMTPSettingsSection
   },
   props: {
     initialData: {
@@ -410,9 +419,15 @@ export default {
 </script>
 
 <style scoped>
-.email-templates-section {
+.email-settings-section {
   max-width: 100%;
   padding: var(--spacing-lg);
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: var(--spacing-2xl) 0;
 }
 
 .section-header {

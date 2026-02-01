@@ -52,7 +52,7 @@ const settingsTabs = computed(() => [
   },
   {
     id: 'email',
-    label: 'Email Templates',
+    label: 'Email Settings',
     component: EmailTemplatesSection,
     props: {
       initialData: settingsData.value.email || {},
