@@ -72,7 +72,7 @@ const initializeProviders = async () => {
  * @returns {Promise<Object>} Send result
  */
 const sendEmail = async (to, subject, htmlContent, options = {}) => {
-    const provider = selectProvider(options);
+    const provider = await selectProvider(options);
     const result = await provider.send(to, subject, htmlContent, options);
     
     if (result.success) {
@@ -100,7 +100,7 @@ const sendEmail = async (to, subject, htmlContent, options = {}) => {
      * @returns {Promise<Object>} Send result
      */
 const sendEmailWithAttachment = async (to, subject, htmlContent, attachment, options = {}) => {
-        const provider = selectProvider(options);
+        const provider = await selectProvider(options);
         const result = await provider.sendWithAttachment(to, subject, htmlContent, attachment, options);
         
         if (result.success) {
