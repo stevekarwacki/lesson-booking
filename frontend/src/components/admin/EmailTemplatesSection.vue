@@ -1,7 +1,19 @@
 <template>
   <div class="email-settings-section">
-    <!-- SMTP Configuration Section -->
-    <SMTPSettingsSection />
+    <!-- Email Provider Selection -->
+    <EmailProviderSettings />
+    
+    <!-- Divider -->
+    <div class="section-divider"></div>
+    
+    <!-- SMTP Configuration Section (only shown when provider is 'smtp') -->
+    <SMTPSettingsSection v-if="selectedProvider === 'smtp'" />
+    
+    <!-- Gmail OAuth Section (only shown when provider is 'gmail_oauth') -->
+    <GmailOAuthSettings v-if="selectedProvider === 'gmail_oauth'" />
+    
+    <!-- Divider (only if email is configured) -->
+    <div v-if="selectedProvider === 'smtp' || selectedProvider === 'gmail_oauth'" class="section-divider"></div>
     
     <!-- Divider -->
     <div class="section-divider"></div>
@@ -189,17 +201,22 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useEmailTemplates } from '../../composables/useEmailTemplates'
+import { useEmailSettings } from '../../composables/useEmailSettings'
 import { useFormFeedback } from '../../composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import SMTPSettingsSection from './SMTPSettingsSection.vue'
+import EmailProviderSettings from './EmailProviderSettings.vue'
+import GmailOAuthSettings from './GmailOAuthSettings.vue'
 
 export default {
   name: 'EmailTemplatesSection',
   components: {
     Button,
     Label,
-    SMTPSettingsSection
+    SMTPSettingsSection,
+    EmailProviderSettings,
+    GmailOAuthSettings
   },
   props: {
     initialData: {
@@ -227,6 +244,13 @@ export default {
         isSendingTest,
         isResettingTemplate
     } = useEmailTemplates()
+    
+    const {
+        emailProvider
+    } = useEmailSettings()
+    
+    // Computed for selected provider
+    const selectedProvider = computed(() => emailProvider.value?.provider || null)
     
     // State
     const activeTemplate = ref(null)
@@ -403,6 +427,7 @@ export default {
       saving,
       testingTemplate,
       hasUnsavedChanges,
+      selectedProvider,
       editTemplate,
       closeEditor,
       saveTemplate,

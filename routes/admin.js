@@ -2108,4 +2108,263 @@ router.post('/settings/smtp/test', authorize('manage', 'User'), async (req, res)
     }
 });
 
+/**
+ * GET /api/admin/settings/email/provider
+ * Get the currently configured email provider
+ */
+router.get('/settings/email/provider', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const emailSettings = await AppSettings.getSettingsByCategory('email');
+        
+        res.json({
+            provider: emailSettings.provider || null, // null = auto-detect (legacy)
+            available_providers: ['smtp', 'gmail_oauth', 'disabled']
+        });
+    } catch (error) {
+        console.error('Error fetching email provider:', error);
+        res.status(500).json({ 
+            error: 'Error fetching email provider',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/email/provider
+ * Set the active email provider
+ */
+router.post('/settings/email/provider', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { provider } = req.body;
+        
+        // Validate provider value
+        const validProviders = ['smtp', 'gmail_oauth', 'disabled', null];
+        if (!validProviders.includes(provider)) {
+            return res.status(400).json({
+                error: 'Invalid provider',
+                details: 'Provider must be one of: smtp, gmail_oauth, disabled, or null (auto-detect)'
+            });
+        }
+        
+        // Save provider setting
+        await AppSettings.setSetting('email', 'provider', provider || '', req.user.id);
+        
+        // Invalidate emailConfig cache so next email send uses new provider
+        const { invalidateProviderCache } = require('../services/email/emailConfig');
+        invalidateProviderCache();
+        
+        res.json({
+            success: true,
+            message: 'Email provider updated successfully',
+            provider: provider
+        });
+        
+    } catch (error) {
+        console.error('Error setting email provider:', error);
+        res.status(500).json({ 
+            error: 'Error setting email provider',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/settings/email/oauth/status
+ * Check status of Google OAuth configuration for email
+ */
+router.get('/settings/email/oauth/status', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { getOAuthCredentials } = require('../config/googleOAuth');
+        
+        const creds = await getOAuthCredentials();
+        
+        // Check if OAuth client credentials are configured
+        const isConfigured = !!(creds.clientId && creds.clientSecret);
+        
+        res.json({
+            is_configured: isConfigured,
+            client_id: creds.clientId ? '***' + creds.clientId.slice(-8) : null,
+            redirect_uri: creds.redirectUri || null
+        });
+        
+    } catch (error) {
+        console.error('Error checking OAuth status:', error);
+        res.status(500).json({ 
+            error: 'Error checking OAuth status',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/settings/email/oauth/credentials
+ * Get OAuth credentials configuration (for editing)
+ */
+router.get('/settings/email/oauth/credentials', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const emailSettings = await AppSettings.getSettingsByCategory('email');
+        
+        res.json({
+            google_client_id: emailSettings.google_client_id || null,
+            google_redirect_uri: emailSettings.google_redirect_uri || null,
+            has_client_secret: !!emailSettings.google_client_secret,
+            is_configured: !!(emailSettings.google_client_id && emailSettings.google_client_secret && emailSettings.google_redirect_uri)
+        });
+        
+    } catch (error) {
+        console.error('Error fetching OAuth credentials:', error);
+        res.status(500).json({ 
+            error: 'Error fetching OAuth credentials',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/email/oauth/credentials
+ * Save OAuth credentials configuration
+ */
+router.post('/settings/email/oauth/credentials', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { encrypt } = require('../utils/encryption');
+        const { google_client_id, google_client_secret, google_redirect_uri } = req.body;
+        
+        // Validate required fields
+        if (!google_client_id || !google_redirect_uri) {
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: {
+                    google_client_id: !google_client_id ? 'Client ID is required' : undefined,
+                    google_redirect_uri: !google_redirect_uri ? 'Redirect URI is required' : undefined
+                }
+            });
+        }
+        
+        // Get existing settings to check if we need to preserve client_secret
+        const existingSettings = await AppSettings.getSettingsByCategory('email');
+        
+        const settingsToSave = {
+            google_client_id,
+            google_redirect_uri
+        };
+        
+        // Only update client_secret if provided (preserve existing if empty)
+        if (google_client_secret && google_client_secret.trim()) {
+            const encryptedSecret = encrypt(google_client_secret);
+            settingsToSave.google_client_secret = encryptedSecret;
+        } else if (!existingSettings.google_client_secret) {
+            // If no existing secret and none provided, this is an error for new configuration
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: { google_client_secret: 'Client Secret is required for new configuration' }
+            });
+        }
+        // else: keep existing secret (don't include in settingsToSave)
+        
+        await AppSettings.setMultipleSettings('email', settingsToSave, req.user.id);
+        
+        // Invalidate emailConfig cache
+        const { invalidateProviderCache } = require('../services/email/emailConfig');
+        invalidateProviderCache();
+        
+        // Invalidate googleOAuth credentials cache
+        const { invalidateCredentialsCache } = require('../config/googleOAuth');
+        invalidateCredentialsCache();
+        
+        res.json({
+            success: true,
+            message: 'OAuth credentials saved successfully',
+            config: {
+                google_client_id,
+                google_redirect_uri,
+                is_configured: true
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error saving OAuth credentials:', error);
+        res.status(500).json({ 
+            error: 'Error saving OAuth credentials',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * DELETE /api/admin/settings/email/oauth/credentials
+ * Delete OAuth credentials configuration
+ */
+router.delete('/settings/email/oauth/credentials', authorize('manage', 'User'), async (req, res) => {
+    try {
+        await Promise.all([
+            AppSettings.deleteSetting('email', 'google_client_id'),
+            AppSettings.deleteSetting('email', 'google_client_secret'),
+            AppSettings.deleteSetting('email', 'google_redirect_uri')
+        ]);
+        
+        // Invalidate emailConfig cache
+        const { invalidateProviderCache } = require('../services/email/emailConfig');
+        invalidateProviderCache();
+        
+        // Invalidate googleOAuth credentials cache
+        const { invalidateCredentialsCache } = require('../config/googleOAuth');
+        invalidateCredentialsCache();
+        
+        res.json({
+            success: true,
+            message: 'OAuth credentials deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error deleting OAuth credentials:', error);
+        res.status(500).json({ 
+            error: 'Error deleting OAuth credentials',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/settings/email/oauth/instructors
+ * List instructors who have connected Google OAuth for email
+ */
+router.get('/settings/email/oauth/instructors', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        
+        // Get all instructors with OAuth tokens
+        const tokens = await InstructorGoogleToken.findAll({
+            include: [{
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['id', 'name', 'email']
+                }]
+            }]
+        });
+        
+        // Map to simplified format
+        const instructors = tokens.map(token => ({
+            instructor_id: token.instructor_id,
+            user_id: token.Instructor?.User?.id,
+            name: token.Instructor?.User?.name,
+            email: token.Instructor?.User?.email,
+            connected_at: token.createdAt,
+            has_refresh_token: !!token.refresh_token
+        }));
+        
+        res.json({
+            instructors,
+            count: instructors.length
+        });
+        
+    } catch (error) {
+        console.error('Error fetching OAuth instructors:', error);
+        res.status(500).json({ 
+            error: 'Error fetching OAuth instructors',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;
