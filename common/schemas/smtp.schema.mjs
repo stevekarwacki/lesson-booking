@@ -33,8 +33,9 @@ export const smtpConfigSchema = z.object({
         .email('Must be a valid email address'),
     
     email_password: z.string()
-        .min(1, 'Email password is required')
-        .max(500, 'Email password must be 500 characters or less'),
+        .max(500, 'Email password must be 500 characters or less')
+        .optional()
+        .or(z.literal('')),
     
     email_from_name: z.string()
         .trim()

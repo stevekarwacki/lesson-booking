@@ -24,7 +24,10 @@
           <div class="config-details">
             <p><strong>Host:</strong> {{ smtpConfig.email_host }}:{{ smtpConfig.email_port }}</p>
             <p><strong>Username:</strong> {{ smtpConfig.email_user }}</p>
-            <p><strong>Secure:</strong> {{ smtpConfig.email_secure ? 'Yes (SSL/TLS)' : 'No' }}</p>
+            <p>
+              <strong>Security:</strong> 
+              {{ smtpConfig.email_port == 465 ? 'SSL/TLS' : (smtpConfig.email_port == 587 ? 'STARTTLS' : 'Unencrypted') }}
+            </p>
             <p v-if="smtpConfig.email_from_name">
               <strong>From Name:</strong> {{ smtpConfig.email_from_name }}
             </p>
@@ -97,9 +100,9 @@
                 <SelectValue placeholder="Select port" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="465">465 (SSL)</SelectItem>
-                <SelectItem value="587">587 (TLS)</SelectItem>
-                <SelectItem value="25">25 (Unsecured)</SelectItem>
+                <SelectItem value="465">465 - SSL/TLS (Direct encryption)</SelectItem>
+                <SelectItem value="587">587 - STARTTLS (Recommended)</SelectItem>
+                <SelectItem value="25">25 - Unencrypted (Not recommended)</SelectItem>
               </SelectContent>
             </Select>
             <p class="form-help">SMTP port number</p>
@@ -108,22 +111,6 @@
             </p>
           </div>
           
-          <div class="form-group">
-            <Label for="smtp-secure" class="switch-label">
-              Use SSL/TLS
-            </Label>
-            <div class="switch-container">
-              <Switch 
-                id="smtp-secure"
-                v-model:checked="formData.email_secure"
-                :disabled="isSavingSMTPConfig"
-              />
-              <span class="switch-description">
-                {{ formData.email_secure ? 'Enabled' : 'Disabled' }}
-              </span>
-            </div>
-            <p class="form-help">Encrypt connection (recommended)</p>
-          </div>
         </div>
         
         <!-- Username -->
@@ -148,7 +135,7 @@
         <!-- Password -->
         <div class="form-group">
           <Label for="smtp-password">
-            Password <span class="required">*</span>
+            Password <span class="optional">(leave empty to keep existing)</span>
           </Label>
           <div class="password-input-wrapper">
             <Input
@@ -156,7 +143,7 @@
               v-model="formData.email_password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="••••••••••••"
-              required
+              autocomplete="new-password"
               :disabled="isSavingSMTPConfig"
             />
             <Button
@@ -171,10 +158,11 @@
             </Button>
           </div>
           <p class="form-help">
-            SMTP password or app-specific password (for Gmail, use an 
+            SMTP password or app-specific password. Leave empty to keep existing password.
+            For Gmail, use an 
             <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener">
               App Password
-            </a>)
+            </a>
           </p>
           <p v-if="validationErrors.email_password" class="form-error">
             {{ validationErrors.email_password }}
@@ -250,7 +238,6 @@ import { useFormFeedback } from '@/composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -288,8 +275,7 @@ const validationErrors = ref({})
 
 const formData = ref({
   email_host: '',
-  email_port: '465',
-  email_secure: true,
+  email_port: '587', // Default to 587 (STARTTLS - most common)
   email_user: '',
   email_password: '',
   email_from_name: '',
@@ -301,15 +287,21 @@ watch(smtpConfig, (config) => {
   if (config && !isEditing.value) {
     formData.value = {
       email_host: config.email_host || '',
-      email_port: String(config.email_port || '465'),
-      email_secure: config.email_secure ?? true,
+      email_port: String(config.email_port || '587'),
       email_user: config.email_user || '',
-      email_password: '', // Never pre-fill password
+      email_password: '', // NEVER pre-fill password for security
       email_from_name: config.email_from_name || '',
       email_from_address: config.email_from_address || '',
     }
   }
 }, { immediate: true })
+
+// Additional safeguard: Always clear password when switching to/from editing mode
+watch(isEditing, (editing) => {
+  if (editing) {
+    formData.value.email_password = ''
+  }
+})
 
 // Methods
 const startEditing = () => {
@@ -321,10 +313,9 @@ const startEditing = () => {
   if (smtpConfig.value) {
     formData.value = {
       email_host: smtpConfig.value.email_host || '',
-      email_port: String(smtpConfig.value.email_port || '465'),
-      email_secure: smtpConfig.value.email_secure ?? true,
+      email_port: String(smtpConfig.value.email_port || '587'),
       email_user: smtpConfig.value.email_user || '',
-      email_password: '', // Don't pre-fill password for security
+      email_password: '', // NEVER pre-fill password for security
       email_from_name: smtpConfig.value.email_from_name || '',
       email_from_address: smtpConfig.value.email_from_address || '',
     }
@@ -345,10 +336,18 @@ const handleSubmit = async () => {
   validationErrors.value = {}
   
   try {
-    // Convert port to number
+    // Convert port to number and auto-determine secure setting based on port
+    const port = parseInt(formData.value.email_port, 10)
     const configData = {
       ...formData.value,
-      email_port: parseInt(formData.value.email_port, 10),
+      email_port: port,
+      // Auto-determine secure based on port
+      email_secure: port === 465, // 465 = SSL/TLS, 587 = STARTTLS (false), 25 = unencrypted (false)
+    }
+    
+    // Fix: Only include password if user entered one (preserves existing password)
+    if (!configData.email_password || configData.email_password.trim() === '') {
+      delete configData.email_password
     }
     
     await saveSMTPConfig(configData)

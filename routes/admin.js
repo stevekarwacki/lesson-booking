@@ -1916,19 +1916,34 @@ router.post('/settings/smtp', authorize('manage', 'User'), async (req, res) => {
             email_from_address
         } = validationResult.data;
         
-        // Encrypt password before storing
-        const encryptedPassword = encrypt(email_password);
+        // Get existing settings to preserve password if not provided
+        const existingSettings = await AppSettings.getSettingsByCategory('email');
         
-        // Save to database
-        await AppSettings.setMultipleSettings('email', {
+        // Prepare settings object
+        const settingsToSave = {
             email_host,
             email_port: email_port.toString(),
             email_secure: email_secure.toString(),
             email_user,
-            email_password: encryptedPassword,
             email_from_name: email_from_name || '',
-            email_from_address: email_from_address || email_user // Default to email_user if not provided
-        }, req.user.id);
+            email_from_address: email_from_address || email_user
+        };
+        
+        // Only update password if provided (preserve existing if empty)
+        if (email_password && email_password.trim()) {
+            const encryptedPassword = encrypt(email_password);
+            settingsToSave.email_password = encryptedPassword;
+        } else if (!existingSettings.email_password) {
+            // If no existing password and none provided, this is an error
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: { email_password: 'Email password is required for new configuration' }
+            });
+        }
+        // else: keep existing password (don't include in settingsToSave)
+        
+        // Save to database
+        await AppSettings.setMultipleSettings('email', settingsToSave, req.user.id);
         
         // Return success (without sensitive data)
         res.json({
