@@ -26,11 +26,11 @@ const initializeProviders = async () => {
     const nodemailerProvider = require('./email/nodemailerProvider');
     const gmailProvider = require('./email/gmailProvider');
     
-    // Only wait for async providers if they might be configured
-    // Gmail requires async initialization to check API availability
-    if (config.features.oauthEmail) {
-        await gmailProvider.initializationPromise;
-    }
+    // Wait for both providers to initialize (they check DB/config)
+    await Promise.all([
+        nodemailerProvider.initializationPromise,
+        config.features.oauthEmail ? gmailProvider.initializationPromise : Promise.resolve()
+    ]);
     
     const nodemailerStatus = nodemailerProvider.getConfigurationStatus();
     const gmailStatus = gmailProvider.getConfigurationStatus();
@@ -399,8 +399,8 @@ const generateCalendarAttachment = (booking) => {
     }
 };
 
-// Initialize providers on module load
-initializeProviders();
+// Export initializeProviders to be called from server.js after DB ready
+// Don't auto-initialize on module load (causes race condition)
 
 module.exports = {
     sendEmail,
@@ -411,5 +411,6 @@ module.exports = {
     sendReschedulingConfirmation,
     sendCreditsExhausted,
     sendBookingConfirmation,
-    sendAbsenceNotification
+    sendAbsenceNotification,
+    initializeProviders // Export for explicit initialization from server.js
 };

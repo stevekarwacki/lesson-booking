@@ -269,8 +269,11 @@ const getConfigurationStatus = () => {
     return { configured: false, message: 'Failed to initialize nodemailer transporter' };
 };
 
-// Initialize on module load (try both sources)
-initializeTransporter();
+// Initialize on module load and export promise (like gmailProvider)
+// This will be awaited by EmailService after database is ready
+const initializationPromise = (async () => {
+    await initializeTransporter();
+})();
 
 module.exports = {
     send,
@@ -278,5 +281,6 @@ module.exports = {
     isAvailable,
     getConfigurationStatus,
     initializeTransporter, // Export for refreshing config
+    initializationPromise, // Export for awaiting during startup
     name: 'nodemailer'
 };

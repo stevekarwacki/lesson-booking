@@ -4,6 +4,7 @@ const { initModels } = require('./models');
 const { AppSettings } = require('./models/AppSettings');
 const { initializeStorage } = require('./storage/index');
 const cronJobService = require('./services/CronJobService');
+const { initializeProviders } = require('./services/EmailService');
 const logger = require('./utils/logger');
 const config = require('./config');
 const { ensureConstantsLoaded } = require('./utils/constants');
@@ -20,6 +21,10 @@ const startServer = async () => {
         
         // Initialize storage system with AppSettings for configuration
         await initializeStorage({ appSettings: AppSettings });
+        
+        // Initialize email providers AFTER database is ready
+        // This prevents race condition where nodemailerProvider tries to query DB before it's ready
+        await initializeProviders();
         
         // Initialize scheduled email jobs
         await cronJobService.initialize();
