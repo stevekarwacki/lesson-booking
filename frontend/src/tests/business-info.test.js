@@ -111,6 +111,7 @@ describe('BusinessInfoSection Component', () => {
 
     wrapper = createWrapper({ initialData })
     await nextTick()
+    await flushPromises()
 
     expect(wrapper.find('#companyName').element.value).toBe('Test Company')
     expect(wrapper.find('#contactEmail').element.value).toBe('test@example.com')
