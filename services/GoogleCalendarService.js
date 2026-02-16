@@ -143,7 +143,12 @@ const createGoogleCalendarService = (options = {}) => {
             return convertedEvents;
             
         } catch (error) {
-            console.error(`Google Calendar error for instructor ${instructorId}:`, error);
+            // Gracefully handle OAuth errors (expired tokens, invalid grants)
+            if (error.code === 400 || error.message?.includes('invalid_grant')) {
+                console.warn(`Google Calendar OAuth error for instructor ${instructorId}: ${error.message || 'Token expired or revoked'}`);
+            } else {
+                console.error(`Google Calendar error for instructor ${instructorId}:`, error);
+            }
             
             // Return cached data if available, otherwise empty array
             if (cached) {

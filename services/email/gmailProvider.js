@@ -129,6 +129,15 @@ const send = async (to, subject, htmlContent, options = {}) => {
         };
 
     } catch (error) {
+        // Gracefully handle OAuth errors
+        if (error.code === 400 || error.message?.includes('invalid_grant')) {
+            return {
+                success: false,
+                error: 'OAuth connection expired or revoked',
+                provider: 'gmail'
+            };
+        }
+        
         return {
             success: false,
             error: error.message,
@@ -212,6 +221,15 @@ const sendWithAttachment = async (to, subject, htmlContent, attachment, options 
         };
 
     } catch (error) {
+        // Gracefully handle OAuth errors
+        if (error.code === 400 || error.message?.includes('invalid_grant')) {
+            return {
+                success: false,
+                error: 'OAuth connection expired or revoked',
+                provider: 'gmail'
+            };
+        }
+        
         return {
             success: false,
             error: error.message,
