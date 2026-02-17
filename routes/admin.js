@@ -2367,4 +2367,243 @@ router.get('/settings/email/oauth/instructors', authorize('manage', 'User'), asy
     }
 });
 
+// ==========================================
+// Calendar Settings Endpoints
+// ==========================================
+
+/**
+ * GET /api/admin/settings/calendar/method
+ * Get the current calendar connection method
+ */
+router.get('/settings/calendar/method', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const calendarSettings = await AppSettings.getSettingsByCategory('calendar');
+        
+        res.json({
+            method: calendarSettings.method || null,
+            available_methods: ['oauth', 'service_account', 'disabled']
+        });
+    } catch (error) {
+        console.error('Error fetching calendar method:', error);
+        res.status(500).json({ 
+            error: 'Error fetching calendar method',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/calendar/method
+ * Set the calendar connection method
+ */
+router.post('/settings/calendar/method', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { method } = req.body;
+        
+        const validMethods = ['oauth', 'service_account', 'disabled'];
+        if (!validMethods.includes(method)) {
+            return res.status(400).json({
+                error: 'Invalid method',
+                details: 'Method must be one of: oauth, service_account, disabled'
+            });
+        }
+        
+        await AppSettings.setSetting('calendar', 'method', method, req.user.id);
+        
+        const { invalidateCalendarConfigCache } = require('../config/calendarConfig');
+        invalidateCalendarConfigCache();
+        
+        res.json({
+            success: true,
+            message: 'Calendar method updated successfully',
+            method
+        });
+        
+    } catch (error) {
+        console.error('Error setting calendar method:', error);
+        res.status(500).json({ 
+            error: 'Error setting calendar method',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/settings/calendar/service-account
+ * Get service account configuration (email shown, key masked)
+ */
+router.get('/settings/calendar/service-account', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const calendarSettings = await AppSettings.getSettingsByCategory('calendar');
+        
+        const isConfigured = !!(calendarSettings.service_account_email && calendarSettings.service_account_private_key);
+        
+        res.json({
+            is_configured: isConfigured,
+            service_account_email: calendarSettings.service_account_email || null,
+            has_private_key: !!calendarSettings.service_account_private_key
+        });
+    } catch (error) {
+        console.error('Error fetching service account config:', error);
+        res.status(500).json({ 
+            error: 'Error fetching service account configuration',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/admin/settings/calendar/service-account
+ * Save service account credentials (key encrypted)
+ */
+router.post('/settings/calendar/service-account', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { encrypt } = require('../utils/encryption');
+        const { service_account_email, service_account_private_key } = req.body;
+        
+        // Validate required fields
+        const errors = {};
+        if (!service_account_email || !service_account_email.trim()) {
+            errors.service_account_email = 'Service account email is required';
+        } else if (!service_account_email.includes('@')) {
+            errors.service_account_email = 'Must be a valid email address';
+        }
+        
+        // Private key required on initial setup, optional on update (preserves existing)
+        const calendarSettings = await AppSettings.getSettingsByCategory('calendar');
+        const hasExistingKey = !!calendarSettings.service_account_private_key;
+        
+        if (!hasExistingKey && (!service_account_private_key || !service_account_private_key.trim())) {
+            errors.service_account_private_key = 'Private key is required';
+        }
+        
+        if (Object.keys(errors).length > 0) {
+            return res.status(400).json({
+                error: 'Validation failed',
+                details: errors
+            });
+        }
+        
+        // Build settings to save
+        const settings = {
+            service_account_email: service_account_email.trim()
+        };
+        
+        // Only update private key if provided (preserves existing encrypted value)
+        if (service_account_private_key && service_account_private_key.trim()) {
+            settings.service_account_private_key = encrypt(service_account_private_key.trim());
+        }
+        
+        await AppSettings.setMultipleSettings('calendar', settings, req.user.id);
+        
+        const { invalidateCalendarConfigCache } = require('../config/calendarConfig');
+        invalidateCalendarConfigCache();
+        
+        res.json({
+            success: true,
+            message: 'Service account configuration saved successfully',
+            service_account_email: settings.service_account_email,
+            has_private_key: true
+        });
+        
+    } catch (error) {
+        console.error('Error saving service account config:', error);
+        res.status(500).json({ 
+            error: 'Error saving service account configuration',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * DELETE /api/admin/settings/calendar/service-account
+ * Remove service account credentials
+ */
+router.delete('/settings/calendar/service-account', authorize('manage', 'User'), async (req, res) => {
+    try {
+        await Promise.all([
+            AppSettings.deleteSetting('calendar', 'service_account_email'),
+            AppSettings.deleteSetting('calendar', 'service_account_private_key')
+        ]);
+        
+        const { invalidateCalendarConfigCache } = require('../config/calendarConfig');
+        invalidateCalendarConfigCache();
+        
+        res.json({
+            success: true,
+            message: 'Service account configuration deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error deleting service account config:', error);
+        res.status(500).json({ 
+            error: 'Error deleting service account configuration',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/admin/settings/calendar/connected-instructors
+ * List instructors with calendar sync and their status
+ */
+router.get('/settings/calendar/connected-instructors', authorize('manage', 'User'), async (req, res) => {
+    try {
+        const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
+        const { InstructorGoogleToken } = require('../models/InstructorGoogleToken');
+        
+        // Get all instructors with calendar configs
+        const calendarConfigs = await InstructorCalendarConfig.findAll({
+            include: [{
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['id', 'name', 'email']
+                }]
+            }]
+        });
+        
+        // Get OAuth tokens for cross-referencing
+        const oauthTokens = await InstructorGoogleToken.findAll();
+        const tokenMap = new Map(oauthTokens.map(t => [t.instructor_id, t]));
+        
+        const instructors = calendarConfigs.map(calConfig => {
+            const token = tokenMap.get(calConfig.instructor_id);
+            const hasOAuth = !!token;
+            const hasServiceAccount = !!calConfig.calendar_id;
+            
+            let connectionType = 'unknown';
+            if (hasOAuth) connectionType = 'oauth';
+            else if (hasServiceAccount) connectionType = 'service_account';
+            
+            return {
+                instructor_id: calConfig.instructor_id,
+                user_id: calConfig.Instructor?.User?.id,
+                name: calConfig.Instructor?.User?.name,
+                email: calConfig.Instructor?.User?.email,
+                connection_type: connectionType,
+                calendar_id: calConfig.calendar_id,
+                is_active: calConfig.is_active,
+                last_test_status: calConfig.last_test_status,
+                last_tested_at: calConfig.last_tested_at,
+                has_oauth_token: hasOAuth,
+                has_refresh_token: token?.refresh_token ? true : false,
+                connected_at: calConfig.createdAt
+            };
+        });
+        
+        res.json({
+            instructors,
+            count: instructors.length
+        });
+        
+    } catch (error) {
+        console.error('Error fetching connected instructors:', error);
+        res.status(500).json({ 
+            error: 'Error fetching connected instructors',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;

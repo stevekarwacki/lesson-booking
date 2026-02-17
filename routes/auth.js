@@ -219,45 +219,64 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
 });
 
 /**
- * Get setup information for service account sharing
+ * Get setup information for calendar integration
+ * Returns method-specific info based on admin-configured calendar method
  * Protected route - requires valid JWT token and instructor permission
  */
 router.get('/calendar/setup-info/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-        const service = GoogleCalendarService();
-        const serviceAccountEmail = service.getServiceAccountEmail();
-        
-        // Check if OAuth is available
-        const oauthConfigured = googleOAuthService.isConfigured();
-        const oauthStatus = oauthConfigured
-            ? await InstructorGoogleToken.findByInstructorId(instructorId)
-            : null;
+        const { getCalendarMethod } = require('../config/calendarConfig');
+        const method = await getCalendarMethod();
 
-        res.json({
-            // Existing service account info
-            serviceAccountEmail,
-            instructions: {
-                step1: 'Go to Google Calendar (calendar.google.com)',
-                step2: 'Find your calendar in the left sidebar',
-                step3: 'Click the three dots next to your calendar name',
-                step4: 'Select "Settings and sharing"',
-                step5: `Add "${serviceAccountEmail}" to "Share with specific people"`,
-                step6: 'Give "See all event details" permission',
-                step7: 'Copy your calendar ID (usually your email) and paste it in the form above'
+        const response = {
+            method,
+            connection: {
+                available: false,
+                connected: false,
+                connectedAt: null,
+                message: 'Calendar integration is disabled.'
             },
-            
-            // NEW: OAuth info
-            oauth: {
+            serviceAccountEmail: null,
+            scopes: null
+        };
+
+        if (method === 'oauth') {
+            const oauthConfigured = await googleOAuthService.isConfigured();
+            const oauthStatus = oauthConfigured
+                ? await InstructorGoogleToken.findByInstructorId(instructorId)
+                : null;
+
+            response.connection = {
                 available: oauthConfigured,
                 connected: !!oauthStatus,
                 connectedAt: oauthStatus?.created_at || null,
-                scopes: oauthStatus?.scope || null,
                 message: oauthConfigured
-                    ? 'OAuth is available. You can connect via OAuth for easier setup.'
-                    : 'OAuth not configured on server.'
-            }
-        });
+                    ? 'Connect your Google Calendar with just a few clicks.'
+                    : 'OAuth not configured on server. Please contact your administrator.'
+            };
+            response.scopes = oauthStatus?.scope || null;
+        } else if (method === 'service_account') {
+            const service = GoogleCalendarService();
+            const serviceAccountEmail = await service.getServiceAccountEmail();
+            const hasEmail = serviceAccountEmail && !serviceAccountEmail.includes('not configured');
+            const calendarConfig = await InstructorCalendarConfig.findByInstructorId(instructorId);
+            const isConnected = !!(calendarConfig && calendarConfig.calendar_id);
+
+            response.connection = {
+                available: hasEmail,
+                connected: isConnected,
+                connectedAt: isConnected ? calendarConfig.createdAt : null,
+                message: !hasEmail
+                    ? 'Service account not configured. Please contact your administrator.'
+                    : isConnected
+                        ? 'Calendar connected via service account.'
+                        : 'Share your Google Calendar with the service account to enable integration.'
+            };
+            response.serviceAccountEmail = hasEmail ? serviceAccountEmail : null;
+        }
+
+        res.json(response);
         
     } catch (error) {
         console.error('Error getting setup info:', error);

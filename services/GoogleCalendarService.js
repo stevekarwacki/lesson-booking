@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 const { InstructorCalendarConfig } = require('../models/InstructorCalendarConfig');
 const { today } = require('../utils/dateHelpers');
+const { getCalendarMethod, getServiceAccountCredentials } = require('../config/calendarConfig');
 const config = require('../config');
 
 /**
@@ -9,11 +10,6 @@ const config = require('../config');
  * @returns {Object} Service instance with methods
  */
 const createGoogleCalendarService = (options = {}) => {
-    // Service account configuration
-    const serviceAccountEmail = options.serviceAccountEmail || config.googleServiceAccount.email;
-    const serviceAccountKey = options.serviceAccountKey || config.googleServiceAccount.privateKey;
-    const serviceAccountKeyFile = options.serviceAccountKeyFile || config.googleServiceAccount.keyFile;
-    
     let auth = null;
     let calendar = null;
     
@@ -21,26 +17,30 @@ const createGoogleCalendarService = (options = {}) => {
     const cache = new Map();
     const cacheTimeout = options.cacheTimeout || (5 * 60 * 1000); // 5 minutes
 
-    const initializeServiceAccount = () => {
-        // Check if we have service account credentials
-        if (!serviceAccountEmail && !serviceAccountKeyFile && !serviceAccountKey) {
+    /**
+     * Initialize service account auth client from DB-backed credentials
+     * @returns {Promise<void>}
+     */
+    const initializeServiceAccount = async () => {
+        const creds = await getServiceAccountCredentials();
+        const keyFile = config.googleServiceAccount.keyFile;
+
+        if (!creds.email && !keyFile && !creds.privateKey) {
             console.warn('Google Calendar: Missing service account credentials, service will be disabled');
             return;
         }
         
         try {
-            // Initialize Google Auth for service account
-            let authOptions = {
+            const authOptions = {
                 scopes: ['https://www.googleapis.com/auth/calendar.readonly']
             };
             
-            // Use key file if provided, otherwise use inline credentials
-            if (serviceAccountKeyFile) {
-                authOptions.keyFile = serviceAccountKeyFile;
-            } else if (serviceAccountEmail && serviceAccountKey) {
+            if (keyFile) {
+                authOptions.keyFile = keyFile;
+            } else if (creds.email && creds.privateKey) {
                 authOptions.credentials = {
-                    client_email: serviceAccountEmail,
-                    private_key: serviceAccountKey.replace(/\\n/g, '\n')
+                    client_email: creds.email,
+                    private_key: creds.privateKey.replace(/\\n/g, '\n')
                 };
             } else {
                 throw new Error('Invalid service account configuration');
@@ -57,14 +57,18 @@ const createGoogleCalendarService = (options = {}) => {
     };
     
     /**
-     * Get authentication client (OAuth or service account based on feature flag)
+     * Get authentication client based on DB-backed calendar method
      * @param {number} instructorId - Instructor ID
      * @returns {Promise<Auth>} Google Auth client
      */
     const getAuthClient = async (instructorId) => {
-        // Check feature flag
-        if (config.features.oauthCalendar) {
-            // Try OAuth first
+        const method = await getCalendarMethod();
+
+        if (method === 'disabled') {
+            return null;
+        }
+
+        if (method === 'oauth') {
             const googleOAuthService = require('../config/googleOAuth');
             const oauth2Client = await googleOAuthService.getAuthenticatedClient(instructorId);
             
@@ -72,21 +76,18 @@ const createGoogleCalendarService = (options = {}) => {
                 return oauth2Client;
             }
             
-            // OAuth not configured for instructor, try service account fallback
+            // OAuth not configured for this instructor, try service account fallback
             if (!auth) {
-                // Initialize service account on-demand if not already done
-                initializeServiceAccount();
+                await initializeServiceAccount();
             }
         }
+
+        if (method === 'service_account' && !auth) {
+            await initializeServiceAccount();
+        }
         
-        // Fallback to service account (or null if not configured)
         return auth;
     };
-    
-    // Only initialize service account if OAuth is not enabled
-    if (!config.features.oauthCalendar) {
-        initializeServiceAccount();
-    }
     
     /**
      * Get calendar events for instructor within date range
@@ -462,10 +463,11 @@ const createGoogleCalendarService = (options = {}) => {
     
     /**
      * Get service account email for sharing instructions
-     * @returns {string} Service account email
+     * @returns {Promise<string>} Service account email
      */
-    const getServiceAccountEmail = () => {
-        return serviceAccountEmail || 'Service account email not configured';
+    const getServiceAccountEmail = async () => {
+        const creds = await getServiceAccountCredentials();
+        return creds.email || 'Service account email not configured';
     };
     
     /**
