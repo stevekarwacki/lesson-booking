@@ -80,6 +80,10 @@ InstructorCalendarConfig.createOrUpdate = async function(instructorId, configDat
         calendar_type: configData.calendar_type || 'personal',
         is_active: configData.is_active !== undefined ? configData.is_active : true
     };
+
+    if (configData.all_day_event_handling) {
+        configValues.all_day_event_handling = configData.all_day_event_handling;
+    }
     
     let created = false;
     

@@ -151,6 +151,9 @@ export function useGoogleCalendar(instructorId) {
         mutationFn: () => testCalendarConnectionApi(normalizedInstructorId.value, token.value)
     })
     
+    // Derived state from setupInfo
+    const calendarMethod = computed(() => setupInfo.value?.method || null)
+    
     // Loading and error states
     const loading = computed(() => 
         isLoadingConfig.value || 
@@ -174,6 +177,7 @@ export function useGoogleCalendar(instructorId) {
         // State
         calendarConfig,
         setupInfo,
+        calendarMethod,
         loading,
         error,
         isLoadingConfig,

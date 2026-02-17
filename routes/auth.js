@@ -169,7 +169,7 @@ router.get('/calendar/config/:instructorId', authMiddleware, instructorAuth, asy
 router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, async (req, res) => {
     try {
         const instructorId = parseInt(req.params.instructorId, 10);
-        const { calendar_id, calendar_name, calendar_type } = req.body;
+        const { calendar_id, calendar_name, calendar_type, all_day_event_handling } = req.body;
         
         if (!calendar_id) {
             return res.status(400).json({ 
@@ -187,13 +187,19 @@ router.post('/calendar/config/:instructorId', authMiddleware, instructorAuth, as
                 message: `"${calendar_id}" is not a valid format. Please use an email address (like user@gmail.com) or a Google Calendar ID containing 'calendar.google.com'`
             });
         }
-        
-        // Create or update the configuration
-        const { config, created } = await InstructorCalendarConfig.createOrUpdate(instructorId, {
+
+        const updateData = {
             calendar_id: calendar_id.trim(),
             calendar_name: calendar_name ? calendar_name.trim() : null,
             calendar_type: calendar_type || 'personal'
-        });
+        };
+
+        if (all_day_event_handling && ['ignore', 'block'].includes(all_day_event_handling)) {
+            updateData.all_day_event_handling = all_day_event_handling;
+        }
+        
+        // Create or update the configuration
+        const { config, created } = await InstructorCalendarConfig.createOrUpdate(instructorId, updateData);
         
         res.json({ 
             success: true,
