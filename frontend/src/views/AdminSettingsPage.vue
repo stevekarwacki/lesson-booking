@@ -10,6 +10,7 @@ import BusinessInfoSection from '../components/admin/BusinessInfoSection.vue'
 import EmailTemplatesSection from '../components/admin/EmailTemplatesSection.vue'
 import LessonsSection from '../components/admin/LessonsSection.vue'
 import AdvancedSettingsSection from '../components/admin/AdvancedSettingsSection.vue'
+import CalendarSettingsSection from '../components/admin/CalendarSettingsSection.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -58,6 +59,12 @@ const settingsTabs = computed(() => [
       initialData: settingsData.value.email || {},
       loading: loading.value
     }
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar Settings',
+    component: CalendarSettingsSection,
+    props: {}
   },
   {
     id: 'advanced',

@@ -11,7 +11,7 @@ const AppSettings = sequelize.define('AppSettings', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['business', 'theme', 'email', 'branding', 'lessons', 'storage']]
+            isIn: [['business', 'theme', 'email', 'branding', 'lessons', 'storage', 'calendar']]
         }
     },
     key: {
