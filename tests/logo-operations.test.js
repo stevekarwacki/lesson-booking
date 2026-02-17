@@ -209,12 +209,15 @@ describe('File Operations', () => {
         return `${timestamp}_${baseName}${ext}`;
       };
 
+      const originalDateNow = Date.now;
+      let fakeTimestamp = 1000000;
+      Date.now = () => fakeTimestamp;
+
       const filename1 = generateUniqueFilename('test-logo.png');
-      
-      // Wait 5ms to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 5));
-      
+      fakeTimestamp += 10;
       const filename2 = generateUniqueFilename('test-logo.png');
+
+      Date.now = originalDateNow;
       
       assert.ok(filename1.includes('test-logo'));
       assert.ok(filename1.endsWith('.png'));

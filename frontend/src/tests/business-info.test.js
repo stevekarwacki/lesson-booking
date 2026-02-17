@@ -135,6 +135,7 @@ describe('BusinessInfoSection Component', () => {
     await wrapper.find('form').trigger('submit.prevent')
 
     // Should show validation errors
+    await flushPromises()
     await nextTick()
     expect(wrapper.text()).toContain('Company name must be at least 2 characters')
     expect(wrapper.text()).toContain('Please enter a valid email address')
@@ -184,6 +185,7 @@ describe('BusinessInfoSection Component', () => {
     
     // Try to submit without timezone
     await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
     await nextTick()
 
     expect(wrapper.text()).toContain('Business timezone is required')
@@ -209,6 +211,7 @@ describe('BusinessInfoSection Component', () => {
 
     // Submit form
     await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
     await nextTick()
 
     // Check that change event was emitted with social media data
@@ -250,6 +253,7 @@ describe('BusinessInfoSection Component', () => {
 
     // Submit form
     await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
     await nextTick()
 
     // Check that change event was emitted
@@ -462,6 +466,7 @@ describe('Integration Tests', () => {
 
     // Submit the form
     await businessSection.find('form').trigger('submit.prevent')
+    await flushPromises()
     await nextTick()
 
     // Check that the API was called with correct data

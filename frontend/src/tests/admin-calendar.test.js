@@ -285,7 +285,8 @@ describe('Admin Calendar Management - Function Tests', () => {
       expect(isSearchFocused).toBe(false)
     })
 
-    it('should handle search focus/blur', async () => {
+    it('should handle search focus/blur', () => {
+      vi.useFakeTimers()
       let isSearchFocused = false
 
       // Focus
@@ -297,8 +298,9 @@ describe('Admin Calendar Management - Function Tests', () => {
         isSearchFocused = false
       }, 200)
 
-      await new Promise(resolve => setTimeout(resolve, 250))
+      vi.advanceTimersByTime(200)
       expect(isSearchFocused).toBe(false)
+      vi.useRealTimers()
     })
   })
 })

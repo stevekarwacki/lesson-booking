@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { createApp } from 'vue'
@@ -238,6 +238,7 @@ describe('Theme System', () => {
     it('should select palette on click', async () => {
       const oceanBlueButton = wrapper.findAll('.palette-option')[1] // Ocean Blue
       await oceanBlueButton.trigger('click')
+      await flushPromises()
       
       expect(oceanBlueButton.classes()).toContain('active')
       expect(wrapper.vm.selectedPalette.name).toBe('Ocean Blue')
@@ -249,11 +250,13 @@ describe('Theme System', () => {
       
       // Test valid hex color
       await colorInput.setValue('#ff5722')
+      await flushPromises()
       expect(wrapper.vm.isCustomColorValid).toBe(true)
       expect(wrapper.vm.selectedPalette).toBeNull() // Should reset palette
       
       // Test invalid color
       await colorInput.setValue('invalid-color')
+      await flushPromises()
       expect(wrapper.vm.isCustomColorValid).toBe(false)
     })
 
@@ -262,6 +265,7 @@ describe('Theme System', () => {
       
       // Test a color that might have contrast issues (mid-gray)
       await colorInput.setValue('#808080')
+      await flushPromises()
       
       expect(wrapper.vm.contrastWarning).toBe(true)
       
@@ -277,6 +281,7 @@ describe('Theme System', () => {
       // Change to different palette first
       const royalPurpleButton = wrapper.findAll('.palette-option')[3]
       await royalPurpleButton.trigger('click')
+      await flushPromises()
       
       expect(wrapper.vm.customPrimaryColor).toBe('#6f42c1')
       
@@ -285,6 +290,7 @@ describe('Theme System', () => {
       const resetButton = buttons.find(btn => btn.text().includes('Reset'))
       expect(resetButton).toBeDefined()
       await resetButton.trigger('click')
+      await flushPromises()
       
       expect(wrapper.vm.selectedPalette.name).toBe('Forest Green')
       expect(wrapper.vm.customPrimaryColor).toBe('#28a745')
@@ -311,7 +317,7 @@ describe('Theme System', () => {
       // Change to different palette
       const oceanBlueButton = wrapper.findAll('.palette-option')[1]
       await oceanBlueButton.trigger('click')
-      await wrapper.vm.$nextTick()
+      await flushPromises()
       
       // Should detect changes after palette selection
       expect(wrapper.vm.hasChanges).toBe(true)
@@ -321,7 +327,7 @@ describe('Theme System', () => {
       const resetButton = buttons.find(btn => btn.text().includes('Reset'))
       expect(resetButton).toBeDefined()
       await resetButton.trigger('click')
-      await wrapper.vm.$nextTick()
+      await flushPromises()
       
       // After reset, palette should be back to Forest Green
       expect(wrapper.vm.selectedPalette.name).toBe('Forest Green')

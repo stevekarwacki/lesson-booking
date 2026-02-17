@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import BookingList from '../components/BookingList.vue'
@@ -484,6 +484,7 @@ describe('Attendance Tracking Frontend', () => {
       })
 
       await wrapper.vm.$nextTick()
+      await flushPromises()
 
       const mockBooking = { originalBooking: { id: 1 } }
       await wrapper.vm.handleAttendanceChanged(mockBooking, 'absent', 'Test')
@@ -501,7 +502,7 @@ describe('Attendance Tracking Frontend', () => {
 
       // Wait for initial load
       await wrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await flushPromises()
 
       // Set up initial bookings state
       wrapper.vm.bookings = [
@@ -526,6 +527,9 @@ describe('Attendance Tracking Frontend', () => {
           plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
+
+      await wrapper.vm.$nextTick()
+      await flushPromises()
 
       const mockBooking = {
         originalBooking: { 

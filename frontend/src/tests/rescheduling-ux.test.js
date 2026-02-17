@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import EditBooking from '../components/EditBooking.vue'
@@ -122,7 +122,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
 
       // Wait for component to mount and load schedule
       await wrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await flushPromises()
 
       // Simulate selecting a new slot
       wrapper.vm.selectedSlot = {
@@ -217,7 +217,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       })
 
       await wrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await flushPromises()
 
       // Simulate selecting a new slot
       wrapper.vm.selectedSlot = {
@@ -312,7 +312,7 @@ describe('Rescheduling UX with Toast Notifications', () => {
       })
 
       await wrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await flushPromises()
 
       wrapper.vm.selectedSlot = {
         date: new Date(tomorrowStr),
