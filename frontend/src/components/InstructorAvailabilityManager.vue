@@ -146,6 +146,7 @@ const newBlockedTime = ref({
 const scheduleUpdateCounter = ref(0)
 
 // Watch for weekly availability changes
+// immediate: true ensures cached Vue Query data is processed on mount
 watch(weeklyAvailability, (newAvailability) => {
     if (newAvailability) {
         // Reset schedule
@@ -161,7 +162,7 @@ watch(weeklyAvailability, (newAvailability) => {
             })
         })
     }
-})
+}, { immediate: true })
 
 // Watch for blocked slots changes
 // Note: Blocked times feature is currently disabled due to incomplete backend implementation
