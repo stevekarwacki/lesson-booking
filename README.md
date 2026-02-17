@@ -13,6 +13,7 @@ A web application for managing lesson bookings.
 - **In-person payment system** with configurable global/per-student settings
 - **Comprehensive refund system** with Stripe integration and credit restoration
 - Payment processing with email confirmations
+- **Google Calendar integration** with Service Account and OAuth support
 - Instructor profiles and availability
 - Student booking management
 - Time-based booking restrictions (24-hour modification policy)
@@ -131,6 +132,7 @@ For detailed documentation, see:
 - [`docs/60_MINUTE_LESSON_FEATURES.md`](docs/60_MINUTE_LESSON_FEATURES.md) - 60-minute lesson functionality
 - [`docs/REFUND_SYSTEM.md`](docs/REFUND_SYSTEM.md) - Comprehensive refund system
 - [`docs/BUSINESS_HOURS_AVAILABILITY_FEATURE.md`](docs/BUSINESS_HOURS_AVAILABILITY_FEATURE.md) - Business hours and availability management
+- [`docs/GOOGLE_CALENDAR_INTEGRATION.md`](docs/GOOGLE_CALENDAR_INTEGRATION.md) - Google Calendar integration setup
 
 ### Permission Overview
 

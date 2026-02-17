@@ -58,6 +58,7 @@ cd frontend && npm run test -- booking-modal.test.js
 - `Credits` - Student payment balances and subscription tracking
 - `Subscription` - Recurring payment plans via Stripe
 - `Refund` - Refund tracking with credit restoration
+- `InstructorCalendarConfig` - Per-instructor Google Calendar settings (calendar ID, all-day handling)
 
 **Routes** (`/routes/`): Express routes following RESTful patterns:
 - `auth.js` - Login, signup, JWT token management
@@ -71,7 +72,7 @@ cd frontend && npm run test -- booking-modal.test.js
 
 **Services** (`/services/`):
 - `EmailService.js` - Handlebars template rendering, Nodemailer integration with database-backed SMTP configuration
-- `GoogleCalendarService.js` - OAuth flow, event sync to instructor calendars
+- `GoogleCalendarService.js` - Google Calendar event fetching via OAuth or Service Account (uses `calendarConfig.js` for DB-backed method selection)
 - `RefundService.js` - Stripe refunds, credit restoration logic
 - `CronJobService.js` - Scheduled tasks (email reminders, credit expiry)
 - `EmailQueueService.js` - Queued email processing
@@ -101,7 +102,7 @@ cd frontend && npm run test -- booking-modal.test.js
 - `StripePaymentForm.vue` - Credit purchase with Stripe Elements
 - `NavBar.vue` - Role-based navigation
 - `InstructorManager.vue` - Admin instructor management
-- `GoogleCalendarSettings.vue` - Instructor calendar sync setup
+- `GoogleCalendarSettings.vue` - Method-aware instructor calendar connection (OAuth or Service Account)
 
 **Stores** (`/frontend/src/stores/`): Pinia for state management
 - `userStore.js` - Auth state, user info, CASL ability getters
@@ -172,6 +173,16 @@ cd frontend && npm run test -- booking-modal.test.js
 - Test mode configuration in `.env` (never commit keys)
 - See `/docs/STRIPE_INTEGRATION_GUIDE.md`
 
+**Google Calendar Integration**:
+- Blocks instructor time slots based on external Google Calendar events
+- Two methods: Service Account (recommended) or OAuth, selected by admin
+- Configuration stored in `AppSettings` (category: `calendar`) with env var fallback
+- `config/calendarConfig.js` loads method and credentials (DB-first, 5-min cache)
+- `GoogleCalendarService.js` handles authentication and event fetching
+- Admin UI: `CalendarSettingsSection.vue` in Admin Settings > Calendar Settings
+- Instructor UI: `GoogleCalendarSettings.vue` shows only the admin-enabled method
+- See `/docs/GOOGLE_CALENDAR_INTEGRATION.md` for full setup guide
+
 ## Development Workflow
 
 ### Branch Strategy
@@ -214,6 +225,7 @@ After merging to main:
 - Required: `DATABASE_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`, `ENCRYPTION_KEY`
 - Optional: `REDIS_URL`, `EMAIL_USER`, `EMAIL_APP_PASSWORD`, `GOOGLE_CLIENT_ID`
 - SMTP can be configured via admin UI (preferred) or environment variables (fallback)
+- Google Calendar settings configurable via admin UI with env var fallback (`USE_OAUTH_CALENDAR`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`)
 - Cache falls back to memory if Redis not configured
 - Email service logs attempts if not configured
 
@@ -273,4 +285,5 @@ For in-depth guides on specific features:
 - `/docs/LOGO_UPLOAD_FEATURE.md` - Branding and file upload handling
 - `/docs/ATTENDANCE_TRACKING_FEATURE.md` - Attendance marking system
 - `/docs/BUSINESS_INFORMATION_FEATURE.md` - Business settings management
+- `/docs/GOOGLE_CALENDAR_INTEGRATION.md` - Calendar integration setup and architecture
 - `/docs/TESTING_GUIDE.md` - Comprehensive testing documentation
