@@ -75,8 +75,9 @@ describe('Logo Upload Feature', () => {
     })
 
     test('should render config cards', () => {
-      const configCards = wrapper.findAll('.config-card')
-      expect(configCards.length).toBeGreaterThan(0)
+      // Look for shadcn Card components instead of .config-card class
+      const cards = wrapper.findAllComponents({ name: 'Card' })
+      expect(cards.length).toBeGreaterThan(0)
     })
   })
 
