@@ -17,53 +17,55 @@
 
       <!-- Method Selection -->
       <div v-else class="method-selection">
-        <div class="form-group">
-          <Label for="calendar-method">
+        <div class="form-group form-group-horizontal">
+          <Label for="calendar-method" class="form-label">
             Connection Method <span class="required">*</span>
           </Label>
-          <Select
-            v-model="selectedMethod"
-            @update:modelValue="handleMethodChange"
-            :disabled="isSettingMethod"
-          >
-            <SelectTrigger id="calendar-method">
-              <SelectValue placeholder="Select connection method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="service_account">
-                <div class="select-item-content">
-                  <strong>Service Account</strong>
-                  <span class="description">Instructors share their calendar with a service account (recommended)</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="oauth">
-                <div class="select-item-content">
-                  <strong>OAuth</strong>
-                  <span class="description">Instructors connect via Google sign-in (requires OAuth credentials)</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="disabled">
-                <div class="select-item-content">
-                  <strong>Disabled</strong>
-                  <span class="description">Turn off Google Calendar integration</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="help-text">
-            <template v-if="selectedMethod === 'service_account'">
-              Instructors share their Google Calendar with a service account email. You configure the service account credentials below.
-            </template>
-            <template v-else-if="selectedMethod === 'oauth'">
-              Instructors sign in with their Google account to grant calendar access. Requires OAuth credentials configured in Email Settings.
-            </template>
-            <template v-else-if="selectedMethod === 'disabled'">
-              Google Calendar integration is turned off. Instructor calendars will not block booking time slots.
-            </template>
-            <template v-else>
-              Select a connection method to configure Google Calendar integration.
-            </template>
-          </p>
+          <div class="form-input-wrapper">
+            <Select
+              v-model="selectedMethod"
+              @update:modelValue="handleMethodChange"
+              :disabled="isSettingMethod"
+            >
+              <SelectTrigger id="calendar-method">
+                <SelectValue placeholder="Select connection method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="service_account">
+                  <div class="select-item-content">
+                    <strong>Service Account</strong>
+                    <span class="description">Instructors share their calendar with a service account (recommended)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="oauth">
+                  <div class="select-item-content">
+                    <strong>OAuth</strong>
+                    <span class="description">Instructors connect via Google sign-in (requires OAuth credentials)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="disabled">
+                  <div class="select-item-content">
+                    <strong>Disabled</strong>
+                    <span class="description">Turn off Google Calendar integration</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="help-text">
+              <template v-if="selectedMethod === 'service_account'">
+                Instructors share their Google Calendar with a service account email. You configure the service account credentials below.
+              </template>
+              <template v-else-if="selectedMethod === 'oauth'">
+                Instructors sign in with their Google account to grant calendar access. Requires OAuth credentials configured in Email Settings.
+              </template>
+              <template v-else-if="selectedMethod === 'disabled'">
+                Google Calendar integration is turned off. Instructor calendars will not block booking time slots.
+              </template>
+              <template v-else>
+                Select a connection method to configure Google Calendar integration.
+              </template>
+            </p>
+          </div>
         </div>
       </div>
     </CardContent>
@@ -150,6 +152,25 @@ const handleMethodChange = async (newMethod) => {
   gap: 0.5rem;
 }
 
+.form-group-horizontal {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.form-label {
+  padding-top: 0.5rem;
+  font-weight: 500;
+}
+
+.form-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 400px;
+}
+
 .required {
   color: var(--error-color);
 }
@@ -169,5 +190,21 @@ const handleMethodChange = async (newMethod) => {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .form-group-horizontal {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .form-label {
+    padding-top: 0;
+  }
+  
+  .form-input-wrapper {
+    max-width: 100%;
+  }
 }
 </style>

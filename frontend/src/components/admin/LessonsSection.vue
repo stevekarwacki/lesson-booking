@@ -1,157 +1,144 @@
 <template>
-  <div class="lessons-section">
-    <div class="section-header">
-      <h2>Lesson Configuration</h2>
-      <p class="section-description">
+  <Card class="lessons-section">
+    <CardHeader>
+      <CardTitle>Lesson Configuration</CardTitle>
+      <CardDescription>
         Configure default lesson settings that apply across the application.
-      </p>
-    </div>
+      </CardDescription>
+    </CardHeader>
     
-    <form @submit.prevent="saveLessonSettings" class="lessons-form">
-      <div class="form-grid">
+    <CardContent>
+      <form @submit.prevent="saveLessonSettings" class="lessons-form">
         <!-- Default Lesson Duration -->
-        <div class="form-group full-width">
-          <Label for="defaultDuration">
+        <div class="form-group form-group-horizontal">
+          <Label for="defaultDuration" class="form-label">
             Default Lesson Duration <span class="required">*</span>
           </Label>
-          <div class="duration-input-group">
-            <select
-              id="defaultDuration"
+          <div class="form-input-wrapper">
+            <Select 
               v-model="formData.defaultDurationMinutes"
-              class="form-input duration-select"
-              :class="{ error: errors.defaultDurationMinutes }"
-              required
               :disabled="loading"
             >
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
-              <option value="90">90 minutes</option>
-              <option value="120">120 minutes</option>
-            </select>
+              <SelectTrigger id="defaultDuration">
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="15">15 minutes</SelectItem>
+                <SelectItem value="30">30 minutes</SelectItem>
+                <SelectItem value="45">45 minutes</SelectItem>
+                <SelectItem value="60">60 minutes</SelectItem>
+                <SelectItem value="90">90 minutes</SelectItem>
+                <SelectItem value="120">120 minutes</SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="errors.defaultDurationMinutes" class="error-message">
+              {{ errors.defaultDurationMinutes }}
+            </p>
+            <p class="help-text">
+              This duration will be used as the default when creating new credits or when no specific duration is specified.
+            </p>
           </div>
-          <span v-if="errors.defaultDurationMinutes" class="error-message">
-            {{ errors.defaultDurationMinutes }}
-          </span>
-          <span class="help-text">
-            This duration will be used as the default when creating new credits or when no specific duration is specified.
-          </span>
         </div>
         
-      </div>
-      
-      <!-- Payment Methods Section -->
-      <div class="payment-methods-section">
-        <h3 class="subsection-header">Payment Methods</h3>
+        <!-- Payment Methods Section -->
+        <div class="section-divider"></div>
         
-        <div class="form-group full-width">
-          <Label for="inPersonPayment">
-            Allow In-Person Payments
-          </Label>
-          <div class="toggle-input-group">
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                id="inPersonPayment"
-                v-model="formData.inPersonPaymentEnabled"
-                :disabled="loading"
-                class="toggle-input"
-              >
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-label">
-              {{ formData.inPersonPaymentEnabled ? 'Enabled' : 'Disabled' }}
-            </span>
+        <div class="subsection">
+          <h3 class="subsection-header">Payment Methods</h3>
+          
+          <div class="form-group">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <Label for="inPersonPayment">Allow In-Person Payments</Label>
+                <p class="help-text">
+                  When enabled globally, students can choose to pay for lessons in person. Individual students can have this overridden in their user settings.
+                </p>
+              </div>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  id="inPersonPayment"
+                  v-model="formData.inPersonPaymentEnabled"
+                  :disabled="loading"
+                  class="toggle-input"
+                >
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p v-if="errors.inPersonPaymentEnabled" class="error-message">
+              {{ errors.inPersonPaymentEnabled }}
+            </p>
           </div>
-          <span v-if="errors.inPersonPaymentEnabled" class="error-message">
-            {{ errors.inPersonPaymentEnabled }}
-          </span>
-          <span class="help-text">
-            When enabled globally, students can choose to pay for lessons in person. Individual students can have this overridden in their user settings.
-          </span>
+          
+          <div class="form-group">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <Label for="cardPaymentOnBehalf">Allow Card Payment in Order-on-Behalf-Of</Label>
+                <p class="help-text">
+                  When enabled, admins and instructors can use card payment when booking lessons on behalf of students. Disabled by default for security.
+                </p>
+              </div>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  id="cardPaymentOnBehalf"
+                  v-model="formData.cardPaymentOnBehalfEnabled"
+                  :disabled="loading"
+                  class="toggle-input"
+                >
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p v-if="errors.cardPaymentOnBehalfEnabled" class="error-message">
+              {{ errors.cardPaymentOnBehalfEnabled }}
+            </p>
+          </div>
         </div>
         
-        <div class="form-group full-width">
-          <Label for="cardPaymentOnBehalf">
-            Allow Card Payment in Order-on-Behalf-Of
-          </Label>
-          <div class="toggle-input-group">
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                id="cardPaymentOnBehalf"
-                v-model="formData.cardPaymentOnBehalfEnabled"
-                :disabled="loading"
-                class="toggle-input"
-              >
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-label">
-              {{ formData.cardPaymentOnBehalfEnabled ? 'Enabled' : 'Disabled' }}
-            </span>
-          </div>
-          <span v-if="errors.cardPaymentOnBehalfEnabled" class="error-message">
-            {{ errors.cardPaymentOnBehalfEnabled }}
-          </span>
-          <span class="help-text">
-            When enabled, admins and instructors can use card payment when booking lessons on behalf of students. Disabled by default for security.
-          </span>
+        <!-- Action Buttons -->
+        <div class="form-actions">
+          <Button
+            type="button"
+            @click="resetForm"
+            variant="outline"
+            :disabled="loading || !hasChanges"
+          >
+            Reset Changes
+          </Button>
+          <Button
+            type="submit"
+            variant="default"
+            :disabled="loading || !hasChanges"
+          >
+            <span v-if="loading">Saving...</span>
+            <span v-else>Save Lesson Settings</span>
+          </Button>
         </div>
-      </div>
-      
-      <!-- Preview Section -->
-      <div class="preview-section">
-        <h3>Preview</h3>
-        <div class="preview-card">
-          <div class="preview-item">
-            <strong>Default Duration:</strong> {{ formData.defaultDurationMinutes }} minutes
-          </div>
-          <div class="preview-item">
-            <strong>In-Person Payment:</strong> {{ formData.inPersonPaymentEnabled ? 'Enabled' : 'Disabled' }}
-          </div>
-          <div class="preview-item">
-            <strong>Card Payment (Book on Behalf):</strong> {{ formData.cardPaymentOnBehalfEnabled ? 'Enabled' : 'Disabled' }}
-          </div>
-          <div class="preview-note">
-            <small>
-              This setting affects credit operations, booking defaults, and system-wide lesson duration handling.
-            </small>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Action Buttons -->
-      <div class="form-actions">
-        <Button
-          type="button"
-          @click="resetForm"
-          variant="outline"
-          :disabled="loading || !hasChanges"
-        >
-          Reset Changes
-        </Button>
-        <Button
-          type="submit"
-          variant="default"
-          :disabled="loading || !hasChanges"
-        >
-          <span v-if="loading">Saving...</span>
-          <span v-else>Save Lesson Settings</span>
-        </Button>
-      </div>
-    </form>
-  </div>
+      </form>
+    </CardContent>
+  </Card>
 </template>
 
 <script>
 import { ref, computed, watch, reactive } from 'vue'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 
 export default {
   name: 'LessonsSection',
   components: {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
     Button,
     Label
   },
@@ -284,220 +271,101 @@ export default {
 </script>
 
 <style scoped>
-.section-header {
-  margin-bottom: var(--spacing-xl, 2rem);
-}
-
-.section-header h2 {
-  color: var(--text-primary, var(--color-text, #333));
-  font-size: var(--font-size-2xl, 1.5rem, 24px);
-  margin: 0 0 var(--spacing-sm, 0.5rem, 8px) 0;
-  font-weight: 600;
-}
-
-.section-description {
-  margin: 0;
-  color: var(--text-secondary, var(--color-text-muted, #666));
-  font-size: var(--font-size-base, 0.9rem, 14px);
-  line-height: 1.6;
+.lessons-section {
+  margin-bottom: 2rem;
 }
 
 .lessons-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  align-items: start;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-label {
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.required {
-  color: var(--color-danger);
-}
-
-.duration-input-group {
-  display: flex;
-  align-items: center;
   gap: 0.5rem;
 }
 
-.duration-select {
-  flex: 1;
-  max-width: 200px;
+.form-group-horizontal {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 1.5rem;
+  align-items: start;
 }
 
-.form-input {
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  font-size: 0.9rem;
-  transition: border-color 0.2s ease;
-  background: var(--color-background);
-  color: var(--color-text);
+.form-label {
+  padding-top: 0.5rem;
+  font-weight: 500;
 }
 
-.form-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-alpha);
+.form-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 400px;
 }
 
-.form-input.error {
-  border-color: var(--color-danger);
-}
-
-.form-input:disabled {
-  background-color: var(--color-background-muted);
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-}
-
-.error-message {
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
-  color: var(--color-danger);
+.required {
+  color: var(--error-color);
 }
 
 .help-text {
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
   line-height: 1.4;
 }
 
-.payment-methods-section {
+.error-message {
+  font-size: var(--font-size-sm);
+  color: var(--error-color);
+  margin: 0;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0.5rem 0;
+}
+
+.subsection {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
 .subsection-header {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary, var(--color-text, #333));
-  font-size: var(--font-size-xl, 1.25rem, 20px);
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--color-border);
+  color: var(--text-primary);
+  margin: 0;
 }
 
-.preview-section {
-  padding: 1.5rem;
-  background: var(--color-background-alt);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
-.preview-section h3 {
-  margin: 0 0 1rem 0;
-  color: var(--color-text);
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.preview-card {
-  background: var(--color-background);
-  padding: 1rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-}
-
-.preview-item {
-  margin-bottom: 0.5rem;
-  color: var(--color-text);
-  font-size: 0.9rem;
-}
-
-.preview-note {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border);
-}
-
-.preview-note small {
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-.form-actions {
+.flex {
   display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
 }
 
-.form-button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  display: inline-flex;
+.items-center {
   align-items: center;
-  justify-content: center;
-  min-width: 120px;
 }
 
-.form-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.justify-between {
+  justify-content: space-between;
 }
 
-.form-button-secondary {
-  background: var(--color-background);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-
-.form-button-secondary:hover:not(:disabled) {
-  background: var(--color-background-muted);
-}
-
-.form-button-primary {
-  background: #28a745 !important;
-  color: white !important;
-}
-
-.form-button-primary:hover:not(:disabled) {
-  background: #1e7e34 !important;
+.flex-1 {
+  flex: 1;
 }
 
 /* Toggle Switch Styles */
-.toggle-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .toggle-switch {
   position: relative;
   display: inline-block;
   width: 50px;
   height: 24px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .toggle-input {
@@ -531,7 +399,7 @@ export default {
 }
 
 .toggle-input:checked + .toggle-slider {
-  background-color: #28a745;
+  background-color: var(--primary-color);
 }
 
 .toggle-input:checked + .toggle-slider:before {
@@ -543,23 +411,29 @@ export default {
   cursor: not-allowed;
 }
 
-.toggle-label {
-  font-weight: 500;
-  color: var(--color-text);
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
 }
 
 @media (max-width: 768px) {
-  .form-grid {
+  .form-group-horizontal {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.5rem;
+  }
+  
+  .form-label {
+    padding-top: 0;
+  }
+  
+  .form-input-wrapper {
+    max-width: 100%;
   }
   
   .form-actions {
     flex-direction: column-reverse;
-  }
-  
-  .form-button {
-    width: 100%;
   }
 }
 </style>

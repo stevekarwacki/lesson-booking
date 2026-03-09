@@ -3,17 +3,12 @@
         <h1>Account</h1>
         
         <div class="account-sections">
-            <section class="account-section">
-                <Profile />
-            </section>
+            <Profile />
             
-            <!-- Instructor Availability Section -->
-            <section v-if="isInstructor && instructorId" class="account-section">
-                <h2>My Availability</h2>
-                <InstructorAvailabilityManager 
-                    :instructor-id="instructorId"
-                />
-            </section>
+            <InstructorAvailabilityManager 
+                v-if="isInstructor && instructorId"
+                :instructor-id="instructorId"
+            />
         </div>
     </div>
 </template>
@@ -55,7 +50,7 @@ onMounted(() => {
 
 <style scoped>
 .account-page {
-    max-width: 1200px;
+    max-width: 900px;
     margin: 0 auto;
 }
 
@@ -65,26 +60,8 @@ h1 {
 }
 
 .account-sections {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: var(--spacing-lg);
-}
-
-.account-section {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: var(--spacing-lg);
-    box-shadow: var(--card-shadow);
-}
-
-h2 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-lg);
-    color: var(--secondary-color);
-}
-
-@media (max-width: 768px) {
-    .account-section {
-        padding: var(--spacing-md);
-    }
 }
 </style> 

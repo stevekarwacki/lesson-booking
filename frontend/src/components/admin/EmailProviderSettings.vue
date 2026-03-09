@@ -16,53 +16,55 @@
       
       <!-- Provider Selection -->
       <div v-else class="provider-selection">
-        <div class="form-group">
-          <Label for="email-provider">
+        <div class="form-group form-group-horizontal">
+          <Label for="email-provider" class="form-label">
             Email Method <span class="required">*</span>
           </Label>
-          <Select 
-            v-model="selectedProvider" 
-            @update:modelValue="handleProviderChange"
-            :disabled="isSettingProvider"
-          >
-            <SelectTrigger id="email-provider">
-              <SelectValue placeholder="Select email method" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="smtp">
-                <div class="select-item-content">
-                  <strong>SMTP</strong>
-                  <span class="description">Traditional email server (Gmail, Outlook, etc.)</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="gmail_oauth">
-                <div class="select-item-content">
-                  <strong>Gmail OAuth</strong>
-                  <span class="description">Send emails through a connected Gmail account</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="disabled">
-                <div class="select-item-content">
-                  <strong>Disabled</strong>
-                  <span class="description">Turn off all email functionality</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="help-text">
-            <template v-if="selectedProvider === 'smtp'">
-              SMTP provides reliable email delivery through any email service provider. Configure your credentials below.
-            </template>
-            <template v-else-if="selectedProvider === 'gmail_oauth'">
-              Connect your Gmail account to send emails directly through Google. Requires Gmail API credentials configured in environment variables.
-            </template>
-            <template v-else-if="selectedProvider === 'disabled'">
-              No emails will be sent. Useful for testing or when email is not needed.
-            </template>
-            <template v-else>
-              Legacy mode: automatically detects available email methods.
-            </template>
-          </p>
+          <div class="form-input-wrapper">
+            <Select 
+              v-model="selectedProvider" 
+              @update:modelValue="handleProviderChange"
+              :disabled="isSettingProvider"
+            >
+              <SelectTrigger id="email-provider">
+                <SelectValue placeholder="Select email method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="smtp">
+                  <div class="select-item-content">
+                    <strong>SMTP</strong>
+                    <span class="description">Traditional email server (Gmail, Outlook, etc.)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gmail_oauth">
+                  <div class="select-item-content">
+                    <strong>Gmail OAuth</strong>
+                    <span class="description">Send emails through a connected Gmail account</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="disabled">
+                  <div class="select-item-content">
+                    <strong>Disabled</strong>
+                    <span class="description">Turn off all email functionality</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="help-text">
+              <template v-if="selectedProvider === 'smtp'">
+                SMTP provides reliable email delivery through any email service provider. Configure your credentials below.
+              </template>
+              <template v-else-if="selectedProvider === 'gmail_oauth'">
+                Connect your Gmail account to send emails directly through Google. Requires Gmail API credentials configured in environment variables.
+              </template>
+              <template v-else-if="selectedProvider === 'disabled'">
+                No emails will be sent. Useful for testing or when email is not needed.
+              </template>
+              <template v-else>
+                Legacy mode: automatically detects available email methods.
+              </template>
+            </p>
+          </div>
         </div>
       </div>
     </CardContent>
@@ -152,6 +154,25 @@ const handleProviderChange = async (newProvider) => {
   gap: 0.5rem;
 }
 
+.form-group-horizontal {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.form-label {
+  padding-top: 0.5rem;
+  font-weight: 500;
+}
+
+.form-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 400px;
+}
+
 .required {
   color: var(--error-color);
 }
@@ -171,5 +192,21 @@ const handleProviderChange = async (newProvider) => {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .form-group-horizontal {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .form-label {
+    padding-top: 0;
+  }
+  
+  .form-input-wrapper {
+    max-width: 100%;
+  }
 }
 </style>

@@ -1,20 +1,19 @@
 <template>
   <div class="theme-config-section">
-    <div class="section-header">
-      <h2>Theme & Branding Configuration</h2>
-      <p class="section-description">
-        Customize your application's colors and visual identity. Choose from curated palettes 
-        or create a custom color scheme with accessibility validation.
-      </p>
-    </div>
-    
-    <div class="config-grid">
-      <!-- Color Configuration -->
-      <div class="config-card">
-        <h3>Color Scheme</h3>
-        <div class="color-picker-section">
-          <div class="curated-palettes">
-            <h4>Recommended Palettes</h4>
+    <div class="cards-container">
+      <!-- Color Configuration Card -->
+      <Card>
+        <CardHeader>
+          <CardTitle>Color Scheme</CardTitle>
+          <CardDescription>
+            Choose from curated palettes or create a custom color scheme with accessibility validation.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div class="color-picker-section">
+            <div class="curated-palettes">
+              <h4 class="section-subtitle">Recommended Palettes</h4>
             <div class="palette-grid">
               <button 
                 v-for="palette in curatedPalettes" 
@@ -37,9 +36,9 @@
               </button>
             </div>
           </div>
-          
-          <div class="custom-color-section">
-            <h4>Custom Primary Color</h4>
+            
+            <div class="custom-color-section">
+              <h4 class="section-subtitle">Custom Primary Color</h4>
             <div class="color-input-group">
               <input 
                 type="color" 
@@ -72,17 +71,24 @@
                 Consider using one of the recommended palettes above.
               </span>
             </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       
-      <!-- Logo Upload -->
-      <div class="config-card">
-        <h3>Logo</h3>
-        
-        <!-- Logo Position Selection -->
-        <div v-if="logoConfig" class="logo-position-section">
-          <h4>Logo Position</h4>
+      <!-- Logo Upload Card -->
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo</CardTitle>
+          <CardDescription>
+            Upload and configure your company logo. Optimal size: 400×100 pixels.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          
+          <!-- Logo Position Selection -->
+          <div v-if="logoConfig" class="logo-position-section">
+            <h4 class="section-subtitle">Logo Position</h4>
           <div class="position-options">
             <label 
               v-for="option in logoConfig.positionOptions" 
@@ -135,13 +141,20 @@
               <li>Formats: {{ logoConfig.allowedFormats }}</li>
               <li>Oversized images will be automatically resized</li>
             </ul>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       
-      <!-- Live Preview -->
-      <div class="config-card preview-card">
-        <h3>Live Preview</h3>
+      <!-- Live Preview Card -->
+      <Card>
+        <CardHeader>
+          <CardTitle>Live Preview</CardTitle>
+          <CardDescription>
+            See how your theme changes will look before saving.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
         <div class="theme-preview" :style="previewStyles">
           <div class="preview-header">
             <div v-if="currentLogoUrl" class="preview-logo">
@@ -157,9 +170,10 @@
               <p>This is how your text content will appear with the selected theme.</p>
               <a href="#" class="preview-link">Sample link styling</a>
             </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
     
     <!-- Action Buttons -->
@@ -190,10 +204,19 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAdminSettings } from '@/composables/useAdminSettings'
 import { useBranding } from '@/composables/useBranding'
 import { CURATED_PALETTES, getThemeDefaults } from '@/constants/themeDefaults'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 export default {
   name: 'ThemeConfigSection',
+  components: {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    Button
+  },
   props: {
     initialData: {
       type: Object,
@@ -590,78 +613,60 @@ export default {
   max-width: 100%;
 }
 
-.section-header {
-  margin-bottom: var(--spacing-xl);
-}
-
-.section-header h2 {
-  color: var(--text-primary);
-  font-size: var(--font-size-2xl);
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 600;
-}
-
-.section-description {
-  color: var(--text-secondary);
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.config-grid {
+.cards-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
-.config-card {
-  background: white;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.config-card h3 {
-  color: var(--text-primary);
-  font-size: var(--font-size-lg);
-  margin: 0 0 var(--spacing-md) 0;
-  font-weight: 600;
-}
-
-.preview-card {
+/* Make preview card span full width */
+.cards-container > :last-child {
   grid-column: 1 / -1;
 }
 
-/* Color Configuration Styles */
-.curated-palettes h4,
-.custom-color-section h4 {
+.section-subtitle {
   color: var(--text-primary);
   font-size: var(--font-size-base);
-  margin: 0 0 var(--spacing-sm) 0;
-  font-weight: 500;
+  margin: 0 0 0.75rem 0;
+  font-weight: 600;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 768px) {
+  .cards-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .cards-container > :last-child {
+    grid-column: 1;
+  }
+}
+
+/* Color Configuration Styles */
+.color-picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .palette-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
+  gap: 0.75rem;
 }
 
 .palette-option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
+  gap: 0.5rem;
+  padding: 0.75rem;
   border: 2px solid var(--border-color);
   border-radius: var(--border-radius);
   background: white;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.2s;
 }
 
 .palette-option:hover {

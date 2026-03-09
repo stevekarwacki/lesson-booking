@@ -8,6 +8,9 @@ import TabbedModalTab from './TabbedModalTab.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Modal } from '@/components/ui/modal'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const userStore = useUserStore()
 const { showSuccess, showError } = useFormFeedback()
@@ -169,95 +172,119 @@ const closeEditModal = () => {
         </div>
 
         <!-- Add Package Modal -->
-        <div v-if="showAddForm" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Add New Package</h3>
-                    <button class="modal-close" @click="showAddForm = false">&times;</button>
+        <Modal
+            v-model:open="showAddForm"
+            title="Add New Package"
+            description="Create a new payment package for students to purchase."
+            save-text="Create Package"
+            @save="addPackage"
+            @cancel="showAddForm = false"
+        >
+            <div class="modal-form">
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="newPackageName" class="form-label">
+                        Package Name <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="newPackageName"
+                            type="text" 
+                            v-model="newPackage.name"
+                            placeholder="e.g., Starter Pack, Premium Membership"
+                            required
+                        />
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <form @submit.prevent="addPackage" class="package-form">
-                        <div class="form-group">
-                            <Label>Name:</Label>
-                            <Input 
-                                type="text" 
-                                v-model="newPackage.name"
-                                required
-                            />
-                        </div>
 
-                        <div class="form-group">
-                            <Label>Price:</Label>
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="newPackageType" class="form-label">
+                        Package Type <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Select v-model="newPackage.type" required>
+                            <SelectTrigger id="newPackageType">
+                                <SelectValue placeholder="Select package type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="one-time">One-time Purchase</SelectItem>
+                                <SelectItem value="membership">Recurring Membership</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="newPackagePrice" class="form-label">
+                        Price <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <div class="price-input-group">
+                            <span class="price-prefix">$</span>
                             <Input 
+                                id="newPackagePrice"
                                 type="number" 
                                 v-model="newPackage.price"
-                                step="0.01" 
+                                class="price-input"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00" 
                                 required
                             />
                         </div>
+                    </div>
+                </div>
 
-                        <div class="form-group" v-if="newPackage.type === 'one-time'">
-                            <Label>Credits:</Label>
-                            <Input 
-                                type="number" 
-                                v-model="newPackage.credits"
-                                required
-                            />
-                        </div>
+                <div v-if="newPackage.type === 'one-time'" class="form-group form-group-horizontal-modal">
+                    <Label for="newPackageCredits" class="form-label">
+                        Lesson Credits <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="newPackageCredits"
+                            type="number" 
+                            v-model="newPackage.credits"
+                            min="1"
+                            placeholder="1"
+                            required
+                        />
+                    </div>
+                </div>
 
-                        <div class="form-group" v-if="newPackage.type === 'one-time'">
-                            <Label>Lesson Duration:</Label>
-                            <select 
-                                v-model.number="newPackage.lesson_duration_minutes" 
-                                class="form-input"
-                                required
-                            >
-                                <option :value="30">30 Minutes</option>
-                                <option :value="60">60 Minutes</option>
-                            </select>
-                            <small class="form-text">
-                                Duration of lessons this package provides credits for
-                            </small>
-                        </div>
-                        <div class="form-group">
-                            <Label>Type:</Label>
-                            <select 
-                                v-model="newPackage.type" 
-                                class="form-input"
-                                required
-                            >
-                                <option value="one-time">One-time</option>
-                                <option value="membership">Membership</option>
-                            </select>
-                        </div>
+                <div v-if="newPackage.type === 'one-time'" class="form-group form-group-horizontal-modal">
+                    <Label for="newPackageLessonDuration" class="form-label">
+                        Lesson Duration <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Select v-model.number="newPackage.lesson_duration_minutes" required>
+                            <SelectTrigger id="newPackageLessonDuration">
+                                <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem :value="30">30 Minutes</SelectItem>
+                                <SelectItem :value="60">60 Minutes</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
 
-                        <div class="form-group" v-if="newPackage.type === 'membership'">
-                            <Label>Duration (days):</Label>
-                            <Input 
-                                type="number" 
-                                v-model="newPackage.duration_days"
-                                required
-                            />
-                        </div>
-
-                        <div class="modal-footer">
-                            <Button 
-                                type="button"
-                                variant="outline"
-                                @click="showAddForm = false"
-                            >
-                                Cancel
-                            </Button>
-                            <Button 
-                                type="submit"
-                            >
-                                Create Package
-                            </Button>
-                        </div>
-                    </form>
+                <div v-if="newPackage.type === 'membership'" class="form-group form-group-horizontal-modal">
+                    <Label for="newPackageDuration" class="form-label">
+                        Billing Period <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="newPackageDuration"
+                            type="number" 
+                            v-model="newPackage.duration_days"
+                            min="1"
+                            placeholder="30"
+                            required
+                        />
+                        <p class="help-text">Number of days between billing cycles</p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </Modal>
 
         <!-- Packages List -->
         <div v-if="loading" class="loading-state">
@@ -301,196 +328,239 @@ const closeEditModal = () => {
             @close="closeEditModal"
         >
             <TabbedModalTab label="Package Details">
-                <form @submit.prevent="handleUpdatePackage">
-                    <div class="form-group">
-                        <Label for="editPackageName">Package Name:</Label>
-                        <Input 
-                            id="editPackageName"
-                            type="text" 
-                            v-model="editingPackage.name"
-                            placeholder="e.g., Starter Pack, Premium Membership"
-                            required
-                        />
-                        <small class="form-text">Choose a descriptive name that clearly indicates what the package offers</small>
-                    </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Package Configuration</CardTitle>
+                        <CardDescription>
+                            Configure pricing, credits, and package type settings.
+                        </CardDescription>
+                    </CardHeader>
                     
-                    <div class="form-group">
-                        <Label for="editPackageType">Package Type:</Label>
-                        <select 
-                            id="editPackageType"
-                            v-model="editingPackage.type" 
-                            class="form-input"
-                            required
-                        >
-                            <option value="one-time">One-time Purchase</option>
-                            <option value="membership">Recurring Membership</option>
-                        </select>
-                        <small class="form-text">
-                            One-time packages provide lesson credits immediately. 
-                            Memberships provide recurring access with weekly bookings.
-                        </small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <Label for="editPackagePrice">Price (USD):</Label>
-                        <div class="price-input-group">
-                            <span class="price-prefix">$</span>
-                            <Input 
-                                id="editPackagePrice"
-                                type="number" 
-                                v-model="editingPackage.price"
-                                class="price-input"
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                required
-                            />
-                        </div>
-                        <small class="form-text">
-                            Set the {{ editingPackage.type === 'membership' ? 'monthly' : 'one-time' }} price for this package
-                        </small>
-                    </div>
-                    
-                    <div class="form-group" v-if="editingPackage.type === 'one-time'">
-                        <Label for="editPackageCredits">Lesson Credits:</Label>
-                        <Input 
-                            id="editPackageCredits"
-                            type="number" 
-                            v-model="editingPackage.credits"
-                            min="1"
-                            placeholder="1"
-                            required
-                        />
-                        <small class="form-text">Number of lesson credits included with this package</small>
-                    </div>
+                    <CardContent>
+                        <form @submit.prevent="handleUpdatePackage" class="package-form-horizontal">
+                            <div class="subsection">
+                                <div class="form-group form-group-horizontal">
+                                    <Label for="editPackageName" class="form-label">
+                                        Package Name <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <Input 
+                                            id="editPackageName"
+                                            type="text" 
+                                            v-model="editingPackage.name"
+                                            placeholder="e.g., Starter Pack, Premium Membership"
+                                            required
+                                        />
+                                        <p class="help-text">Choose a descriptive name that clearly indicates what the package offers</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group form-group-horizontal">
+                                    <Label for="editPackageType" class="form-label">
+                                        Package Type <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <Select v-model="editingPackage.type" required>
+                                            <SelectTrigger id="editPackageType">
+                                                <SelectValue placeholder="Select package type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="one-time">
+                                                    <div class="select-item-content">
+                                                        <span>One-time Purchase</span>
+                                                        <span class="description">Provide lesson credits immediately</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="membership">
+                                                    <div class="select-item-content">
+                                                        <span>Recurring Membership</span>
+                                                        <span class="description">Provide recurring access with weekly bookings</span>
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group form-group-horizontal">
+                                    <Label for="editPackagePrice" class="form-label">
+                                        Price <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <div class="price-input-group">
+                                            <span class="price-prefix">$</span>
+                                            <Input 
+                                                id="editPackagePrice"
+                                                type="number" 
+                                                v-model="editingPackage.price"
+                                                class="price-input"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                        </div>
+                                        <p class="help-text">
+                                            Set the {{ editingPackage.type === 'membership' ? 'monthly' : 'one-time' }} price for this package
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div v-if="editingPackage.type === 'one-time'" class="form-group form-group-horizontal">
+                                    <Label for="editPackageCredits" class="form-label">
+                                        Lesson Credits <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <Input 
+                                            id="editPackageCredits"
+                                            type="number" 
+                                            v-model="editingPackage.credits"
+                                            min="1"
+                                            placeholder="1"
+                                            required
+                                        />
+                                        <p class="help-text">Number of lesson credits included with this package</p>
+                                    </div>
+                                </div>
 
-                    <div class="form-group" v-if="editingPackage.type === 'one-time'">
-                        <Label for="editPackageLessonDuration">Lesson Duration:</Label>
-                        <select 
-                            id="editPackageLessonDuration"
-                            v-model.number="editingPackage.lesson_duration_minutes" 
-                            class="form-input"
-                            required
-                        >
-                            <option :value="30">30 Minutes</option>
-                            <option :value="60">60 Minutes</option>
-                        </select>
-                        <small class="form-text">Duration of lessons this package provides credits for</small>
-                    </div>
-                    
-
-                    
-                    <div class="form-group" v-if="editingPackage.type === 'membership'">
-                        <Label for="editPackageDuration">Billing Period (days):</Label>
-                        <Input 
-                            id="editPackageDuration"
-                            type="number" 
-                            v-model="editingPackage.duration_days"
-                            min="1"
-                            placeholder="30"
-                            required
-                        />
-                        <small class="form-text">
-                            How often the membership renews (typically 30 days for monthly memberships)
-                        </small>
-                    </div>
-
-                    <div class="package-preview" v-if="editingPackage.name && editingPackage.price">
-                        <h4>Package Preview</h4>
-                        <div class="preview-card">
-                            <div class="preview-header">
-                                <h5>{{ editingPackage.name }}</h5>
-                                <span class="preview-type">{{ editingPackage.type === 'membership' ? 'Membership' : 'One-time' }}</span>
+                                <div v-if="editingPackage.type === 'one-time'" class="form-group form-group-horizontal">
+                                    <Label for="editPackageLessonDuration" class="form-label">
+                                        Lesson Duration <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <Select v-model.number="editingPackage.lesson_duration_minutes" required>
+                                            <SelectTrigger id="editPackageLessonDuration">
+                                                <SelectValue placeholder="Select duration" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem :value="30">30 Minutes</SelectItem>
+                                                <SelectItem :value="60">60 Minutes</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p class="help-text">Duration of lessons this package provides credits for</p>
+                                    </div>
+                                </div>
+                                
+                                <div v-if="editingPackage.type === 'membership'" class="form-group form-group-horizontal">
+                                    <Label for="editPackageDuration" class="form-label">
+                                        Billing Period <span class="required">*</span>
+                                    </Label>
+                                    <div class="form-input-wrapper">
+                                        <Input 
+                                            id="editPackageDuration"
+                                            type="number" 
+                                            v-model="editingPackage.duration_days"
+                                            min="1"
+                                            placeholder="30"
+                                            required
+                                        />
+                                        <p class="help-text">
+                                            How often the membership renews (typically 30 days for monthly memberships)
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="preview-details">
-                                <p class="preview-price">${{ editingPackage.price }}</p>
-                                <p v-if="editingPackage.type === 'one-time'" class="preview-credits">
-                                    {{ editingPackage.credits }} Pre-paid {{ editingPackage.lesson_duration_minutes || 30 }}-Minute Lessons
-                                </p>
-                                <p v-if="editingPackage.type === 'membership'" class="preview-duration">
-                                    Renews every {{ editingPackage.duration_days }} days
-                                </p>
+
+                            <div v-if="editingPackage.name && editingPackage.price" class="package-preview">
+                                <h4>Package Preview</h4>
+                                <div class="preview-card">
+                                    <div class="preview-header">
+                                        <h5>{{ editingPackage.name }}</h5>
+                                        <span class="preview-type">{{ editingPackage.type === 'membership' ? 'Membership' : 'One-time' }}</span>
+                                    </div>
+                                    <div class="preview-details">
+                                        <p class="preview-price">${{ editingPackage.price }}</p>
+                                        <p v-if="editingPackage.type === 'one-time'" class="preview-credits">
+                                            {{ editingPackage.credits }} Pre-paid {{ editingPackage.lesson_duration_minutes || 30 }}-Minute Lessons
+                                        </p>
+                                        <p v-if="editingPackage.type === 'membership'" class="preview-duration">
+                                            Renews every {{ editingPackage.duration_days }} days
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div v-if="error" class="form-message error-message">
-                        {{ error }}
-                    </div>
+                            <div v-if="error" class="alert alert-error">
+                                {{ error }}
+                            </div>
 
-                    <div v-if="success" class="form-message success-message">
-                        {{ success }}
-                    </div>
-                    
-                    <div class="form-actions">
-                        <Button 
-                            type="button"
-                            variant="outline"
-                            @click="closeEditModal"
-                        >
-                            Cancel
-                        </Button>
-                        <Button 
-                            type="submit"
-                        >
-                            Save Changes
-                        </Button>
-                    </div>
-                </form>
+                            <div v-if="success" class="alert alert-success">
+                                {{ success }}
+                            </div>
+                            
+                            <div class="button-group">
+                                <Button 
+                                    type="button"
+                                    variant="outline"
+                                    @click="closeEditModal"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    type="submit"
+                                >
+                                    Save Changes
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
             </TabbedModalTab>
 
             <TabbedModalTab label="Actions">
                 <div class="actions-tab">
-                    <div class="actions-section">
-                        <h4>Package Management</h4>
-                        <p>Perform administrative actions on this payment package.</p>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Package Management</CardTitle>
+                            <CardDescription>
+                                Perform administrative actions on this payment package.
+                            </CardDescription>
+                        </CardHeader>
                         
-                        <div class="action-group">
-                            <h5>Package Information</h5>
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>Package ID:</strong> {{ editingPackage?.id }}
-                                </div>
-                                <div class="action-info">
-                                    <strong>Package Type:</strong> 
-                                    <span class="package-type-badge">{{ editingPackage?.type === 'membership' ? 'Membership' : 'One-time' }}</span>
-                                </div>
-                                <div class="action-info">
-                                    <strong>Current Price:</strong> ${{ editingPackage?.price }}
-                                </div>
-                                <div v-if="editingPackage?.type === 'one-time'" class="action-info">
-                                    <strong>Credits:</strong> {{ editingPackage?.credits }} Pre-paid {{ editingPackage?.lesson_duration_minutes || 30 }}-Minute Lessons
+                        <CardContent>
+                            <div class="subsection">
+                                <h3 class="subsection-header">Package Information</h3>
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">Package ID</span>
+                                        <span class="info-value">{{ editingPackage?.id }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Package Type</span>
+                                        <span class="package-type-badge">{{ editingPackage?.type === 'membership' ? 'Membership' : 'One-time' }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Current Price</span>
+                                        <span class="info-value">${{ editingPackage?.price }}</span>
+                                    </div>
+                                    <div v-if="editingPackage?.type === 'one-time'" class="info-item">
+                                        <span class="info-label">Credits</span>
+                                        <span class="info-value">{{ editingPackage?.credits }} Pre-paid {{ editingPackage?.lesson_duration_minutes || 30 }}-Minute Lessons</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="action-group danger-zone">
-                            <h5>Danger Zone</h5>
-                            <div class="action-item">
-                                <div class="action-info">
-                                    <strong>Delete Package</strong>
+                            <div class="section-divider"></div>
+
+                            <div class="subsection">
+                                <div class="danger-zone">
+                                    <div class="danger-zone-content">
+                                        <div class="danger-zone-info">
+                                            <strong>Delete Package</strong>
+                                            <p>Permanently remove this package from the system. Users with active subscriptions or purchased credits will not be affected.</p>
+                                        </div>
+                                        <Button 
+                                            type="button"
+                                            variant="destructive"
+                                            @click="deletePackageFromModal"
+                                        >
+                                            Delete Package
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div class="action-description">
-                                    <p>Permanently remove this package from the system. This action cannot be undone.</p>
-                                    <p><strong>Warning:</strong> Deleting this package will:</p>
-                                    <ul>
-                                        <li>Remove it from the available packages list</li>
-                                        <li>Prevent new purchases of this package</li>
-                                        <li>Not affect existing subscriptions or purchased credits</li>
-                                        <li>Remove all package configuration and pricing history</li>
-                                    </ul>
-                                    <p><strong>Note:</strong> If users have active subscriptions with this package, consider deactivating instead of deleting.</p>
-                                </div>
-                                <Button 
-                                    type="button"
-                                    variant="destructive"
-                                    @click="deletePackageFromModal"
-                                >
-                                    Delete Package
-                                </Button>
                             </div>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </TabbedModalTab>
         </TabbedModal>
@@ -504,7 +574,7 @@ const closeEditModal = () => {
     padding: var(--spacing-lg);
 }
 
-/* TabbedModal specific styles */
+/* Price Input */
 .price-input-group {
     position: relative;
     display: flex;
@@ -523,6 +593,7 @@ const closeEditModal = () => {
     padding-left: calc(var(--spacing-sm) + 1rem) !important;
 }
 
+/* Package Preview */
 .package-preview {
     margin-top: var(--spacing-lg);
     padding: var(--spacing-md);
@@ -582,160 +653,91 @@ const closeEditModal = () => {
     color: var(--success-color) !important;
 }
 
-.analytics-tab,
-.settings-tab {
-    min-height: 300px;
-    padding: var(--spacing-lg);
+/* Alerts */
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
 }
 
-.info-message {
-    text-align: center;
-    padding: var(--spacing-lg);
-    background: var(--background-hover);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
+.alert-error {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
 }
 
-.info-message h4 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: var(--primary-color);
+.alert-success {
+    background: #d1fae5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
 }
 
-.info-message p {
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.info-message ul {
-    text-align: left;
-    max-width: 500px;
-    margin: var(--spacing-md) auto 0;
-    color: var(--text-secondary);
-}
-
-.info-message li {
-    margin-bottom: var(--spacing-xs);
-}
-
-.form-text {
-    display: block;
-    margin-top: var(--spacing-xs);
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
-}
-
-/* Actions tab styles */
+/* Actions Tab */
 .actions-tab {
-    min-height: 300px;
     padding: var(--spacing-lg);
 }
 
-.actions-section {
-    max-width: 600px;
-    margin: 0 auto;
+.info-grid {
+    display: grid;
+    gap: 1rem;
+    background: var(--background-secondary, #f9fafb);
+    padding: 1rem;
+    border-radius: 6px;
 }
 
-.actions-section h4 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-sm);
-    color: var(--primary-color);
-}
-
-.actions-section > p {
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-lg);
-}
-
-.action-group {
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-}
-
-.action-group h5 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: var(--text-primary);
-    font-size: var(--font-size-md);
-}
-
-.action-item {
-    padding: var(--spacing-md);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-}
-
-.action-info {
+.info-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    gap: 1rem;
 }
 
-.action-info strong {
-    color: var(--text-primary);
+.info-label {
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.875rem;
+}
+
+.info-value {
+    color: var(--text-primary, #111827);
+    font-weight: 500;
 }
 
 .package-type-badge {
     padding: 0.25rem 0.5rem;
-    background: var(--primary-color);
+    background: var(--primary-color, #3b82f6);
     color: white;
     border-radius: var(--border-radius);
     font-size: var(--font-size-sm);
     font-weight: 500;
 }
 
-.action-description {
-    margin-bottom: var(--spacing-md);
-}
-
-.action-description p {
-    margin: var(--spacing-xs) 0;
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
-}
-
-.action-description ul {
-    margin: var(--spacing-sm) 0;
-    padding-left: var(--spacing-lg);
-    color: var(--text-secondary);
-}
-
-.action-description li {
-    margin-bottom: var(--spacing-xs);
-}
-
 .danger-zone {
-    border-color: var(--error-color);
-    background: rgba(255, 0, 0, 0.02);
+    padding: 1.5rem;
+    border: 2px solid var(--error-color, #ef4444);
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.02);
 }
 
-.danger-zone h5 {
-    color: var(--error-color);
+.danger-zone-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
-.error-message {
-    background-color: var(--error-color);
-    color: white;
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    border-radius: var(--border-radius);
+.danger-zone-info strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary, #111827);
 }
 
-.success-message {
-    background-color: var(--success-color);
-    color: white;
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    border-radius: var(--border-radius);
+.danger-zone-info > p {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
 }
 
-.actions {
-    margin-bottom: var(--spacing-lg);
-}
-
+/* Package List */
 .packages-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -798,28 +800,5 @@ const closeEditModal = () => {
     text-align: center;
     padding: var(--spacing-lg);
     color: var(--text-muted);
-}
-
-.package-form {
-    display: grid;
-    gap: var(--spacing-md);
-}
-
-.form-label {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.form-input {
-    padding: var(--spacing-sm);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background-color: var(--background-light);
-}
-
-.form-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px var(--primary-color-light);
 }
 </style> 

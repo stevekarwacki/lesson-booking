@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 import Profile from './Profile.vue'
 import { formatAddress } from '../utils/formValidation'
@@ -706,50 +707,69 @@ const formatDate = (dateString) => {
             @save="addUser"
             @cancel="showAddForm = false"
         >
-            <form @submit.prevent="addUser">
-                <div class="form-group">
-                    <Label for="name">Name:</Label>
-                    <Input 
-                        id="name"
-                        v-model="newUser.name"
-                        type="text"
-                        required
-                    />
+            <div class="modal-form">
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="userName" class="form-label">
+                        Name <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="userName"
+                            v-model="newUser.name"
+                            type="text"
+                            placeholder="John Doe"
+                            required
+                        />
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <Label for="email">Email:</Label>
-                    <Input 
-                        id="email"
-                        v-model="newUser.email"
-                        type="email"
-                        required
-                    />
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="userEmail" class="form-label">
+                        Email <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="userEmail"
+                            v-model="newUser.email"
+                            type="email"
+                            placeholder="john@example.com"
+                            required
+                        />
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <Label for="password">Password:</Label>
-                    <Input 
-                        id="password"
-                        v-model="newUser.password"
-                        type="password"
-                        required
-                    />
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="userPassword" class="form-label">
+                        Password <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Input 
+                            id="userPassword"
+                            v-model="newUser.password"
+                            type="password"
+                            required
+                        />
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <Label for="role">Role:</Label>
-                    <select 
-                        id="role"
-                        v-model="newUser.role"
-                        class="form-input"
-                    >
-                        <option value="student">Student</option>
-                        <option value="instructor">Instructor</option>
-                        <option value="admin">Admin</option>
-                    </select>
+                <div class="form-group form-group-horizontal-modal">
+                    <Label for="userRole" class="form-label">
+                        Role <span class="required">*</span>
+                    </Label>
+                    <div class="form-input-wrapper-modal">
+                        <Select v-model="newUser.role" required>
+                            <SelectTrigger id="userRole">
+                                <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="student">Student</SelectItem>
+                                <SelectItem value="instructor">Instructor</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-            </form>
+            </div>
         </Modal>
 
         <div v-if="loading" class="loading">Loading users...</div>

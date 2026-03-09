@@ -1,437 +1,279 @@
 <template>
-  <div class="storage-section">
-    <div class="section-header">
-      <h2>Storage Configuration</h2>
-      <p class="section-description">
+  <Card class="storage-settings">
+    <CardHeader>
+      <CardTitle>Storage Configuration</CardTitle>
+      <CardDescription>
         Configure where media files (logos, etc.) are stored. Choose between local storage or cloud storage like DigitalOcean Spaces.
-      </p>
-    </div>
+      </CardDescription>
+    </CardHeader>
 
-    <!-- Current Configuration Display -->
-    <div class="config-display" v-if="storageConfig">
-      <div class="config-info">
-        <h3>Current Storage Configuration</h3>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">Storage Type:</span>
-            <span class="value">{{ storageConfig.storage_type || 'local' }}</span>
-          </div>
-          <div class="info-item" v-if="storageConfig.storage_type === 'spaces'">
-            <span class="label">Bucket:</span>
-            <span class="value">{{ storageConfig.storage_bucket || 'Not configured' }}</span>
-          </div>
-          <div class="info-item" v-if="storageConfig.storage_type === 'spaces'">
-            <span class="label">Region:</span>
-            <span class="value">{{ storageConfig.storage_region || 'Not configured' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Credentials:</span>
-            <span class="value" :class="{ 'text-success': storageConfig.credentialsConfigured, 'text-danger': !storageConfig.credentialsConfigured }">
-              {{ storageConfig.credentialsConfigured ? 'Configured ✓' : 'Not configured' }}
-            </span>
-          </div>
-        </div>
+    <CardContent>
+      <!-- Loading State -->
+      <div v-if="isLoadingStorage" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Loading storage settings...</p>
       </div>
-    </div>
 
-    <!-- Configuration Form -->
-    <div class="config-card">
-      <h3>Change Storage Provider</h3>
-      
-      <form @submit.prevent="testAndSaveConfiguration" class="storage-form">
-        <!-- Storage Type Selection -->
-        <div class="form-group">
-          <Label for="storage-type">Storage Type</Label>
-          <select 
-            id="storage-type"
-            v-model="formData.storage_type"
-            @change="onStorageTypeChange"
-            :disabled="loading"
-            class="form-control"
-          >
-            <option value="local">Local Storage (Filesystem)</option>
-            <option value="spaces">DigitalOcean Spaces</option>
-          </select>
-          <small class="form-text">
-            Local: Files stored on server. Spaces: Cloud storage with CDN.
-          </small>
+      <!-- Storage Type Selection -->
+      <div v-else class="storage-selection">
+        <div class="form-group form-group-horizontal">
+          <Label for="storage-type" class="form-label">
+            Storage Type <span class="required">*</span>
+          </Label>
+          <div class="form-input-wrapper">
+            <Select
+              v-model="selectedType"
+              @update:modelValue="handleTypeChange"
+              :disabled="isSavingStorage"
+            >
+              <SelectTrigger id="storage-type">
+                <SelectValue placeholder="Select storage type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">
+                  <div class="select-item-content">
+                    <strong>Local Storage</strong>
+                    <span class="description">Files stored on server filesystem</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="spaces">
+                  <div class="select-item-content">
+                    <strong>DigitalOcean Spaces</strong>
+                    <span class="description">Cloud storage with CDN support</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="help-text">
+              <template v-if="selectedType === 'local'">
+                Files are stored on the server's local filesystem. Simple and no additional setup required.
+              </template>
+              <template v-else-if="selectedType === 'spaces'">
+                Files are stored in DigitalOcean Spaces with CDN support for faster delivery. Configure your Spaces credentials below.
+              </template>
+              <template v-else>
+                Select a storage type to configure where media files are stored.
+              </template>
+            </p>
+          </div>
         </div>
 
         <!-- Spaces Configuration (conditional) -->
-        <div v-if="formData.storage_type === 'spaces'" class="spaces-config">
-          <div class="form-group">
-            <Label for="storage-endpoint">Spaces Endpoint</Label>
-            <Input 
-              id="storage-endpoint"
-              v-model="formData.storage_endpoint"
-              type="text"
-              placeholder="nyc3.digitaloceanspaces.com"
-              :disabled="loading"
-            />
-            <small class="form-text">Example: nyc3.digitaloceanspaces.com</small>
+        <div v-if="selectedType === 'spaces'" class="spaces-configuration">
+          <div class="form-group form-group-horizontal">
+            <Label for="storage-endpoint" class="form-label">
+              Spaces Endpoint <span class="required">*</span>
+            </Label>
+            <div class="form-input-wrapper">
+              <Input
+                id="storage-endpoint"
+                v-model="formData.storage_endpoint"
+                type="text"
+                placeholder="sfo3.digitaloceanspaces.com"
+                :disabled="isSavingStorage"
+              />
+              <p class="help-text">Example: nyc3.digitaloceanspaces.com, sfo3.digitaloceanspaces.com</p>
+            </div>
           </div>
 
-          <div class="form-group">
-            <Label for="storage-region">Region</Label>
-            <Input 
-              id="storage-region"
-              v-model="formData.storage_region"
-              type="text"
-              placeholder="nyc3"
-              :disabled="loading"
-            />
-            <small class="form-text">Example: nyc3, sfo3, etc.</small>
+          <div class="form-group form-group-horizontal">
+            <Label for="storage-region" class="form-label">
+              Region <span class="required">*</span>
+            </Label>
+            <div class="form-input-wrapper">
+              <Input
+                id="storage-region"
+                v-model="formData.storage_region"
+                type="text"
+                placeholder="sfo3"
+                :disabled="isSavingStorage"
+              />
+              <p class="help-text">Must match the region of your Spaces endpoint</p>
+            </div>
           </div>
 
-          <div class="form-group">
-            <Label for="storage-bucket">Bucket Name</Label>
-            <Input 
-              id="storage-bucket"
-              v-model="formData.storage_bucket"
-              type="text"
-              placeholder="my-app-media"
-              :disabled="loading"
-            />
-            <small class="form-text">Bucket must exist in Spaces</small>
+          <div class="form-group form-group-horizontal">
+            <Label for="storage-bucket" class="form-label">
+              Bucket Name <span class="required">*</span>
+            </Label>
+            <div class="form-input-wrapper">
+              <Input
+                id="storage-bucket"
+                v-model="formData.storage_bucket"
+                type="text"
+                placeholder="my-app-media"
+                :disabled="isSavingStorage"
+              />
+              <p class="help-text">Bucket must already exist in your DigitalOcean Spaces</p>
+            </div>
           </div>
 
-          <div class="form-group">
-            <Label for="storage-cdn-url">CDN URL (Optional)</Label>
-            <Input 
-              id="storage-cdn-url"
-              v-model="formData.storage_cdn_url"
-              type="text"
-              placeholder="https://cdn.example.com"
-              :disabled="loading"
-            />
-            <small class="form-text">Optional: Use CDN URL for faster delivery</small>
+          <div class="form-group form-group-horizontal">
+            <Label for="storage-cdn-url" class="form-label">
+              CDN URL (Optional)
+            </Label>
+            <div class="form-input-wrapper">
+              <Input
+                id="storage-cdn-url"
+                v-model="formData.storage_cdn_url"
+                type="text"
+                placeholder="https://cdn.example.com"
+                :disabled="isSavingStorage"
+              />
+              <p class="help-text">Optional: Custom CDN URL for faster delivery</p>
+            </div>
           </div>
 
-          <div class="alert alert-info">
+          <div class="credentials-note">
             <strong>Note:</strong> Credentials must be set as environment variables:
             <code>STORAGE_ACCESS_KEY_ID</code> and <code>STORAGE_SECRET_ACCESS_KEY</code>
           </div>
-        </div>
 
-        <!-- Messages -->
-        <div v-if="error" class="alert alert-danger">{{ error }}</div>
-        <div v-if="success" class="alert alert-success">{{ success }}</div>
-        <div v-if="testSuccess" class="alert alert-success">
-          ✓ Connection test successful! Configuration is valid.
+          <!-- Action Buttons -->
+          <div class="button-group">
+            <Button
+              type="button"
+              @click="testConnection"
+              :disabled="isSavingStorage || isTestingConnection"
+              variant="outline"
+            >
+              {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+            </Button>
+            <Button
+              type="button"
+              @click="saveConfiguration"
+              :disabled="isSavingStorage || isTestingConnection"
+              variant="default"
+            >
+              {{ isSavingStorage ? 'Saving...' : 'Save Configuration' }}
+            </Button>
+          </div>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="button-group">
-          <Button 
-            v-if="formData.storage_type === 'spaces'"
-            type="button"
-            @click="testConnection"
-            :disabled="loading"
-            variant="outline"
-          >
-            {{ loading ? 'Testing...' : 'Test Connection' }}
-          </Button>
-          <Button 
-            type="submit"
-            variant="default"
-            :disabled="loading"
-          >
-            {{ loading ? 'Saving...' : 'Save Configuration' }}
-          </Button>
-        </div>
-      </form>
-    </div>
-  </div>
+      </div>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
-import { useUserStore } from '../../stores/userStore'
-import { useAdminSettings } from '../../composables/useAdminSettings'
+import { ref, watch } from 'vue'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useAdminSettings } from '@/composables/useAdminSettings'
+import { useFormFeedback } from '@/composables/useFormFeedback'
 
-const userStore = useUserStore()
+const { showSuccess, showError } = useFormFeedback()
+
 const {
-    storageConfig,
-    isLoadingStorage,
-    saveStorageConfig,
-    testStorageConnection,
-    isSavingStorage,
-    isTestingConnection
+  storageConfig,
+  isLoadingStorage,
+  saveStorageConfig,
+  testStorageConnection,
+  isSavingStorage,
+  isTestingConnection
 } = useAdminSettings()
 
-const loading = computed(() => isLoadingStorage.value || isSavingStorage.value || isTestingConnection.value)
-const error = ref('')
-const success = ref('')
-const testSuccess = ref(false)
+const selectedType = ref(null)
 
 const formData = ref({
-  storage_type: 'local',
   storage_endpoint: '',
   storage_region: '',
   storage_bucket: '',
   storage_cdn_url: ''
 })
 
-// Watch for storageConfig changes and update form
-watch(storageConfig, (config) => {
+// Initialize when data loads
+watch(
+  () => storageConfig.value,
+  (config) => {
     if (config) {
-        formData.value = {
-            storage_type: config.storage_type || 'local',
-            storage_endpoint: config.storage_endpoint || '',
-            storage_region: config.storage_region || '',
-            storage_bucket: config.storage_bucket || '',
-            storage_cdn_url: config.storage_cdn_url || ''
-        }
+      selectedType.value = config.storage_type || 'local'
+      formData.value = {
+        storage_endpoint: config.storage_endpoint || '',
+        storage_region: config.storage_region || '',
+        storage_bucket: config.storage_bucket || '',
+        storage_cdn_url: config.storage_cdn_url || ''
+      }
     }
-}, { immediate: true })
+  },
+  { immediate: true }
+)
 
-// Storage configuration is now loaded via useAdminSettings composable
-
-const onStorageTypeChange = () => {
-  testSuccess.value = false
-  error.value = ''
+const handleTypeChange = async (newType) => {
+  if (newType === 'local') {
+    // For local storage, save immediately since no config needed
+    try {
+      await saveStorageConfig({ storage_type: 'local' })
+      showSuccess('Storage changed to local filesystem')
+    } catch (error) {
+      showError(`Failed to change storage: ${error.message}`)
+      selectedType.value = storageConfig.value?.storage_type || 'local'
+    }
+  }
+  // For spaces, wait for user to configure and click save
 }
 
 const testConnection = async () => {
   try {
-    error.value = ''
-    testSuccess.value = false
-
     const data = await testStorageConnection({
-        storage_type: formData.value.storage_type,
-        storage_endpoint: formData.value.storage_endpoint,
-        storage_region: formData.value.storage_region,
-        storage_bucket: formData.value.storage_bucket
+      storage_type: 'spaces',
+      storage_endpoint: formData.value.storage_endpoint,
+      storage_region: formData.value.storage_region,
+      storage_bucket: formData.value.storage_bucket
     })
-
-    testSuccess.value = true
-    success.value = data.message
-  } catch (err) {
-    error.value = 'Error testing connection: ' + err.message
-    console.error('Error:', err)
+    showSuccess(data.message || 'Connection test successful!')
+  } catch (error) {
+    showError(`Connection test failed: ${error.message}`)
   }
 }
 
-const testAndSaveConfiguration = async () => {
+const saveConfiguration = async () => {
   try {
-    error.value = ''
-    success.value = ''
-
-    const data = await saveStorageConfig(formData.value)
-
-    success.value = data.message || 'Configuration saved successfully'
-    testSuccess.value = false
-  } catch (err) {
-    error.value = 'Error saving configuration: ' + err.message
-    console.error('Error:', err)
+    const data = await saveStorageConfig({
+      storage_type: 'spaces',
+      ...formData.value
+    })
+    showSuccess(data.message || 'Storage configuration saved successfully')
+  } catch (error) {
+    showError(`Failed to save configuration: ${error.message}`)
   }
 }
 </script>
 
 <style scoped>
-.storage-section {
-  padding: 20px;
+.storage-settings {
+  margin-bottom: 2rem;
 }
 
-.section-header {
-  margin-bottom: var(--spacing-xl, 30px);
-}
-
-.section-header h2 {
-  color: var(--text-primary, #333);
-  font-size: var(--font-size-2xl, 24px);
-  margin: 0 0 var(--spacing-sm, 8px) 0;
-  font-weight: 600;
-}
-
-.section-description {
-  color: var(--text-secondary, #666);
-  font-size: var(--font-size-base, 14px);
-  margin: 0;
-  line-height: 1.6;
-}
-
-.config-display {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 30px;
-}
-
-.config-info h3 {
-  margin-top: 0;
-  font-size: 16px;
-  margin-bottom: 15px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 15px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background: white;
-  border-radius: 4px;
-  border-left: 3px solid #007bff;
-}
-
-.info-item .label {
-  font-weight: 600;
-  color: #555;
-}
-
-.info-item .value {
-  color: #333;
-  font-family: monospace;
-}
-
-.text-success {
-  color: #28a745;
-}
-
-.text-danger {
-  color: #dc3545;
-}
-
-.config-card {
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-}
-
-.config-card h3 {
-  margin-top: 0;
-  font-size: 18px;
-  margin-bottom: 20px;
-}
-
-.storage-form {
+.storage-selection {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1.5rem;
 }
 
-.form-group {
+.spaces-configuration {
   display: flex;
   flex-direction: column;
+  gap: 1.5rem;
+  padding-top: 0.5rem;
 }
 
-.form-group label {
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.form-control {
-  padding: 10px;
-  border: 1px solid #ddd;
+.credentials-note {
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-left: 3px solid var(--primary-color);
   border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.2s;
+  font-size: var(--font-size-sm);
 }
 
-.form-control:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-}
-
-.form-control:disabled {
-  background-color: #e9ecef;
-  cursor: not-allowed;
-}
-
-.form-text {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-}
-
-.spaces-config {
-  background: #f0f7ff;
-  border-left: 4px solid #007bff;
-  padding: 15px;
-  border-radius: 4px;
-}
-
-code {
-  background: #f5f5f5;
+.credentials-note code {
+  background: var(--background-tertiary);
   padding: 2px 6px;
   border-radius: 3px;
   font-family: monospace;
   font-size: 12px;
 }
 
-.alert {
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 0;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
-.alert-success {
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
-}
-
-.alert-info {
-  background-color: #d1ecf1;
-  border: 1px solid #bee5eb;
-  color: #0c5460;
-}
-
-.button-group {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #545b62;
-}
 </style>

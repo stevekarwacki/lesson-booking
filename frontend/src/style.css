@@ -4,6 +4,7 @@
 @import './styles/components/modals.css';
 @import './styles/components/toast.css';
 @import './styles/utilities.css';
+@import './styles/form-utilities.css';
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

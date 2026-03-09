@@ -1,238 +1,235 @@
 <template>
     <div class="profile">
-        <div v-if="isProfileIncomplete" class="profile-header-incomplete">
-            <h2>Complete Your Profile</h2>
-            <p class="profile-description">
-                Please provide the following information to complete your registration.
-                This helps us verify your identity and ensure account security.
-            </p>
-        </div>
-        <h2 v-else>Profile</h2>
+        <Card v-if="isProfileIncomplete" class="profile-incomplete-banner">
+            <CardHeader>
+                <CardTitle>Complete Your Profile</CardTitle>
+                <CardDescription>
+                    Please provide the following information to complete your registration.
+                    This helps us verify your identity and ensure account security.
+                </CardDescription>
+            </CardHeader>
+        </Card>
 
-        <div class="card">
-            <form @submit.prevent="updateProfile">
-                <!-- Basic Information Section -->
-                <div class="form-section">
-                    <h3 class="section-heading">Basic Information</h3>
-                    
-                    <div class="form-group">
-                        <label for="name">Name <span class="required">*</span></label>
-                        <input 
-                            id="name"
-                            v-model="profileData.name"
-                            type="text"
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="email">Email <span class="required">*</span></label>
-                        <input 
-                            id="email"
-                            v-model="profileData.email"
-                            type="email"
-                            required
-                        >
-                    </div>
-                </div>
-
-                <!-- Contact Information Section -->
-                <div class="form-section">
-                    <h3 class="section-heading">Contact Information</h3>
-                    
-                    <div class="form-group">
-                        <label for="phone">Phone Number <span class="required">*</span></label>
-                        <input 
-                            id="phone"
-                            v-model="profileData.phoneNumber"
-                            type="tel"
-                            placeholder="555-123-4567"
-                            required
-                        >
-                        <span v-if="fieldErrors.phone_number" class="field-error">
-                            {{ fieldErrors.phone_number }}
-                        </span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="address1">Address Line 1 <span class="required">*</span></label>
-                        <input 
-                            id="address1"
-                            v-model="profileData.addressLine1"
-                            type="text"
-                            placeholder="123 Main Street"
-                            required
-                        >
-                        <span v-if="fieldErrors.address_line_1" class="field-error">
-                            {{ fieldErrors.address_line_1 }}
-                        </span>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="address2">Address Line 2 <span class="optional">(optional)</span></label>
-                        <input 
-                            id="address2"
-                            v-model="profileData.addressLine2"
-                            type="text"
-                            placeholder="Apt 4B, Suite 100, etc."
-                        >
-                    </div>
-
-                    <div class="form-row-address">
-                        <div class="address-field">
-                            <label for="city">City <span class="required">*</span></label>
-                            <input 
-                                id="city"
-                                v-model="profileData.city"
-                                type="text"
-                                placeholder="Seattle"
-                                required
-                            >
-                            <span v-if="fieldErrors.city" class="field-error">
-                                {{ fieldErrors.city }}
-                            </span>
+        <Card>
+            <CardHeader>
+                <CardTitle>Profile</CardTitle>
+                <CardDescription>
+                    Manage your personal information and account settings.
+                </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+                <form @submit.prevent="updateProfile" class="profile-form">
+                    <!-- Basic Information Section -->
+                    <div class="subsection">
+                        <h3 class="subsection-header">Basic Information</h3>
+                        
+                        <div class="form-group form-group-horizontal">
+                            <Label for="name" class="form-label">
+                                Name <span class="required">*</span>
+                            </Label>
+                            <div class="form-input-wrapper">
+                                <Input 
+                                    id="name"
+                                    v-model="profileData.name"
+                                    type="text"
+                                    required
+                                />
+                            </div>
                         </div>
 
-                        <div class="address-field">
-                            <label for="state">State <span class="required">*</span></label>
-                            <select 
-                                id="state"
-                                v-model="profileData.state"
-                                required
-                            >
-                                <option value="">Select...</option>
-                                <option v-for="st in US_STATES" :key="st" :value="st">
-                                    {{ st }}
-                                </option>
-                            </select>
-                            <span v-if="fieldErrors.state" class="field-error">
-                                {{ fieldErrors.state }}
-                            </span>
-                        </div>
-
-                        <div class="address-field">
-                            <label for="zip">ZIP Code <span class="required">*</span></label>
-                            <input 
-                                id="zip"
-                                v-model="profileData.zip"
-                                type="text"
-                                placeholder="98101"
-                                maxlength="10"
-                                required
-                            >
-                            <span v-if="fieldErrors.zip" class="field-error">
-                                {{ fieldErrors.zip }}
-                            </span>
+                        <div class="form-group form-group-horizontal">
+                            <Label for="email" class="form-label">
+                                Email <span class="required">*</span>
+                            </Label>
+                            <div class="form-input-wrapper">
+                                <Input 
+                                    id="email"
+                                    v-model="profileData.email"
+                                    type="email"
+                                    required
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Additional Information Section -->
-                <div class="form-section">
-                    <h3 class="section-heading">Additional Information</h3>
-                    
-                    <div class="form-group checkbox-group">
-                        <label class="checkbox-label">
-                            <input 
-                                v-model="profileData.isMinor"
-                                type="checkbox"
-                            >
-                            <span>Student is under 18 years of age</span>
-                        </label>
+                    <div class="section-divider"></div>
+
+                    <!-- Contact Information Section -->
+                    <div class="subsection">
+                        <h3 class="subsection-header">Contact Information</h3>
+                        
+                        <div class="form-group form-group-horizontal">
+                            <Label for="phone" class="form-label">
+                                Phone Number <span class="required">*</span>
+                            </Label>
+                            <div class="form-input-wrapper">
+                                <Input 
+                                    id="phone"
+                                    v-model="profileData.phoneNumber"
+                                    type="tel"
+                                    placeholder="555-123-4567"
+                                    required
+                                />
+                                <p v-if="fieldErrors.phone_number" class="error-message">
+                                    {{ fieldErrors.phone_number }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="form-group form-group-horizontal">
+                            <Label for="address1" class="form-label">
+                                Address Line 1 <span class="required">*</span>
+                            </Label>
+                            <div class="form-input-wrapper">
+                                <Input 
+                                    id="address1"
+                                    v-model="profileData.addressLine1"
+                                    type="text"
+                                    placeholder="123 Main Street"
+                                    required
+                                />
+                                <p v-if="fieldErrors.address_line_1" class="error-message">
+                                    {{ fieldErrors.address_line_1 }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="form-group form-group-horizontal">
+                            <Label for="address2" class="form-label">
+                                Address Line 2 <span class="optional">(optional)</span>
+                            </Label>
+                            <div class="form-input-wrapper">
+                                <Input 
+                                    id="address2"
+                                    v-model="profileData.addressLine2"
+                                    type="text"
+                                    placeholder="Apt 4B, Suite 100, etc."
+                                />
+                            </div>
+                        </div>
+
+                        <div class="form-group form-group-horizontal">
+                            <Label class="form-label">
+                                City, State & ZIP <span class="required">*</span>
+                            </Label>
+                            <div class="address-fields">
+                                <div class="address-field">
+                                    <Input 
+                                        id="city"
+                                        v-model="profileData.city"
+                                        type="text"
+                                        placeholder="City"
+                                        required
+                                    />
+                                    <p v-if="fieldErrors.city" class="error-message">
+                                        {{ fieldErrors.city }}
+                                    </p>
+                                </div>
+
+                                <div class="address-field">
+                                    <Select v-model="profileData.state" required>
+                                        <SelectTrigger id="state">
+                                            <SelectValue placeholder="State" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem v-for="st in US_STATES" :key="st" :value="st">
+                                                {{ st }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p v-if="fieldErrors.state" class="error-message">
+                                        {{ fieldErrors.state }}
+                                    </p>
+                                </div>
+
+                                <div class="address-field address-field-zip">
+                                    <Input 
+                                        id="zip"
+                                        v-model="profileData.zip"
+                                        type="text"
+                                        placeholder="ZIP"
+                                        maxlength="10"
+                                        required
+                                    />
+                                    <p v-if="fieldErrors.zip" class="error-message">
+                                        {{ fieldErrors.zip }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div v-if="profileData.isMinor" class="form-group parent-approval-group">
-                        <label class="checkbox-label parent-approval-label">
-                            <input 
-                                v-model="profileData.parentApproval"
-                                type="checkbox"
-                            >
-                            <span>
-                                Parent or legal guardian has approved registration
-                                <span class="required">*</span>
-                            </span>
-                        </label>
-                        <span v-if="fieldErrors.parent_approval" class="field-error">
-                            {{ fieldErrors.parent_approval }}
-                        </span>
-                    </div>
-                </div>
+                    <div class="section-divider"></div>
 
-                <!-- Password Section (hidden in admin mode) -->
-                <div v-if="!adminMode" class="form-section">
-                    <h3 class="section-heading">Change Password</h3>
-                    
-                    <div class="form-group">
-                        <label for="new-password">New Password <span class="optional">(leave blank to keep current)</span></label>
-                        <input 
-                            id="new-password"
-                            ref="newPasswordInput"
-                            v-model="profileData.newPassword"
-                            type="password"
-                            placeholder="Enter new password"
-                            autocomplete="new-password"
-                            @input="validatePasswordStrengthOnInput"
-                        >
+                    <!-- Additional Information Section -->
+                    <div class="subsection">
+                        <h3 class="subsection-header">Additional Information</h3>
+                        
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input 
+                                    v-model="profileData.isMinor"
+                                    type="checkbox"
+                                    class="checkbox-input"
+                                >
+                                <span>Student is under 18 years of age</span>
+                            </label>
+                        </div>
+
+                        <div v-if="profileData.isMinor" class="parent-approval-group">
+                            <label class="checkbox-label parent-approval-label">
+                                <input 
+                                    v-model="profileData.parentApproval"
+                                    type="checkbox"
+                                    class="checkbox-input"
+                                >
+                                <span>
+                                    I am a parent/guardian and approve this student's registration
+                                    <span class="required">*</span>
+                                </span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="confirm-password">Confirm New Password</label>
-                        <input 
-                            id="confirm-password"
-                            ref="confirmPasswordInput"
-                            v-model="profileData.confirmPassword"
-                            type="password"
-                            placeholder="Confirm new password"
-                            autocomplete="new-password"
-                            :disabled="!profileData.newPassword"
-                            :required="!!profileData.newPassword"
-                            @input="validatePasswordMatch"
-                        >
+                    <!-- Error/Success Messages -->
+                    <div v-if="error" class="alert alert-error">
+                        {{ error }}
                     </div>
-                </div>
+                    <div v-if="successMessage" class="alert alert-success">
+                        {{ successMessage }}
+                    </div>
 
-                <Button type="submit">Update Profile</Button>
-            </form>
-        </div>
+                    <!-- Form Actions -->
+                    <div class="button-group">
+                        <Button type="submit" :disabled="loading">
+                            {{ loading ? 'Saving...' : 'Save Profile' }}
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
     </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { validateProfileData, validatePasswordsMatch, validatePasswordStrength } from '../utils/formValidation'
-import { useProfileUpdate } from '../composables/useProfileUpdate'
-import { useUserManagement } from '../composables/useUserManagement'
-import { useFormFeedback } from '../composables/useFormFeedback'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-
-// Props for admin editing mode
-const props = defineProps({
-    // User object when admin is editing another user's profile
-    user: {
-        type: Object,
-        default: null
-    },
-    // Whether this is being used by an admin to edit another user
-    adminMode: {
-        type: Boolean,
-        default: false
-    }
-})
-
-const emit = defineEmits(['profile-updated'])
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const userStore = useUserStore()
-const { updateProfileAsync } = useProfileUpdate()
-const { updateOwnUser } = useUserManagement()
-const { showSuccess, showError } = useFormFeedback()
 
-// Use prop user if in admin mode, otherwise use current user
-const sourceUser = computed(() => props.adminMode && props.user ? props.user : userStore.user)
-
-const fieldErrors = ref({})
-const newPasswordInput = ref(null)
-const confirmPasswordInput = ref(null)
+const US_STATES = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+]
 
 const profileData = ref({
     name: '',
@@ -244,386 +241,207 @@ const profileData = ref({
     state: '',
     zip: '',
     isMinor: false,
-    parentApproval: false,
-    newPassword: '',
-    confirmPassword: ''
+    parentApproval: false
 })
 
-// US States for dropdown
-const US_STATES = [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-]
+const loading = ref(false)
+const error = ref('')
+const successMessage = ref('')
+const fieldErrors = ref({})
 
-// Check if profile is incomplete (hide header when in admin mode)
 const isProfileIncomplete = computed(() => {
-    if (props.adminMode) return false // Don't show incomplete header in admin mode
-    
-    const user = sourceUser.value
-    if (!user) return false
-    
-    // Check if essential verification fields are missing
-    const hasPhone = !!user.phone_number
-    const hasAddress = user.user_profile_data?.address?.line_1 && 
-                       user.user_profile_data?.address?.city && 
-                       user.user_profile_data?.address?.state && 
-                       user.user_profile_data?.address?.zip
-    
-    return !hasPhone || !hasAddress
+    return !userStore.user?.profile_completed_at
 })
 
-// Initialize profile data from user object
-const loadProfileData = (user) => {
-    if (!user) return
-    
-    // Load basic info (always present)
-    profileData.value.name = user.name || ''
-    profileData.value.email = user.email || ''
-    
-    // Load verification/extended profile info (only if exists)
-    profileData.value.phoneNumber = user.phone_number || ''
-    
-    // Only set isMinor if explicitly set in database (null/undefined means not set)
-    profileData.value.isMinor = user.is_student_minor === true
-    
-    // Load address from JSON field using optional chaining
-    const address = user.user_profile_data?.address
-    profileData.value.addressLine1 = address?.line_1 || ''
-    profileData.value.addressLine2 = address?.line_2 || ''
-    profileData.value.city = address?.city || ''
-    profileData.value.state = address?.state || ''
-    profileData.value.zip = address?.zip || ''
-    
-    // Load parent approval only if minor
-    profileData.value.parentApproval = user.is_student_minor && user.user_profile_data?.parent_approval === true
-    
-    // DO NOT pre-populate password fields - always leave blank
-    profileData.value.newPassword = ''
-    profileData.value.confirmPassword = ''
-}
-
-// Watch for prop changes (when admin switches between users)
-watch(() => props.user, (newUser) => {
-    if (props.adminMode && newUser) {
-        loadProfileData(newUser)
-    }
-}, { immediate: false })
-
-onMounted(() => {
-    loadProfileData(sourceUser.value)
-})
-
-// Validate password strength as user types
-const validatePasswordStrengthOnInput = () => {
-    if (!newPasswordInput.value) return
-    
-    // If password is empty, clear any validation errors
-    if (!profileData.value.newPassword) {
-        newPasswordInput.value.setCustomValidity('')
-        // Also trigger password match validation
-        validatePasswordMatch()
-        return
-    }
-    
-    // Use pure helper to validate strength
-    const strengthValidation = validatePasswordStrength(
-        profileData.value.newPassword
-    )
-    
-    // Apply result to browser's validation API
-    if (strengthValidation.valid) {
-        newPasswordInput.value.setCustomValidity('')
-    } else {
-        newPasswordInput.value.setCustomValidity(strengthValidation.errors[0])
-    }
-    
-    // Also trigger password match validation
-    validatePasswordMatch()
-}
-
-// Use browser's built-in validation for password matching
-// This adapter bridges the pure validation logic with the browser's validation API
-const validatePasswordMatch = () => {
-    if (!confirmPasswordInput.value) return
-    
-    // Use pure helper to validate
-    const validation = validatePasswordsMatch(
-        profileData.value.newPassword,
-        profileData.value.confirmPassword
-    )
-    
-    // Apply result to browser's validation API
-    if (validation.valid) {
-        confirmPasswordInput.value.setCustomValidity('')
-    } else {
-        confirmPasswordInput.value.setCustomValidity(validation.error)
+const loadProfile = () => {
+    if (userStore.user) {
+        profileData.value = {
+            name: userStore.user.name || '',
+            email: userStore.user.email || '',
+            phoneNumber: userStore.user.phone_number || '',
+            addressLine1: userStore.user.user_profile_data?.address_line_1 || '',
+            addressLine2: userStore.user.user_profile_data?.address_line_2 || '',
+            city: userStore.user.user_profile_data?.city || '',
+            state: userStore.user.user_profile_data?.state || '',
+            zip: userStore.user.user_profile_data?.zip || '',
+            isMinor: userStore.user.is_student_minor || false,
+            parentApproval: userStore.user.user_profile_data?.parent_approval || false
+        }
     }
 }
 
 const updateProfile = async () => {
+    loading.value = true
+    error.value = ''
+    successMessage.value = ''
     fieldErrors.value = {}
 
-    // Skip password validation in admin mode (password fields are hidden)
-    if (!props.adminMode) {
-        // Browser validation handles password strength and matching, but double-check
-        if (profileData.value.newPassword && !profileData.value.confirmPassword) {
-            showError('Please confirm your new password')
-            return
-        }
-
-        if (profileData.value.newPassword) {
-            const strengthValidation = validatePasswordStrength(
-                profileData.value.newPassword,
-                { minLength: 8 }
-            )
-            
-            if (!strengthValidation.valid) {
-                showError(strengthValidation.errors.join(', '))
-                return
-            }
-        }
-
-        const passwordValidation = validatePasswordsMatch(
-            profileData.value.newPassword,
-            profileData.value.confirmPassword
-        )
-        
-        if (!passwordValidation.valid) {
-            showError(passwordValidation.error)
-            return
-        }
-    }
-
-    // Validate profile fields
-    const profileValidation = validateProfileData({
-        phone_number: profileData.value.phoneNumber,
-        address_line_1: profileData.value.addressLine1,
-        address_line_2: profileData.value.addressLine2 || '',
-        city: profileData.value.city,
-        state: profileData.value.state,
-        zip: profileData.value.zip,
-        is_minor: profileData.value.isMinor,
-        parent_approval: profileData.value.parentApproval
-    })
-    
-    if (!profileValidation.valid) {
-        fieldErrors.value = profileValidation.errors
-        showError('Please fix the errors below')
-        return
-    }
-
-    // In admin mode, emit event instead of making API call
-    if (props.adminMode) {
-        const profileUpdateData = {
-            // Basic info
-            name: profileData.value.name,
-            email: profileData.value.email,
-            // Profile data
-            phone_number: profileData.value.phoneNumber,
-            is_student_minor: profileData.value.isMinor,
-            parent_approval: profileData.value.parentApproval,
-            address: {
-                line_1: profileData.value.addressLine1,
-                line_2: profileData.value.addressLine2 || null,
+    try {
+        const response = await fetch('/api/users/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userStore.token}`
+            },
+            body: JSON.stringify({
+                name: profileData.value.name,
+                email: profileData.value.email,
+                phone_number: profileData.value.phoneNumber,
+                address_line_1: profileData.value.addressLine1,
+                address_line_2: profileData.value.addressLine2,
                 city: profileData.value.city,
                 state: profileData.value.state,
-                zip: profileData.value.zip
-            }
-        }
-        
-        emit('profile-updated', profileUpdateData)
-        return
-    }
-
-    try {
-        // Prepare the update payload
-        const updatePayload = {
-            name: profileData.value.name,
-            email: profileData.value.email
-        }
-        
-        // Add password if provided (and confirmed)
-        if (profileData.value.newPassword && profileData.value.confirmPassword) {
-            updatePayload.password = profileData.value.newPassword
-        }
-
-        // Update basic profile info (name, email, password)
-        await updateOwnUser({
-            userId: userStore.user.id,
-            userData: updatePayload
+                zip: profileData.value.zip,
+                is_student_minor: profileData.value.isMinor,
+                parent_approval: profileData.value.parentApproval
+            })
         })
 
-        // Update verification data (phone, address, minor status)
-        const profileUpdateData = {
-            phone_number: profileData.value.phoneNumber.trim(),
-            is_student_minor: profileData.value.isMinor,
-            address: {
-                line_1: profileData.value.addressLine1.trim(),
-                line_2: profileData.value.addressLine2.trim() || null,
-                city: profileData.value.city.trim(),
-                state: profileData.value.state,
-                zip: profileData.value.zip.trim()
-            }
-        }
-        
-        // Add parent approval if minor
-        if (profileData.value.isMinor) {
-            profileUpdateData.parent_approval = profileData.value.parentApproval
-        }
-        
-        await updateProfileAsync(profileUpdateData)
+        const data = await response.json()
 
-        showSuccess('Profile updated successfully')
-        
-        // Clear password fields after successful update
-        profileData.value.newPassword = ''
-        profileData.value.confirmPassword = ''
-        
-        // Clear any custom validity messages
-        if (newPasswordInput.value) {
-            newPasswordInput.value.setCustomValidity('')
+        if (!response.ok) {
+            if (data.fieldErrors) {
+                fieldErrors.value = data.fieldErrors
+                error.value = 'Please correct the errors below'
+            } else {
+                error.value = data.error || 'Failed to update profile'
+            }
+            return
         }
-        if (confirmPasswordInput.value) {
-            confirmPasswordInput.value.setCustomValidity('')
-        }
-        
-        // Refresh user data
+
+        // Update user store with new data
         await userStore.fetchUser()
         
+        successMessage.value = 'Profile updated successfully'
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+            successMessage.value = ''
+        }, 3000)
     } catch (err) {
-        showError(err.message || 'An error occurred while updating your profile')
+        error.value = 'An error occurred while updating your profile'
         console.error('Profile update error:', err)
+    } finally {
+        loading.value = false
     }
 }
+
+// Watch for minor checkbox changes
+watch(() => profileData.value.isMinor, (newVal) => {
+    if (!newVal) {
+        profileData.value.parentApproval = false
+    }
+})
+
+onMounted(() => {
+    loadProfile()
+})
 </script>
 
 <style scoped>
 .profile {
-    max-width: 800px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
-.profile-header-incomplete {
-    margin-bottom: var(--spacing-lg);
+.profile-incomplete-banner {
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    border: none;
 }
 
-.profile-header-incomplete h2 {
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-primary);
+.profile-incomplete-banner :deep(.card-title),
+.profile-incomplete-banner :deep(.card-description) {
+    color: white;
 }
 
-.profile-description {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 0;
-}
-
-h2 {
-    margin-bottom: var(--spacing-md);
-    color: var(--secondary-color);
-}
-
-.form-section {
-    margin-bottom: var(--spacing-xl);
-    padding-bottom: var(--spacing-xl);
-    border-bottom: 1px solid var(--border-color, #dee2e6);
-}
-
-.form-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: var(--spacing-lg);
-}
-
-.section-heading {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-}
-
-.form-row-address {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
-/* Address fields use horizontal grid layout like standard form-group */
-.address-field {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: var(--spacing-sm);
-    align-items: center;
-}
-
-.address-field label {
-    color: var(--text-primary);
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.address-field .field-error {
-    grid-column: 1 / -1;
-}
-
-.required {
-    color: var(--error-color);
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 .optional {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
     font-weight: normal;
+    color: var(--text-secondary, #6b7280);
 }
 
-.field-error {
-    display: block;
-    color: var(--error-color);
-    font-size: 0.875rem;
-    margin-top: var(--spacing-xs);
+.address-fields {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0.75rem;
+  max-width: 600px;
+}
+
+.address-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.address-field-zip {
+    max-width: 120px;
 }
 
 .checkbox-group {
-    margin-bottom: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .checkbox-label {
     display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
+    align-items: flex-start;
+    gap: 0.5rem;
     cursor: pointer;
+    line-height: 1.5;
 }
 
-.checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+.checkbox-input {
+    margin-top: 0.25rem;
+    width: 1rem;
+    height: 1rem;
     cursor: pointer;
 }
 
 .parent-approval-group {
-    background-color: var(--background-secondary, #f8f9fa);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius);
-    border-left: 3px solid var(--primary-color);
-    margin-bottom: var(--spacing-md);
+    margin-top: 0.5rem;
+    padding: 1rem;
+    background: var(--background-secondary, #f9fafb);
+    border-left: 3px solid var(--primary-color, #3b82f6);
+    border-radius: 4px;
 }
 
 .parent-approval-label {
-    margin-bottom: 0;
+    font-weight: 500;
 }
 
-/* Mobile responsive */
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.alert-error {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+}
+
+.alert-success {
+    background: #d1fae5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+}
+
 @media (max-width: 768px) {
-    .form-row-address {
+    .address-fields {
         grid-template-columns: 1fr;
     }
     
-    .field-error {
-        grid-column: 1;
+    .address-field-zip {
+        max-width: 100%;
     }
 }
-</style> 
+</style>
