@@ -121,7 +121,7 @@ const isDismissed = computed(() => {
 <style scoped>
 .profile-status-banner {
     padding: var(--spacing-md) var(--spacing-lg);
-    margin: 0;
+    margin: 0 0 2rem 0;
     border-radius: 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

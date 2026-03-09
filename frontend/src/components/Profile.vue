@@ -1,15 +1,5 @@
 <template>
     <div class="profile">
-        <Card v-if="isProfileIncomplete" class="profile-incomplete-banner">
-            <CardHeader>
-                <CardTitle>Complete Your Profile</CardTitle>
-                <CardDescription>
-                    Please provide the following information to complete your registration.
-                    This helps us verify your identity and ensure account security.
-                </CardDescription>
-            </CardHeader>
-        </Card>
-
         <Card>
             <CardHeader>
                 <CardTitle>Profile</CardTitle>
@@ -343,17 +333,6 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-}
-
-.profile-incomplete-banner {
-    background: var(--primary-color, #3b82f6);
-    color: white;
-    border: none;
-}
-
-.profile-incomplete-banner :deep(.card-title),
-.profile-incomplete-banner :deep(.card-description) {
-    color: white;
 }
 
 .profile-form {
