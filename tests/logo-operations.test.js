@@ -12,15 +12,10 @@ const path = require('path');
 
 // Mock Sharp for image processing
 const mockSharp = {
-  metadata: () => Promise.resolve({ width: 800, height: 200 }),
+  metadata: () => Promise.resolve({ width: 800, height: 200, format: 'png' }),
   resize: () => mockSharp,
   png: () => mockSharp,
   toBuffer: () => Promise.resolve(Buffer.from('processed-image-data'))
-};
-
-// Mock file-type for validation
-const mockFileType = {
-  fileTypeFromBuffer: () => Promise.resolve({ mime: 'image/png' })
 };
 
 // Import utilities with mocked dependencies
@@ -38,19 +33,47 @@ const validateImageDimensions = async (buffer, minWidth = 50, minHeight = 50) =>
   return { width, height };
 };
 
-const validateFileType = async (buffer, allowedTypes = ['image/']) => {
-  const fileType = await mockFileType.fileTypeFromBuffer(buffer);
-  
-  if (!fileType) {
-    throw new Error('Could not determine file type');
+const validateFileType = async (buffer, allowedFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']) => {
+  try {
+    const metadata = await mockSharp.metadata();
+    
+    if (!metadata.format) {
+      throw new Error('Could not determine image format');
+    }
+    
+    // Map sharp format names to MIME types
+    const formatToMime = {
+      'jpeg': 'image/jpeg',
+      'jpg': 'image/jpeg',
+      'png': 'image/png',
+      'webp': 'image/webp',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'tiff': 'image/tiff'
+    };
+    
+    const mimeType = formatToMime[metadata.format.toLowerCase()];
+    
+    if (!mimeType) {
+      throw new Error(`Unsupported image format: ${metadata.format}`);
+    }
+    
+    // Check if format is allowed
+    const isAllowed = allowedFormats.includes(mimeType);
+    if (!isAllowed) {
+      throw new Error(`Invalid file type. Only ${allowedFormats.join(', ')} files are allowed. Got: ${mimeType}`);
+    }
+    
+    return {
+      mime: mimeType,
+      ext: metadata.format.toLowerCase()
+    };
+  } catch (error) {
+    if (error.message.includes('Input buffer contains unsupported image format')) {
+      throw new Error('File is not a valid image');
+    }
+    throw error;
   }
-  
-  const isAllowed = allowedTypes.some(type => fileType.mime.startsWith(type));
-  if (!isAllowed) {
-    throw new Error(`Invalid file type. Only ${allowedTypes.join(', ')} files are allowed.`);
-  }
-  
-  return fileType;
 };
 
 const calculateTargetDimensions = (width, height, maxWidth, maxHeight) => {
@@ -98,36 +121,55 @@ describe('Logo Operations', () => {
 
   describe('File Type Validation', () => {
     test('should pass validation for allowed image types', async () => {
-      const result = await validateFileType(testBuffer, ['image/']);
+      const result = await validateFileType(testBuffer, ['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
       assert.strictEqual(result.mime, 'image/png');
+      assert.strictEqual(result.ext, 'png');
     });
 
     test('should throw error for disallowed file types', async () => {
-      mockFileType.fileTypeFromBuffer = () => Promise.resolve({ mime: 'application/pdf' });
+      // Mock an unsupported format
+      const originalMetadata = mockSharp.metadata;
+      mockSharp.metadata = () => Promise.resolve({ width: 800, height: 200, format: 'bmp' });
       
       await assert.rejects(
-        validateFileType(testBuffer, ['image/']),
+        validateFileType(testBuffer, ['image/jpeg', 'image/png']),
         {
-          message: 'Invalid file type. Only image/ files are allowed.'
+          message: 'Unsupported image format: bmp'
         }
       );
       
       // Reset mock
-      mockFileType.fileTypeFromBuffer = () => Promise.resolve({ mime: 'image/png' });
+      mockSharp.metadata = originalMetadata;
     });
 
-    test('should throw error when file type cannot be determined', async () => {
-      mockFileType.fileTypeFromBuffer = () => Promise.resolve(null);
+    test('should throw error when image format cannot be determined', async () => {
+      const originalMetadata = mockSharp.metadata;
+      mockSharp.metadata = () => Promise.resolve({ width: 800, height: 200, format: null });
       
       await assert.rejects(
         validateFileType(testBuffer),
         {
-          message: 'Could not determine file type'
+          message: 'Could not determine image format'
         }
       );
       
       // Reset mock
-      mockFileType.fileTypeFromBuffer = () => Promise.resolve({ mime: 'image/png' });
+      mockSharp.metadata = originalMetadata;
+    });
+
+    test('should reject format not in allowed list', async () => {
+      const originalMetadata = mockSharp.metadata;
+      mockSharp.metadata = () => Promise.resolve({ width: 800, height: 200, format: 'gif' });
+      
+      await assert.rejects(
+        validateFileType(testBuffer, ['image/jpeg', 'image/png']),
+        {
+          message: 'Invalid file type. Only image/jpeg, image/png files are allowed. Got: image/gif'
+        }
+      );
+      
+      // Reset mock
+      mockSharp.metadata = originalMetadata;
     });
   });
 

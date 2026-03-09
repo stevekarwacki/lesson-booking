@@ -1,5 +1,4 @@
 const sharp = require('sharp');
-const { fileTypeFromBuffer } = require('file-type');
 
 /**
  * Validate image dimensions against minimum requirements
@@ -21,25 +20,54 @@ const validateImageDimensions = async (buffer, minWidth = 50, minHeight = 50) =>
 };
 
 /**
- * Validate file type using file-type library for security
+ * Validate file type using sharp metadata for security
+ * Sharp will throw an error if the buffer is not a valid image
  * @param {Buffer} buffer - File buffer
- * @param {string[]} allowedTypes - Array of allowed MIME type prefixes (e.g., ['image/'])
- * @returns {Promise<Object>} File type information
- * @throws {Error} If file type is not allowed
+ * @param {string[]} allowedFormats - Array of allowed image formats (e.g., ['image/jpeg', 'image/png'])
+ * @returns {Promise<Object>} File type information with format and mime type
+ * @throws {Error} If file is not a valid image or format is not allowed
  */
-const validateFileType = async (buffer, allowedTypes = ['image/']) => {
-    const fileType = await fileTypeFromBuffer(buffer);
-    
-    if (!fileType) {
-        throw new Error('Could not determine file type');
+const validateFileType = async (buffer, allowedFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']) => {
+    try {
+        const metadata = await sharp(buffer).metadata();
+        
+        if (!metadata.format) {
+            throw new Error('Could not determine image format');
+        }
+        
+        // Map sharp format names to MIME types
+        const formatToMime = {
+            'jpeg': 'image/jpeg',
+            'jpg': 'image/jpeg',
+            'png': 'image/png',
+            'webp': 'image/webp',
+            'gif': 'image/gif',
+            'svg': 'image/svg+xml',
+            'tiff': 'image/tiff'
+        };
+        
+        const mimeType = formatToMime[metadata.format.toLowerCase()];
+        
+        if (!mimeType) {
+            throw new Error(`Unsupported image format: ${metadata.format}`);
+        }
+        
+        // Check if format is allowed
+        const isAllowed = allowedFormats.includes(mimeType);
+        if (!isAllowed) {
+            throw new Error(`Invalid file type. Only ${allowedFormats.join(', ')} files are allowed. Got: ${mimeType}`);
+        }
+        
+        return {
+            mime: mimeType,
+            ext: metadata.format.toLowerCase()
+        };
+    } catch (error) {
+        if (error.message.includes('Input buffer contains unsupported image format')) {
+            throw new Error('File is not a valid image');
+        }
+        throw error;
     }
-    
-    const isAllowed = allowedTypes.some(type => fileType.mime.startsWith(type));
-    if (!isAllowed) {
-        throw new Error(`Invalid file type. Only ${allowedTypes.join(', ')} files are allowed.`);
-    }
-    
-    return fileType;
 };
 
 /**

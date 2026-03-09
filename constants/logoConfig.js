@@ -13,8 +13,8 @@ const LOGO_CONFIG = {
     // File size limit in bytes
     MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
     
-    // Allowed file formats
-    ALLOWED_FORMATS: ['image/'],
+    // Allowed file formats (MIME types)
+    ALLOWED_FORMATS: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
     
     // Output format for processed logos
     OUTPUT_FORMAT: 'png',

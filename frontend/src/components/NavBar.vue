@@ -95,16 +95,14 @@ const handleLogout = () => {
                 </router-link>
             </div>
             
-            <!-- Center column: Logo (if center position) -->
+            <!-- Center column: Logo (if center position AND logo exists) -->
             <div class="nav-center">
-                <router-link to="/" class="brand-link" @click="closeMenu" v-if="logoPosition === 'center'">
+                <router-link to="/" class="brand-link" @click="closeMenu" v-if="logoUrl && logoPosition === 'center'">
                     <img 
-                        v-if="logoUrl" 
                         :src="logoUrl" 
                         :alt="companyName + ' logo'"
                         class="brand-logo"
                     />
-                    <h1 v-if="!logoUrl" class="brand-text">{{ companyName }}</h1>
                 </router-link>
             </div>
             

@@ -242,13 +242,6 @@ RUN_SEEDS=true npm start
 
 If you see email warnings, it's safe to ignore if you haven't configured email yet. The application works fine without email - it will just log attempts instead of sending.
 
-### File Type Error
-
-If you encounter `ERR_PACKAGE_PATH_NOT_EXPORTED` with `file-type`, ensure you're using `file-type@16.5.4` (not v18+):
-```bash
-npm install file-type@16.5.4
-```
-
 ## Development Workflow
 
 ```bash

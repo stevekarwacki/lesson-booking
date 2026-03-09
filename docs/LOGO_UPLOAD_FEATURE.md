@@ -108,7 +108,7 @@ Update logo position. Accepts `position` field with values "left" or "center".
 ## Security Features
 
 ### File Upload Security
-- **MIME Type Validation**: Double validation using multer and file-type library
+- **MIME Type Validation**: Image validation using Sharp library metadata
 - **File Extension Filtering**: Only image extensions allowed
 - **Size Limits**: Enforced at upload middleware level
 - **Buffer Processing**: Files processed in memory before saving
