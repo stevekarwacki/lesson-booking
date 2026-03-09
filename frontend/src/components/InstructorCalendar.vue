@@ -437,38 +437,33 @@ const fetchWeeklySchedule = async () => {
         const availabilityData = weeklyAvailability.value || []
         const bookedEvents = weeklyEvents.value || []
 
-        // Initialize schedule with dates
+        // Initialize schedule
         const formattedSchedule = {}
-        const slotTemplate = {}
-        
-        for (let i = 0; i < 7; i++) {
-            const slotDate = new Date(selectedWeek.value)
-            slotDate.setDate(slotDate.getDate() + i)
-            slotDate.setHours(0,0,0,0)
 
-            slotTemplate[i] = {
-                date: slotDate,
-                type: 'unavailable'
-            }
-        }
-
-        // Start with available slots
+        // Start with available slots - expand to all slots they occupy
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
+            const slotStart = slot.start_slot
+            const slotDuration = slot.duration || 2
 
-            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
-                const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
+            // Get the date for this specific day
+            const slotDate = new Date(selectedWeek.value)
+            slotDate.setDate(slotDate.getDate() + dayIndex)
+            slotDate.setHours(0,0,0,0)
 
-                if (!(slotStart in formattedSchedule)) {
-                    formattedSchedule[slotStart] = Object.assign({}, slotTemplate)
+            // Expand: store the same data at every slot position this availability occupies
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                
+                if (!(currentSlot in formattedSchedule)) {
+                    formattedSchedule[currentSlot] = {}
                 }
-
-                formattedSchedule[slotStart][dayIndex] = formatSlot(newSlot, formattedSchedule[slotStart][dayIndex].date)
+                
+                formattedSchedule[currentSlot][dayIndex] = formatSlot(slot, slotDate)
             }
         })
 
-        // Overwrite availability with booked events
+        // Overwrite availability with booked events - no expansion
         bookedEvents.forEach(event => {
             // Handle all-day events that should block all available slots
             if (event.blocks_all_available_slots) {
@@ -495,40 +490,18 @@ const fetchWeeklySchedule = async () => {
             const dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
-            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
-
-            // Log booking information
-            const now = new Date()
-            const currentTime = now.toLocaleTimeString()
-            now.setHours(0, 0, 0, 0)
+            const slotDuration = event.duration || 2
             
-            // Create date in both UTC and local
-            const bookingDateLocal = new Date(event.date)
-            bookingDateLocal.setHours(0, 0, 0, 0)
-            
-            const bookingDateUTC = new Date(event.date)
-            bookingDateUTC.setUTCHours(0, 0, 0, 0)
-            
-            // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
+            // Expand: store booking at every slot position it occupies
+            for (let i = 0; i < slotDuration; i++) {
                 const currentSlot = slotStart + i
                 
-                // Only show booked events (including Google Calendar) if they overlap with instructor availability
-                if (formattedSchedule[currentSlot] && formattedSchedule[currentSlot][dayIndex] !== undefined) {
-                    const slotData = formatSlot(event, eventDate)
-                    
-                    // Add metadata to identify multi-slot bookings
-                    if (eventDuration > settingsStore.slotDuration) {
-                        slotData.isMultiSlot = true
-                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
-                        slotData.bookingId = event.id // To group related slots
-                        slotData.originalStartSlot = event.start_slot // Original booking start slot
-                        slotData.originalDuration = eventDuration // Original booking duration
-                    }
-                    
-                    formattedSchedule[currentSlot][dayIndex] = slotData
+                if (!(currentSlot in formattedSchedule)) {
+                    formattedSchedule[currentSlot] = {}
                 }
+                
+                const slotData = formatSlot(event, eventDate)
+                formattedSchedule[currentSlot][dayIndex] = slotData
             }
         })
 
@@ -574,16 +547,12 @@ const fetchDailySchedule = async () => {
 
         const formattedSchedule = {}
 
+        // Add availability slots without expansion
         availabilityData.forEach(slot => {
-            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
-                const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
-
-                formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
-            }
+            formattedSchedule[slot.start_slot] = formatSlot(slot, scheduleDate)
         })
 
-        // Split availability slots around booked events and add booked events to schedule
+        // Add booked events without expansion - block consolidation happens in transform
         bookedEvents.forEach(event => {
             // Handle all-day events that should block all available slots
             if (event.blocks_all_available_slots) {
@@ -597,28 +566,9 @@ const fetchDailySchedule = async () => {
                 return; // Skip normal duration processing for all-day events
             }
             
-            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
-            
-            // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
-                const currentSlot = event.start_slot + i
-                
-                if (formattedSchedule[currentSlot]) {
-                    const slotData = formatSlot(event, scheduleDate)
-                    
-                    // Add metadata to identify multi-slot bookings
-                    if (eventDuration > settingsStore.slotDuration) {
-                        slotData.isMultiSlot = true
-                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
-                        slotData.bookingId = event.id // To group related slots
-                        slotData.originalStartSlot = event.start_slot // Original booking start slot
-                        slotData.originalDuration = eventDuration // Original booking duration
-                    }
-                    
-                    formattedSchedule[currentSlot] = slotData
-                }
-            }
+            // Store booking once at its start slot (no expansion)
+            const slotData = formatSlot(event, scheduleDate)
+            formattedSchedule[event.start_slot] = slotData
         })
 
         dailyScheduleData.value = formattedSchedule
@@ -630,25 +580,9 @@ const fetchDailySchedule = async () => {
 }
 
 const weeklySchedule = computed(() => {
-    // Initialize empty schedule
-    let schedule = {
-        0: {
-            0: { },
-            1: { },
-            2: { },
-            3: { },
-            4: { },
-            5: { },
-            6: { }
-        }
-    }
-
-    // If we have data, populate the slots
-    if (Object.keys(weeklyScheduleData.value).length) {
-        schedule = weeklyScheduleData.value
-    }
-
-    return schedule
+    // Return actual schedule data or empty object (not fallback structure)
+    // transformWeeklySchedule will handle empty schedules correctly
+    return weeklyScheduleData.value || {}
 })
 
 // Navigation methods

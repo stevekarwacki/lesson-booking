@@ -42,18 +42,16 @@ const BASE_HEIGHT = 40; // 40px = 30 minutes (1 height unit)
 export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
   const blocks = []
   
-  // Generate all slots in business hours range
-  const allSlots = []
-  for (let slot = startSlot; slot < endSlot; slot += 2) {
-    allSlots.push(slot)
-  }
-  
   let currentBlock = null
+  let i = startSlot
   
-  for (const slot of allSlots) {
-    const slotData = scheduleData[slot]
+  while (i < endSlot) {
+    const slotData = scheduleData[i]
     
-    if (!slotData || slotData.type === 'unavailable') {
+    // Treat empty objects or objects without a valid type as unavailable
+    const isValidSlotData = slotData && typeof slotData === 'object' && slotData.type && slotData.type !== 'unavailable'
+    
+    if (!isValidSlotData) {
       // Handle unavailable slots
       if (currentBlock && currentBlock.type === 'unavailable') {
         // Extend current unavailable block
@@ -65,43 +63,39 @@ export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
           blocks.push(currentBlock)
         }
         currentBlock = {
-          id: `unavailable-${slot}`,
-          startSlot: slot,
+          id: `unavailable-${i}`,
+          startSlot: i,
           duration: 2,
           type: 'unavailable',
           data: null
         }
       }
+      i += 2 // Move to next 30-min slot
     } else {
       // Handle available, booked, or blocked slots
       const slotType = slotData.type
-      const slotId = slotData.id || `${slotType}-${slot}`
+      const slotId = slotData.id || `${slotType}-${i}`
       
       if (currentBlock && currentBlock.type === slotType && canMergeBlocks(currentBlock, slotData, slotType)) {
-        // Extend current block if same type and compatible
-        currentBlock.duration += 2
+        // Extend current block if same type and compatible - just add 1 slot (15 min)
+        currentBlock.duration += 1
       } else {
-        // Start new block
+        // Start new block (finalize and push previous block if exists)
         if (currentBlock) {
           finalizeBlock(currentBlock)
           blocks.push(currentBlock)
         }
         currentBlock = {
           id: slotId,
-          startSlot: slot,
-          duration: slotData.duration || 2,
+          startSlot: i,
+          duration: 1, // Start with 1 slot (15 min)
           type: slotType,
           data: slotData
         }
-        
-        // For multi-slot bookings/events, skip ahead to avoid duplication
-        if (slotData.duration > 2) {
-          const slotsToSkip = Math.floor(slotData.duration / 2) - 1
-          for (let i = 0; i < slotsToSkip; i++) {
-            allSlots.shift() // Remove processed slots
-          }
-        }
       }
+      
+      // Always move forward by 1 slot (15 min) since data is now expanded
+      i += 1
     }
   }
   
@@ -183,10 +177,12 @@ export function getSegmentFromClickPosition(clickY, segments) {
 /**
  * Calculates block height based on duration
  * Base height = 30 minutes (40px), scales proportionally
+ * Subtracts 4px to account for vertical margins (2px top + 2px bottom)
  * @param {number} durationSlots - Duration in slots (2 = 30 min, 4 = 60 min)
  * @param {number} baseHeight - Base height for 30 minutes (default 40px)
- * @returns {number} Height in pixels
+ * @returns {number} Height in pixels (adjusted for margins)
  */
 export function calculateBlockHeight(durationSlots, baseHeight = BASE_HEIGHT) {
-  return (durationSlots / 2) * baseHeight
+  const VERTICAL_MARGIN = 4 // 2px top + 2px bottom margin
+  return (durationSlots / 2) * baseHeight - VERTICAL_MARGIN
 }

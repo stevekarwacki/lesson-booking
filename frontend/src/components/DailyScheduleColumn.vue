@@ -196,6 +196,8 @@ const isOriginalBlock = (block) => {
 const getBlockClasses = (block) => {
   return {
     'available': block.type === 'available',
+    'unavailable': block.type === 'unavailable',
+    'blocked': block.type === 'blocked',
     'current-day': isCurrentDay(props.date),
     'past': isPastTimeSlot(block.startSlot, props.date.toISOString()),
     'booked': block.type === 'booked',
@@ -354,39 +356,51 @@ const handleBlockClick = (block, event) => {
   }
 }
 
-/* State-based Card styling using CSS variables */
-.time-block-card.available {
-  background-color: var(--calendar-available);
-  border-color: var(--border-color);
+/* Override shadcn Card default background - must be specific to beat Tailwind */
+.time-block-card.rounded-lg.border {
+  background: none;
+  border-radius: 8px !important; /* Rounded corners */
+  margin: 2px 4px; /* Gaps between blocks */
+  border-width: 2px !important;
+  box-sizing: border-box !important; /* Include border in height calculation */
 }
 
-.time-block-card.booked {
-  background-color: var(--calendar-booked-self);
-  border-color: var(--primary-color);
+/* State-based Card styling - Green for available */
+.time-block-card.available.rounded-lg {
+  background-color: #d4edda !important; /* Light green */
+  border-color: #28a745 !important; /* Darker green border */
 }
 
-.time-block-card.unavailable {
-  background-color: var(--calendar-unavailable);
+/* Blue for booked */
+.time-block-card.booked.rounded-lg {
+  background-color: #cce5ff !important; /* Light blue */
+  border-color: #007bff !important; /* Darker blue border */
+}
+
+/* Red for unavailable */
+.time-block-card.unavailable.rounded-lg {
+  background-color: #f8d7da !important; /* Light red */
+  border-color: #dc3545 !important; /* Darker red border */
   cursor: not-allowed;
-  opacity: 0.6;
 }
 
-.time-block-card.google-calendar {
-  background-color: var(--calendar-blocked);
+/* Red striped for blocked/Google Calendar */
+.time-block-card.google-calendar.rounded-lg {
+  background-color: #f8d7da !important; /* Light red base */
   background-image: repeating-linear-gradient(
     45deg,
     transparent,
-    transparent 4px,
-    rgba(255, 255, 255, 0.3) 4px,
-    rgba(255, 255, 255, 0.3) 8px
+    transparent 8px,
+    rgba(220, 53, 69, 0.3) 8px, /* Darker red stripes */
+    rgba(220, 53, 69, 0.3) 16px
   );
-  border-left: 4px solid #dc3545;
-  color: white;
+  border-color: #dc3545 !important; /* Darker red border */
+  color: #000;
 }
 
-.time-block-card.rescheduling {
-  background-color: var(--calendar-rescheduling-original);
-  border: 2px solid var(--calendar-rescheduling-original);
+.time-block-card.rescheduling.rounded-lg {
+  background-color: #fff3cd !important; /* Light yellow */
+  border: 2px solid #ffc107 !important; /* Darker yellow border */
 }
 
 .time-block-card.past {
@@ -399,14 +413,19 @@ const handleBlockClick = (block, event) => {
   transform: translateY(-1px);
 }
 
-.time-block-card.selected {
-  background-color: var(--calendar-rescheduling-selected);
+.time-block-card.past.rounded-lg {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.time-block-card.selected.rounded-lg {
+  background-color: var(--calendar-rescheduling-selected) !important;
   border: 2px solid var(--primary-color);
   color: white;
 }
 
-.time-block-card.original-block {
-  background-color: var(--calendar-booked, #e3f2fd);
+.time-block-card.original-block.rounded-lg {
+  background-color: var(--calendar-booked, #e3f2fd) !important;
   cursor: not-allowed;
   opacity: 0.7;
 }
