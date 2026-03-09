@@ -107,7 +107,20 @@ const createSpacesStorage = (config) => {
                     filename: uniqueFilename
                 };
             } catch (error) {
-                throw new Error(`Failed to save file to Spaces: ${error.message}`);
+                // Provide more detailed error messages
+                let errorMessage = error.message;
+                
+                if (error.Code === 'NoSuchBucket' || errorMessage.includes('bucket does not exist')) {
+                    errorMessage = `Bucket "${bucket}" does not exist in region "${region}". Create it in Digital Ocean Spaces or update your storage configuration.`;
+                } else if (error.Code === 'AccessDenied' || errorMessage.includes('Access Denied')) {
+                    errorMessage = `Access denied to bucket "${bucket}". Check that your STORAGE_ACCESS_KEY_ID and STORAGE_SECRET_ACCESS_KEY have proper permissions in Digital Ocean.`;
+                } else if (error.Code === 'InvalidAccessKeyId') {
+                    errorMessage = `Invalid access key ID. Verify STORAGE_ACCESS_KEY_ID in your environment variables.`;
+                } else if (error.Code === 'SignatureDoesNotMatch') {
+                    errorMessage = `Invalid secret access key. Verify STORAGE_SECRET_ACCESS_KEY in your environment variables.`;
+                }
+                
+                throw new Error(`Failed to save file to Spaces: ${errorMessage}`);
             }
         },
 

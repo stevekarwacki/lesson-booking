@@ -185,8 +185,10 @@
 
 <script>
 import { ref, computed, watch } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useAdminSettings } from '@/composables/useAdminSettings'
+import { useBranding } from '@/composables/useBranding'
 import { CURATED_PALETTES, getThemeDefaults } from '@/constants/themeDefaults'
 import { Button } from '@/components/ui/button'
 
@@ -207,7 +209,9 @@ export default {
   
   setup(props, { emit }) {
     const settingsStore = useSettingsStore()
+    const queryClient = useQueryClient()
     const { saveThemeSettings, isSavingTheme } = useAdminSettings()
+    const { refetchBranding } = useBranding()
     
     // Reactive state
     const selectedPalette = ref(null)
@@ -318,6 +322,9 @@ export default {
         // Bust logo cache to force browser to reload new image
         settingsStore.bustLogoCache()
         
+        // Force refetch of branding data to update all components immediately
+        await queryClient.refetchQueries({ queryKey: ['branding'], type: 'active' })
+        
         // Emit success event with upload info
         emitChange('logo_uploaded', { 
           logoUrl: result.logoUrl,
@@ -355,6 +362,9 @@ export default {
         
         // Bust logo cache
         settingsStore.bustLogoCache()
+        
+        // Force refetch of branding data to update all components immediately
+        await queryClient.refetchQueries({ queryKey: ['branding'], type: 'active' })
         
         // Emit success event
         emitChange('logo_removed', { message: result.message })
@@ -425,6 +435,9 @@ export default {
         if (!response.ok) {
           throw new Error(result.details || result.error || 'Failed to update logo position')
         }
+        
+        // Force refetch of branding data to update all components immediately
+        await queryClient.refetchQueries({ queryKey: ['branding'], type: 'active' })
         
         // Emit success event
         emitChange('logo_position_updated', { 
