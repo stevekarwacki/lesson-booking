@@ -291,4 +291,49 @@ th {
     :root {
         --container-padding: 2rem;
     }
+}
+
+/* ============================================================================ */
+/* Calendar Layout Styles */
+/* ============================================================================ */
+
+/* Shared header cell for day headers and corner cell */
+.calendar-header-cell {
+  height: 60px; /* Increased from 50px to accommodate two lines (day name + date) */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Shared time label cell */
+.calendar-time-label {
+  min-height: 40px; /* Base height for 30-min slot, proportional scaling */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  box-sizing: border-box;
+}
+
+/* CSS Variables for block sizing */
+:root {
+  --calendar-block-base-height: 40px; /* 30 minutes = 1 unit */
+  --calendar-block-segment-height: 40px; /* Same as base */
+}
+
+/* Mobile responsive adjustments for calendar */
+@media (max-width: 768px) {
+  .calendar-header-cell {
+    height: 50px; /* Slightly smaller on mobile */
+    font-size: var(--font-size-sm);
+  }
+  
+  .calendar-time-label {
+    min-height: 35px;
+    font-size: var(--font-size-xs);
+  }
 } 

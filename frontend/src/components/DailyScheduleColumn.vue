@@ -1,7 +1,7 @@
 <template>
   <div class="daily-schedule-column">
     <!-- Optional day header for weekly view -->
-    <div v-if="showHeader" class="day-header" :class="{ 
+    <div v-if="showHeader" class="day-header calendar-header-cell" :class="{ 
       'current-day': isCurrentDay(date),
       'past-day': isPastDay(date)
     }">
@@ -265,11 +265,8 @@ const handleSlotClick = (slot) => {
 
 .day-header {
   text-align: center;
-  padding: var(--spacing-sm);
-  border-bottom: 1px solid var(--border-color);
   font-weight: 500;
   background: var(--background-light);
-  height: 50px;
 }
 
 .day-name {
