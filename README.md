@@ -19,41 +19,43 @@ A web application for managing lesson bookings.
 - Time-based booking restrictions (24-hour modification policy)
 - Automated email notifications
 
-## Installation
+## Quick Start
 
-### Quick Start
+### Development (Local)
 
 ```bash
-# 1. Install dependencies
-npm install
-cd frontend && npm install && cd ..
+# 1. Clone and install
+git clone <repository-url>
+cd lesson-booking
+npm run install:dev
 
-# 2. Start the application (migrations and seeds run automatically)
-npm start
+# 2. Start backend
+npm run dev
 ```
 
-**That's it!** The application will:
-- ✅ Automatically create all database tables
-- ✅ Seed a default admin user (`admin@example.com` / `admin123`)
-- ✅ Set up default application settings
-- ✅ Start the server on http://localhost:3000
+### Production Deployment
 
-⚠️ **Important:** Change the default admin password after first login!
+```bash
+# 1. Clone repository
+git clone <repository-url>
+cd lesson-booking
 
-### Custom Configuration
+# 2. Configure environment
+cp .env.example .env
+nano .env  # Set database credentials, JWT secret, Stripe keys, etc.
+**Ensure `NODE_ENV=production` is set in `.env`**
 
-1. Create a `.env` file with your settings:
-   ```bash
-   ADMIN_EMAIL=your-admin@domain.com
-   ADMIN_PASSWORD=your-secure-password
-   JWT_SECRET=your-super-secret-jwt-key
-   STRIPE_SECRET_KEY=sk_test_...
-   ```
+# 3. Run production installer
+npm run install:prod
 
-2. Start the application:
-   ```bash
-   npm start
-   ```
+# 4. (Optional) Enable auto-start on reboot
+pm2 startup  # Run the command it outputs
+
+# 5. (Optional) Set up HTTPS/SSL
+npm run setup:ssl yourdomain.com
+```
+
+That's it! Your application is production-ready and accessible at `http://your-server-ip` (or your domain with HTTPS).
 
 📖 **For detailed installation instructions**, see [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md)
 
@@ -114,9 +116,16 @@ Note: Email service is optional. If not configured, the application will log ema
 ## Development
 
 To run the application in development mode:
+
 ```bash
+# Terminal 1: Backend (runs on port 3000)
 npm run dev
+
+# Terminal 2: Frontend (runs on port 5173)
+cd frontend && npm run dev
 ```
+
+Access at `http://localhost:5173` (Vite proxies API requests to backend)
 
 ## Permissions System
 
@@ -146,5 +155,53 @@ For detailed documentation, see:
 
 To run tests:
 ```bash
-npm test
+npm test                 # Run all tests
+npm run test:backend     # Backend tests only
+npm run test:frontend    # Frontend tests only
+npm run test:watch       # Watch mode for both
 ```
+
+## Production Management
+
+After installation with `npm run install:prod`, manage your application with:
+
+```bash
+# Application Management (PM2)
+pm2 status                  # Check application status
+pm2 logs lesson-booking     # View logs
+pm2 restart lesson-booking  # Restart application
+pm2 stop lesson-booking     # Stop application
+pm2 monit                   # Monitor resources
+
+# Nginx Management
+sudo systemctl status nginx   # Check Nginx status
+sudo systemctl restart nginx  # Restart Nginx
+sudo nginx -t                 # Test configuration
+sudo tail -f /var/log/nginx/lesson-booking-error.log  # View logs
+
+# SSL Certificate Management (after running setup-ssl.sh)
+sudo certbot certificates     # List certificates
+sudo certbot renew            # Manually renew
+```
+
+## Troubleshooting
+
+### Application won't start
+- Check logs: `pm2 logs lesson-booking`
+- Verify database connection in `.env`
+- Ensure port 3000 is not in use: `lsof -i :3000`
+
+### Can't access via web browser
+- Check Nginx status: `sudo systemctl status nginx`
+- Verify firewall: `sudo ufw status` (ports 80/443 should be allowed)
+- Check Nginx logs: `sudo tail -f /var/log/nginx/lesson-booking-error.log`
+
+### Database migration errors
+- Check database credentials in `.env`
+- Ensure PostgreSQL is running: `sudo systemctl status postgresql`
+- Test connection: `psql -h localhost -U your_user -d your_database`
+
+### SSL certificate issues
+- Verify DNS points to your server: `dig +short yourdomain.com`
+- Check port 80 is accessible: `curl -I http://yourdomain.com`
+- Review certbot logs: `sudo tail -f /var/log/letsencrypt/letsencrypt.log`

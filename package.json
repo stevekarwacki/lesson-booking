@@ -16,7 +16,10 @@
     "test:backend:watch": "NODE_ENV=test node --test --watch tests/*.test.js",
     "test:frontend:watch": "cd frontend && npm run test",
     "test:integration": "node tests/integration-test.js",
-    "prepare": "husky"
+    "prepare": "husky || true",
+    "install:prod": "bash scripts/install-production.sh",
+    "install:dev": "bash scripts/install-dev.sh",
+    "setup:ssl": "bash scripts/setup-ssl.sh"
   },
   "keywords": [],
   "author": "Steve Karwacki",
