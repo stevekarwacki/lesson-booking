@@ -9,51 +9,62 @@
       <div class="day-date">{{ formattedDate }}</div>
     </div>
     
-    <!-- Time slots container -->
-    <div class="time-slots-container">
-      <div 
-        v-for="slot in visibleSlots" 
-        :key="`slot-${slot.startSlot}`"
-        class="time-slot"
-        :class="getSlotClasses(slot)"
-        @click="handleSlotClick(slot)"
+    <!-- Time blocks container -->
+    <div class="time-blocks-container">
+      <Card
+        v-for="block in visibleBlocks"
+        :key="block.id"
+        :class="cn('time-block-card', getBlockClasses(block), {
+          'show-segments': block.type === 'available' && (hoveredBlockId === block.id || isMobile)
+        })"
+        :style="{ height: `${block.height}px` }"
+        @click="handleBlockClick(block, $event)"
+        @mouseenter="block.type === 'available' && (hoveredBlockId = block.id)"
+        @mouseleave="hoveredBlockId = null"
       >
-        <!-- Time label (shown when showTimeLabels is true or for available/unavailable slots) -->
-        <span class="slot-time" :class="{ 'always-visible': slot.isOwnBooking}">
-          {{ formatTime(slotToTime(slot.startSlot)) }}
-        </span>
-
-        <!-- Booked slot content -->
-        <div v-if="slot.type === 'booked'" 
-          class="booked-slot-content"
-          :class="{ 'show-details': props.isInstructor }"
-        >
-          <span v-if="props.isInstructor" class="student-name">
-            <span class="student-name-text">{{ slot.student?.name }}</span>
+        <CardContent class="block-content">
+          <!-- For available blocks with segments, render dividers -->
+          <div v-if="block.type === 'available' && block.segments" class="segment-dividers">
+            <div
+              v-for="(segment, index) in block.segments"
+              :key="`segment-${segment.startSlot}`"
+              class="segment-divider"
+              :style="{ top: `${segment.offsetY}px` }"
+              v-show="index > 0"
+            />
+          </div>
+          
+          <span class="block-time">{{ formatTime(slotToTime(block.startSlot)) }}</span>
+          <span v-if="block.type === 'booked' && block.data?.student" class="student-name">
+            {{ block.data.student.name }}
           </span>
           
           <!-- Tooltip for instructors -->
-          <div v-if="props.isInstructor" class="tooltip">
+          <div v-if="props.isInstructor && block.type === 'booked'" class="tooltip">
             <div class="tooltip-title">Booking Details</div>
             <div class="tooltip-content">
-              <p v-if="slot.isMultiSlot && !slot.is_google_calendar">
-                Duration: {{ slot.totalSlots * 30 }} minutes
-              </p>
-              <p>Time: {{ getBookingTimeRange(slot) }}</p>
-              <p>Student: {{ slot.student?.name }}</p>
+              <p>Duration: {{ block.duration * 15 }} minutes</p>
+              <p>Time: {{ getBookingTimeRange(block) }}</p>
+              <p v-if="block.data?.student">Student: {{ block.data.student.name }}</p>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useMq } from 'vue3-mq'
 import { formatTime, slotToTime, isCurrentDay, isPastDay, isPastTimeSlot } from '../utils/timeFormatting'
+import { getSegmentFromClickPosition } from '../utils/timeBlocks'
+import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 const MAX_SLOT_INDEX = 95; // 0-95 slots per day
+const $mq = useMq()
+const isMobile = computed(() => !$mq.lgPlus)
 
 const props = defineProps({
   // Data
@@ -106,6 +117,9 @@ const props = defineProps({
 
 const emit = defineEmits(['slot-selected'])
 
+// Track hover state for available blocks to show segment lines
+const hoveredBlockId = ref(null)
+
 // Computed properties
 const formattedDate = computed(() => {
   return props.date.toLocaleDateString(undefined, { 
@@ -114,141 +128,142 @@ const formattedDate = computed(() => {
   })
 })
 
-const visibleSlots = computed(() => {
+const visibleBlocks = computed(() => {
   if (!props.slots || props.slots.length === 0) {
     return []
   }
   
-  // Sort slots by start_slot to ensure proper order
-  return [...props.slots].sort((a, b) => a.startSlot - b.startSlot)
+  // Slots are now blocks - already sorted from transform
+  return props.slots
 })
 
 // Methods
-const getBookingTimeRange = (slot) => {
-  // For multi-slot bookings, use the original booking start and duration
-  if (slot.isMultiSlot && slot.originalStartSlot !== undefined && slot.originalDuration !== undefined) {
-    const startTime = formatTime(slotToTime(slot.originalStartSlot))
-    const endTime = formatTime(slotToTime(Math.min(slot.originalStartSlot + slot.originalDuration, MAX_SLOT_INDEX)))
-    return `${startTime} - ${endTime}`
-  }
-  
-  // For single slots or when original data is not available, use current slot data
-  const startTime = formatTime(slotToTime(slot.startSlot))
-  const endTime = formatTime(slotToTime(Math.min(slot.startSlot + slot.duration, MAX_SLOT_INDEX)))
+const getBookingTimeRange = (block) => {
+  const startTime = formatTime(slotToTime(block.startSlot))
+  const endTime = formatTime(slotToTime(Math.min(block.startSlot + block.duration, MAX_SLOT_INDEX)))
   return `${startTime} - ${endTime}`
 }
 
-const isSlotSelected = (slot) => {
+const isBlockSelected = (block) => {
   if (!props.selectedSlot) return false
   
-  // Check if this slot matches the selected slot
-  // Compare by date and startSlot
+  // Check if this block overlaps with selected slot
   const selectedDate = props.selectedSlot.date
-  const slotDate = props.date
+  const blockDate = props.date
   
   // Compare dates (handle both Date objects and ISO strings)
   const selectedDateStr = selectedDate instanceof Date ? selectedDate.toISOString().split('T')[0] : selectedDate
-  const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
+  const blockDateStr = blockDate instanceof Date ? blockDate.toISOString().split('T')[0] : blockDate
   
   // Check if dates match
-  if (selectedDateStr !== slotDateStr) return false
+  if (selectedDateStr !== blockDateStr) return false
   
-  // Check if this slot is within the selected duration range
+  // Check if block overlaps with selected range
   const selectedStartSlot = props.selectedSlot.startSlot
   const selectedDuration = props.selectedSlot.duration || 2
   const selectedEndSlot = selectedStartSlot + selectedDuration
   
-  return slot.startSlot >= selectedStartSlot && slot.startSlot < selectedEndSlot
+  const blockEndSlot = block.startSlot + block.duration
+  
+  // Check for overlap
+  return block.startSlot < selectedEndSlot && blockEndSlot > selectedStartSlot
 }
 
-const isOriginalSlot = (slot) => {
+const isOriginalBlock = (block) => {
   if (!props.originalSlot) return false
   
-  // Check if this slot matches the original slot being rescheduled
+  // Check if this block matches the original slot being rescheduled
   const originalDate = props.originalSlot.date
-  const slotDate = props.date
+  const blockDate = props.date
   
   // Compare dates (handle both Date objects and ISO strings)
   const originalDateStr = originalDate instanceof Date ? originalDate.toISOString().split('T')[0] : originalDate
-  const slotDateStr = slotDate instanceof Date ? slotDate.toISOString().split('T')[0] : slotDate
+  const blockDateStr = blockDate instanceof Date ? blockDate.toISOString().split('T')[0] : blockDate
   
   // Check if dates match
-  if (originalDateStr !== slotDateStr) return false
+  if (originalDateStr !== blockDateStr) return false
   
-  // Check if this slot is within the original booking's duration range
+  // Check if block overlaps with original booking
   const originalStartSlot = props.originalSlot.start_slot
   const originalDuration = props.originalSlot.duration || 2
   const originalEndSlot = originalStartSlot + originalDuration
   
-  return slot.startSlot >= originalStartSlot && slot.startSlot < originalEndSlot
+  const blockEndSlot = block.startSlot + block.duration
+  
+  return block.startSlot < originalEndSlot && blockEndSlot > originalStartSlot
 }
 
-const getSlotClasses = (slot) => {
+const getBlockClasses = (block) => {
   return {
-    'available': slot.type === 'available',
+    'available': block.type === 'available',
     'current-day': isCurrentDay(props.date),
-    'past': isPastTimeSlot(slot.startSlot, props.date.toISOString()),
-    'booked': slot.type === 'booked',
-    'own-booking': slot.type === 'booked' && slot.isOwnBooking,
-    'recurring-booking': slot.is_recurring,
-    'rescheduling': slot.type === 'rescheduling',
-    'google-calendar': slot.is_google_calendar,
-    'multi-slot-booking': slot.isMultiSlot && !slot.is_google_calendar,
-    'multi-slot-google-calendar': slot.isMultiSlot && slot.is_google_calendar,
-    'first-slot': slot.isMultiSlot && slot.slotPosition === 0,
-    'middle-slot': slot.isMultiSlot && slot.slotPosition > 0 && slot.slotPosition < slot.totalSlots - 1,
-    'last-slot': slot.isMultiSlot && slot.slotPosition === slot.totalSlots - 1,
-    'sixty-minute': slot.isMultiSlot && slot.totalSlots === 2,
-    'instructor-view-available': slot.type === 'available' && props.isInstructor && !props.isRescheduling,
-    'instructor-view-booked': slot.type === 'booked' && props.isInstructor,
-    'selected': isSlotSelected(slot),
-    'original-slot': isOriginalSlot(slot) && slot.type !== 'rescheduling' // Don't apply to rescheduling slots
+    'past': isPastTimeSlot(block.startSlot, props.date.toISOString()),
+    'booked': block.type === 'booked',
+    'own-booking': block.type === 'booked' && block.data?.isOwnBooking,
+    'recurring-booking': block.data?.is_recurring,
+    'rescheduling': block.type === 'rescheduling',
+    'google-calendar': block.data?.is_google_calendar,
+    'instructor-view-available': block.type === 'available' && props.isInstructor && !props.isRescheduling,
+    'instructor-view-booked': block.type === 'booked' && props.isInstructor,
+    'selected': isBlockSelected(block),
+    'original-block': isOriginalBlock(block) && block.type !== 'rescheduling'
   }
 }
 
-const handleSlotClick = (slot) => {
+const handleBlockClick = (block, event) => {
   // Prevent clicks on past time slots
-  if (isPastTimeSlot(slot.startSlot, props.date.toISOString())) {
+  if (isPastTimeSlot(block.startSlot, props.date.toISOString())) {
     return
   }
   
   // Prevent clicks on recurring subscription bookings
-  if (slot.is_recurring) {
+  if (block.data?.is_recurring) {
     return
   }
   
-  // Allow clicks on rescheduling slots, prevent clicks on other original slots
-  if (slot.type === 'rescheduling') {
-    // Always allow rescheduling slots to be clicked
-  } else if (isOriginalSlot(slot)) {
-    // Prevent clicks on original slots that aren't rescheduling type
+  // Allow clicks on rescheduling blocks, prevent clicks on other original blocks
+  if (block.type === 'rescheduling') {
+    // Always allow rescheduling blocks to be clicked
+  } else if (isOriginalBlock(block)) {
+    // Prevent clicks on original blocks that aren't rescheduling type
     return
   }
   
-  // Emit slot-selected for both available and booked slots
-  // The parent component (InstructorCalendar) will handle the logic
-  if (slot.type === 'available') {
-    // Always emit for available slots - let parent decide what to do
-    // Parent will handle rescheduling mode and booking on behalf logic
+  // For available blocks, calculate which 30-minute segment was clicked
+  if (block.type === 'available' && block.segments) {
+    const cardElement = event.currentTarget
+    const rect = cardElement.getBoundingClientRect()
+    const clickY = event.clientY - rect.top // Y position relative to block top
+    const segment = getSegmentFromClickPosition(clickY, block.segments)
+    
     emit('slot-selected', {
       date: props.date,
-      startSlot: slot.startSlot,
-      duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2, // Use original duration when rescheduling
+      startSlot: segment.startSlot, // Precise 30-minute slot
+      duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2,
       type: 'available'
     })
-  } else if (slot.type === 'booked') {
+    return
+  }
+  
+  // For booked blocks, emit the whole block
+  if (block.type === 'booked') {
     emit('slot-selected', {
-      ...slot,
+      ...block.data,
       date: props.date,
+      startSlot: block.startSlot,
+      duration: block.duration,
       type: 'booked'
     })
-  } else if (slot.type === 'rescheduling') {
-    // Allow selection of rescheduling slots (current booking being moved)
+    return
+  }
+  
+  // For rescheduling blocks
+  if (block.type === 'rescheduling') {
     emit('slot-selected', {
       date: props.date,
-      startSlot: slot.startSlot,
-      duration: props.originalSlot ? props.originalSlot.duration : 2, // Use original duration
-      type: 'available' // Emit as available so parent handles it correctly
+      startSlot: block.startSlot,
+      duration: props.originalSlot ? props.originalSlot.duration : 2,
+      type: 'available'
     })
   }
 }
@@ -287,46 +302,76 @@ const handleSlotClick = (slot) => {
   color: var(--text-muted);
 }
 
-.time-slots-container {
+.time-blocks-container {
   display: flex;
   flex-direction: column;
   flex: 1;
 }
 
-.time-slot {
-  border-bottom: 1px solid var(--border-color);
-  min-height: 40px;
-  position: relative;
+/* Override Card component defaults for calendar blocks */
+.time-block-card {
+  border-radius: 0;
   transition: all 0.2s ease;
+  cursor: pointer;
+  margin: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Segment dividers for available blocks - MOBILE-FIRST */
+.segment-dividers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.segment-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed #d1d5db;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* MOBILE: Always show segments on available blocks */
+@media (max-width: 768px) {
+  .time-block-card.available .segment-divider {
+    opacity: 1;
+  }
+}
+
+/* DESKTOP: Show segments only on hover */
+@media (min-width: 769px) {
+  .time-block-card.show-segments .segment-divider {
+    opacity: 1;
+  }
+}
+
+/* State-based Card styling using CSS variables */
+.time-block-card.available {
+  background-color: var(--calendar-available);
+  border-color: var(--border-color);
+}
+
+.time-block-card.booked {
+  background-color: var(--calendar-booked-self);
+  border-color: var(--primary-color);
+}
+
+.time-block-card.unavailable {
   background-color: var(--calendar-unavailable);
   cursor: not-allowed;
-  padding: var(--spacing-xs);
-  box-sizing: border-box;
-  text-align: center;
+  opacity: 0.6;
 }
 
-.time-slot.available {
-  background-color: var(--calendar-available);
-  cursor: pointer;
-}
-
-.time-slot.booked {
-  background-color: var(--calendar-booked);
-}
-
-.time-slot.booked.own-booking,
-.time-slot.instructor-view-booked {
-  background-color: var(--calendar-booked-self);
-  cursor: pointer;
-}
-
-.time-slot.rescheduling {
-  background-color: var(--calendar-rescheduling-original);
-  cursor: pointer;
-  border: 2px solid var(--calendar-rescheduling-original);
-}
-
-.time-slot.google-calendar {
+.time-block-card.google-calendar {
   background-color: var(--calendar-blocked);
   background-image: repeating-linear-gradient(
     45deg,
@@ -339,66 +384,59 @@ const handleSlotClick = (slot) => {
   color: white;
 }
 
-.time-slot.blocked {
-  background-color: var(--calendar-blocked);
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 4px,
-    rgba(255, 255, 255, 0.3) 4px,
-    rgba(255, 255, 255, 0.3) 8px
-  );
-  color: white;
+.time-block-card.rescheduling {
+  background-color: var(--calendar-rescheduling-original);
+  border: 2px solid var(--calendar-rescheduling-original);
 }
 
-.time-slot.past {
+.time-block-card.past {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.time-slot:hover {
-  filter: brightness(1.1);
+.time-block-card:hover:not(.unavailable):not(.past) {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
-.time-slot.selected {
+.time-block-card.selected {
   background-color: var(--calendar-rescheduling-selected);
+  border: 2px solid var(--primary-color);
   color: white;
 }
 
-.time-slot.original-slot {
+.time-block-card.original-block {
   background-color: var(--calendar-booked, #e3f2fd);
   cursor: not-allowed;
   opacity: 0.7;
 }
 
-.slot-time {
-  font-size: var(--font-size-sm);
-  vertical-align: middle;
-  color: var(--text-primary);
-  display: none;
-}
-
-.slot-time.always-visible {
-  display: inline-block;
-}
-
-.booked-slot-content {
+.block-content {
   position: relative;
+  width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  padding: var(--spacing-xs);
+}
+
+.block-time {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .student-name {
-  overflow: hidden;
-}
-
-.student-name-text {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
+  margin-top: var(--spacing-xs);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .tooltip {
@@ -418,13 +456,8 @@ const handleSlotClick = (slot) => {
   pointer-events: none;
 }
 
-.time-slot:hover .tooltip {
+.time-block-card:hover .tooltip {
   display: block;
-}
-
-.tooltip:hover {
-  display: block;
-  pointer-events: auto;
 }
 
 .tooltip-title {
@@ -439,38 +472,5 @@ const handleSlotClick = (slot) => {
 
 .tooltip-content p {
   margin: var(--spacing-xs) 0;
-}
-
-/* Multi-slot booking styles */
-.time-slot.multi-slot-booking {
-  position: relative;
-}
-
-/* Remove borders between adjacent slots of the same booking */
-.time-slot.first-slot:not(.last-slot) {
-  border-bottom: 0;
-}
-
-.time-slot.middle-slot {
-  border-bottom: 0;
-  border-top: 0;
-}
-
-.time-slot.last-slot:not(.first-slot) {
-  border-top: 0;
-}
-
-/* Google Calendar multi-slot events - remove borders between adjacent slots */
-.time-slot.multi-slot-google-calendar.first-slot:not(.last-slot) {
-  border-bottom: 0;
-}
-
-.time-slot.multi-slot-google-calendar.middle-slot {
-  border-bottom: 0;
-  border-top: 0;
-}
-
-.time-slot.multi-slot-google-calendar.last-slot:not(.first-slot) {
-  border-top: 0;
 }
 </style>

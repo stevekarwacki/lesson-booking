@@ -61,7 +61,7 @@ export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
       } else {
         // Start new unavailable block
         if (currentBlock) {
-          finializeBlock(currentBlock)
+          finalizeBlock(currentBlock)
           blocks.push(currentBlock)
         }
         currentBlock = {
@@ -83,7 +83,7 @@ export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
       } else {
         // Start new block
         if (currentBlock) {
-          finializeBlock(currentBlock)
+          finalizeBlock(currentBlock)
           blocks.push(currentBlock)
         }
         currentBlock = {
@@ -107,7 +107,7 @@ export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
   
   // Add final block
   if (currentBlock) {
-    finializeBlock(currentBlock)
+    finalizeBlock(currentBlock)
     blocks.push(currentBlock)
   }
   
@@ -135,7 +135,7 @@ function canMergeBlocks(currentBlock, slotData, slotType) {
  * Finalizes a block by calculating height and generating segments if needed
  * @param {TimeBlock} block - Block to finalize
  */
-function finializeBlock(block) {
+function finalizeBlock(block) {
   // Calculate height
   block.heightUnits = block.duration / 2 // 2 slots = 1 unit
   block.height = calculateBlockHeight(block.duration)
