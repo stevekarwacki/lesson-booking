@@ -418,12 +418,6 @@ const handleBlockClick = (block, event) => {
   cursor: not-allowed;
 }
 
-.time-block-card.selected.rounded-lg {
-  background-color: var(--calendar-rescheduling-selected) !important;
-  border: 2px solid var(--primary-color);
-  color: white;
-}
-
 .time-block-card.original-block.rounded-lg {
   background-color: var(--calendar-booked, #e3f2fd) !important;
   cursor: not-allowed;
