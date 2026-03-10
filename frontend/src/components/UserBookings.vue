@@ -21,12 +21,12 @@
         <Modal
             v-model:open="showEditModal"
             title="Reschedule Lesson"
-            hide-save
-            hide-cancel
+            @save="handleEditBookingSave"
             @cancel="closeEditModal"
         >
             <EditBooking
                 v-if="selectedBooking"
+                ref="editBookingRef"
                 :booking="selectedBooking"
                 @close="closeEditModal"
                 @booking-updated="handleBookingUpdated"
@@ -66,6 +66,7 @@ const error = ref(null)
 const showEditModal = ref(false)
 const showRefundModal = ref(false)
 const selectedBooking = ref(null)
+const editBookingRef = ref(null)
 
 // Transform bookings for BookingList component
 const formattedBookings = computed(() => {
@@ -108,6 +109,11 @@ const handleBookingUpdated = async () => {
 const handleBookingCancelled = async (result) => {
     closeEditModal()
     await refetchBookings()
+}
+
+// Forward save event from Modal to EditBooking component
+const handleEditBookingSave = () => {
+    editBookingRef.value?.handleSave()
 }
 
 // BookingList event handlers

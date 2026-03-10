@@ -1,97 +1,111 @@
 <template>
-    <div class="edit-booking">
-        <div class="booking-details">
-            <h3>Current Booking Information</h3>
-            <div>
-                <span>Date:</span>
-                <span>{{ formatDate(new Date(booking.date + 'T00:00:00')) }}</span>
-            </div>
-            <div>
-                <span>Time:</span>
-                <span>{{ booking.start_slot ? formatTime(slotToTime(booking.start_slot)) : '' }} - {{ booking.start_slot && booking.duration ? formatTime(slotToTime(booking.start_slot + booking.duration)) : '' }}</span>
-            </div>
-            <div>
-                <span>Instructor:</span>
-                <span>{{ booking.Instructor.User.name }}</span>
-            </div>
-        </div>
+    <div class="edit-booking-slides">
+        <SlideTransition
+            :slide-count="2"
+            @slide-changed="handleSlideChange"
+        >
+            <!-- Slide 1: Calendar Selection -->
+            <template #main="{ navigate }">
+                <div class="calendar-slide">
+                    <div class="booking-details">
+                        <h3>Current Booking</h3>
+                        <div>
+                            <span>Date:</span>
+                            <span>{{ formatDate(new Date(booking.date + 'T00:00:00')) }}</span>
+                        </div>
+                        <div>
+                            <span>Time:</span>
+                            <span>{{ booking.start_slot ? formatTime(slotToTime(booking.start_slot)) : '' }} - {{ booking.start_slot && booking.duration ? formatTime(slotToTime(booking.start_slot + booking.duration)) : '' }}</span>
+                        </div>
+                        <div>
+                            <span>Instructor:</span>
+                            <span>{{ booking.Instructor.User.name }}</span>
+                        </div>
+                    </div>
 
-        <div class="schedule-section">
-            <h3>Select New Time</h3>
-            
-            <div class="time-comparison">
-                <div class="original-time-info">
-                    <h4>Original Time:</h4>
-                    <p>{{ formatDate(new Date(booking.date + 'T00:00:00')) }} at {{ booking.start_slot ? formatTime(slotToTime(booking.start_slot)) : '' }} - {{ booking.start_slot && booking.duration ? formatTime(slotToTime(booking.start_slot + booking.duration)) : '' }}</p>
+                    <div class="schedule-section">
+                        <h3>Select New Time</h3>
+                        
+                        <div class="form-group-inline">
+                            <Label for="date-select">Select a date:</Label>
+                            <DatePicker
+                                v-model="selectedDate"
+                                :min-value="today"
+                                placeholder="Pick a date"
+                                class="w-[280px]"
+                            />
+                        </div>
+
+                        <div v-if="dailySchedule" class="schedule-view">
+                            <DailyScheduleView 
+                                :dailySchedule="dailySchedule"
+                                :selected-day="selectedDay"
+                                :isInstructorOrAdmin="false"
+                                :isRescheduling="true"
+                                :selected-slot="selectedSlot"
+                                :original-slot="booking"
+                                @slot-selected="handleSlotSelected($event, navigate)"
+                            />
+                        </div>
+                        <div v-else-if="selectedDate" class="no-availability">
+                            <p>No available time slots for this date.</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="selected-slot-info">
-                    <h4>New Time:</h4>
-                    <p v-if="selectedSlot">{{ formatDate(selectedSlot.date) }} at {{ selectedSlot.startSlot ? formatTime(slotToTime(selectedSlot.startSlot)) : '' }} - {{ selectedSlot.startSlot && selectedSlot.duration ? formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) : '' }}</p>
-                    <p v-else class="placeholder-text">Select a new time slot</p>
+            </template>
+
+            <!-- Slide 2: Confirmation -->
+            <template #detail>
+                <div v-if="selectedSlot" class="confirmation-slide">
+                    <h3 class="text-2xl font-semibold mb-6">Confirm Reschedule</h3>
+                    
+                    <Card class="mb-4">
+                        <CardHeader>
+                            <CardTitle>Original Time</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p class="text-lg font-semibold">
+                                {{ formatDate(new Date(booking.date + 'T00:00:00')) }}
+                            </p>
+                            <p class="text-muted-foreground">
+                                {{ formatTime(slotToTime(booking.start_slot)) }} - 
+                                {{ formatTime(slotToTime(booking.start_slot + booking.duration)) }}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <div class="text-center text-2xl my-4">↓</div>
+
+                    <Card class="mb-6">
+                        <CardHeader>
+                            <CardTitle>New Time</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p class="text-lg font-semibold">
+                                {{ formatDate(selectedSlot.date) }}
+                            </p>
+                            <p class="text-muted-foreground">
+                                {{ formatTime(slotToTime(selectedSlot.startSlot)) }} - 
+                                {{ formatTime(slotToTime(selectedSlot.startSlot + selectedSlot.duration)) }}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <div class="confirmation-message p-4 bg-muted rounded-lg">
+                        <p class="text-center">Are you sure you want to reschedule your booking to this new time?</p>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="form-group-inline">
-                <Label for="date-select">Select a date:</Label>
-                <DatePicker
-                    v-model="selectedDate"
-                    :min-value="today"
-                    placeholder="Pick a date"
-                    class="w-[280px]"
-                />
-            </div>
+            </template>
+        </SlideTransition>
 
-            <div v-if="dailySchedule" class="schedule-view">
-                <DailyScheduleView 
-                    :dailySchedule="dailySchedule"
-                    :selected-day="selectedDay"
-                    :isInstructorOrAdmin="false"
-                    :isRescheduling="true"
-                    :selected-slot="selectedSlot"
-                    :original-slot="booking"
-                    @slot-selected="handleSlotSelected"
-                />
-            </div>
-            <div v-else-if="selectedDate" class="no-availability">
-                <p>No available time slots for this date.</p>
-            </div>
-        </div>
-
-        <div v-if="error" class="form-message error-message">
+        <div v-if="error" class="form-message error-message mt-4">
             {{ error }}
-        </div>
-
-        <div class="edit-booking-actions">
-            <Button 
-                type="button"
-                variant="outline"
-                @click="$emit('close')"
-                :disabled="loading"
-            >
-                Close
-            </Button>
-            <div class="button-group">
-                <Button 
-                    type="button"
-                    variant="destructive"
-                    @click="cancelBooking"
-                    :disabled="loading"
-                >
-                    Cancel Booking
-                </Button>
-                <Button 
-                    @click="updateBooking"
-                    :disabled="loading || !selectedSlot"
-                >
-                    Update Booking
-                </Button>
-            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
@@ -104,6 +118,8 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
 import { Button } from '@/components/ui/button'
+import SlideTransition from './SlideTransition.vue'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
 const props = defineProps({
     booking: {
@@ -113,6 +129,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
+
+// Inject actionControl for button management
+const actionControl = inject('actionControl', null)
 
 const queryClient = useQueryClient()
 const formFeedback = useFormFeedback()
@@ -124,6 +143,9 @@ const error = ref(null)
 const selectedDate = ref('')
 const dailySchedule = ref(null)
 const selectedSlot = ref(null)
+
+// Track current slide for button management
+const currentSlide = ref(0)
 
 // Computed date for queries
 const formattedSelectedDate = computed(() => {
@@ -159,12 +181,7 @@ const {
 const today = new Date().toISOString().split('T')[0]
 
 // Set the initial selected date to the booking's date
-onMounted(() => {
-    // Create a date object from the booking's date
-    const date = new Date(props.booking.date + 'T00:00:00')
-    // Format it as YYYY-MM-DD
-    selectedDate.value = date.toISOString().split('T')[0]
-})
+// (Removed - now done in onMounted with button initialization)
 
 // Watch for Vue Query data changes and update schedule
 watch([rescheduleAvailability, rescheduleEvents], () => {
@@ -259,12 +276,14 @@ const formatSlot = (slot, date) => {
     }
 }
 
-const handleSlotSelected = (slot) => {
+const handleSlotSelected = (slot, navigate) => {
     selectedSlot.value = {
         ...slot,
         instructorId: props.booking.instructor_id,
         duration: props.booking.duration // Always use original booking duration for rescheduling
     }
+    // Navigate to confirmation slide
+    navigate()
 }
 
 const updateBooking = async () => {
@@ -336,10 +355,63 @@ const cancelBooking = async () => {
         loading.value = false // Only reset on error so user can retry
     }
 }
+
+// Handle slide changes
+const handleSlideChange = ({ index }) => {
+    currentSlide.value = index
+    updateButtons(index)
+}
+
+// Update buttons based on slide
+const updateButtons = (slideIndex) => {
+    if (!actionControl) return
+
+    if (slideIndex === 0) {
+        // Calendar slide - "Cancel Booking" button
+        actionControl.setSaveText('Cancel Booking')
+        actionControl.setSaveDisabled(false)
+        actionControl.showSave()
+        actionControl.onSave = cancelBooking
+    } else if (slideIndex === 1) {
+        // Confirmation slide - "Confirm Reschedule" button
+        actionControl.setSaveText('Confirm Reschedule')
+        actionControl.setSaveDisabled(false)
+        actionControl.showSave()
+        actionControl.onSave = updateBooking
+    }
+}
+
+// Handle save button click - delegates to current slide's action
+const handleSave = () => {
+    if (currentSlide.value === 0) {
+        cancelBooking()
+    } else if (currentSlide.value === 1) {
+        updateBooking()
+    }
+}
+
+// Initialize buttons on mount
+onMounted(() => {
+    // Create a date object from the booking's date
+    const date = new Date(props.booking.date + 'T00:00:00')
+    // Format it as YYYY-MM-DD
+    selectedDate.value = date.toISOString().split('T')[0]
+    
+    // Initialize buttons for first slide
+    updateButtons(0)
+})
+
+// Expose handleSave for parent to call
+defineExpose({ handleSave })
 </script>
 
 <style scoped>
-.edit-booking {
+.edit-booking-slides {
+    width: 100%;
+}
+
+.calendar-slide,
+.confirmation-slide {
     width: 100%;
 }
 
@@ -360,16 +432,8 @@ const cancelBooking = async () => {
     gap: var(--spacing-md);
 }
 
-.schedule-section {
-    margin: var(--spacing-md) 0;
-}
-
 .schedule-section h3 {
     margin-bottom: var(--spacing-md);
-}
-
-.schedule-view {
-    margin-top: var(--spacing-md);
 }
 
 .no-availability {
@@ -382,74 +446,38 @@ const cancelBooking = async () => {
     border-radius: var(--border-radius);
 }
 
-.time-comparison {
-    display: flex;
-    gap: var(--spacing-md);
-    margin: var(--spacing-md) 0;
-}
-
-.original-time-info {
-    flex: 1;
-    padding: var(--spacing-md);
-    background: var(--calendar-rescheduling-original);
-    border: 1px solid var(--calendar-rescheduling-original);
-    border-radius: var(--border-radius);
-}
-
-.selected-slot-info {
-    flex: 1;
-    padding: var(--spacing-md);
-    background: var(--calendar-rescheduling-selected);
-    border: 1px solid var(--calendar-rescheduling-selected);
-    border-radius: var(--border-radius);
-}
-
-.original-time-info h4,
-.selected-slot-info h4 {
-    margin: 0 0 var(--spacing-sm) 0;
-    color: white;
-}
-
-.original-time-info p,
-.selected-slot-info p {
-    margin: 0;
-    font-weight: 500;
-    color: white;
-}
-
-.placeholder-text {
-    font-style: italic;
-    opacity: 0.8;
-}
-
-.form-label {
-    margin-bottom: var(--spacing-sm);
-    font-weight: 500;
-}
-
-.form-input {
-    padding: var(--spacing-sm);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-}
-
-.edit-booking-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    justify-content: flex-end;
-}
-
 .error-message {
     color: var(--error-color);
-    margin-top: var(--spacing-md);
     padding: var(--spacing-sm);
     background: rgba(255, 0, 0, 0.1);
     border-radius: var(--border-radius);
 }
 
-.button-group {
+.edit-booking-slides {
+    height: 100%;
     display: flex;
-    gap: var(--spacing-md);
+    flex-direction: column;
+}
+
+.calendar-slide {
+    display: flex;
+    flex-direction: column;
+}
+
+.schedule-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.schedule-view {
+    flex: 1;
+    overflow: hidden;
+    margin-top: var(--spacing-md);
+}
+
+.confirmation-slide {
+    padding: var(--spacing-md) 0;
 }
 </style>
