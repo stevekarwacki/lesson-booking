@@ -547,12 +547,19 @@ const fetchDailySchedule = async () => {
 
         const formattedSchedule = {}
 
-        // Add availability slots without expansion
+        // Add availability slots - expand to all slots they occupy
         availabilityData.forEach(slot => {
-            formattedSchedule[slot.start_slot] = formatSlot(slot, scheduleDate)
+            const slotStart = slot.start_slot
+            const slotDuration = slot.duration || 2
+
+            // Expand: store the same data at every slot position this availability occupies
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                formattedSchedule[currentSlot] = formatSlot(slot, scheduleDate)
+            }
         })
 
-        // Add booked events without expansion - block consolidation happens in transform
+        // Add booked events - expand to all slots they occupy
         bookedEvents.forEach(event => {
             // Handle all-day events that should block all available slots
             if (event.blocks_all_available_slots) {
@@ -566,9 +573,15 @@ const fetchDailySchedule = async () => {
                 return; // Skip normal duration processing for all-day events
             }
             
-            // Store booking once at its start slot (no expansion)
-            const slotData = formatSlot(event, scheduleDate)
-            formattedSchedule[event.start_slot] = slotData
+            // Expand: store booking at every slot position it occupies
+            const slotStart = event.start_slot
+            const slotDuration = event.duration || 2
+            
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                const slotData = formatSlot(event, scheduleDate)
+                formattedSchedule[currentSlot] = slotData
+            }
         })
 
         dailyScheduleData.value = formattedSchedule

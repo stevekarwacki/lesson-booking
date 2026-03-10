@@ -110,15 +110,15 @@ export function consolidateScheduleToBlocks(scheduleData, startSlot, endSlot) {
 
 /**
  * Determines if two consecutive slots can be merged into one block
- * Available blocks can merge, but booked/blocked blocks only merge if same booking
+ * Available blocks can merge, but booked/blocked/rescheduling blocks only merge if same booking
  */
 function canMergeBlocks(currentBlock, slotData, slotType) {
   if (slotType === 'available') {
     return true // Always merge consecutive available slots
   }
   
-  // For booked/blocked, only merge if same booking ID
-  if (slotType === 'booked' || slotType === 'blocked' || slotType === 'google-calendar') {
+  // For booked/blocked/rescheduling, only merge if same booking ID
+  if (slotType === 'booked' || slotType === 'blocked' || slotType === 'google-calendar' || slotType === 'rescheduling') {
     return currentBlock.data?.id === slotData.id
   }
   

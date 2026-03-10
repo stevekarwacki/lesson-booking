@@ -203,84 +203,43 @@ const handleDateChange = async () => {
         const originalDuration = props.booking.duration
         
         availabilityData.forEach(slot => {
-            // For rescheduling, only show slots that can accommodate the original duration
-            if (slot.duration >= originalDuration) {
-                // Create slots that match the original booking duration
-                for (let i = 0; i <= slot.duration - originalDuration; i += 2) {
-                    const slotStart = slot.start_slot + i
-                    const newSlot = Object.assign({}, slot, { 
-                        start_slot: slotStart, 
-                        duration: originalDuration 
-                    });
+            const slotStart = slot.start_slot
+            const slotDuration = slot.duration || 2
 
-                    formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
-                }
+            // Expand: store the same data at every slot position this availability occupies
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                formattedSchedule[currentSlot] = formatSlot(slot, scheduleDate)
             }
         })
 
-        // Split availability slots around booked events and add booked events to schedule
+        // Add booked events to schedule
         bookedEvents.forEach(event => {
             // Handle the current booking being rescheduled differently
             if (event.id === props.booking.id) {
-                // Add current booking as a special "rescheduling" type - handle multi-slot properly
-                const SLOT_DURATION = settingsStore.slotDuration
+                // Expand rescheduling booking to all slots it occupies
+                const slotStart = event.start_slot
+                const slotDuration = originalDuration || 2
                 
-                if (originalDuration > SLOT_DURATION) {
-                    // Multi-slot rescheduling booking - create entries for each slot
-                    const totalSlots = originalDuration / SLOT_DURATION
-                    for (let i = 0; i < originalDuration; i += SLOT_DURATION) {
-                        const currentSlot = event.start_slot + i
-                        const slotData = {
-                            ...event,
-                            start_slot: currentSlot,
-                            duration: SLOT_DURATION,
-                            type: 'rescheduling',
-                            isMultiSlot: true,
-                            totalSlots: totalSlots,
-                            slotPosition: i / SLOT_DURATION,
-                            bookingId: event.id,
-                            originalStartSlot: event.start_slot,
-                            originalDuration: originalDuration
-                        }
-                        formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
-                    }
-                } else {
-                    // Single slot rescheduling
+                for (let i = 0; i < slotDuration; i++) {
+                    const currentSlot = slotStart + i
                     const slotData = {
                         ...event,
-                        duration: originalDuration,
+                        duration: slotDuration,
                         type: 'rescheduling'
                     }
-                    const reschedulingSlot = formatSlot(slotData, scheduleDate)
-                    formattedSchedule[event.start_slot] = reschedulingSlot
+                    formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
                 }
                 return
             }
             
-            // Add booked event to schedule - handle multi-slot bookings properly
-            const SLOT_DURATION = settingsStore.slotDuration
+            // Expand other bookings to all slots they occupy
+            const slotStart = event.start_slot
+            const slotDuration = event.duration || 2
             
-            if (event.duration > SLOT_DURATION) {
-                // Multi-slot booking - create entries for each slot
-                const totalSlots = event.duration / SLOT_DURATION
-                for (let i = 0; i < event.duration; i += SLOT_DURATION) {
-                    const currentSlot = event.start_slot + i
-                    const slotData = {
-                        ...event,
-                        start_slot: currentSlot,
-                        duration: SLOT_DURATION,
-                        isMultiSlot: true,
-                        totalSlots: totalSlots,
-                        slotPosition: i / SLOT_DURATION,
-                        bookingId: event.id,
-                        originalStartSlot: event.start_slot,
-                        originalDuration: event.duration
-                    }
-                    formattedSchedule[currentSlot] = formatSlot(slotData, scheduleDate)
-                }
-            } else {
-                // Single slot booking
-                formattedSchedule[event.start_slot] = formatSlot(event, scheduleDate)
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                formattedSchedule[currentSlot] = formatSlot(event, scheduleDate)
             }
         })
 
