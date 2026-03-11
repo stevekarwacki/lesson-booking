@@ -319,9 +319,16 @@ const updateBooking = async () => {
         // Show success toast
         formFeedback.showSuccess('Booking rescheduled successfully!')
 
-        // Emit immediately - keep buttons in "Processing..." state during transition
+        // Emit and close modal
         emit('booking-updated')
-        // Don't reset loading - component will be destroyed during transition
+        
+        // Close the modal if we have actionControl
+        if (actionControl && actionControl.close) {
+            // Small delay to let the success toast show
+            setTimeout(() => {
+                actionControl.close()
+            }, 500)
+        }
     } catch (err) {
         error.value = err.message
         formFeedback.handleError(err, 'Failed to reschedule:')
@@ -346,9 +353,16 @@ const cancelBooking = async () => {
         // Show success toast
         formFeedback.showSuccess('Booking cancelled successfully!')
         
-        // Emit immediately - keep buttons in "Processing..." state during transition
+        // Emit and close modal
         emit('booking-cancelled', result)
-        // Don't reset loading - component will be destroyed during transition
+        
+        // Close the modal if we have actionControl
+        if (actionControl && actionControl.close) {
+            // Small delay to let the success toast show
+            setTimeout(() => {
+                actionControl.close()
+            }, 500)
+        }
     } catch (err) {
         error.value = err.message
         formFeedback.handleError(err, 'Failed to cancel booking:')

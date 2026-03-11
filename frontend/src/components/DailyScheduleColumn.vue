@@ -18,36 +18,47 @@
           'show-segments': block.type === 'available' && (hoveredBlockId === block.id || isMobile)
         })"
         :style="{ height: `${block.height}px` }"
-        @click="handleBlockClick(block, $event)"
+        @click="block.type !== 'available' && handleBlockClick(block, $event)"
         @mouseenter="block.type === 'available' && (hoveredBlockId = block.id)"
         @mouseleave="hoveredBlockId = null"
       >
         <CardContent class="block-content">
-          <!-- For available blocks with segments, render dividers -->
-          <div v-if="block.type === 'available' && block.segments" class="segment-dividers">
+          <!-- Available blocks: render individual slots -->
+          <div v-if="block.type === 'available'" class="available-slots-container">
             <div
-              v-for="(segment, index) in block.segments"
-              :key="`segment-${segment.startSlot}`"
-              class="segment-divider"
-              :style="{ top: `${segment.offsetY}px` }"
-              v-show="index > 0"
-            />
-          </div>
-          
-          <span class="block-time">{{ formatTime(slotToTime(block.startSlot)) }}</span>
-          <span v-if="block.type === 'booked' && block.data?.student" class="student-name">
-            {{ block.data.student.name }}
-          </span>
-          
-          <!-- Tooltip for instructors -->
-          <div v-if="props.isInstructor && block.type === 'booked'" class="tooltip">
-            <div class="tooltip-title">Booking Details</div>
-            <div class="tooltip-content">
-              <p>Duration: {{ block.duration * 15 }} minutes</p>
-              <p>Time: {{ getBookingTimeRange(block) }}</p>
-              <p v-if="block.data?.student">Student: {{ block.data.student.name }}</p>
+              v-for="(slot, index) in getAvailableSlots(block)"
+              :key="`slot-${slot.startSlot}`"
+              class="available-slot"
+              @click="handleBlockClick(block, $event)"
+            >
+              <div class="slot-time-tooltip">
+                {{ slot.startTime }} - {{ slot.endTime }}
+              </div>
+              <!-- Separator line between slots -->
+              <div v-if="index < getAvailableSlots(block).length - 1" class="slot-separator"></div>
             </div>
           </div>
+          
+          <!-- Non-available blocks: show time for booked blocks -->
+          <template v-else>
+            <span v-if="block.type === 'booked'" class="block-time">
+              {{ formatTime(slotToTime(block.startSlot)) }}
+            </span>
+            
+            <span v-if="block.type === 'booked' && block.data?.student" class="student-name">
+              {{ block.data.student.name }}
+            </span>
+            
+            <!-- Tooltip for instructors -->
+            <div v-if="props.isInstructor && block.type === 'booked'" class="tooltip">
+              <div class="tooltip-title">Booking Details</div>
+              <div class="tooltip-content">
+                <p>Duration: {{ block.duration * 15 }} minutes</p>
+                <p>Time: {{ getBookingTimeRange(block) }}</p>
+                <p v-if="block.data?.student">Student: {{ block.data.student.name }}</p>
+              </div>
+            </div>
+          </template>
         </CardContent>
       </Card>
     </div>
@@ -142,6 +153,27 @@ const getBookingTimeRange = (block) => {
   const startTime = formatTime(slotToTime(block.startSlot))
   const endTime = formatTime(slotToTime(Math.min(block.startSlot + block.duration, MAX_SLOT_INDEX)))
   return `${startTime} - ${endTime}`
+}
+
+// Get individual slots for available blocks
+const getAvailableSlots = (block) => {
+  if (block.type !== 'available') return []
+  
+  const slots = []
+  const numSlots = Math.floor(block.duration / 2) // Each slot is 2 x 15min = 30min
+  
+  for (let i = 0; i < numSlots; i++) {
+    const startSlot = block.startSlot + (i * 2)
+    const endSlot = startSlot + 2
+    slots.push({
+      startSlot,
+      endSlot,
+      startTime: formatTime(slotToTime(startSlot)),
+      endTime: formatTime(slotToTime(endSlot))
+    })
+  }
+  
+  return slots
 }
 
 const isBlockSelected = (block) => {
@@ -334,12 +366,52 @@ const handleBlockClick = (block, event) => {
 
 .segment-divider {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 0;
-  border-top: 1px dashed #d1d5db;
+  left: 8%;
+  right: 8%;
+  height: 2px;
   opacity: 0;
   transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+/* Main line with pronounced taper and dual-tone effect */
+.segment-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  top: 0;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(170, 170, 170, 0.15) 3%,
+    rgba(170, 170, 170, 0.35) 10%,
+    rgba(170, 170, 170, 0.5) 50%,
+    rgba(170, 170, 170, 0.35) 90%,
+    rgba(170, 170, 170, 0.15) 97%,
+    transparent 100%
+  );
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+}
+
+/* Highlight glow on top */
+.segment-divider::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  top: -1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 20%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.5) 80%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
 }
 
 /* MOBILE: Always show segments on available blocks */
@@ -439,6 +511,106 @@ const handleBlockClick = (block, event) => {
   font-size: var(--font-size-sm);
   color: var(--text-primary);
   font-weight: 500;
+}
+
+/* Available slots container */
+.available-slots-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.available-slot {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.available-slot:hover {
+  background-color: rgba(34, 197, 94, 0.15);
+}
+
+.available-slot:hover .slot-time-tooltip {
+  opacity: 1;
+}
+
+/* Slot time tooltip */
+.slot-time-tooltip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Separator between slots */
+.slot-separator {
+  position: absolute;
+  bottom: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(170, 170, 170, 0.15) 3%,
+    rgba(170, 170, 170, 0.35) 10%,
+    rgba(170, 170, 170, 0.5) 50%,
+    rgba(170, 170, 170, 0.35) 90%,
+    rgba(170, 170, 170, 0.15) 97%,
+    transparent 100%
+  );
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.slot-separator::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  top: -1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 20%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.5) 80%,
+    transparent 100%
+  );
+  filter: blur(0.5px);
+}
+
+/* Mobile: Always show separator */
+@media (max-width: 1024px) {
+  .time-block-card.show-segments .slot-separator {
+    opacity: 1;
+  }
+}
+
+/* Desktop: Show separator on hover of the block */
+@media (min-width: 1025px) {
+  .time-block-card:hover .slot-separator {
+    opacity: 1;
+  }
 }
 
 .student-name {
