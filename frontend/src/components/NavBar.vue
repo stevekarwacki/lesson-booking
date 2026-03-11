@@ -11,12 +11,13 @@ const settingsStore = useSettingsStore()
 const isMenuOpen = ref(false)
 
 // Branding composable
-const { branding } = useBranding()
+const { branding, businessInfo } = useBranding()
 
 // Computed properties from branding data
 const logoBaseUrl = computed(() => branding.value?.logoUrl || '')
 const companyName = computed(() => branding.value?.companyName || '')
 const logoPosition = computed(() => branding.value?.logoPosition || 'left')
+const websiteUrl = computed(() => businessInfo.value?.website || '')
 
 // Computed property for versioned logo URL
 const logoUrl = computed(() => {
@@ -64,7 +65,16 @@ const handleLogout = () => {
     <nav class="navbar" :class="`logo-${logoPosition}`">
         <!-- Mobile: Brand area with hamburger -->
         <div class="nav-brand-mobile">
-            <router-link to="/" class="brand-link" @click="closeMenu">
+            <a v-if="websiteUrl" :href="websiteUrl" class="brand-link" target="_blank" rel="noopener noreferrer">
+                <img 
+                    v-if="logoUrl" 
+                    :src="logoUrl" 
+                    :alt="companyName + ' logo'"
+                    class="brand-logo"
+                />
+                <h1 v-if="!logoUrl" class="brand-text">{{ companyName }}</h1>
+            </a>
+            <router-link v-else to="/" class="brand-link" @click="closeMenu">
                 <img 
                     v-if="logoUrl" 
                     :src="logoUrl" 
@@ -84,7 +94,16 @@ const handleLogout = () => {
         <div class="nav-grid-desktop">
             <!-- Left column: Logo (if left position) + Company name -->
             <div class="nav-left">
-                <router-link to="/" class="brand-link" @click="closeMenu">
+                <a v-if="websiteUrl" :href="websiteUrl" class="brand-link" target="_blank" rel="noopener noreferrer">
+                    <img 
+                        v-if="logoUrl && logoPosition === 'left'" 
+                        :src="logoUrl" 
+                        :alt="companyName + ' logo'"
+                        class="brand-logo"
+                    />
+                    <h1 class="brand-text">{{ companyName }}</h1>
+                </a>
+                <router-link v-else to="/" class="brand-link" @click="closeMenu">
                     <img 
                         v-if="logoUrl && logoPosition === 'left'" 
                         :src="logoUrl" 
@@ -97,7 +116,14 @@ const handleLogout = () => {
             
             <!-- Center column: Logo (if center position AND logo exists) -->
             <div class="nav-center">
-                <router-link to="/" class="brand-link" @click="closeMenu" v-if="logoUrl && logoPosition === 'center'">
+                <a v-if="websiteUrl && logoUrl && logoPosition === 'center'" :href="websiteUrl" class="brand-link" target="_blank" rel="noopener noreferrer">
+                    <img 
+                        :src="logoUrl" 
+                        :alt="companyName + ' logo'"
+                        class="brand-logo"
+                    />
+                </a>
+                <router-link v-else-if="logoUrl && logoPosition === 'center'" to="/" class="brand-link" @click="closeMenu">
                     <img 
                         :src="logoUrl" 
                         :alt="companyName + ' logo'"
