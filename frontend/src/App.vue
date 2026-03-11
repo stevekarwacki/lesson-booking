@@ -8,11 +8,16 @@ import ProfileStatusBanner from './components/ProfileStatusBanner.vue'
 import { useUserStore } from './stores/userStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTheme } from './composables/useTheme'
+import { usePageMeta } from './composables/usePageMeta'
+
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 
 // Initialize theme system (will apply theme automatically via watcher)
 useTheme()
+
+// Initialize page title and favicon from branding
+usePageMeta()
 
 onMounted(async () => {
     // Initialize stores in parallel for faster startup
