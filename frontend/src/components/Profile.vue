@@ -182,14 +182,6 @@
                         </div>
                     </div>
 
-                    <!-- Error/Success Messages -->
-                    <div v-if="error" class="alert alert-error">
-                        {{ error }}
-                    </div>
-                    <div v-if="successMessage" class="alert alert-success">
-                        {{ successMessage }}
-                    </div>
-
                     <!-- Form Actions -->
                     <div class="button-group">
                         <Button type="submit" :disabled="loading">
@@ -205,6 +197,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
+import { useFormFeedback } from '../composables/useFormFeedback'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -212,6 +205,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const userStore = useUserStore()
+const formFeedback = useFormFeedback()
 
 const US_STATES = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -235,8 +229,6 @@ const profileData = ref({
 })
 
 const loading = ref(false)
-const error = ref('')
-const successMessage = ref('')
 const fieldErrors = ref({})
 
 const isProfileIncomplete = computed(() => {
@@ -249,11 +241,11 @@ const loadProfile = () => {
             name: userStore.user.name || '',
             email: userStore.user.email || '',
             phoneNumber: userStore.user.phone_number || '',
-            addressLine1: userStore.user.user_profile_data?.address_line_1 || '',
-            addressLine2: userStore.user.user_profile_data?.address_line_2 || '',
-            city: userStore.user.user_profile_data?.city || '',
-            state: userStore.user.user_profile_data?.state || '',
-            zip: userStore.user.user_profile_data?.zip || '',
+            addressLine1: userStore.user.user_profile_data?.address?.line_1 || '',
+            addressLine2: userStore.user.user_profile_data?.address?.line_2 || '',
+            city: userStore.user.user_profile_data?.address?.city || '',
+            state: userStore.user.user_profile_data?.address?.state || '',
+            zip: userStore.user.user_profile_data?.address?.zip || '',
             isMinor: userStore.user.is_student_minor || false,
             parentApproval: userStore.user.user_profile_data?.parent_approval || false
         }
@@ -262,12 +254,10 @@ const loadProfile = () => {
 
 const updateProfile = async () => {
     loading.value = true
-    error.value = ''
-    successMessage.value = ''
     fieldErrors.value = {}
 
     try {
-        const response = await fetch('/api/users/profile', {
+        const response = await fetch('/api/users/me/profile', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -277,13 +267,15 @@ const updateProfile = async () => {
                 name: profileData.value.name,
                 email: profileData.value.email,
                 phone_number: profileData.value.phoneNumber,
-                address_line_1: profileData.value.addressLine1,
-                address_line_2: profileData.value.addressLine2,
-                city: profileData.value.city,
-                state: profileData.value.state,
-                zip: profileData.value.zip,
                 is_student_minor: profileData.value.isMinor,
-                parent_approval: profileData.value.parentApproval
+                parent_approval: profileData.value.parentApproval,
+                address: {
+                    line_1: profileData.value.addressLine1,
+                    line_2: profileData.value.addressLine2 || null,
+                    city: profileData.value.city,
+                    state: profileData.value.state,
+                    zip: profileData.value.zip
+                }
             })
         })
 
@@ -292,9 +284,9 @@ const updateProfile = async () => {
         if (!response.ok) {
             if (data.fieldErrors) {
                 fieldErrors.value = data.fieldErrors
-                error.value = 'Please correct the errors below'
+                formFeedback.showError('Please correct the errors below')
             } else {
-                error.value = data.error || 'Failed to update profile'
+                formFeedback.showError(data.error || 'Failed to update profile')
             }
             return
         }
@@ -302,14 +294,9 @@ const updateProfile = async () => {
         // Update user store with new data
         await userStore.fetchUser()
         
-        successMessage.value = 'Profile updated successfully'
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-            successMessage.value = ''
-        }, 3000)
+        formFeedback.showSuccess('Profile updated successfully')
     } catch (err) {
-        error.value = 'An error occurred while updating your profile'
+        formFeedback.showError('An error occurred while updating your profile')
         console.error('Profile update error:', err)
     } finally {
         loading.value = false
@@ -394,24 +381,6 @@ onMounted(() => {
 
 .parent-approval-label {
     font-weight: 500;
-}
-
-.alert {
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-}
-
-.alert-error {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-}
-
-.alert-success {
-    background: #d1fae5;
-    border: 1px solid #6ee7b7;
-    color: #065f46;
 }
 
 @media (max-width: 768px) {
