@@ -40,7 +40,7 @@ const Refund = sequelize.define('Refund', {
     },
     refunded_by: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'users',
             key: 'id'

@@ -27,7 +27,7 @@ const AppSettings = sequelize.define('AppSettings', {
     },
     updated_by: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'users',
             key: 'id'
