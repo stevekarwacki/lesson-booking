@@ -141,11 +141,16 @@ const handleCancel = () => {
 
 <style scoped>
 .modal-body {
-  overflow: hidden;
+  overflow-y: auto; /* Allow vertical scrolling */
   /* Explicit height constraint */
-  height: calc(90vh - 200px);
   max-height: calc(90vh - 200px);
   display: flex;
   flex-direction: column;
+}
+
+/* Override for slide transitions - they manage their own scrolling */
+.modal-body:has(.edit-booking-slides) {
+  overflow: hidden;
+  height: calc(90vh - 200px);
 }
 </style>

@@ -22,6 +22,7 @@
                 :show-header="true"
                 :show-time-labels="false"
                 :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
+                :user-role="userStore.user?.role || 'student'"
                 :selected-slot="selectedSlot"
                 :original-slot="originalSlot"
                 @slot-selected="handleSlotSelected"

@@ -10,7 +10,10 @@
     </div>
     
     <!-- Time blocks container -->
-    <div class="time-blocks-container">
+    <div class="time-blocks-container" :class="{ 
+      'current-day': isCurrentDay(date),
+      'past-day': isPastDay(date)
+    }">
       <Card
         v-for="block in visibleBlocks"
         :key="block.id"
@@ -26,16 +29,14 @@
           <!-- Available blocks: render individual slots -->
           <div v-if="block.type === 'available'" class="available-slots-container">
             <div
-              v-for="(slot, index) in getAvailableSlots(block)"
+              v-for="slot in getAvailableSlots(block)"
               :key="`slot-${slot.startSlot}`"
               class="available-slot"
-              @click="handleBlockClick(block, $event)"
+              @click="handleSlotClick(slot)"
             >
               <div class="slot-time-tooltip">
-                {{ slot.startTime }} - {{ slot.endTime }}
+                {{ slot.startTime }}
               </div>
-              <!-- Separator line between slots -->
-              <div v-if="index < getAvailableSlots(block).length - 1" class="slot-separator"></div>
             </div>
           </div>
           
@@ -45,7 +46,8 @@
               {{ formatTime(slotToTime(block.startSlot)) }}
             </span>
             
-            <span v-if="block.type === 'booked' && block.data?.student" class="student-name">
+            <!-- Show student name only if not a Google Calendar event, or if user is instructor/admin -->
+            <span v-if="block.type === 'booked' && block.data?.student && (!block.data?.is_google_calendar || userRole !== 'student')" class="student-name">
               {{ block.data.student.name }}
             </span>
             
@@ -107,6 +109,10 @@ const props = defineProps({
   isInstructor: {
     type: Boolean,
     default: false
+  },
+  userRole: {
+    type: String,
+    default: 'student' // student, instructor, admin
   },
   isRescheduling: {
     type: Boolean,
@@ -226,6 +232,9 @@ const isOriginalBlock = (block) => {
 }
 
 const getBlockClasses = (block) => {
+  const isStudent = props.userRole === 'student'
+  const isGoogleCalendar = block.data?.is_google_calendar
+  
   return {
     'available': block.type === 'available',
     'unavailable': block.type === 'unavailable',
@@ -236,7 +245,8 @@ const getBlockClasses = (block) => {
     'own-booking': block.type === 'booked' && block.data?.isOwnBooking,
     'recurring-booking': block.data?.is_recurring,
     'rescheduling': block.type === 'rescheduling',
-    'google-calendar': block.data?.is_google_calendar,
+    'google-calendar': isGoogleCalendar && !isStudent, // Striped only for instructors/admins
+    'google-calendar-student': isGoogleCalendar && isStudent, // Plain red for students
     'instructor-view-available': block.type === 'available' && props.isInstructor && !props.isRescheduling,
     'instructor-view-booked': block.type === 'booked' && props.isInstructor,
     'selected': isBlockSelected(block),
@@ -255,11 +265,13 @@ const handleBlockClick = (block, event) => {
     return
   }
   
-  // Allow clicks on rescheduling blocks, prevent clicks on other original blocks
+  // Prevent clicks on rescheduling blocks (the original time being rescheduled)
   if (block.type === 'rescheduling') {
-    // Always allow rescheduling blocks to be clicked
-  } else if (isOriginalBlock(block)) {
-    // Prevent clicks on original blocks that aren't rescheduling type
+    return
+  }
+  
+  // Prevent clicks on other original blocks
+  if (isOriginalBlock(block)) {
     return
   }
   
@@ -290,17 +302,23 @@ const handleBlockClick = (block, event) => {
     })
     return
   }
-  
-  // For rescheduling blocks
-  if (block.type === 'rescheduling') {
-    emit('slot-selected', {
-      date: props.date,
-      startSlot: block.startSlot,
-      duration: props.originalSlot ? props.originalSlot.duration : 2,
-      type: 'available'
-    })
-  }
 }
+
+// Handle click on individual slot element
+const handleSlotClick = (slot) => {
+  // Prevent clicks on past time slots
+  if (isPastTimeSlot(slot.startSlot, props.date.toISOString())) {
+    return
+  }
+  
+  emit('slot-selected', {
+    date: props.date,
+    startSlot: slot.startSlot,
+    duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2,
+    type: 'available'
+  })
+}
+
 </script>
 
 <style scoped>
@@ -340,6 +358,16 @@ const handleBlockClick = (block, event) => {
   display: flex;
   flex-direction: column;
   flex: 1;
+}
+
+/* Highlight current day's time blocks - same color as header */
+.time-blocks-container.current-day {
+  background: rgba(0, 102, 255, 0.1);
+}
+
+/* Grey background for past days */
+.time-blocks-container.past-day:not(.current-day) {
+  background: rgba(128, 128, 128, 0.1); /* Light grey */
 }
 
 /* Override Card component defaults for calendar blocks */
@@ -433,30 +461,38 @@ const handleBlockClick = (block, event) => {
   background: none;
   border-radius: 8px !important; /* Rounded corners */
   margin: 2px 4px; /* Gaps between blocks */
-  border-width: 2px !important;
   box-sizing: border-box !important; /* Include border in height calculation */
 }
 
 /* State-based Card styling - Green for available */
 .time-block-card.available.rounded-lg {
   background-color: #d4edda !important; /* Light green */
-  border-color: #28a745 !important; /* Darker green border */
 }
 
-/* Blue for booked */
-.time-block-card.booked.rounded-lg {
+/* Blue for own bookings */
+.time-block-card.own-booking.rounded-lg {
   background-color: #cce5ff !important; /* Light blue */
-  border-color: #007bff !important; /* Darker blue border */
+}
+
+/* Blue for all bookings when in instructor view */
+.time-block-card.instructor-view-booked.rounded-lg {
+  background-color: #cce5ff !important; /* Light blue */
+  cursor: pointer !important; /* Override not-allowed */
+}
+
+/* Red for booked slots that aren't yours (only for non-instructor views) */
+.time-block-card.booked.rounded-lg:not(.own-booking):not(.instructor-view-booked) {
+  background-color: #f8d7da !important; /* Light red */
+  cursor: not-allowed;
 }
 
 /* Red for unavailable */
 .time-block-card.unavailable.rounded-lg {
   background-color: #f8d7da !important; /* Light red */
-  border-color: #dc3545 !important; /* Darker red border */
   cursor: not-allowed;
 }
 
-/* Red striped for blocked/Google Calendar */
+/* Red striped for blocked/Google Calendar (instructors and admins) */
 .time-block-card.google-calendar.rounded-lg {
   background-color: #f8d7da !important; /* Light red base */
   background-image: repeating-linear-gradient(
@@ -466,17 +502,21 @@ const handleBlockClick = (block, event) => {
     rgba(220, 53, 69, 0.3) 8px, /* Darker red stripes */
     rgba(220, 53, 69, 0.3) 16px
   );
-  border-color: #dc3545 !important; /* Darker red border */
   color: #000;
+}
+
+/* Plain red for Google Calendar events (students) */
+.time-block-card.google-calendar-student.rounded-lg {
+  background-color: #f8d7da !important; /* Same as unavailable */
+  cursor: not-allowed;
 }
 
 .time-block-card.rescheduling.rounded-lg {
   background-color: #fff3cd !important; /* Light yellow */
-  border: 2px solid #ffc107 !important; /* Darker yellow border */
+  cursor: not-allowed;
 }
 
 .time-block-card.past {
-  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -486,7 +526,6 @@ const handleBlockClick = (block, event) => {
 }
 
 .time-block-card.past.rounded-lg {
-  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -529,6 +568,12 @@ const handleBlockClick = (block, event) => {
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.15s ease;
+  border-bottom: 1px solid rgba(170, 170, 170, 0.3);
+}
+
+/* Remove border from last slot */
+.available-slot:last-child {
+  border-bottom: none;
 }
 
 .available-slot:hover {
@@ -539,78 +584,42 @@ const handleBlockClick = (block, event) => {
   opacity: 1;
 }
 
+/* Hide borders by default on desktop, show on hover */
+@media (min-width: 1025px) {
+  .available-slot {
+    border-bottom-color: transparent;
+    transition: background-color 0.15s ease, border-bottom-color 0.2s ease;
+  }
+  
+  .time-block-card:hover .available-slot {
+    border-bottom-color: rgba(170, 170, 170, 0.3);
+  }
+  
+  .time-block-card:hover .available-slot:last-child {
+    border-bottom-color: transparent;
+  }
+}
+
+/* Always show borders on mobile */
+@media (max-width: 1024px) {
+  .available-slot {
+    border-bottom-color: rgba(170, 170, 170, 0.3);
+  }
+  
+  .available-slot:last-child {
+    border-bottom-color: transparent;
+  }
+}
+
 /* Slot time tooltip */
 .slot-time-tooltip {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.85);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
   font-size: var(--font-size-sm);
   font-weight: 600;
+  color: var(--text-primary);
   pointer-events: none;
   white-space: nowrap;
-  z-index: 10;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   opacity: 0;
   transition: opacity 0.15s ease;
-}
-
-/* Separator between slots */
-.slot-separator {
-  position: absolute;
-  bottom: 0;
-  left: 8%;
-  right: 8%;
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(170, 170, 170, 0.15) 3%,
-    rgba(170, 170, 170, 0.35) 10%,
-    rgba(170, 170, 170, 0.5) 50%,
-    rgba(170, 170, 170, 0.35) 90%,
-    rgba(170, 170, 170, 0.15) 97%,
-    transparent 100%
-  );
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.slot-separator::after {
-  content: '';
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  height: 1px;
-  top: -1px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(255, 255, 255, 0.5) 20%,
-    rgba(255, 255, 255, 0.8) 50%,
-    rgba(255, 255, 255, 0.5) 80%,
-    transparent 100%
-  );
-  filter: blur(0.5px);
-}
-
-/* Mobile: Always show separator */
-@media (max-width: 1024px) {
-  .time-block-card.show-segments .slot-separator {
-    opacity: 1;
-  }
-}
-
-/* Desktop: Show separator on hover of the block */
-@media (min-width: 1025px) {
-  .time-block-card:hover .slot-separator {
-    opacity: 1;
-  }
 }
 
 .student-name {
