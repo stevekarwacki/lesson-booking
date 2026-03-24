@@ -21,12 +21,11 @@
         <Modal
             v-model:open="showEditModal"
             title="Reschedule Lesson"
-            @save="handleEditBookingSave"
+            cancel-text="Close"
             @cancel="closeEditModal"
         >
             <EditBooking
                 v-if="selectedBooking"
-                ref="editBookingRef"
                 :booking="selectedBooking"
                 @close="closeEditModal"
                 @booking-updated="handleBookingUpdated"

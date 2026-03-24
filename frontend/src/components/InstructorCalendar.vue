@@ -117,8 +117,7 @@
     <Modal
         v-model:open="showEditBookingModal"
         title="Reschedule Lesson"
-        hide-save
-        hide-cancel
+        cancel-text="Close"
         @cancel="closeEditBookingModal"
     >
         <EditBooking
@@ -311,7 +310,7 @@ const handleSlotSelected = (slot) => {
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name // Normalized at model level
+                        name: instructor.User?.name || ''
                     }
                 }
             }
@@ -335,7 +334,7 @@ const handleSlotSelected = (slot) => {
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name // Normalized at model level
+                        name: instructor.User?.name || 'Unknown Instructor'
                     }
                 }
             }

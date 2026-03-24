@@ -32,7 +32,15 @@
               v-for="slot in getAvailableSlots(block)"
               :key="`slot-${slot.startSlot}`"
               class="available-slot"
-              @click="handleSlotClick(slot)"
+              :class="{
+                'highlighted': isRescheduling && getSlotHighlightState(slot, block).highlighted,
+                'invalid': isRescheduling && getSlotHighlightState(slot, block).invalid,
+                'first-slot': isRescheduling && getSlotHighlightState(slot, block).isFirst,
+                'last-slot': isRescheduling && getSlotHighlightState(slot, block).isLast
+              }"
+              @mouseenter="handleSlotHover(slot)"
+              @mouseleave="handleSlotLeave"
+              @click.stop="handleSlotClick(slot, block)"
             >
               <div class="slot-time-tooltip">
                 {{ slot.startTime }}
@@ -136,6 +144,7 @@ const emit = defineEmits(['slot-selected'])
 
 // Track hover state for available blocks to show segment lines
 const hoveredBlockId = ref(null)
+const hoveredSlotStart = ref(null) // Track which slot is being hovered
 
 // Computed properties
 const formattedDate = computed(() => {
@@ -161,6 +170,28 @@ const getBookingTimeRange = (block) => {
   return `${startTime} - ${endTime}`
 }
 
+// Check if a time range has any collisions with non-available slots
+const hasCollision = (startSlot, duration) => {
+  const endSlot = startSlot + duration
+  
+  // Check all blocks in the day for overlaps
+  for (const block of visibleBlocks.value) {
+    // Skip the check for available blocks
+    if (block.type === 'available') continue
+    
+    const blockEnd = block.startSlot + block.duration
+    
+    // Check if there's any overlap
+    const hasOverlap = startSlot < blockEnd && endSlot > block.startSlot
+    
+    if (hasOverlap) {
+      return true // Collision detected
+    }
+  }
+  
+  return false // No collisions
+}
+
 // Get individual slots for available blocks
 const getAvailableSlots = (block) => {
   if (block.type !== 'available') return []
@@ -180,6 +211,55 @@ const getAvailableSlots = (block) => {
   }
   
   return slots
+}
+
+// Determine if a slot should be highlighted based on hover and rescheduling duration
+const getSlotHighlightState = (slot, block) => {
+  if (!props.isRescheduling || hoveredSlotStart.value === null) {
+    return { highlighted: false, invalid: false, isFirst: false, isLast: false }
+  }
+  
+  // Get the duration we need to select (in 30-min increments)
+  const requiredSlots = props.originalSlot ? Math.floor(props.originalSlot.duration / 2) : 1
+  const requiredDuration = requiredSlots * 2 // Convert to 15-min increments
+  
+  // Calculate the range of slots that should be highlighted
+  const highlightStart = hoveredSlotStart.value
+  const highlightEnd = highlightStart + requiredDuration
+  
+  // Check if this slot is in the highlighted range
+  const isInRange = slot.startSlot >= highlightStart && slot.startSlot < highlightEnd
+  
+  if (!isInRange) {
+    return { highlighted: false, invalid: false, isFirst: false, isLast: false }
+  }
+  
+  // Use the collision detection function to check if selection is valid
+  const isInvalid = hasCollision(highlightStart, requiredDuration)
+  
+  // Determine position
+  const isFirst = slot.startSlot === highlightStart
+  const isLast = slot.startSlot === highlightStart + ((requiredSlots - 1) * 2)
+  
+  return { 
+    highlighted: true, 
+    invalid: isInvalid, 
+    isFirst, 
+    isLast 
+  }
+}
+
+// Handle hover on individual slots
+const handleSlotHover = (slot) => {
+  if (props.isRescheduling) {
+    hoveredSlotStart.value = slot.startSlot
+  }
+}
+
+const handleSlotLeave = () => {
+  if (props.isRescheduling) {
+    hoveredSlotStart.value = null
+  }
 }
 
 const isBlockSelected = (block) => {
@@ -260,6 +340,16 @@ const handleBlockClick = (block, event) => {
     return
   }
   
+  // Prevent clicks on unavailable or blocked time slots
+  if (block.type === 'unavailable' || block.type === 'blocked') {
+    return
+  }
+  
+  // Prevent clicks on Google Calendar blocked times
+  if (block.data?.is_google_calendar) {
+    return
+  }
+  
   // Prevent clicks on recurring subscription bookings
   if (block.data?.is_recurring) {
     return
@@ -272,6 +362,12 @@ const handleBlockClick = (block, event) => {
   
   // Prevent clicks on other original blocks
   if (isOriginalBlock(block)) {
+    return
+  }
+  
+  // IMPORTANT: When rescheduling, prevent clicking on any booked slots
+  // Users should only be able to select available times
+  if (props.isRescheduling && block.type === 'booked') {
     return
   }
   
@@ -291,7 +387,7 @@ const handleBlockClick = (block, event) => {
     return
   }
   
-  // For booked blocks, emit the whole block
+  // For booked blocks (only allow when NOT rescheduling)
   if (block.type === 'booked') {
     emit('slot-selected', {
       ...block.data,
@@ -305,16 +401,24 @@ const handleBlockClick = (block, event) => {
 }
 
 // Handle click on individual slot element
-const handleSlotClick = (slot) => {
+const handleSlotClick = (slot, block) => {
   // Prevent clicks on past time slots
   if (isPastTimeSlot(slot.startSlot, props.date.toISOString())) {
+    return
+  }
+  
+  // Calculate the duration for the selection
+  const duration = props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2
+  
+  // Prevent clicks if there's a collision with any non-available time
+  if (hasCollision(slot.startSlot, duration)) {
     return
   }
   
   emit('slot-selected', {
     date: props.date,
     startSlot: slot.startSlot,
-    duration: props.isRescheduling && props.originalSlot ? props.originalSlot.duration : 2,
+    duration: duration,
     type: 'available'
   })
 }
@@ -567,48 +671,68 @@ const handleSlotClick = (slot) => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  border-bottom: 1px solid rgba(170, 170, 170, 0.3);
+  border-radius: 0;
+  margin: 0;
+  transition: all 0.2s ease;
 }
 
-/* Remove border from last slot */
-.available-slot:last-child {
-  border-bottom: none;
+.available-slot {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 0;
+  margin: 0;
+  transition: all 0.2s ease;
 }
 
-.available-slot:hover {
-  background-color: rgba(34, 197, 94, 0.15);
+/* Regular hover (not rescheduling) */
+.available-slot:hover:not(.highlighted) {
+  background-color: rgba(34, 197, 94, 0.25); /* Darker green background */
+  border-radius: 8px; /* Rounded corners */
+  margin: 4px 2px; /* Visual separation - wider horizontally */
+  transform: scale(1.01); /* Subtle grow */
+  z-index: 10; /* Appear above siblings */
 }
 
-.available-slot:hover .slot-time-tooltip {
+/* Multi-slot highlighting for rescheduling */
+.available-slot.highlighted {
+  background-color: rgba(34, 197, 94, 0.25); /* Darker green background */
+  margin: 0 2px; /* Horizontal spacing only */
+  z-index: 10;
+}
+
+/* Round only the top corners of the first slot */
+.available-slot.highlighted.first-slot {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  margin-top: 4px; /* Add top spacing */
+}
+
+/* Round only the bottom corners of the last slot */
+.available-slot.highlighted.last-slot {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  margin-bottom: 4px; /* Add bottom spacing */
+}
+
+/* Single slot (both first and last) gets all rounded corners */
+.available-slot.highlighted.first-slot.last-slot {
+  border-radius: 8px;
+}
+
+/* Invalid selection - not enough consecutive slots available */
+.available-slot.highlighted.invalid {
+  background-color: #f8d7da !important; /* Keep green background */
+  cursor: not-allowed !important;
+}
+
+/* Show tooltip on hover or when highlighted */
+.available-slot:hover .slot-time-tooltip,
+.available-slot.highlighted .slot-time-tooltip {
   opacity: 1;
-}
-
-/* Hide borders by default on desktop, show on hover */
-@media (min-width: 1025px) {
-  .available-slot {
-    border-bottom-color: transparent;
-    transition: background-color 0.15s ease, border-bottom-color 0.2s ease;
-  }
-  
-  .time-block-card:hover .available-slot {
-    border-bottom-color: rgba(170, 170, 170, 0.3);
-  }
-  
-  .time-block-card:hover .available-slot:last-child {
-    border-bottom-color: transparent;
-  }
-}
-
-/* Always show borders on mobile */
-@media (max-width: 1024px) {
-  .available-slot {
-    border-bottom-color: rgba(170, 170, 170, 0.3);
-  }
-  
-  .available-slot:last-child {
-    border-bottom-color: transparent;
-  }
 }
 
 /* Slot time tooltip */

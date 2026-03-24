@@ -97,10 +97,6 @@
                 </div>
             </template>
         </SlideTransition>
-
-        <div v-if="error" class="form-message error-message mt-4">
-            {{ error }}
-        </div>
     </div>
 </template>
 
@@ -139,7 +135,6 @@ const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
 const settingsStore = useSettingsStore()
 const loading = ref(false)
-const error = ref(null)
 const selectedDate = ref('')
 const dailySchedule = ref(null)
 const selectedSlot = ref(null)
@@ -262,7 +257,7 @@ const handleDateChange = async () => {
 
         dailySchedule.value = formattedSchedule
     } catch (err) {
-        error.value = 'Error fetching schedule'
+        formFeedback.handleError(err, 'Error fetching schedule:')
         console.error('Fetch error:', err)
     }
 }
@@ -291,7 +286,6 @@ const updateBooking = async () => {
 
     try {
         loading.value = true
-        error.value = null
 
         // Get the date in UTC using utility functions
         const utcDate = formatDateUTC(selectedSlot.value.date)
@@ -330,7 +324,6 @@ const updateBooking = async () => {
             }, 500)
         }
     } catch (err) {
-        error.value = err.message
         formFeedback.handleError(err, 'Failed to reschedule:')
         loading.value = false // Only reset on error so user can retry
     }
@@ -343,7 +336,6 @@ const cancelBooking = async () => {
 
     try {
         loading.value = true
-        error.value = null
 
         const result = await cancelBookingMutation(props.booking.id)
         
@@ -364,7 +356,6 @@ const cancelBooking = async () => {
             }, 500)
         }
     } catch (err) {
-        error.value = err.message
         formFeedback.handleError(err, 'Failed to cancel booking:')
         loading.value = false // Only reset on error so user can retry
     }
