@@ -138,13 +138,6 @@ const actionControl = inject('actionControl', null)
 // Ref to Stripe form for triggering payment
 const stripeFormRef = ref(null)
 
-// Use credits composable for credit state management (current user)
-const { 
-    getAvailableCredits,
-    fetchCredits,
-    invalidateCredits
-} = useCredits()
-
 // Define currentSlot before using it in computed
 const loading = ref(false)
 const error = ref(null)
@@ -182,18 +175,18 @@ const selectedStudent = ref(null)
 const studentSearchQuery = ref('')
 const showStudentResults = ref(false)
 
-// Use separate credits instance for selected student
+// Use credits composable for credit state management
+// For booking on behalf: only fetch selected student's credits
+// For regular booking: fetch current user's credits
 const selectedStudentId = computed(() => selectedStudent.value?.id || null)
-const { 
-    getAvailableCredits: getStudentAvailableCredits,
-    fetchCredits: fetchStudentCreditsQuery
-} = useCredits(selectedStudentId)
+const currentUserId = computed(() => isBookingOnBehalf.value ? selectedStudentId.value : userStore.user?.id)
 
-// Computed: Get available credits for the selected student based on duration
-const selectedStudentCredits = computed(() => {
-    if (!selectedStudent.value) return 0
-    return getStudentAvailableCredits.value(selectedDuration.value)
-})
+const { 
+    getAvailableCredits,
+    fetchCredits,
+    invalidateCredits
+} = useCredits(currentUserId)
+
 
 // Computed date for conflict checking
 const conflictCheckDate = computed(() => {
@@ -324,7 +317,7 @@ const lessonPrice = computed(() => {
 const availableCredits = computed(() => {
     // If booking on behalf, use selected student's credits
     if (isBookingOnBehalf.value && selectedStudent.value) {
-        return selectedStudentCredits.value
+        return getAvailableCredits.value(selectedDuration.value)
     }
     // Otherwise use current user's credits
     return getAvailableCredits.value(selectedDuration.value);
@@ -371,7 +364,7 @@ const handleStudentSelect = async (student) => {
     showStudentResults.value = false
     
     // Fetch the selected student's credit balance
-    await fetchStudentCreditsQuery()
+    await fetchCredits()
 }
 
 // Handle search blur with delay to allow click event
@@ -393,7 +386,7 @@ const updatePaymentMethodForBookingOnBehalf = () => {
 // Watch for duration changes to update student credits
 watch(selectedDuration, async () => {
     if (isBookingOnBehalf.value && selectedStudent.value) {
-        await fetchStudentCreditsQuery()
+        await fetchCredits()
     }
 })
 
@@ -622,7 +615,7 @@ const confirmBooking = async () => {
         if (paymentMethod.value === 'credits') {
             try {
                 if (isBookingOnBehalf.value && selectedStudent.value) {
-                    await fetchStudentCreditsQuery()
+                    await fetchCredits()
                 } else {
                     await fetchCredits()
                 }

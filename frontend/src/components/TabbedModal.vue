@@ -108,12 +108,30 @@
           </div>
         </div>
       </div>
+      
+      <!-- Footer with buttons (optional) -->
+      <div v-if="!finalSaveHidden" class="modal-footer">
+        <button 
+          class="btn btn-outline"
+          @click="handleCancel"
+          :disabled="internalSaveLoading"
+        >
+          {{ cancelText }}
+        </button>
+        <button 
+          class="btn btn-primary"
+          @click="handleSave"
+          :disabled="finalSaveDisabled"
+        >
+          {{ finalSaveText }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, provide } from 'vue'
 import { useTabbedModal } from '../composables/useTabbedModal'
 
 export default {
@@ -134,6 +152,19 @@ export default {
     initialHeight: {
       type: String,
       default: 'auto'
+    },
+    // Button configuration (optional - only show if provided)
+    showButtons: {
+      type: Boolean,
+      default: false
+    },
+    saveText: {
+      type: String,
+      default: 'Save'
+    },
+    cancelText: {
+      type: String,
+      default: 'Cancel'
     }
   },
   emits: ['close'],
@@ -142,6 +173,28 @@ export default {
     const isTransitioning = ref(false)
     const secondaryView = ref(null)
     const transitionDirection = ref('forward') // 'forward' or 'backward'
+    
+    // Button state for actionControl
+    const internalSaveDisabled = ref(false)
+    const internalSaveText = ref(props.saveText)
+    const internalSaveHidden = ref(!props.showButtons)
+    const internalSaveLoading = ref(false)
+    
+    // Provide control interface for child components
+    const actionControl = {
+      setSaveDisabled: (disabled) => { internalSaveDisabled.value = disabled },
+      setSaveText: (text) => { internalSaveText.value = text },
+      setSaveLoading: (loading) => { internalSaveLoading.value = loading },
+      hideSave: () => { internalSaveHidden.value = true },
+      showSave: () => { internalSaveHidden.value = false },
+      close: () => emit('close'),
+      onSave: null // Callback for save action - set by child component
+    }
+    provide('actionControl', actionControl)
+    
+    const finalSaveDisabled = computed(() => internalSaveDisabled.value || internalSaveLoading.value)
+    const finalSaveText = computed(() => internalSaveLoading.value ? 'Saving...' : internalSaveText.value)
+    const finalSaveHidden = computed(() => internalSaveHidden.value)
     
     // Parse tabs from slot children
     const tabs = computed(() => {
@@ -281,6 +334,17 @@ export default {
       }
     }
     
+    const handleSave = () => {
+      // If child set a save callback, call it
+      if (actionControl.onSave && typeof actionControl.onSave === 'function') {
+        actionControl.onSave()
+      }
+    }
+    
+    const handleCancel = () => {
+      emit('close')
+    }
+    
     // Handle escape key
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
@@ -337,7 +401,14 @@ export default {
       modalStyle,
       handleNavigate,
       goBack,
-      isTransitioning
+      isTransitioning,
+      
+      // Button state
+      finalSaveDisabled,
+      finalSaveText,
+      finalSaveHidden,
+      handleSave,
+      handleCancel
     }
   }
 }
@@ -447,5 +518,50 @@ export default {
   .back-icon {
     font-size: 1.25rem;
   }
+}
+
+/* Modal footer */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  background: var(--background-light);
+}
+
+.modal-footer .btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--border-color);
+}
+
+.modal-footer .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-footer .btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.modal-footer .btn-outline:hover:not(:disabled) {
+  background: var(--background-hover);
+}
+
+.modal-footer .btn-primary {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.modal-footer .btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 </style>

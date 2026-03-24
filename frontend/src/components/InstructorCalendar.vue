@@ -1,23 +1,5 @@
 <template v-if="instructor">
 
-    <!-- Booked Lessons List -->
-    <div v-if="formattedBookingsForList.length > 0" class="card">
-        <div class="card-header">
-            <h3>{{ selectedDate ? 'Booked Lessons for ' + selectedDay?.formattedDate : "Today's Booked Lessons" }}</h3>
-        </div>
-        <div class="card-body">
-            <BookingList
-                :bookings="formattedBookingsForList"
-                :userId="userStore.user.id"
-                :userRole="userStore.canManageUsers ? 'admin' : userStore.canManageCalendar ? 'instructor' : 'student'"
-                @edit-booking="handleEditBookingFromList"
-                @cancel-booking="handleCancelBookingFromList"
-                @view-booking="handleViewBookingFromList"
-                @process-refund="handleRefundBookingFromList"
-            />
-        </div>
-    </div>
-
     <!-- Date selection -->
     <div class="view-controls card">
         <div class="card-body time-selection-container">
@@ -50,7 +32,7 @@
             </Button>
 
             <!-- Date selection -->
-            <div class="form-group-inline date-select-group">
+            <div class="form-group-inline date-select-group mb-0">
                 <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
                 <DatePicker
                     v-model="selectedDate"
@@ -117,8 +99,7 @@
     <Modal
         v-model:open="showEditBookingModal"
         title="Reschedule Lesson"
-        hide-save
-        hide-cancel
+        cancel-text="Close"
         @cancel="closeEditBookingModal"
     >
         <EditBooking
@@ -311,7 +292,7 @@ const handleSlotSelected = (slot) => {
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name // Normalized at model level
+                        name: instructor.User?.name || ''
                     }
                 }
             }
@@ -335,7 +316,7 @@ const handleSlotSelected = (slot) => {
                 status: 'booked',
                 Instructor: {
                     User: {
-                        name: instructor.name // Normalized at model level
+                        name: instructor.User?.name || 'Unknown Instructor'
                     }
                 }
             }
@@ -437,38 +418,33 @@ const fetchWeeklySchedule = async () => {
         const availabilityData = weeklyAvailability.value || []
         const bookedEvents = weeklyEvents.value || []
 
-        // Initialize schedule with dates
+        // Initialize schedule
         const formattedSchedule = {}
-        const slotTemplate = {}
-        
-        for (let i = 0; i < 7; i++) {
-            const slotDate = new Date(selectedWeek.value)
-            slotDate.setDate(slotDate.getDate() + i)
-            slotDate.setHours(0,0,0,0)
 
-            slotTemplate[i] = {
-                date: slotDate,
-                type: 'unavailable'
-            }
-        }
-
-        // Start with available slots
+        // Start with available slots - expand to all slots they occupy
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
+            const slotStart = slot.start_slot
+            const slotDuration = slot.duration || 2
 
-            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
-                const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
+            // Get the date for this specific day
+            const slotDate = new Date(selectedWeek.value)
+            slotDate.setDate(slotDate.getDate() + dayIndex)
+            slotDate.setHours(0,0,0,0)
 
-                if (!(slotStart in formattedSchedule)) {
-                    formattedSchedule[slotStart] = Object.assign({}, slotTemplate)
+            // Expand: store the same data at every slot position this availability occupies
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                
+                if (!(currentSlot in formattedSchedule)) {
+                    formattedSchedule[currentSlot] = {}
                 }
-
-                formattedSchedule[slotStart][dayIndex] = formatSlot(newSlot, formattedSchedule[slotStart][dayIndex].date)
+                
+                formattedSchedule[currentSlot][dayIndex] = formatSlot(slot, slotDate)
             }
         })
 
-        // Overwrite availability with booked events
+        // Overwrite availability with booked events - no expansion
         bookedEvents.forEach(event => {
             // Handle all-day events that should block all available slots
             if (event.blocks_all_available_slots) {
@@ -495,40 +471,18 @@ const fetchWeeklySchedule = async () => {
             const dayIndex = eventDate.getUTCDay()
             
             const slotStart = event.start_slot
-            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
-
-            // Log booking information
-            const now = new Date()
-            const currentTime = now.toLocaleTimeString()
-            now.setHours(0, 0, 0, 0)
+            const slotDuration = event.duration || 2
             
-            // Create date in both UTC and local
-            const bookingDateLocal = new Date(event.date)
-            bookingDateLocal.setHours(0, 0, 0, 0)
-            
-            const bookingDateUTC = new Date(event.date)
-            bookingDateUTC.setUTCHours(0, 0, 0, 0)
-            
-            // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
+            // Expand: store booking at every slot position it occupies
+            for (let i = 0; i < slotDuration; i++) {
                 const currentSlot = slotStart + i
                 
-                // Only show booked events (including Google Calendar) if they overlap with instructor availability
-                if (formattedSchedule[currentSlot] && formattedSchedule[currentSlot][dayIndex] !== undefined) {
-                    const slotData = formatSlot(event, eventDate)
-                    
-                    // Add metadata to identify multi-slot bookings
-                    if (eventDuration > settingsStore.slotDuration) {
-                        slotData.isMultiSlot = true
-                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
-                        slotData.bookingId = event.id // To group related slots
-                        slotData.originalStartSlot = event.start_slot // Original booking start slot
-                        slotData.originalDuration = eventDuration // Original booking duration
-                    }
-                    
-                    formattedSchedule[currentSlot][dayIndex] = slotData
+                if (!(currentSlot in formattedSchedule)) {
+                    formattedSchedule[currentSlot] = {}
                 }
+                
+                const slotData = formatSlot(event, eventDate)
+                formattedSchedule[currentSlot][dayIndex] = slotData
             }
         })
 
@@ -574,16 +528,19 @@ const fetchDailySchedule = async () => {
 
         const formattedSchedule = {}
 
+        // Add availability slots - expand to all slots they occupy
         availabilityData.forEach(slot => {
-            for (let i = 0; i < slot.duration; i += settingsStore.slotDuration) {
-                const slotStart = slot.start_slot + i
-                const newSlot = Object.assign({}, slot, { start_slot: slotStart, duration: settingsStore.slotDuration });
+            const slotStart = slot.start_slot
+            const slotDuration = slot.duration || 2
 
-                formattedSchedule[slotStart] = formatSlot(newSlot, scheduleDate)
+            // Expand: store the same data at every slot position this availability occupies
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                formattedSchedule[currentSlot] = formatSlot(slot, scheduleDate)
             }
         })
 
-        // Split availability slots around booked events and add booked events to schedule
+        // Add booked events - expand to all slots they occupy
         bookedEvents.forEach(event => {
             // Handle all-day events that should block all available slots
             if (event.blocks_all_available_slots) {
@@ -597,27 +554,14 @@ const fetchDailySchedule = async () => {
                 return; // Skip normal duration processing for all-day events
             }
             
-            const eventDuration = event.duration || settingsStore.slotDuration // Default to 30 minutes if no duration
+            // Expand: store booking at every slot position it occupies
+            const slotStart = event.start_slot
+            const slotDuration = event.duration || 2
             
-            // For bookings longer than 30 minutes, fill all consecutive slots
-            for (let i = 0; i < eventDuration; i += settingsStore.slotDuration) {
-                const currentSlot = event.start_slot + i
-                
-                if (formattedSchedule[currentSlot]) {
-                    const slotData = formatSlot(event, scheduleDate)
-                    
-                    // Add metadata to identify multi-slot bookings
-                    if (eventDuration > settingsStore.slotDuration) {
-                        slotData.isMultiSlot = true
-                        slotData.slotPosition = i / settingsStore.slotDuration // 0 for first slot, 1 for second slot, etc.
-                        slotData.totalSlots = eventDuration / settingsStore.slotDuration // Total number of 30-min slots
-                        slotData.bookingId = event.id // To group related slots
-                        slotData.originalStartSlot = event.start_slot // Original booking start slot
-                        slotData.originalDuration = eventDuration // Original booking duration
-                    }
-                    
-                    formattedSchedule[currentSlot] = slotData
-                }
+            for (let i = 0; i < slotDuration; i++) {
+                const currentSlot = slotStart + i
+                const slotData = formatSlot(event, scheduleDate)
+                formattedSchedule[currentSlot] = slotData
             }
         })
 
@@ -630,25 +574,9 @@ const fetchDailySchedule = async () => {
 }
 
 const weeklySchedule = computed(() => {
-    // Initialize empty schedule
-    let schedule = {
-        0: {
-            0: { },
-            1: { },
-            2: { },
-            3: { },
-            4: { },
-            5: { },
-            6: { }
-        }
-    }
-
-    // If we have data, populate the slots
-    if (Object.keys(weeklyScheduleData.value).length) {
-        schedule = weeklyScheduleData.value
-    }
-
-    return schedule
+    // Return actual schedule data or empty object (not fallback structure)
+    // transformWeeklySchedule will handle empty schedules correctly
+    return weeklyScheduleData.value || {}
 })
 
 // Navigation methods
@@ -720,72 +648,17 @@ watch(dailyAvailability, () => {
     }
 })
 
-
-// Transform dailyEvents for BookingList component
-const formattedBookingsForList = computed(() => {
-    // Use dailyEvents from Vue Query
-    const events = dailyEvents.value || []
-    
-    return events.map(booking => ({
-        id: booking.id || `temp-${booking.start_slot}`,
-        date: booking.date,
-        startTime: formatTime(slotToTime(booking.start_slot)),
-        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-        instructorName: instructor.name,
-        studentName: booking.student?.name || 'Unknown Student',
-        status: booking.type === 'booked' ? 'booked' : booking.status || 'booked',
-        isRecurring: false, // Add logic for recurring if needed
-        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
-        // Original booking data for actions
-        originalBooking: formatSlot(booking, new Date(selectedDate.value))
-    }))
-})
-
-// BookingList event handlers
-const handleEditBookingFromList = (booking) => {
-    // For now, just log - later we can integrate with EditBookingModal
-    // This could open the booking modal in edit mode
-    selectedSlot.value = {
-        ...booking.originalBooking,
-        instructorId: instructor.id,
-        isEditing: true
-    }
-    showBookingModal.value = true
-}
-
-const handleCancelBookingFromList = (booking) => {
-    // TODO: Implement booking cancellation
-    // This would call an API to cancel the booking
-    console.warn(`Cancel booking functionality not yet implemented for booking ID: ${booking.id}`)
-}
-
-const handleViewBookingFromList = (booking) => {
-    // For cancelled bookings, show in view-only mode
-    selectedSlot.value = {
-        ...booking.originalBooking,
-        instructorId: instructor.id,
-        isViewOnly: true
-    }
-    showBookingModal.value = true
-}
-
-const handleRefundBookingFromList = (booking) => {
-    // Emit refund event to parent component (InstructorCalendarPage)
-    emit('process-refund', booking)
-}
-
 </script>
 
 <style scoped>
 .view-controls {
-    margin-bottom: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
 }
 
 .week-navigation {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
 }
 
 .week-display {

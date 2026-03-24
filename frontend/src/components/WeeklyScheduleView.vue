@@ -3,7 +3,7 @@
         <!-- Column-based layout (new approach) -->
         <div v-if="useColumnLayout" class="weekly-schedule-columns">
             <div class="time-labels-column">
-                <div class="empty-corner"></div>
+                <div class="empty-corner calendar-header-cell"></div>
                 <div 
                     v-for="timeSlot in timeLabels" 
                     :key="timeSlot"
@@ -22,6 +22,7 @@
                 :show-header="true"
                 :show-time-labels="false"
                 :is-instructor="userStore.canManageCalendar || userStore.canManageUsers"
+                :user-role="userStore.user?.role || 'student'"
                 :selected-slot="selectedSlot"
                 :original-slot="originalSlot"
                 @slot-selected="handleSlotSelected"
@@ -129,15 +130,6 @@ const handleSlotSelected = (slotData) => {
     flex-direction: column;
     background: var(--background-light);
     border-right: 1px solid var(--border-color);
-}
-
-.time-labels-column .empty-corner {
-    padding: var(--spacing-sm);
-    border-bottom: 1px solid var(--border-color);
-    text-align: center;
-    font-weight: 500;
-    font-size: var(--font-size-sm);
-    height: 50px;
 }
 
 .time-labels-column .time-label {

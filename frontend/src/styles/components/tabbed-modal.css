@@ -13,7 +13,8 @@
 
 .tabbed-modal .modal-body {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: calc(90vh - 250px); /* Account for header + tabs + footer + padding */
   display: flex;
   flex-direction: column;
 }

@@ -55,7 +55,8 @@ const actionControl = {
   setSaveLoading: (loading) => { internalSaveLoading.value = loading },
   hideSave: () => { internalSaveHidden.value = true },
   showSave: () => { internalSaveHidden.value = false },
-  close: () => handleClose()
+  close: () => handleClose(),
+  onSave: null // Callback for save action - set by child component
 }
 provide('actionControl', actionControl)
 
@@ -80,7 +81,12 @@ const handleClose = () => {
 }
 
 const handleSave = () => {
-  emit('save')
+  // If child set a save callback, call it; otherwise emit event
+  if (actionControl.onSave && typeof actionControl.onSave === 'function') {
+    actionControl.onSave()
+  } else {
+    emit('save')
+  }
 }
 
 const handleCancel = () => {
@@ -135,7 +141,16 @@ const handleCancel = () => {
 
 <style scoped>
 .modal-body {
-  flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Allow vertical scrolling */
+  /* Explicit height constraint */
+  max-height: calc(90vh - 200px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Override for slide transitions - they manage their own scrolling */
+.modal-body:has(.edit-booking-slides) {
+  overflow: hidden;
+  height: calc(90vh - 200px);
 }
 </style>

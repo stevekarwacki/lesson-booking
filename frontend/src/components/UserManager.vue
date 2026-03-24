@@ -987,10 +987,10 @@ const formatDate = (dateString) => {
                 label="Bookings"
             >
                 <div class="bookings-tab">
-                    <SlideTransition :slide-count="2">
+                    <SlideTransition :slide-count="2" :show-back-button="false">
                         <!-- Main slide: Bookings list -->
                         <template #main="{ navigate }">
-                            <div v-if="userBookings.length > 0 || loadingUserBookings">
+                            <div v-if="(userBookings?.length > 0) || loadingUserBookings">
                                 <BookingList
                                     :bookings="transformedBookings"
                                     :loading="loadingUserBookings"
