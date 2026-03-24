@@ -36,7 +36,8 @@
                 'highlighted': isRescheduling && getSlotHighlightState(slot, block).highlighted,
                 'invalid': isRescheduling && getSlotHighlightState(slot, block).invalid,
                 'first-slot': isRescheduling && getSlotHighlightState(slot, block).isFirst,
-                'last-slot': isRescheduling && getSlotHighlightState(slot, block).isLast
+                'last-slot': isRescheduling && getSlotHighlightState(slot, block).isLast,
+                'student-past': userRole === 'student' && isPastTimeSlot(slot.startSlot, date.toISOString())
               }"
               @mouseenter="handleSlotHover(slot)"
               @mouseleave="handleSlotLeave"
@@ -469,11 +470,6 @@ const handleSlotClick = (slot, block) => {
   background: rgba(0, 102, 255, 0.1);
 }
 
-/* Grey background for past days */
-.time-blocks-container.past-day:not(.current-day) {
-  background: rgba(128, 128, 128, 0.1); /* Light grey */
-}
-
 /* Override Card component defaults for calendar blocks */
 .time-block-card {
   border-radius: 0;
@@ -561,7 +557,7 @@ const handleSlotClick = (slot, block) => {
 }
 
 /* Override shadcn Card default background - must be specific to beat Tailwind */
-.time-block-card.rounded-lg.border {
+.time-block-card.border {
   background: none;
   border-radius: 8px !important; /* Rounded corners */
   margin: 2px 4px; /* Gaps between blocks */
@@ -569,35 +565,55 @@ const handleSlotClick = (slot, block) => {
 }
 
 /* State-based Card styling - Green for available */
-.time-block-card.available.rounded-lg {
+.time-block-card.available {
   background-color: #d4edda !important; /* Light green */
 }
 
+/* Darker background for past available blocks */
+.time-block-card.available.past {
+  background-color: #c0c0c0 !important; /* Dark grey for past availability */
+}
+
+/* Darker background for past unavailable blocks */
+.time-block-card.unavailable.past {
+  background-color: #d4a5a5 !important; /* Darker red-grey for past unavailable */
+}
+
+/* Darker background for past booked blocks */
+.time-block-card.booked.past {
+  background-color: #a8c5e0 !important; /* Darker blue-grey for past booked */
+}
+
+/* Darker background for past Google Calendar events */
+.time-block-card.past.google-calendar {
+  background-color: #d4a5a5 !important; /* Darker red-grey for past Google events */
+}
+
 /* Blue for own bookings */
-.time-block-card.own-booking.rounded-lg {
+.time-block-card.own-booking {
   background-color: #cce5ff !important; /* Light blue */
 }
 
 /* Blue for all bookings when in instructor view */
-.time-block-card.instructor-view-booked.rounded-lg {
+.time-block-card.instructor-view-booked {
   background-color: #cce5ff !important; /* Light blue */
   cursor: pointer !important; /* Override not-allowed */
 }
 
 /* Red for booked slots that aren't yours (only for non-instructor views) */
-.time-block-card.booked.rounded-lg:not(.own-booking):not(.instructor-view-booked) {
+.time-block-card.booked:not(.own-booking):not(.instructor-view-booked) {
   background-color: #f8d7da !important; /* Light red */
   cursor: not-allowed;
 }
 
 /* Red for unavailable */
-.time-block-card.unavailable.rounded-lg {
+.time-block-card.unavailable {
   background-color: #f8d7da !important; /* Light red */
   cursor: not-allowed;
 }
 
 /* Red striped for blocked/Google Calendar (instructors and admins) */
-.time-block-card.google-calendar.rounded-lg {
+.time-block-card.google-calendar {
   background-color: #f8d7da !important; /* Light red base */
   background-image: repeating-linear-gradient(
     45deg,
@@ -610,12 +626,12 @@ const handleSlotClick = (slot, block) => {
 }
 
 /* Plain red for Google Calendar events (students) */
-.time-block-card.google-calendar-student.rounded-lg {
+.time-block-card.google-calendar-student {
   background-color: #f8d7da !important; /* Same as unavailable */
   cursor: not-allowed;
 }
 
-.time-block-card.rescheduling.rounded-lg {
+.time-block-card.rescheduling {
   background-color: #fff3cd !important; /* Light yellow */
   cursor: not-allowed;
 }
@@ -629,15 +645,12 @@ const handleSlotClick = (slot, block) => {
   transform: translateY(-1px);
 }
 
-.time-block-card.past.rounded-lg {
-  cursor: not-allowed;
-}
-
-.time-block-card.original-block.rounded-lg {
+.time-block-card.original-block {
   background-color: var(--calendar-booked, #e3f2fd) !important;
   cursor: not-allowed;
   opacity: 0.7;
 }
+
 
 .block-content {
   position: relative;
@@ -689,12 +702,17 @@ const handleSlotClick = (slot, block) => {
 }
 
 /* Regular hover (not rescheduling) */
-.available-slot:hover:not(.highlighted) {
+.available-slot:hover:not(.highlighted):not(.student-past) {
   background-color: rgba(34, 197, 94, 0.25); /* Darker green background */
   border-radius: 8px; /* Rounded corners */
   margin: 4px 2px; /* Visual separation - wider horizontally */
   transform: scale(1.01); /* Subtle grow */
   z-index: 10; /* Appear above siblings */
+}
+
+/* Student past slots - not clickable */
+.available-slot.student-past {
+  cursor: not-allowed;
 }
 
 /* Multi-slot highlighting for rescheduling */

@@ -1,23 +1,5 @@
 <template v-if="instructor">
 
-    <!-- Booked Lessons List -->
-    <div v-if="formattedBookingsForList.length > 0" class="card">
-        <div class="card-header">
-            <h3>{{ selectedDate ? 'Booked Lessons for ' + selectedDay?.formattedDate : "Today's Booked Lessons" }}</h3>
-        </div>
-        <div class="card-body">
-            <BookingList
-                :bookings="formattedBookingsForList"
-                :userId="userStore.user.id"
-                :userRole="userStore.canManageUsers ? 'admin' : userStore.canManageCalendar ? 'instructor' : 'student'"
-                @edit-booking="handleEditBookingFromList"
-                @cancel-booking="handleCancelBookingFromList"
-                @view-booking="handleViewBookingFromList"
-                @process-refund="handleRefundBookingFromList"
-            />
-        </div>
-    </div>
-
     <!-- Date selection -->
     <div class="view-controls card">
         <div class="card-body time-selection-container">
@@ -50,7 +32,7 @@
             </Button>
 
             <!-- Date selection -->
-            <div class="form-group-inline date-select-group">
+            <div class="form-group-inline date-select-group mb-0">
                 <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
                 <DatePicker
                     v-model="selectedDate"
@@ -666,72 +648,17 @@ watch(dailyAvailability, () => {
     }
 })
 
-
-// Transform dailyEvents for BookingList component
-const formattedBookingsForList = computed(() => {
-    // Use dailyEvents from Vue Query
-    const events = dailyEvents.value || []
-    
-    return events.map(booking => ({
-        id: booking.id || `temp-${booking.start_slot}`,
-        date: booking.date,
-        startTime: formatTime(slotToTime(booking.start_slot)),
-        endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-        instructorName: instructor.name,
-        studentName: booking.student?.name || 'Unknown Student',
-        status: booking.type === 'booked' ? 'booked' : booking.status || 'booked',
-        isRecurring: false, // Add logic for recurring if needed
-        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
-        // Original booking data for actions
-        originalBooking: formatSlot(booking, new Date(selectedDate.value))
-    }))
-})
-
-// BookingList event handlers
-const handleEditBookingFromList = (booking) => {
-    // For now, just log - later we can integrate with EditBookingModal
-    // This could open the booking modal in edit mode
-    selectedSlot.value = {
-        ...booking.originalBooking,
-        instructorId: instructor.id,
-        isEditing: true
-    }
-    showBookingModal.value = true
-}
-
-const handleCancelBookingFromList = (booking) => {
-    // TODO: Implement booking cancellation
-    // This would call an API to cancel the booking
-    console.warn(`Cancel booking functionality not yet implemented for booking ID: ${booking.id}`)
-}
-
-const handleViewBookingFromList = (booking) => {
-    // For cancelled bookings, show in view-only mode
-    selectedSlot.value = {
-        ...booking.originalBooking,
-        instructorId: instructor.id,
-        isViewOnly: true
-    }
-    showBookingModal.value = true
-}
-
-const handleRefundBookingFromList = (booking) => {
-    // Emit refund event to parent component (InstructorCalendarPage)
-    emit('process-refund', booking)
-}
-
 </script>
 
 <style scoped>
 .view-controls {
-    margin-bottom: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
 }
 
 .week-navigation {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
 }
 
 .week-display {

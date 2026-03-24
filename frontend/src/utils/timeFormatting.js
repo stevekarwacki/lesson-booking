@@ -409,9 +409,9 @@ function isPastDay(date) {
  */
 function isPastTimeSlot(slot, dateString) {
     const date = new Date(dateString);
-    const slotTime = slotToTimeUTC(slot);
+    const slotTime = slotToTime(slot); // Use local time, not UTC
     const [hours, minutes] = slotTime.split(':').map(Number);
-    date.setUTCHours(hours, minutes, 0, 0);
+    date.setHours(hours, minutes, 0, 0); // Set local hours, not UTC
     
     return date < new Date();
 }
