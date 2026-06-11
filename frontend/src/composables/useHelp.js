@@ -61,14 +61,18 @@ export function useHelp() {
         }) ?? null
     }
 
-    // Simple client-side search over title and keywords fields.
+    // Client-side search over title and keywords. Each whitespace-separated
+    // term is matched independently (OR logic) so "user membership" returns
+    // articles matching either word.
     const search = (query) => {
         if (!articles.value || !query?.trim()) return articles.value ?? []
-        const q = query.toLowerCase()
+        const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
         return articles.value.filter(a => {
-            const inTitle = a.title?.toLowerCase().includes(q)
-            const inKeywords = a.keywords?.some(k => k.toLowerCase().includes(q))
-            return inTitle || inKeywords
+            const title = a.title?.toLowerCase() ?? ''
+            const keywords = a.keywords?.map(k => k.toLowerCase()) ?? []
+            return terms.some(term =>
+                title.includes(term) || keywords.some(k => k.includes(term))
+            )
         })
     }
 

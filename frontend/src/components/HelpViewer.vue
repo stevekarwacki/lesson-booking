@@ -1,10 +1,11 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useHelp, useHelpArticle } from '@/composables/useHelp'
 import ScrollArea from '@/components/ui/scroll-area/ScrollArea.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
+import { Search, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,7 +13,7 @@ const router = useRouter()
 const currentCategory = computed(() => route.params.category ?? 'admin')
 const currentSlug = computed(() => route.params.slug ?? 'index')
 
-const { articlesByCategory, isLoadingManifest } = useHelp()
+const { articlesByCategory, isLoadingManifest, search } = useHelp()
 const { article, isLoadingArticle } = useHelpArticle(
     () => currentCategory.value,
     () => currentSlug.value
@@ -35,6 +36,10 @@ const orderedCategories = computed(() => {
     ]
 })
 
+const searchQuery = ref('')
+const searchResults = computed(() => search(searchQuery.value))
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
+
 const isIndexArticle = (cat, art) => cat === 'admin' && art.slug === 'index'
 
 const isActive = (cat, art) => {
@@ -45,6 +50,7 @@ const isActive = (cat, art) => {
 }
 
 const navigate = (cat, art) => {
+    searchQuery.value = ''
     if (isIndexArticle(cat, art)) {
         router.push('/help')
     } else {
@@ -56,7 +62,26 @@ const navigate = (cat, art) => {
 <template>
     <div class="help-viewer">
         <aside class="help-sidebar">
-            <ScrollArea class="h-full">
+            <div class="help-search-wrapper">
+                <Search class="help-search-icon" :size="14" />
+                <input
+                    v-model="searchQuery"
+                    class="help-search-input"
+                    placeholder="Search…"
+                    type="search"
+                    :disabled="isLoadingManifest"
+                />
+                <button
+                    v-if="isSearching"
+                    class="help-search-clear"
+                    @click="searchQuery = ''"
+                    aria-label="Clear search"
+                >
+                    <X :size="12" />
+                </button>
+            </div>
+
+            <ScrollArea class="help-nav-scroll">
                 <nav class="help-nav">
                     <template v-if="isLoadingManifest">
                         <Skeleton class="h-3 w-20 mb-3" />
@@ -67,6 +92,29 @@ const navigate = (cat, art) => {
                         <Skeleton class="h-4 w-full mb-2" />
                         <Skeleton class="h-4 w-4/5 mb-2" />
                     </template>
+
+                    <!-- Search results -->
+                    <template v-else-if="isSearching">
+                        <p class="help-nav-category">
+                            {{ searchResults.length }} result{{ searchResults.length !== 1 ? 's' : '' }}
+                        </p>
+                        <template v-if="searchResults.length">
+                            <button
+                                v-for="art in searchResults"
+                                :key="`${art.category}-${art.slug}`"
+                                class="help-nav-item help-search-result"
+                                @click="navigate(art.category, art)"
+                            >
+                                <span class="help-result-title">{{ art.title }}</span>
+                                <span class="help-result-category">
+                                    {{ CATEGORY_LABELS[art.category] ?? art.category }}
+                                </span>
+                            </button>
+                        </template>
+                        <p v-else class="help-no-results">No articles found.</p>
+                    </template>
+
+                    <!-- Normal category nav -->
                     <template v-else>
                         <template v-for="(cat, index) in orderedCategories" :key="cat">
                             <Separator v-if="index > 0" class="my-3" />
@@ -128,10 +176,74 @@ const navigate = (cat, art) => {
     flex-shrink: 0;
     border-right: 1px solid #e5e7eb;
     background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+}
+
+.help-nav-scroll {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Search */
+.help-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem 0;
+    flex-shrink: 0;
+}
+
+.help-search-icon {
+    position: absolute;
+    left: 1.6rem;
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+.help-search-input {
+    width: 100%;
+    padding: 0.4rem 1.75rem 0.4rem 1.875rem;
+    font-size: 0.8rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    background: white;
+    color: #374151;
+    outline: none;
+    transition: border-color 0.15s;
+    /* suppress browser native clear button — we render our own */
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.help-search-input:focus {
+    border-color: var(--primary-color, #2563eb);
+}
+
+.help-search-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.help-search-clear {
+    position: absolute;
+    right: 1.4rem;
+    display: flex;
+    align-items: center;
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 0.25rem;
+}
+
+.help-search-clear:hover {
+    color: #374151;
 }
 
 .help-nav {
-    padding: 1.25rem 1rem;
+    padding: 0.75rem 1rem 1.25rem;
 }
 
 .help-nav-category {
@@ -167,6 +279,36 @@ const navigate = (cat, art) => {
     background: var(--primary-color, #2563eb);
     color: white;
     font-weight: 500;
+}
+
+.help-search-result {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    padding: 0.45rem 0.5rem;
+}
+
+.help-result-title {
+    display: block;
+    line-height: 1.3;
+}
+
+.help-result-category {
+    display: block;
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.help-nav-item.help-search-result:hover .help-result-category,
+.help-nav-item.help-search-result.is-active .help-result-category {
+    color: rgba(255,255,255,0.7);
+}
+
+.help-no-results {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    padding: 0.25rem 0.5rem;
+    margin: 0;
 }
 
 /* Article pane */
@@ -307,7 +449,7 @@ const navigate = (cat, art) => {
         width: 100%;
         border-right: none;
         border-bottom: 1px solid #e5e7eb;
-        max-height: 220px;
+        max-height: 260px;
     }
 
     .help-article-wrapper {
