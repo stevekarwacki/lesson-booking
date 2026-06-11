@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useBranding } from '../composables/useBranding'
+import { HelpCircle } from 'lucide-vue-next'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -132,9 +133,17 @@ const handleLogout = () => {
                 </router-link>
             </div>
             
-            <!-- Right column: User info + logout -->
+            <!-- Right column: Help icon + user info + logout -->
             <div class="nav-right">
                 <div class="nav-auth" v-if="userStore.user">
+                    <router-link
+                        v-if="canManageUsers"
+                        to="/help"
+                        class="help-icon-link"
+                        title="Help"
+                    >
+                        <HelpCircle :size="20" />
+                    </router-link>
                     <span class="user-name">{{ userStore.user.name }}</span>
                     <button @click="handleLogout" class="logout-button">
                         Log Out
@@ -204,6 +213,16 @@ const handleLogout = () => {
                     class="nav-link"
                 >
                     Payments
+                </router-link>
+
+                <!-- Help (admin only) -->
+                <router-link
+                    v-if="canManageUsers"
+                    to="/help"
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Help
                 </router-link>
 
                 <!-- Common Links for logged-in users -->
@@ -357,6 +376,18 @@ const handleLogout = () => {
 
 .user-name {
     color: var(--secondary-color);
+}
+
+.help-icon-link {
+    display: flex;
+    align-items: center;
+    color: var(--secondary-color);
+    transition: color 0.2s;
+    text-decoration: none;
+}
+
+.help-icon-link:hover {
+    color: var(--primary-color);
 }
 
 .logout-button {

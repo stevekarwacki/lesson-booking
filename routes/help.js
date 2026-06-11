@@ -4,12 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const matter = require('gray-matter');
 const MarkdownIt = require('markdown-it');
-const anchor = require('markdown-it-anchor');
 
 const CONTENT_DIR = path.join(__dirname, '..', 'content', 'help', 'admin');
 
-const md = new MarkdownIt({ html: true, linkify: true, typographer: true })
-    .use(anchor, { permalink: anchor.permalink.headerLink() });
+const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
 
 // Resolve the file path for a given category + slug.
 // Top-level articles (index, _template) live directly under /admin/.
@@ -39,7 +37,12 @@ const buildManifest = () => {
                 const raw = fs.readFileSync(fullPath, 'utf-8');
                 const { data } = matter(raw);
                 if (data.id) {
-                    articles.push(data);
+                    const slug = path.basename(entry.name, '.md');
+                    const relDir = path.relative(CONTENT_DIR, dir);
+                    const category = relDir || 'admin';
+                    // slug and category are derived from the filesystem and used for routing —
+                    // they must not be overridden by frontmatter values.
+                    articles.push({ ...data, slug, category });
                 }
             }
         }
