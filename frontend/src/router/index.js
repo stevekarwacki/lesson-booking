@@ -73,6 +73,24 @@ const routes = [
         name: 'google-auth-callback',
         component: () => import('../views/GoogleAuthCallback.vue'),
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/help',
+        name: 'help',
+        component: () => import('../views/HelpPage.vue'),
+        meta: {
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'User' }
+        }
+    },
+    {
+        path: '/help/:category/:slug',
+        name: 'help-article',
+        component: () => import('../views/HelpPage.vue'),
+        meta: {
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'User' }
+        }
     }
 ]
 

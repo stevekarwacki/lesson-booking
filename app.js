@@ -12,6 +12,7 @@ const instructorAvailabilityRoutes = require('./routes/instructorAvailability');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const recurringBookingsRoutes = require('./routes/recurringBookings');
 const assetsRoutes = require('./routes/assets');
+const helpRoutes = require('./routes/help');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 const { injectThemeMiddleware } = require('./middleware/themeInjection');
 const { publishableKey } = require('./config/stripe');
@@ -43,6 +44,7 @@ app.use('/api/payments', authMiddleware, paymentsRoutes);
 app.use('/api/availability', authMiddleware, instructorAvailabilityRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 app.use('/api/recurring-bookings', authMiddleware, recurringBookingsRoutes);
+app.use('/api/help', authMiddleware, adminMiddleware, helpRoutes);
 
 // Catch all route for Vue app (with theme injection)
 app.get('*', injectThemeMiddleware);

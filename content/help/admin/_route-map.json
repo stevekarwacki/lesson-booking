@@ -1,0 +1,6 @@
+{
+  "/admin/users":    { "category": "users",    "slug": "overview" },
+  "/admin/packages": { "category": "packages", "slug": "manage-packages" },
+  "/admin/settings": { "category": "settings", "slug": "overview" },
+  "/calendar":       { "category": "bookings", "slug": "overview" }
+}
