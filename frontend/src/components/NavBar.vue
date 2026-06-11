@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/userStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useBranding } from '../composables/useBranding'
+import { useHelp } from '../composables/useHelp'
 import { HelpCircle } from 'lucide-vue-next'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const isMenuOpen = ref(false)
@@ -60,6 +62,16 @@ const handleLogout = () => {
     router.push('/')
     isMenuOpen.value = false
 }
+
+// Context-aware help link — resolves to the designated landing article for the
+// current page, falling back to the help overview if no mapping exists.
+const { getByRoute } = useHelp()
+const helpTarget = computed(() => {
+    const article = getByRoute(route.path)
+    if (!article) return '/help'
+    if (article.category === 'admin' && article.slug === 'index') return '/help'
+    return `/help/${article.category}/${article.slug}`
+})
 </script>
 
 <template>
@@ -138,7 +150,7 @@ const handleLogout = () => {
                 <div class="nav-auth" v-if="userStore.user">
                     <router-link
                         v-if="canManageUsers"
-                        to="/help"
+                        :to="helpTarget"
                         class="help-icon-link"
                         title="Help"
                     >
@@ -218,7 +230,7 @@ const handleLogout = () => {
                 <!-- Help (admin only) -->
                 <router-link
                     v-if="canManageUsers"
-                    to="/help"
+                    :to="helpTarget"
                     class="nav-link"
                     @click="closeMenu"
                 >

@@ -10,6 +10,20 @@ const ROUTE_MAP_PATH = path.join(CONTENT_DIR, '_route-map.json');
 
 const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
 
+// Rewrite relative .md links in rendered HTML to /help/:category/:slug app
+// routes. Same-directory links (e.g. book-on-behalf.md) use the current
+// article's category; cross-directory links (e.g. ../settings/smtp.md) resolve
+// from the path segments.
+const rewriteLinks = (html, currentCategory) =>
+    html.replace(/href="([^"#?]+\.md)"/g, (_, href) => {
+        if (href.startsWith('http') || href.startsWith('/')) return `href="${href}"`;
+        const clean = href.replace(/^(\.\.\/)+/, '').replace(/\.md$/, '');
+        const parts = clean.split('/');
+        const slug = parts[parts.length - 1];
+        const category = parts.length > 1 ? parts[parts.length - 2] : currentCategory;
+        return `href="/help/${category}/${slug}"`;
+    });
+
 // Load the route → article map. Returns an empty object if the file is missing.
 const loadRouteMap = () => {
     try {
@@ -96,7 +110,7 @@ router.get('/:category/:slug', (req, res) => {
     try {
         const raw = fs.readFileSync(filePath, 'utf-8');
         const { data, content } = matter(raw);
-        const html = md.render(content);
+        const html = rewriteLinks(md.render(content), category);
         res.json({ article: { ...data, html } });
     } catch (error) {
         console.error(`Error loading help article ${category}/${slug}:`, error);
