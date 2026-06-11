@@ -35,6 +35,7 @@ pnpm-debug.log*
 .vscode
 .cursor/*
 !.cursor/skills/
+!.cursor/rules/
 .cursor_rules
 *.suo
 *.ntvs*
