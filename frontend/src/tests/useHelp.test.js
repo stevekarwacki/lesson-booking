@@ -123,28 +123,42 @@ describe('useHelp composable', () => {
 
     describe('getByRoute', () => {
         const articles = [
-            { id: 'settings-smtp', title: 'SMTP', category: 'settings', uiRoute: '/admin/settings', uiTab: 'email' },
-            { id: 'settings-business', title: 'Business', category: 'settings', uiRoute: '/admin/settings', uiTab: 'business' },
-            { id: 'users-create', title: 'Create Users', category: 'users', uiRoute: '/admin/users' }
+            { id: 'users-overview',    title: 'Users Overview',    category: 'users',    slug: 'overview' },
+            { id: 'settings-overview', title: 'Settings Overview', category: 'settings', slug: 'overview' },
         ]
+        const routeMap = {
+            '/admin/users':    { category: 'users',    slug: 'overview' },
+            '/admin/settings': { category: 'settings', slug: 'overview' },
+        }
 
         beforeEach(() => {
-            queryClient.setQueryData(['help', 'manifest'], articles)
+            queryClient.setQueryData(['help', 'manifest'], { articles, routeMap })
             wrapper = mountManifest()
         })
 
-        it('should return the matching article by route only', () => {
+        it('should return the mapped article for a known route', () => {
             const result = wrapper.vm.help.getByRoute('/admin/users')
-            expect(result?.id).toBe('users-create')
+            expect(result?.id).toBe('users-overview')
         })
 
-        it('should match by route and tab', () => {
-            const result = wrapper.vm.help.getByRoute('/admin/settings', 'email')
-            expect(result?.id).toBe('settings-smtp')
+        it('should return the correct article when multiple articles exist', () => {
+            const result = wrapper.vm.help.getByRoute('/admin/settings')
+            expect(result?.id).toBe('settings-overview')
         })
 
-        it('should return null for unknown route', () => {
+        it('should return null for an unmapped route', () => {
             const result = wrapper.vm.help.getByRoute('/unknown')
+            expect(result).toBeNull()
+        })
+
+        it('should return null when the mapped article is not in the manifest', () => {
+            queryClient.setQueryData(['help', 'manifest'], {
+                articles: [],
+                routeMap: { '/admin/users': { category: 'users', slug: 'overview' } },
+            })
+            wrapper.unmount()
+            wrapper = mountManifest()
+            const result = wrapper.vm.help.getByRoute('/admin/users')
             expect(result).toBeNull()
         })
     })
@@ -161,7 +175,7 @@ describe('useHelp composable', () => {
         ]
 
         beforeEach(() => {
-            queryClient.setQueryData(['help', 'manifest'], articles)
+            queryClient.setQueryData(['help', 'manifest'], { articles, routeMap: {} })
             wrapper = mountManifest()
         })
 
@@ -200,11 +214,14 @@ describe('useHelp composable', () => {
 
     describe('articlesByCategory', () => {
         it('should group articles by category', () => {
-            queryClient.setQueryData(['help', 'manifest'], [
-                { id: 'settings-smtp', category: 'settings', title: 'SMTP' },
-                { id: 'settings-business', category: 'settings', title: 'Business' },
-                { id: 'users-create', category: 'users', title: 'Create Users' }
-            ])
+            queryClient.setQueryData(['help', 'manifest'], {
+                articles: [
+                    { id: 'settings-smtp', category: 'settings', title: 'SMTP' },
+                    { id: 'settings-business', category: 'settings', title: 'Business' },
+                    { id: 'users-create', category: 'users', title: 'Create Users' }
+                ],
+                routeMap: {},
+            })
             wrapper = mountManifest()
             const { articlesByCategory } = wrapper.vm.help
             expect(articlesByCategory.value.settings).toHaveLength(2)

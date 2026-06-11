@@ -6,8 +6,18 @@ const matter = require('gray-matter');
 const MarkdownIt = require('markdown-it');
 
 const CONTENT_DIR = path.join(__dirname, '..', 'content', 'help', 'admin');
+const ROUTE_MAP_PATH = path.join(CONTENT_DIR, '_route-map.json');
 
 const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
+
+// Load the route → article map. Returns an empty object if the file is missing.
+const loadRouteMap = () => {
+    try {
+        return JSON.parse(fs.readFileSync(ROUTE_MAP_PATH, 'utf-8'));
+    } catch {
+        return {};
+    }
+};
 
 // Resolve the file path for a given category + slug.
 // Top-level articles (index, _template) live directly under /admin/.
@@ -59,7 +69,8 @@ const buildManifest = () => {
 router.get('/', (req, res) => {
     try {
         const articles = buildManifest();
-        res.json({ articles });
+        const routeMap = loadRouteMap();
+        res.json({ articles, routeMap });
     } catch (error) {
         console.error('Error building help manifest:', error);
         res.status(500).json({ error: 'Failed to load help content' });

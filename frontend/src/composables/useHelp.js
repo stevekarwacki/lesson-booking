@@ -12,7 +12,10 @@ async function fetchManifest(token) {
     })
     if (!response.ok) throw new Error('Failed to load help content')
     const data = await response.json()
-    return data.articles ?? []
+    return {
+        articles: data.articles ?? [],
+        routeMap: data.routeMap ?? {},
+    }
 }
 
 async function fetchArticle(category, slug, token) {
@@ -37,7 +40,7 @@ export function useHelp() {
     const isAdmin = computed(() => userStore.user?.role === 'admin')
 
     const {
-        data: articles,
+        data: manifestData,
         isLoading: isLoadingManifest,
         isError: isManifestError,
         error: manifestError,
@@ -49,16 +52,18 @@ export function useHelp() {
         staleTime: 10 * 60 * 1000,
     })
 
-    // Find the first article whose uiRoute (and optional uiTab) matches
-    // the current Vue Router route — used for contextual "Help on this page".
-    const getByRoute = (routePath, tab = null) => {
-        if (!articles.value) return null
-        return articles.value.find(a => {
-            const routeMatch = a.uiRoute === routePath
-            if (!routeMatch) return false
-            if (tab && a.uiTab) return a.uiTab === tab
-            return true
-        }) ?? null
+    const articles = computed(() => manifestData.value?.articles ?? null)
+    const routeMap = computed(() => manifestData.value?.routeMap ?? {})
+
+    // Look up the designated landing article for a given app route using the
+    // route map. Returns null if the route has no mapping or the article is
+    // not in the manifest (e.g. still loading).
+    const getByRoute = (routePath) => {
+        const entry = routeMap.value[routePath]
+        if (!entry) return null
+        return articles.value?.find(
+            a => a.category === entry.category && a.slug === entry.slug
+        ) ?? null
     }
 
     // Client-side search over title and keywords. Each whitespace-separated
@@ -89,6 +94,7 @@ export function useHelp() {
 
     return {
         articles,
+        routeMap,
         articlesByCategory,
         isLoadingManifest,
         isManifestError,
