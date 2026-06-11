@@ -1,4 +1,6 @@
 require('dotenv').config();
+const ViteExpress = require('vite-express');
+const path = require('path');
 const { app } = require('./app');
 const { initModels } = require('./models');
 const { AppSettings } = require('./models/AppSettings');
@@ -10,6 +12,13 @@ const config = require('./config');
 const { ensureConstantsLoaded } = require('./utils/constants');
 
 const port = config.server.port;
+
+ViteExpress.config({
+    distDir: path.join(__dirname, 'frontend/dist'),
+    inlineViteConfig: {
+        root: path.join(__dirname, 'frontend'),
+    },
+});
 
 // Initialize models and start server
 const startServer = async () => {
@@ -29,7 +38,7 @@ const startServer = async () => {
         // Initialize scheduled email jobs
         await cronJobService.initialize();
         
-        app.listen(port, () => {
+        ViteExpress.listen(app, port, () => {
             logger.server(`Server is running on http://localhost:${port}`);
         });
     } catch (error) {

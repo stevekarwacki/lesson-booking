@@ -17,12 +17,17 @@ const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./mid
 const { injectThemeMiddleware } = require('./middleware/themeInjection');
 const { publishableKey } = require('./config/stripe');
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const app = express();
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+if (!isDev) {
+    app.use(express.static(path.join(__dirname, 'frontend/dist')));
+}
 
 // Public routes
 app.use('/api/auth', authRoutes);
@@ -46,8 +51,10 @@ app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 app.use('/api/recurring-bookings', authMiddleware, recurringBookingsRoutes);
 app.use('/api/help', authMiddleware, adminMiddleware, helpRoutes);
 
-// Catch all route for Vue app (with theme injection)
-app.get('*', injectThemeMiddleware);
+// Catch-all: production serves the Vue SPA with theme injection; vite-express handles dev
+if (!isDev) {
+    app.get('*', injectThemeMiddleware);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

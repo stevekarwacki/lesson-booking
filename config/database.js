@@ -15,6 +15,7 @@ const config = {
     },
     production: {
         dialect: process.env.DB_DIALECT || 'postgres',
+        storage: process.env.DB_STORAGE || path.join(__dirname, '../db/database.sqlite'),
         host: process.env.DB_HOST,
         port: process.env.DB_PORT,
         username: process.env.DB_USER,
