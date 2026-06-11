@@ -25,18 +25,18 @@ The templates list shows all available email types with their category, the numb
 
 ## Edit a template
 
-1. Click on a template to open the editor.
+1. Click **Edit Template** on any template card to open the editor.
 2. Update the **Subject** line and/or the **Body** content.
-3. To insert a dynamic variable (e.g. the student's name or lesson date), open the variables sidebar and click any variable to insert it at your cursor position.
-4. Click **Save**.
+3. To insert a dynamic variable into the body, click **▶ Variables** (next to the Subject label) to open the sidebar, then click any variable to insert it at your cursor position.
+4. Click **Save Changes**.
 
 ## Send a test email
 
-After saving, click **Send Test Email** to send a preview to your admin email address.
+Click **Test Send** on any template card (or in the editor header) to send a preview to your admin email address. You don't need to save first.
 
 ## Reset a template
 
-Click **Reset to Default** to restore the original template content. Any customizations will be lost.
+Click **Reset** on any modified template card to restore the original content. This only appears on templates that have been customized. Any changes will be lost.
 
 ## Notes
 

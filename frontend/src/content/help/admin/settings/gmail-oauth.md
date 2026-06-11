@@ -7,7 +7,7 @@ order: 9
 uiRoute: /admin/settings
 uiTab: email
 relatedComponents: [GmailOAuthSettings.vue, EmailTemplatesSection.vue]
-sources: [docs/GET_GOOGLE_OAUTH_CREDENTIALS.md]
+sources: []
 keywords: [Gmail, OAuth, Google, email, credentials, client ID, token]
 ---
 
