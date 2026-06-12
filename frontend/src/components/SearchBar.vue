@@ -93,7 +93,7 @@ export default {
       default: null
     }
   },
-  emits: ['update:modelValue', 'select', 'focus', 'blur', 'filter'],
+  emits: ['update:modelValue', 'select', 'focus', 'blur-sm', 'filter'],
   computed: {
     filteredItems() {
       // If filterFn provided and items provided, compute filtered results
