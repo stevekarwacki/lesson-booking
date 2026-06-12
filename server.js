@@ -15,9 +15,7 @@ const port = config.server.port;
 
 ViteExpress.config({
     distDir: path.join(__dirname, 'frontend/dist'),
-    inlineViteConfig: {
-        root: path.join(__dirname, 'frontend'),
-    },
+    viteConfigFile: path.join(__dirname, 'frontend/vite.config.js'),
 });
 
 // Initialize models and start server
