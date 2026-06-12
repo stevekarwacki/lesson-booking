@@ -336,4 +336,12 @@ th {
     min-height: 35px;
     font-size: var(--font-size-xs);
   }
-} 
+}
+
+#app {
+  width: 1400px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  box-sizing: border-box;
+}
