@@ -24,7 +24,12 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 151 47% 49%;  /* Focus ring, matches primary, updated dynamically */
-    --radius: 0.5rem;
+    --radius: 0.75rem;  /* 12px — matches legacy --border-radius-lg design intent */
+  }
+
+  /* Standard shadcn border-color default — makes .border use the theme token */
+  *, ::before, ::after {
+    @apply border-border;
   }
 }
 
