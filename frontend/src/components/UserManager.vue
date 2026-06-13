@@ -20,7 +20,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
+import InstructorDetailsForm from './InstructorDetailsForm.vue'
 import Profile from './Profile.vue'
+import { useInstructor } from '../composables/useInstructor'
 import { formatAddress } from '../utils/formValidation'
 
 const userStore = useUserStore()
@@ -29,19 +31,13 @@ const { showSuccess, showError, handleError } = useFormFeedback()
 // Vue Query for data fetching
 const {
   users: queryUsers,
-  instructors,
   isLoadingUsers,
-  isLoadingInstructors,
   createUser: createUserMutation,
   isCreatingUser,
   updateUser: updateUserMutation,
   isUpdatingUser,
   deleteUser: deleteUserMutation,
   isDeletingUser,
-  createInstructor: createInstructorMutation,
-  isCreatingInstructor,
-  updateInstructor: updateInstructorMutation,
-  isUpdatingInstructor,
   updateUserApproval: updateUserApprovalMutation,
   isUpdatingUserApproval,
   updateUserProfile: updateUserProfileMutation,
@@ -153,13 +149,7 @@ const showEditModal = ref(false)
 const editingUser = ref(null)
 const showCreateSubscriptionModal = ref(false)
 
-// Instructor profile state
-const instructorProfile = ref(null)
-const instructorFormData = ref({
-  bio: '',
-  specialties: '',
-  hourly_rate: ''
-})
+// Instructor profile state — fetched reactively via useInstructor when editing an instructor
 const isEditingInstructor = ref(false)
 const pendingRoleChange = ref(null) // Track unsaved role changes
 
@@ -169,15 +159,13 @@ const isUserInstructor = computed(() => editingUser.value?.role === 'instructor'
 // Computed: Check if current editing user is an admin
 const isUserAdmin = computed(() => editingUser.value?.role === 'admin')
 
-// Computed: Get instructor profile for current user
-const currentInstructorProfile = computed(() => {
-  if (!editingUser.value || !instructors.value) return null
-  return instructors.value.find(inst => inst.user_id === editingUser.value.id)
-})
-
 // Vue Query hooks for subscription and bookings (reactive based on current editing user)
 const editingUserId = computed(() => editingUser.value?.id)
 const isEditingStudent = computed(() => editingUser.value?.role === 'student')
+
+// Fetch instructor profile reactively when an instructor is being edited
+const instructorUserId = computed(() => isUserInstructor.value ? editingUserId.value : null)
+const { instructor } = useInstructor({ mode: 'admin', userId: instructorUserId })
 
 // Only pass userId to composables if the user is a student (to prevent unnecessary API calls)
 const studentUserId = computed(() => isEditingStudent.value ? editingUserId.value : null)
@@ -288,12 +276,7 @@ const openEditModal = (user) => {
     pendingRoleChange.value = user.role // Initialize with current role
     
     // Vue Query will automatically fetch subscription and bookings for students
-    // based on the reactive editingUserId and isEditingStudent computed properties
-    
-    // Load instructor profile if user is an instructor
-    if (user.role === 'instructor') {
-        loadInstructorProfile(user.id)
-    }
+    // and instructor data for instructors via the reactive computed queries
 }
 
 const closeEditModal = () => {
@@ -301,22 +284,8 @@ const closeEditModal = () => {
     userSubscription.value = null
     userBookings.value = []
     selectedBooking.value = null
-    instructorProfile.value = null
     isEditingInstructor.value = false
     showEditModal.value = false
-}
-
-// Load instructor profile
-const loadInstructorProfile = (userId) => {
-    const profile = instructors.value?.find(inst => inst.user_id === userId)
-    if (profile) {
-        instructorProfile.value = profile
-        instructorFormData.value = {
-            bio: profile.bio || '',
-            specialties: profile.specialties || '',
-            hourly_rate: profile.hourly_rate || ''
-        }
-    }
 }
 
 // Handle profile update from Profile component (admin editing student profile)
@@ -394,12 +363,7 @@ const saveRoleChange = async () => {
         
         showSuccess(`User role updated to ${pendingRoleChange.value}`)
         
-        // Reload instructor profile if now an instructor
-        if (pendingRoleChange.value === 'instructor') {
-            setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
-        } else {
-            instructorProfile.value = null
-        }
+        // useInstructor will reactively re-fetch via instructorUserId computed
     } catch (err) {
         handleError(err, 'Error updating role: ')
         // Revert pending change on error
@@ -407,41 +371,13 @@ const saveRoleChange = async () => {
     }
 }
 
-// Create instructor profile
-const createInstructorProfile = async () => {
-    try {
-        await createInstructorMutation({
-            user_id: editingUser.value.id,
-            bio: instructorFormData.value.bio,
-            specialties: instructorFormData.value.specialties,
-            hourly_rate: instructorFormData.value.hourly_rate
-        })
-        
-        showSuccess('Instructor profile created successfully')
-        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
-    } catch (err) {
-        handleError(err, 'Error creating instructor profile: ')
-    }
+// InstructorDetailsForm event handlers
+const handleInstructorSaved = () => {
+    showSuccess('Instructor profile updated successfully')
 }
 
-// Save instructor profile
-const saveInstructorProfile = async () => {
-    try {
-        await updateInstructorMutation({
-            instructorId: instructorProfile.value.id,
-            instructorData: {
-                bio: instructorFormData.value.bio,
-                specialties: instructorFormData.value.specialties,
-                hourly_rate: instructorFormData.value.hourly_rate
-            }
-        })
-        
-        showSuccess('Instructor profile updated successfully')
-        isEditingInstructor.value = false
-        setTimeout(() => loadInstructorProfile(editingUser.value.id), 500)
-    } catch (err) {
-        handleError(err, 'Error updating instructor profile: ')
-    }
+const handleInstructorCreated = () => {
+    showSuccess('Instructor profile created successfully')
 }
 
 // Subscription management handlers
@@ -824,159 +760,28 @@ const formatDate = (dateString) => {
                 v-if="isUserInstructor" 
                 label="Instructor Details"
             >
-                <div class="instructor-details-tab">
-                    <!-- No profile yet -->
-                    <div v-if="!instructorProfile && !isLoadingInstructors" class="no-profile-message">
-                        <p>This instructor doesn't have a profile yet.</p>
-                        
-                        <form @submit.prevent="createInstructorProfile" class="create-profile-form">
-                            <div class="form-group">
-                                <Label>Bio:</Label>
-                                <textarea
-                                    v-model="instructorFormData.bio"
-                                    class="form-input"
-                                    rows="4"
-                                    placeholder="Tell students about your teaching experience..."
-                                ></textarea>
-                            </div>
-
-                            <div class="form-group">
-                                <Label>Specialties:</Label>
-                                <Input 
-                                    v-model="instructorFormData.specialties"
-                                    type="text"
-                                    placeholder="e.g., Piano, Guitar, Voice"
-                                />
-                            </div>
-
-                            <div class="form-group">
-                                <Label>Hourly Rate ($):</Label>
-                                <Input 
-                                    v-model="instructorFormData.hourly_rate"
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    placeholder="0.00"
-                                />
-                            </div>
-
-                            <Button 
-                                type="submit"
-                                :disabled="isCreatingInstructor"
-                            >
-                                {{ isCreatingInstructor ? 'Creating...' : 'Create Instructor Profile' }}
-                            </Button>
-                        </form>
-                    </div>
-
-                    <!-- Profile exists -->
-                    <div v-else-if="instructorProfile" class="profile-exists">
-                        <!-- View Mode -->
-                        <div v-if="!isEditingInstructor" class="profile-view">
-                            <div class="profile-field">
-                                <label>Bio:</label>
-                                <p>{{ instructorProfile.bio || 'No bio provided' }}</p>
-                            </div>
-
-                            <div class="profile-field">
-                                <label>Specialties:</label>
-                                <p>{{ instructorProfile.specialties || 'No specialties listed' }}</p>
-                            </div>
-
-                            <div class="profile-field">
-                                <label>Hourly Rate:</label>
-                                <p>${{ instructorProfile.hourly_rate || '0.00' }}</p>
-                            </div>
-
-                            <div class="profile-field">
-                                <label>Status:</label>
-                                <p>
-                                    <span :class="instructorProfile.is_active ? 'status-active' : 'status-inactive'">
-                                        {{ instructorProfile.is_active ? 'Active' : 'Inactive' }}
-                                    </span>
-                                </p>
-                            </div>
-
-                            <div class="form-actions">
-                                <Button 
-                                    @click="isEditingInstructor = true"
-                                >
-                                    Edit Profile
-                                </Button>
-                            </div>
-                        </div>
-
-                        <!-- Edit Mode -->
-                        <div v-else class="profile-edit">
-                            <form @submit.prevent="saveInstructorProfile">
-                                <div class="form-group">
-                                    <Label>Bio:</Label>
-                                    <textarea
-                                        v-model="instructorFormData.bio"
-                                        class="form-input"
-                                        rows="4"
-                                    ></textarea>
-                                </div>
-
-                                <div class="form-group">
-                                    <Label>Specialties:</Label>
-                                    <Input 
-                                        v-model="instructorFormData.specialties"
-                                        type="text"
-                                    />
-                                </div>
-
-                                <div class="form-group">
-                                    <Label>Hourly Rate ($):</Label>
-                                    <Input 
-                                        v-model="instructorFormData.hourly_rate"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                    />
-                                </div>
-
-                                <div class="form-actions">
-                                    <Button 
-                                        type="submit"
-                                        :disabled="isUpdatingInstructor"
-                                    >
-                                        {{ isUpdatingInstructor ? 'Saving...' : 'Save Changes' }}
-                                    </Button>
-                                    
-                                    <Button 
-                                        type="button"
-                                        variant="outline"
-                                        @click="isEditingInstructor = false"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Loading -->
-                    <div v-else class="loading-message">
-                        Loading instructor profile...
-                    </div>
-                </div>
+                <InstructorDetailsForm
+                    mode="admin"
+                    :user-id="editingUser.id"
+                    @saved="handleInstructorSaved"
+                    @created="handleInstructorCreated"
+                />
             </TabbedModalTab>
 
             <!-- Availability Tab (Instructors only) -->
             <TabbedModalTab 
-                v-if="isUserInstructor && instructorProfile" 
+                v-if="isUserInstructor && instructor" 
                 label="Availability"
             >
                 <div class="availability-tab">
                     <!-- Weekly Schedule & Blocked Times -->
                     <InstructorAvailabilityManager 
-                        :instructor-id="instructorProfile.id"
+                        :instructor-id="instructor.id"
                     />
                     
                     <!-- Google Calendar Integration -->
                     <GoogleCalendarSettings 
-                        :instructor-id="instructorProfile.id"
+                        :instructor-id="instructor.id"
                     />
                 </div>
             </TabbedModalTab>
@@ -1498,62 +1303,6 @@ select:disabled {
 /* Instructor Details Tab */
 .instructor-details-tab {
     padding: var(--spacing-md);
-}
-
-.no-profile-message {
-    background-color: #f9fafb;
-    border: 2px dashed var(--border-color);
-    border-radius: 8px;
-    padding: var(--spacing-xl);
-    text-align: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.no-profile-message p {
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing-lg);
-}
-
-.create-profile-form {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.profile-view,
-.profile-edit {
-    max-width: 600px;
-}
-
-.profile-field {
-    margin-bottom: var(--spacing-lg);
-}
-
-.profile-field label {
-    display: block;
-    font-weight: 600;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: var(--spacing-xs);
-}
-
-.profile-field p {
-    margin: 0;
-    color: var(--text-color);
-    padding: 0.75rem;
-    background-color: #f9fafb;
-    border-radius: 6px;
-}
-
-.status-active {
-    color: #059669;
-    font-weight: 500;
-}
-
-.status-inactive {
-    color: #dc2626;
-    font-weight: 500;
 }
 
 .form-button-delete {
