@@ -125,36 +125,32 @@ if (userStore.canManageUsers) {
 
 ### Normal Mode vs Admin Mode
 
-The `Profile.vue` component supports two modes:
+The `Profile.vue` component supports two modes, controlled by props:
 
-#### Normal Mode (Student editing own profile)
+#### Normal Mode (user editing their own profile)
 
 ```vue
 <Profile />
 ```
 
-**Behavior:**
 - Loads current user from `useUserStore()`
-- Shows password change section
-- Makes API call to `/api/users/me/verification`
-- Shows "Complete Your Profile" header if incomplete
+- Saves via `useUserProfile({ mode: 'self' })` → `PUT /api/users/me/profile`
 
-#### Admin Mode (Admin editing another user)
+#### Admin Mode (admin editing another user)
 
 ```vue
 <Profile 
   :user="editingUser" 
-  admin-mode 
+  :admin-mode="true"
   @profile-updated="handleProfileUpdate" 
 />
 ```
 
-**Behavior:**
-- Loads provided `user` prop
-- Hides password section (admins can't change passwords)
-- Emits `profile-updated` event instead of API call
-- Hides "Complete Your Profile" header
-- Parent component handles API call
+- Loads data from the `:user` prop (not the logged-in user)
+- Saves via `useUserProfile({ mode: 'admin', userId: user.id })` → `PUT /api/users/:userId/profile`
+- Emits `profile-updated` with the API response so the parent can refresh `editingUser`
+
+> **Note:** Prior to this implementation, `Profile.vue` always saved to `/api/users/me/profile` regardless of mode, meaning admin edits silently overwrote the admin's own profile. This is now fixed.
 
 ### Implementation in UserManager
 

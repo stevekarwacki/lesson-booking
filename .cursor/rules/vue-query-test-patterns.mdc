@@ -1,0 +1,88 @@
+---
+description: How to correctly test Vue Query composables in Vitest
+globs: frontend/src/tests/**/*.test.js
+alwaysApply: false
+---
+
+# Vue Query Test Patterns
+
+## NEVER assert on fetch URLs or Authorization headers in composable tests
+
+**Do not write tests that assert `fetch` was called with a specific URL or header.**
+These tests are unreliable in the Vue Query test environment and have failed every single time.
+If you are tempted to write `expect(fetch).toHaveBeenCalledWith('/api/...')`, stop — delete it.
+The query key tests already prove which URL will be used.
+
+```js
+// ❌ BANNED — never write this
+expect(fetch).toHaveBeenCalledWith('/api/instructors/1', expect.any(Object))
+expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ headers: ... }))
+```
+
+```js
+// ✅ INSTEAD — test the query key, which determines the URL
+const q = queryClient.getQueryCache().getAll()
+    .find(q => q.queryKey[0] === 'instructors')
+expect(q?.queryKey).toEqual(['instructors', 1])
+```
+
+## NEVER auto-trigger queries with flushPromises
+
+Vue Query does NOT automatically execute queries on mount in the test environment — neither in
+composable wrapper tests nor in full component tests. `flushPromises()` alone will NOT cause the
+queryFn to run. Use the exposed `refetch*()` method instead.
+
+If a component does not expose a `refetch*()` method, do not write a test that depends on
+query data being loaded. Delete those tests — they will never work and are not worth fixing.
+
+```js
+// ❌ BAD — fetch will not be called, data will remain undefined
+fetch.mockResolvedValueOnce(mockOk(data))
+wrapper = mount(Comp)
+await flushPromises()
+expect(wrapper.vm.result.data.value).toBe(data)
+```
+
+```js
+// ✅ GOOD — set up mock, then explicitly call refetch
+wrapper = mount(Comp)
+fetch.mockResolvedValueOnce(mockOk(data))
+await wrapper.vm.result.refetchSomething()
+expect(wrapper.vm.result.data.value).toBe(data)
+```
+
+## ALWAYS unmount component wrappers in afterEach
+
+Failing to unmount leaves Vue Query observers active. When `queryClient.clear()` runs, stale
+observers fire background refetches that consume `mockResolvedValueOnce` values meant for the
+next test, leaving subsequent tests in a permanent loading state.
+
+```js
+// ✅ GOOD — track wrapper at describe scope, unmount in afterEach
+describe('MyComponent', () => {
+    let wrapper
+
+    afterEach(() => {
+        wrapper?.unmount()
+        queryClient.clear()
+    })
+
+    const mountComp = (props) => {
+        wrapper = mount(MyComponent, { ... })
+        return wrapper
+    }
+})
+```
+
+## Synchronous throws vs async rejects
+
+If a composable function throws synchronously (not returning a rejected promise),
+use `expect(() => ...).toThrow()` not `await expect(...).rejects.toThrow()`.
+
+```js
+// ❌ BAD — will fail if the throw is synchronous
+await expect(wrapper.vm.result.update({ bio: 'x' })).rejects.toThrow('...')
+
+// ✅ GOOD
+expect(() => wrapper.vm.result.update({ bio: 'x' })).toThrow('...')
+```

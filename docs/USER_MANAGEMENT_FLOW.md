@@ -36,9 +36,10 @@ The user edit modal (`TabbedModal.vue`) dynamically shows tabs based on user rol
 - Role displayed as static text (changes only from Account tab)
 
 #### Instructor Details Tab (Instructors Only)
-- Bio, specialties, hourly rate
-- Automatically creates/persists `Instructor` profile when role changes to instructor
-- Deleting instructor profile reverts role to student
+- Bio, specialties, hourly rate, active status
+- Rendered by `InstructorDetailsForm.vue` (`mode="admin"`, `:user-id`)
+- Handles create (no profile yet), view, and edit states internally
+- Availability tab gates on `instructor.id` from the same `useInstructor` query
 
 #### Availability Tab (Instructors Only)
 - Google Calendar OAuth integration (`GoogleCalendarSettings.vue`)
@@ -67,23 +68,45 @@ The user edit modal (`TabbedModal.vue`) dynamically shows tabs based on user rol
 All data fetching uses Vue Query (Tanstack Query) for caching and state management:
 
 **Composables**:
-- `useUserManagement.js` - User/instructor CRUD
+- `useUserManagement.js` - User CRUD (list, create, update, delete, approval)
+- `useInstructor.js` - Instructor read/write with role-aware modes (see below)
+- `useUserProfile.js` - User profile read/write with role-aware modes (see below)
 - `useUserSubscription.js` - Subscription management
 - `useUserBookings.js` - User bookings
 - `usePaymentPlans.js` - Available payment plans
 
-**Pattern**:
-```vue
-<script setup>
-import { useUserManagement } from '@/composables/useUserManagement'
+### useInstructor — unified instructor data access
 
-const {
-  users,           // Reactive data
-  isLoadingUsers,  // Loading state
-  updateUser,      // Mutation function
-  isUpdatingUser   // Mutation loading state
-} = useUserManagement()
-</script>
+`useInstructor` is the single composable for all instructor read/write operations.
+It accepts an options object where all fields are optional and accept refs or raw values:
+
+```javascript
+// Read-only by instructor id (e.g. Booking.vue)
+const { instructor, hourlyRate } = useInstructor({ instructorId: 42 })
+
+// Admin editing any instructor by their user id (UserManager)
+const { instructor, updateInstructor, createInstructor } =
+  useInstructor({ mode: 'admin', userId: editingUser.value.id })
+
+// Instructor editing their own profile (AccountPage)
+const { instructor, updateInstructor } = useInstructor({ mode: 'self' })
+```
+
+Query keys:
+- `mode: 'self'` → `['instructor', 'self']`
+- `mode: 'admin'` + `instructorId` → `['instructors', instructorId]`
+- `mode: 'admin'` + `userId` → `['instructor', 'user', userId]`
+
+### useUserProfile — unified user profile data access
+
+`useUserProfile` handles user profile fields (name, email, phone, address, minor status):
+
+```javascript
+// Self-service (AccountPage / Profile.vue)
+const { updateUserProfile } = useUserProfile({ mode: 'self' })
+
+// Admin editing another user (UserManager via Profile.vue admin-mode)
+const { updateUserProfile } = useUserProfile({ mode: 'admin', userId: targetId })
 ```
 
 ### Conditional Queries
