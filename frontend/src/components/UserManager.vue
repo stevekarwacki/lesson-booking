@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useUserManagement } from '../composables/useUserManagement'
@@ -20,8 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
-import InstructorDetailsForm from './InstructorDetailsForm.vue'
-import Profile from './Profile.vue'
+import UserInfoTab from './UserInfoTab.vue'
 import { useInstructor } from '../composables/useInstructor'
 import { formatAddress } from '../utils/formValidation'
 
@@ -163,7 +162,22 @@ const isEditingStudent = computed(() => editingUser.value?.role === 'student')
 
 // Fetch instructor profile reactively when an instructor is being edited
 const instructorUserId = computed(() => isUserInstructor.value ? editingUserId.value : null)
-const { instructor } = useInstructor({ mode: 'admin', userId: instructorUserId })
+const { instructor, toggleActive, isTogglingActive } = useInstructor({ mode: 'admin', userId: instructorUserId })
+
+// Local writable mirror of instructor.is_active for the Account tab checkbox
+const instructorIsActive = ref(false)
+watch(instructor, (val) => {
+    if (val) instructorIsActive.value = val.is_active
+}, { immediate: true })
+
+async function saveInstructorActiveStatus() {
+    try {
+        await toggleActive(instructorIsActive.value)
+        showSuccess('Instructor status updated')
+    } catch {
+        showError('Failed to update instructor status')
+    }
+}
 
 // Only pass userId to composables if the user is a student (to prevent unnecessary API calls)
 const studentUserId = computed(() => isEditingStudent.value ? editingUserId.value : null)
@@ -718,29 +732,17 @@ const formatDate = (dateString) => {
         <!-- Edit Modal -->
         <TabbedModal :show="showEditModal" title="Edit User" @close="closeEditModal">
             
-            <!-- Profile Tab (Students only) -->
-            <TabbedModalTab 
-                v-if="!isUserAdmin && !isUserInstructor" 
-                label="Profile"
+            <!-- User Info Tab (all non-admin users) -->
+            <TabbedModalTab
+                v-if="!isUserAdmin"
+                label="User Info"
                 default
             >
-                <Profile 
+                <UserInfoTab
                     :user="editingUser"
-                    :admin-mode="true"
                     @profile-updated="handleProfileUpdate"
-                />
-            </TabbedModalTab>
-
-            <!-- Instructor Details Tab (Instructors only) -->
-            <TabbedModalTab 
-                v-if="isUserInstructor" 
-                label="Instructor Details"
-            >
-                <InstructorDetailsForm
-                    mode="admin"
-                    :user-id="editingUser.id"
-                    @saved="handleInstructorSaved"
-                    @created="handleInstructorCreated"
+                    @instructor-saved="handleInstructorSaved"
+                    @instructor-created="handleInstructorCreated"
                 />
             </TabbedModalTab>
 
@@ -927,6 +929,32 @@ const formatDate = (dateString) => {
                                     :disabled="isUpdatingUser"
                                 >
                                     {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <!-- Instructor Status (Instructors only) -->
+                        <div v-if="isUserInstructor" class="action-group">
+                            <div class="action-header">
+                                <h5>Instructor Status</h5>
+                                <span :class="['status-badge', instructor?.is_active ? 'status-active' : 'status-inactive']">
+                                    {{ instructor?.is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+                            <div class="action-content">
+                                <label class="checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        v-model="instructorIsActive"
+                                    >
+                                    <span>Instructor is active</span>
+                                </label>
+                                <Button
+                                    size="sm"
+                                    @click="saveInstructorActiveStatus"
+                                    :disabled="isTogglingActive"
+                                >
+                                    {{ isTogglingActive ? 'Saving...' : 'Save' }}
                                 </Button>
                             </div>
                         </div>

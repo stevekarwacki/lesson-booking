@@ -86,10 +86,11 @@ async function updateInstructorApi(id, data, token) {
   return res.json()
 }
 
-async function toggleActiveApi(id, token) {
+async function toggleActiveApi(id, token, value) {
   const res = await fetch(`/api/instructors/${id}/toggle-active`, {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` }
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: value !== undefined ? JSON.stringify({ value }) : undefined
   })
   if (!res.ok) {
     const body = await res.json()
@@ -210,7 +211,7 @@ export function useInstructor({ mode = 'admin', userId = null, instructorId = nu
   })
 
   const toggleActiveMutation = useMutation({
-    mutationFn: (id) => toggleActiveApi(id, token.value),
+    mutationFn: ({ id, value }) => toggleActiveApi(id, token.value, value),
     onSuccess: () => invalidateAfterMutation()
   })
 
@@ -230,10 +231,10 @@ export function useInstructor({ mode = 'admin', userId = null, instructorId = nu
     return updateInstructorMutation.mutateAsync({ id: resolvedId, data: dataOrOptions })
   }
 
-  const toggleActive = (id) => {
+  const toggleActive = (value, id) => {
     const resolvedId = id ?? instructor.value?.id
     if (!resolvedId) throw new Error('Instructor id is not yet available')
-    return toggleActiveMutation.mutateAsync(resolvedId)
+    return toggleActiveMutation.mutateAsync({ id: resolvedId, value })
   }
 
   const deleteInstructor = (id) => {

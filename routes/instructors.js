@@ -140,9 +140,8 @@ router.patch('/:id/toggle-active', authorizeResource('update', 'Instructor', asy
         // CASL middleware already verified permissions
 
         const instructorId = parseInt(req.params.id, 10);
-        
-        // Toggle using instructor's database ID directly
-        await Instructor.toggleActive(instructorId);
+        const value = req.body?.value !== undefined ? req.body.value : undefined;
+        await Instructor.toggleActive(instructorId, value);
         res.json({ message: 'Instructor active status updated successfully' });
     } catch (error) {
         console.error('Error updating instructor active status:', error);

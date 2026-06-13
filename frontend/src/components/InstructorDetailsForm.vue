@@ -34,10 +34,8 @@ const {
   isLoadingInstructor,
   createInstructor,
   updateInstructor,
-  toggleActive,
   isCreatingInstructor,
   isUpdatingInstructor,
-  isTogglingActive
 } = useInstructor({ mode: props.mode, userId: props.userId, instructorId: props.instructorId })
 
 const isEditing = ref(false)
@@ -104,14 +102,7 @@ async function handleSave() {
   }
 }
 
-async function handleToggleActive() {
-  try {
-    await toggleActive()
-    emit('saved')
-  } catch (err) {
-    showError(err.message || 'Failed to update active status')
-  }
-}
+
 </script>
 
 <template>
@@ -206,14 +197,6 @@ async function handleToggleActive() {
 
       <div class="form-actions">
         <Button @click="startEditing">Edit</Button>
-        <Button
-          v-if="mode === 'admin'"
-          variant="outline"
-          :disabled="isTogglingActive"
-          @click="handleToggleActive"
-        >
-          {{ isTogglingActive ? 'Updating...' : (instructor.is_active ? 'Deactivate' : 'Activate') }}
-        </Button>
       </div>
     </div>
 

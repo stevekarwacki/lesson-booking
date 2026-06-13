@@ -83,12 +83,13 @@ Instructor.deleteInstructor = async function(instructorId) {
     await instructor.destroy();
 };
 
-Instructor.toggleActive = async function(id) {
+Instructor.toggleActive = async function(id, value) {
     const instructor = await this.findByPk(id);
     if (!instructor) {
         throw new Error('Instructor not found');
     }
-    await instructor.update({ is_active: !instructor.is_active });
+    const newValue = value !== undefined ? value : !instructor.is_active;
+    await instructor.update({ is_active: newValue });
     return instructor;
 };
 

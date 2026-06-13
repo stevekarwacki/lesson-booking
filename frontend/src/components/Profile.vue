@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useUserProfile } from '../composables/useUserProfile'
 import { useFormFeedback } from '../composables/useFormFeedback'
@@ -25,6 +25,10 @@ const emit = defineEmits(['profile-updated'])
 
 const userStore = useUserStore()
 const formFeedback = useFormFeedback()
+
+const isStudentProfile = computed(() =>
+    props.adminMode ? props.user?.role === 'student' : userStore.user?.role === 'student'
+)
 
 // Mode-aware composable — resolves the correct endpoint automatically
 const { updateUserProfile, isUpdatingUserProfile } = useUserProfile(
@@ -277,10 +281,10 @@ onMounted(loadProfile)
                         </div>
                     </div>
 
-                    <div class="section-divider"></div>
+                    <div v-if="isStudentProfile" class="section-divider"></div>
 
-                    <!-- Additional Information Section -->
-                    <div class="subsection">
+                    <!-- Additional Information Section (students only) -->
+                    <div v-if="isStudentProfile" class="subsection">
                         <h3 class="subsection-header">Additional Information</h3>
                         
                         <div class="checkbox-group">
