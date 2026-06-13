@@ -12,9 +12,10 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@lucide/vue": "^1.18.0",
     "@stripe/stripe-js": "^7.3.0",
     "@tanstack/vue-query": "^5.92.1",
-    "@vueuse/core": "^14.2.0",
+    "@vueuse/core": "^14.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-vue-next": "^0.563.0",
