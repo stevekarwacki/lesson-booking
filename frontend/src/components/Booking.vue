@@ -150,7 +150,7 @@ const selectedDuration = ref('30') // Will be updated from admin settings
 const {
     hourlyRate: instructorHourlyRate,
     isLoadingInstructor
-} = useInstructor(computed(() => currentSlot.value?.instructorId))
+} = useInstructor({ instructorId: computed(() => currentSlot.value?.instructorId) })
 
 // Use students composable for student list and payment options (only for booking on behalf)
 // For regular users, we only need payment options

@@ -13,7 +13,7 @@ global.fetch = vi.fn()
 const TestComponent = defineComponent({
     props: ['instructorId'],
     setup(props) {
-        const instructor = useInstructor(props.instructorId)
+        const instructor = useInstructor({ instructorId: props.instructorId })
         return { instructor }
     },
     render() {
@@ -99,7 +99,8 @@ describe('useInstructor Composable', () => {
             wrapper = createWrapper({ instructorId: null })
             
             const queries = queryClient.getQueryCache().getAll()
-            const instructorQuery = queries.find(q => q.queryKey[0] === 'instructors')
+            // No instructorId → falls back to 'unknown' key, not 'instructors'
+            const instructorQuery = queries.find(q => q.queryKey[0] === 'instructor')
             
             // Query should exist but not be enabled
             expect(instructorQuery).toBeDefined()
@@ -213,10 +214,11 @@ describe('useInstructor Composable', () => {
             wrapper = createWrapper({ instructorId: null })
             
             const queries = queryClient.getQueryCache().getAll()
-            const instructorQuery = queries.find(q => q.queryKey[0] === 'instructors')
+            // No instructorId → falls back to the 'unknown' sentinel key
+            const instructorQuery = queries.find(q => q.queryKey[0] === 'instructor')
             
             expect(instructorQuery).toBeDefined()
-            expect(instructorQuery.queryKey).toEqual(['instructors', null])
+            expect(instructorQuery.queryKey).toEqual(['instructor', 'unknown'])
         })
     })
 })
