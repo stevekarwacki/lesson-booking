@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const props = defineProps({
   mode: {
@@ -114,7 +115,16 @@ async function handleToggleActive() {
 </script>
 
 <template>
-  <div class="instructor-details-form">
+  <Card>
+    <CardHeader>
+      <CardTitle>Instructor Details</CardTitle>
+      <CardDescription>
+        {{ mode === 'admin' ? 'View and edit this instructor\'s bio, specialties, and hourly rate.' : 'Manage your bio, specialties, and hourly rate.' }}
+      </CardDescription>
+    </CardHeader>
+
+    <CardContent>
+      <div class="instructor-details-form">
     <!-- Loading -->
     <div v-if="isLoadingInstructor" class="loading-message">
       Loading instructor profile...
@@ -243,12 +253,13 @@ async function handleToggleActive() {
         </div>
       </form>
     </div>
-  </div>
+    </div>
+  </CardContent>
+  </Card>
 </template>
 
 <style scoped>
 .instructor-details-form {
-  padding: var(--spacing-md);
   max-width: 600px;
 }
 

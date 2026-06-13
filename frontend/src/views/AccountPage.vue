@@ -1,52 +1,45 @@
+<script setup>
+import { computed } from 'vue'
+import { useUserStore } from '../stores/userStore'
+import { useInstructor } from '../composables/useInstructor'
+import { useFormFeedback } from '../composables/useFormFeedback'
+import Profile from '../components/Profile.vue'
+import InstructorDetailsForm from '../components/InstructorDetailsForm.vue'
+import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
+
+const userStore = useUserStore()
+const { showSuccess } = useFormFeedback()
+
+const isInstructor = computed(() => userStore.user?.role === 'instructor')
+
+const { instructor } = useInstructor({ mode: 'self' })
+
+const handleInstructorSaved = () => {
+    showSuccess('Instructor profile updated successfully')
+}
+</script>
+
 <template>
     <div class="account-page">
         <h1>Account</h1>
         
         <div class="account-sections">
             <Profile />
-            
-            <InstructorAvailabilityManager 
-                v-if="isInstructor && instructorId"
-                :instructor-id="instructorId"
-            />
+
+            <template v-if="isInstructor">
+                <InstructorDetailsForm
+                    mode="self"
+                    @saved="handleInstructorSaved"
+                />
+
+                <InstructorAvailabilityManager
+                    v-if="instructor"
+                    :instructor-id="instructor.id"
+                />
+            </template>
         </div>
     </div>
 </template>
-
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useUserStore } from '../stores/userStore'
-import Profile from '../components/Profile.vue'
-import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
-
-const userStore = useUserStore()
-const instructorId = ref('')
-
-const isInstructor = computed(() => userStore.user?.role === 'instructor')
-
-const fetchInstructorId = async () => {
-    if (!isInstructor.value) return
-    
-    try {
-        const response = await fetch(`/api/instructors/user/${userStore.user.id}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (response.ok) {
-            const instructor = await response.json()
-            instructorId.value = instructor.id
-        }
-    } catch (err) {
-        console.error('Error fetching instructor ID:', err)
-    }
-}
-
-onMounted(() => {
-    fetchInstructorId()
-})
-</script>
 
 <style scoped>
 .account-page {
@@ -64,4 +57,4 @@ h1 {
     flex-direction: column;
     gap: var(--spacing-lg);
 }
-</style> 
+</style>

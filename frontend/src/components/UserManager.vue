@@ -39,9 +39,7 @@ const {
   deleteUser: deleteUserMutation,
   isDeletingUser,
   updateUserApproval: updateUserApprovalMutation,
-  isUpdatingUserApproval,
-  updateUserProfile: updateUserProfileMutation,
-  isUpdatingUserProfile
+  isUpdatingUserApproval
 } = useUserManagement()
 
 // Payment plans (global)
@@ -289,33 +287,11 @@ const closeEditModal = () => {
 }
 
 // Handle profile update from Profile component (admin editing student profile)
-const handleProfileUpdate = async (profileData) => {
-    try {
-        // Use Vue Query mutation to update user profile
-        const result = await updateUserProfileMutation({
-            userId: editingUser.value.id,
-            profileData
-        })
-        
-        // Update editingUser with the new data so the form shows the updated values
-        if (result?.user) {
-            editingUser.value = { ...result.user }
-        } else {
-            // If no user returned, manually update the fields
-            editingUser.value.phone_number = profileData.phone_number
-            editingUser.value.is_student_minor = profileData.is_student_minor
-            editingUser.value.user_profile_data = {
-                ...editingUser.value.user_profile_data,
-                address: profileData.address,
-                parent_approval: profileData.parent_approval
-            }
-        }
-        
-        showSuccess('Profile updated successfully')
-    } catch (err) {
-        showError('Error updating profile: ' + err.message)
-        console.error('Error updating profile:', err)
+const handleProfileUpdate = async (result) => {
+    if (result?.user) {
+        editingUser.value = { ...result.user }
     }
+    showSuccess('Profile updated successfully')
 }
 
 const saveUserEdit = async () => {

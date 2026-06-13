@@ -1,3 +1,130 @@
+<script setup>
+import { ref, watch, onMounted } from 'vue'
+import { useUserStore } from '../stores/userStore'
+import { useUserProfile } from '../composables/useUserProfile'
+import { useFormFeedback } from '../composables/useFormFeedback'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+const props = defineProps({
+    // In admin mode, pass the target user object. Omit for self-service.
+    user: {
+        type: Object,
+        default: null
+    },
+    adminMode: {
+        type: Boolean,
+        default: false
+    }
+})
+
+const emit = defineEmits(['profile-updated'])
+
+const userStore = useUserStore()
+const formFeedback = useFormFeedback()
+
+// Mode-aware composable — resolves the correct endpoint automatically
+const { updateUserProfile, isUpdatingUserProfile } = useUserProfile(
+    props.adminMode
+        ? { mode: 'admin', userId: props.user?.id }
+        : { mode: 'self' }
+)
+
+const US_STATES = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+]
+
+const profileData = ref({
+    name: '',
+    email: '',
+    phoneNumber: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    zip: '',
+    isMinor: false,
+    parentApproval: false
+})
+
+const fieldErrors = ref({})
+
+function sourceUser() {
+    return props.adminMode ? props.user : userStore.user
+}
+
+function loadProfile() {
+    const u = sourceUser()
+    if (!u) return
+    profileData.value = {
+        name: u.name || '',
+        email: u.email || '',
+        phoneNumber: u.phone_number || '',
+        addressLine1: u.user_profile_data?.address?.line_1 || '',
+        addressLine2: u.user_profile_data?.address?.line_2 || '',
+        city: u.user_profile_data?.address?.city || '',
+        state: u.user_profile_data?.address?.state || '',
+        zip: u.user_profile_data?.address?.zip || '',
+        isMinor: u.is_student_minor || false,
+        parentApproval: u.user_profile_data?.parent_approval || false
+    }
+}
+
+const updateProfile = async () => {
+    fieldErrors.value = {}
+
+    const payload = {
+        name: profileData.value.name,
+        email: profileData.value.email,
+        phone_number: profileData.value.phoneNumber,
+        is_student_minor: profileData.value.isMinor,
+        parent_approval: profileData.value.parentApproval,
+        address: {
+            line_1: profileData.value.addressLine1,
+            line_2: profileData.value.addressLine2 || null,
+            city: profileData.value.city,
+            state: profileData.value.state,
+            zip: profileData.value.zip
+        }
+    }
+
+    try {
+        const result = await updateUserProfile(payload)
+        formFeedback.showSuccess('Profile updated successfully')
+        emit('profile-updated', result)
+    } catch (err) {
+        // Surface field-level validation errors if the API returned them
+        if (err.fieldErrors) {
+            fieldErrors.value = err.fieldErrors
+            formFeedback.showError('Please correct the errors below')
+        } else {
+            formFeedback.showError(err.message || 'Failed to update profile')
+        }
+    }
+}
+
+// Reload form when the target user changes (admin mode switching between users)
+watch(() => props.user, loadProfile)
+
+// Reload when the current user store updates (self mode after save)
+watch(() => userStore.user, () => {
+    if (!props.adminMode) loadProfile()
+})
+
+watch(() => profileData.value.isMinor, (newVal) => {
+    if (!newVal) profileData.value.parentApproval = false
+})
+
+onMounted(loadProfile)
+</script>
+
 <template>
     <div class="profile">
         <Card>
@@ -184,8 +311,8 @@
 
                     <!-- Form Actions -->
                     <div class="button-group">
-                        <Button type="submit" :disabled="loading">
-                            {{ loading ? 'Saving...' : 'Save Profile' }}
+                        <Button type="submit" :disabled="isUpdatingUserProfile">
+                            {{ isUpdatingUserProfile ? 'Saving...' : 'Save Profile' }}
                         </Button>
                     </div>
                 </form>
@@ -194,126 +321,7 @@
     </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useUserStore } from '../stores/userStore'
-import { useFormFeedback } from '../composables/useFormFeedback'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const userStore = useUserStore()
-const formFeedback = useFormFeedback()
-
-const US_STATES = [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
-]
-
-const profileData = ref({
-    name: '',
-    email: '',
-    phoneNumber: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    zip: '',
-    isMinor: false,
-    parentApproval: false
-})
-
-const loading = ref(false)
-const fieldErrors = ref({})
-
-const isProfileIncomplete = computed(() => {
-    return !userStore.user?.profile_completed_at
-})
-
-const loadProfile = () => {
-    if (userStore.user) {
-        profileData.value = {
-            name: userStore.user.name || '',
-            email: userStore.user.email || '',
-            phoneNumber: userStore.user.phone_number || '',
-            addressLine1: userStore.user.user_profile_data?.address?.line_1 || '',
-            addressLine2: userStore.user.user_profile_data?.address?.line_2 || '',
-            city: userStore.user.user_profile_data?.address?.city || '',
-            state: userStore.user.user_profile_data?.address?.state || '',
-            zip: userStore.user.user_profile_data?.address?.zip || '',
-            isMinor: userStore.user.is_student_minor || false,
-            parentApproval: userStore.user.user_profile_data?.parent_approval || false
-        }
-    }
-}
-
-const updateProfile = async () => {
-    loading.value = true
-    fieldErrors.value = {}
-
-    try {
-        const response = await fetch('/api/users/me/profile', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${userStore.token}`
-            },
-            body: JSON.stringify({
-                name: profileData.value.name,
-                email: profileData.value.email,
-                phone_number: profileData.value.phoneNumber,
-                is_student_minor: profileData.value.isMinor,
-                parent_approval: profileData.value.parentApproval,
-                address: {
-                    line_1: profileData.value.addressLine1,
-                    line_2: profileData.value.addressLine2 || null,
-                    city: profileData.value.city,
-                    state: profileData.value.state,
-                    zip: profileData.value.zip
-                }
-            })
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-            if (data.fieldErrors) {
-                fieldErrors.value = data.fieldErrors
-                formFeedback.showError('Please correct the errors below')
-            } else {
-                formFeedback.showError(data.error || 'Failed to update profile')
-            }
-            return
-        }
-
-        // Update user store with new data
-        await userStore.fetchUser()
-        
-        formFeedback.showSuccess('Profile updated successfully')
-    } catch (err) {
-        formFeedback.showError('An error occurred while updating your profile')
-        console.error('Profile update error:', err)
-    } finally {
-        loading.value = false
-    }
-}
-
-// Watch for minor checkbox changes
-watch(() => profileData.value.isMinor, (newVal) => {
-    if (!newVal) {
-        profileData.value.parentApproval = false
-    }
-})
-
-onMounted(() => {
-    loadProfile()
-})
-</script>
 
 <style scoped>
 .profile {
