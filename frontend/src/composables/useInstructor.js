@@ -125,15 +125,16 @@ function toComputed(val) {
 // ---------------------------------------------------------------------------
 
 /**
- * @param {{ mode?: 'self'|'admin', userId?: number|Ref, instructorId?: number|Ref }} options
+ * @param {{ mode?: 'self'|'admin', userId?: number|Ref, instructorId?: number|Ref, enabled?: boolean|Ref }} options
  */
-export function useInstructor({ mode = 'admin', userId = null, instructorId = null } = {}) {
+export function useInstructor({ mode = 'admin', userId = null, instructorId = null, enabled: enabledOverride = null } = {}) {
   const userStore = useUserStore()
   const queryClient = useQueryClient()
   const token = computed(() => userStore.token)
 
   const normalizedUserId = toComputed(userId)
   const normalizedInstructorId = toComputed(instructorId)
+  const normalizedEnabledOverride = toComputed(enabledOverride)
 
   // -------------------------------------------------------------------------
   // Query key and fetch function
@@ -147,6 +148,7 @@ export function useInstructor({ mode = 'admin', userId = null, instructorId = nu
 
   const enabled = computed(() => {
     if (!token.value) return false
+    if (normalizedEnabledOverride.value === false) return false
     if (mode === 'self') return true
     return !!(normalizedInstructorId.value || normalizedUserId.value)
   })

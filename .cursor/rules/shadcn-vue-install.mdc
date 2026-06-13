@@ -1,0 +1,21 @@
+---
+description: Rules for installing and using shadcn-vue components
+globs: frontend/src/components/ui/**
+alwaysApply: false
+---
+
+# shadcn-vue Component Installation
+
+## Always install with the pinned version
+
+```bash
+npx shadcn-vue@2.7.4 add <component> --cwd ./frontend --yes
+```
+
+Never use `@latest` — it installs an incompatible version.
+
+## Component library dependency
+
+The project is migrating from `radix-vue` to `reka-ui`. New components should use `reka-ui`.
+Existing radix-based components (Button, Label, Separator, Dialog, ScrollArea) will be
+migrated in a future chore. Do not mix dependencies within a single component.

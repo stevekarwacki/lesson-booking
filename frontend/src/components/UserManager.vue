@@ -19,6 +19,8 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import InstructorAvailabilityManager from './InstructorAvailabilityManager.vue'
 import UserInfoTab from './UserInfoTab.vue'
 import { useInstructor } from '../composables/useInstructor'
@@ -906,168 +908,144 @@ const formatDate = (dateString) => {
                 label="Account"
             >
                 <div class="account-tab">
-                    <div class="account-section">
-                        <!-- Account Approval -->
-                        <div class="action-group">
-                            <div class="action-header">
-                                <h5>Account Approval</h5>
-                                <span :class="['status-badge', editingUser?.is_approved ? 'status-active' : 'status-inactive']">
-                                    {{ editingUser?.is_approved ? 'Approved' : 'Pending' }}
-                                </span>
-                            </div>
-                            <div class="action-content">
-                                <label class="checkbox-label">
-                                    <input 
-                                        type="checkbox"
-                                        v-model="editingUser.is_approved"
-                                    >
-                                    <span>Grant account access</span>
-                                </label>
-                                <Button 
-                                    size="sm"
-                                    @click="saveUserEdit"
-                                    :disabled="isUpdatingUser"
-                                >
-                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </Button>
-                            </div>
+                    <!-- Account Approval -->
+                    <div class="account-row">
+                        <div class="account-row-header">
+                            <span class="account-row-label">Account Approval</span>
+                            <Badge :variant="editingUser?.is_approved ? 'default' : 'secondary'">
+                                {{ editingUser?.is_approved ? 'Approved' : 'Pending' }}
+                            </Badge>
                         </div>
+                        <div class="account-row-content">
+                            <label class="checkbox-label">
+                                <input type="checkbox" v-model="editingUser.is_approved">
+                                <span>Grant account access</span>
+                            </label>
+                            <Button size="sm" @click="saveUserEdit" :disabled="isUpdatingUser">
+                                {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                            </Button>
+                        </div>
+                    </div>
 
-                        <!-- Instructor Status (Instructors only) -->
-                        <div v-if="isUserInstructor" class="action-group">
-                            <div class="action-header">
-                                <h5>Instructor Status</h5>
-                                <span :class="['status-badge', instructor?.is_active ? 'status-active' : 'status-inactive']">
+                    <Separator />
+
+                    <!-- Instructor Status (Instructors only) -->
+                    <template v-if="isUserInstructor">
+                        <div class="account-row">
+                            <div class="account-row-header">
+                                <span class="account-row-label">Instructor Status</span>
+                                <Badge :variant="instructor?.is_active ? 'default' : 'destructive'">
                                     {{ instructor?.is_active ? 'Active' : 'Inactive' }}
-                                </span>
+                                </Badge>
                             </div>
-                            <div class="action-content">
+                            <div class="account-row-content">
                                 <label class="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        v-model="instructorIsActive"
-                                    >
+                                    <input type="checkbox" v-model="instructorIsActive">
                                     <span>Instructor is active</span>
                                 </label>
-                                <Button
-                                    size="sm"
-                                    @click="saveInstructorActiveStatus"
-                                    :disabled="isTogglingActive"
-                                >
+                                <Button size="sm" @click="saveInstructorActiveStatus" :disabled="isTogglingActive">
                                     {{ isTogglingActive ? 'Saving...' : 'Save' }}
                                 </Button>
                             </div>
                         </div>
+                        <Separator />
+                    </template>
 
-                        <!-- Verification Information (Students only) -->
-                        <div v-if="editingUser?.role === 'student'" class="action-group">
-                            <div class="action-header">
-                                <h5>Verification Information</h5>
-                                <span 
-                                    :class="['status-badge', editingUser?.profile_completed_at ? 'status-active' : 'status-inactive']"
-                                >
+                    <!-- Verification Information (Students only) -->
+                    <template v-if="editingUser?.role === 'student'">
+                        <div class="account-row">
+                            <div class="account-row-header">
+                                <span class="account-row-label">Verification</span>
+                                <Badge :variant="editingUser?.profile_completed_at ? 'default' : 'secondary'">
                                     {{ editingUser?.profile_completed_at ? 'Complete' : 'Incomplete' }}
-                                </span>
+                                </Badge>
                             </div>
                             <div v-if="editingUser?.profile_completed_at" class="verification-details">
                                 <div class="detail-row">
-                                    <span class="detail-label">Phone Number:</span>
+                                    <span class="detail-label">Phone</span>
                                     <span class="detail-value">{{ editingUser?.phone_number || 'Not provided' }}</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="detail-label">Is Minor:</span>
+                                    <span class="detail-label">Is Minor</span>
                                     <span class="detail-value">{{ editingUser?.is_student_minor ? 'Yes' : 'No' }}</span>
                                 </div>
                                 <div v-if="editingUser?.user_profile_data?.address" class="detail-row">
-                                    <span class="detail-label">Address:</span>
-                                    <span class="detail-value">
-                                        {{ formatAddress(editingUser.user_profile_data.address) }}
-                                    </span>
+                                    <span class="detail-label">Address</span>
+                                    <span class="detail-value">{{ formatAddress(editingUser.user_profile_data.address) }}</span>
                                 </div>
                                 <div v-if="editingUser?.is_student_minor && editingUser?.user_profile_data?.parent_approval" class="detail-row">
-                                    <span class="detail-label">Parent Approval:</span>
+                                    <span class="detail-label">Parent Approval</span>
                                     <span class="detail-value">✓ Confirmed</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="detail-label">Completed:</span>
+                                    <span class="detail-label">Completed</span>
                                     <span class="detail-value">{{ formatDate(editingUser.profile_completed_at) }}</span>
                                 </div>
                             </div>
-                            <div v-else class="verification-incomplete-message">
-                                <p>User has not completed verification process yet.</p>
-                            </div>
+                            <p v-else class="account-empty-note">User has not completed verification yet.</p>
                         </div>
+                        <Separator />
+                    </template>
 
-                        <!-- Role Management -->
-                        <div class="action-group">
-                            <div class="action-header">
-                                <h5>Role</h5>
-                                <span class="role-badge">{{ editingUser?.role }}</span>
-                            </div>
-                            <div class="action-content">
-                                <select 
-                                    v-model="pendingRoleChange"
-                                    class="form-input"
-                                >
-                                    <option value="student">Student</option>
-                                    <option value="instructor">Instructor</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                                <Button 
-                                    size="sm"
-                                    @click="saveRoleChange"
-                                    :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
-                                >
-                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </Button>
-                            </div>
+                    <!-- Role -->
+                    <div class="account-row">
+                        <div class="account-row-header">
+                            <span class="account-row-label">Role</span>
+                            <Badge variant="outline">{{ editingUser?.role }}</Badge>
                         </div>
+                        <div class="account-row-content">
+                            <select v-model="pendingRoleChange" class="account-select">
+                                <option value="student">Student</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <Button
+                                size="sm"
+                                @click="saveRoleChange"
+                                :disabled="isUpdatingUser || pendingRoleChange === editingUser?.role"
+                            >
+                                {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                            </Button>
+                        </div>
+                    </div>
 
-                        <!-- In-Person Payment Override -->
-                        <div class="action-group">
-                            <div class="action-header">
-                                <h5>In-Person Payment Override</h5>
-                            </div>
-                            <div class="action-content">
-                                <select 
-                                    v-model="editingUser.in_person_payment_override"
-                                    class="form-input"
-                                >
-                                    <option :value="null">Use Global Setting</option>
-                                    <option value="enabled">Enabled</option>
-                                    <option value="disabled">Disabled</option>
-                                </select>
-                                <small class="form-text">
-                                    Override the global in-person payment setting for this user. 
-                                    "Use Global Setting" means they follow the system-wide preference.
-                                </small>
-                                <Button 
-                                    size="sm"
-                                    @click="saveUserEdit"
-                                    :disabled="isUpdatingUser"
-                                >
-                                    {{ isUpdatingUser ? 'Saving...' : 'Save' }}
-                                </Button>
-                            </div>
-                        </div>
+                    <Separator />
 
-                        <!-- Danger Zone -->
-                        <div class="action-group danger-zone">
-                            <div class="action-header">
-                                <h5>Delete Account</h5>
-                            </div>
-                            <div class="action-content">
-                                <p class="danger-description">Permanently delete this user and all associated data. This cannot be undone.</p>
-                                <Button 
-                                    type="button"
-                                    variant="destructive"
-                                    @click="deleteUserFromModal"
-                                    :disabled="editingUser?.id === currentUserId"
-                                >
-                                    {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User' }}
-                                </Button>
-                            </div>
+                    <!-- In-Person Payment Override -->
+                    <div class="account-row">
+                        <div class="account-row-header">
+                            <span class="account-row-label">In-Person Payment Override</span>
                         </div>
+                        <div class="account-row-content">
+                            <select v-model="editingUser.in_person_payment_override" class="account-select">
+                                <option :value="null">Use Global Setting</option>
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                            </select>
+                            <Button size="sm" @click="saveUserEdit" :disabled="isUpdatingUser">
+                                {{ isUpdatingUser ? 'Saving...' : 'Save' }}
+                            </Button>
+                        </div>
+                        <p class="account-hint">Override the global in-person payment setting for this user.</p>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Danger Zone -->
+                    <div class="account-row account-row-danger">
+                        <div class="account-row-header">
+                            <span class="account-row-label danger-label">Delete Account</span>
+                        </div>
+                        <p class="account-hint">Permanently delete this user and all associated data. This cannot be undone.</p>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            @click="deleteUserFromModal"
+                            :disabled="editingUser?.id === currentUserId"
+                        >
+                            {{ editingUser?.id === currentUserId ? 'Cannot Delete Own Account' : 'Delete User' }}
+                        </Button>
                     </div>
                 </div>
             </TabbedModalTab>
@@ -1427,46 +1405,63 @@ select:disabled {
     margin-bottom: var(--spacing-lg);
 }
 
-.action-group {
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
+/* Account tab */
+.account-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
-.action-group h5 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: var(--text-primary);
-    font-size: var(--font-size-md);
+.account-row {
+    padding: var(--spacing-md) 0;
 }
 
-.action-header {
+.account-row-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
-.action-header h5 {
-    margin: 0;
+.account-row-label {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
 }
 
-.action-content {
+.account-row-content {
     display: flex;
-    gap: var(--spacing-sm);
     align-items: center;
-    flex-wrap: wrap;
+    gap: var(--spacing-sm);
 }
 
-.action-content .form-input {
-    flex: 1;
-    min-width: 150px;
+.account-select {
+    width: 200px;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--border-radius);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: var(--font-size-sm);
+    cursor: pointer;
 }
 
-.form-button-sm {
-    padding: var(--spacing-xs) var(--spacing-md);
-    white-space: nowrap;
+.account-hint {
+    margin: var(--spacing-xs) 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.account-empty-note {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.account-row-danger .account-row-label,
+.danger-label {
+    color: hsl(var(--destructive));
 }
 
 .checkbox-label {
@@ -1475,6 +1470,7 @@ select:disabled {
     gap: var(--spacing-xs);
     cursor: pointer;
     flex: 1;
+    font-size: var(--font-size-sm);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -1482,25 +1478,32 @@ select:disabled {
     margin: 0;
 }
 
-.checkbox-label span {
-    color: var(--text-primary);
+.verification-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
 }
 
-.role-badge {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
+.detail-row {
+    display: flex;
+    gap: var(--spacing-sm);
     font-size: var(--font-size-sm);
+}
+
+.detail-label {
     font-weight: 500;
-    color: var(--text-primary);
-    text-transform: capitalize;
+    color: var(--text-secondary);
+    min-width: 120px;
 }
 
-.danger-description {
-    flex: 1 1 100%;
-    margin: 0 0 var(--spacing-sm) 0;
-    color: var(--text-secondary);
-    font-size: var(--font-size-sm);
+.detail-value {
+    color: var(--text-primary);
+}
+
+.form-button-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    white-space: nowrap;
 }
 
 .action-item {
@@ -1538,52 +1541,6 @@ select:disabled {
 
 .action-description li {
     margin-bottom: var(--spacing-xs);
-}
-
-.danger-zone {
-    border-color: var(--error-color);
-    background: rgba(255, 0, 0, 0.02);
-}
-
-.verification-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-}
-
-.detail-row {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-.detail-label {
-    font-weight: 500;
-    color: var(--text-secondary);
-    min-width: 140px;
-}
-
-.detail-value {
-    color: var(--text-primary);
-    flex: 1;
-}
-
-.verification-incomplete-message {
-    padding: var(--spacing-md);
-    background: var(--background-light);
-    border-radius: var(--border-radius);
-    color: var(--text-secondary);
-    font-style: italic;
-}
-
-.verification-incomplete-message p {
-    margin: 0;
-}
-
-.danger-zone h5 {
-    color: var(--error-color);
 }
 
 .warning-text {

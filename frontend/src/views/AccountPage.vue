@@ -12,7 +12,10 @@ const { showSuccess } = useFormFeedback()
 
 const isInstructor = computed(() => userStore.user?.role === 'instructor')
 
-const { instructor } = useInstructor({ mode: 'self' })
+const { instructor } = useInstructor({
+    mode: 'self',
+    enabled: isInstructor
+})
 
 const handleInstructorSaved = () => {
     showSuccess('Instructor profile updated successfully')
