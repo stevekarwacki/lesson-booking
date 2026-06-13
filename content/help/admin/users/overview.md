@@ -30,12 +30,11 @@ Click any user's name to open their detail modal. The tabs available depend on t
 
 | Tab | Roles | What you can do |
 |---|---|---|
-| **Profile** | Student | Edit contact info, address, and minor/parent details |
-| **Instructor Details** | Instructor | Create or edit the instructor's public profile and rate |
+| **User Info** | Student, Instructor | Edit contact info and address; minor/parent details (students only); bio, specialties, and hourly rate (instructors only) |
 | **Availability** | Instructor | Set weekly schedule and blocked time |
 | **Bookings** | Student | View lesson history; reschedule, cancel, or refund |
 | **Memberships** | Student | View and manage subscription; cancel, reactivate, or grant complimentary plan |
-| **Account** | All | Approve access, change role, set payment overrides, delete account |
+| **Account** | All | Approve access, manage instructor active status, change role, set payment overrides, delete account |
 
 ## How-to guides
 

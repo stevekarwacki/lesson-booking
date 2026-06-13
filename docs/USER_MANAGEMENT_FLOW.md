@@ -31,15 +31,12 @@ Search and filter work independently - you can search within a filtered view.
 
 The user edit modal (`TabbedModal.vue`) dynamically shows tabs based on user role:
 
-#### Profile Tab (All Users)
-- Name, email, password
-- Role displayed as static text (changes only from Account tab)
-
-#### Instructor Details Tab (Instructors Only)
-- Bio, specialties, hourly rate, active status
-- Rendered by `InstructorDetailsForm.vue` (`mode="admin"`, `:user-id`)
-- Handles create (no profile yet), view, and edit states internally
-- Availability tab gates on `instructor.id` from the same `useInstructor` query
+#### User Info Tab (Students and Instructors)
+- Rendered by `UserInfoTab.vue`, which orchestrates the profile form and any role-specific section
+- Always shows `Profile.vue` in admin mode (name, email, phone, address)
+- The "Additional Information" section (minor status, parent approval) is **student-only** and hidden for instructors and admins
+- For instructors, an `InstructorDetailsForm.vue` section appears below a divider (bio, specialties, hourly rate, active status badge)
+- Extensible: adding a new role-specific section requires only a new conditional block in `UserInfoTab.vue`
 
 #### Availability Tab (Instructors Only)
 - Google Calendar OAuth integration (`GoogleCalendarSettings.vue`)
@@ -57,8 +54,11 @@ The user edit modal (`TabbedModal.vue`) dynamically shows tabs based on user rol
 - Create new subscription
 
 #### Account Tab (Admins Only)
-- Account approval toggle
+- Account approval toggle (all users)
+- Instructor active status toggle (instructors only) — same pattern as approval
+- Verification information read-out (students only)
 - Role management (student ↔ instructor ↔ admin)
+- In-Person Payment override
 - Delete account (danger zone)
 
 ## Data Flow
@@ -88,9 +88,15 @@ const { instructor, hourlyRate } = useInstructor({ instructorId: 42 })
 const { instructor, updateInstructor, createInstructor } =
   useInstructor({ mode: 'admin', userId: editingUser.value.id })
 
-// Instructor editing their own profile (AccountPage)
-const { instructor, updateInstructor } = useInstructor({ mode: 'self' })
+// Instructor editing their own profile (AccountPage) — gated so non-instructors skip the fetch
+const { instructor, updateInstructor } = useInstructor({ mode: 'self', enabled: isInstructor })
 ```
+
+The `enabled` option accepts a boolean or ref. When `false`, the query is skipped entirely —
+no API call is made. Use this to prevent `/api/instructors/me` firing for admins/students.
+
+`toggleActive(value?, id?)` sets the instructor's active status. Omit `value` to flip the
+current state, or pass a boolean to set it explicitly.
 
 Query keys:
 - `mode: 'self'` → `['instructor', 'self']`
@@ -138,7 +144,7 @@ When `studentUserId` is `null`, queries are disabled and don't make API calls.
    }
    ```
 3. Student data (bookings, subscriptions) persists
-4. Instructor Details and Availability tabs become visible
+4. User Info tab now shows the instructor section; Availability tab becomes visible
 
 ### Instructor → Student
 1. Role updated in `User` model

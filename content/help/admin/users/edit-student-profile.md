@@ -5,8 +5,8 @@ audience: admin
 category: users
 order: 5
 uiRoute: /admin/users
-uiTab: profile
-relatedComponents: [UserManager.vue, Profile.vue]
+uiTab: user-info
+relatedComponents: [UserManager.vue, Profile.vue, UserInfoTab.vue]
 sources: [docs/ADMIN_PROFILE_EDITING.md, docs/USER_PROFILE_VERIFICATION.md]
 keywords: [student, profile, name, email, phone, address, minor, parent, edit]
 ---
@@ -17,12 +17,12 @@ Update any student's contact information, address, or minor status on their beha
 
 ## Where to find it
 
-> Users → find student → Manage → Profile tab
+> Users → find student → Manage → User Info tab
 
 ## Steps
 
 1. Search for the student and click **Manage**.
-2. The **Profile** tab opens by default.
+2. The **User Info** tab opens by default.
 3. Update any of the fields:
    - Name and email
    - Phone number

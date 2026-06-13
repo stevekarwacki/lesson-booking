@@ -47,18 +47,22 @@ if (userStore.canManageUsers) {
 ┌─────────────────────────────────────────┐
 │  Edit User: John Doe                     │
 ├─────────────────────────────────────────┤
-│  [Profile] [Account] [Bookings] [...]   │
+│  [User Info] [Account] [Bookings] [...] │
 ├─────────────────────────────────────────┤
 │                                          │
-│  Profile Tab:                            │
+│  User Info Tab:                          │
 │  ┌────────────────────────────────────┐ │
 │  │ <Profile /> component              │ │
 │  │ - Name field                       │ │
 │  │ - Email field                      │ │
 │  │ - Phone field                      │ │
 │  │ - Address fields                   │ │
-│  │ - Minor status checkbox            │ │
+│  │ - Minor status (students only)     │ │
 │  │ [Update Profile]                   │ │
+│  │ ─────────────────────────────────  │ │
+│  │ <InstructorDetailsForm /> (if      │ │
+│  │   instructor) bio, specialties,    │ │
+│  │   hourly rate                      │ │
 │  └────────────────────────────────────┘ │
 │                                          │
 └─────────────────────────────────────────┘
@@ -66,12 +70,15 @@ if (userStore.canManageUsers) {
 
 ### Tab Organization
 
-1. **Profile** (Students only)
-   - Full profile form (reuses `Profile.vue`)
-   - Name, email, phone, address, minor status
-   
-2. **Account** (All users)
+1. **User Info** (Students and Instructors)
+   - Full profile form via `Profile.vue` (name, email, phone, address)
+   - Minor status / parent approval section is **student-only** — hidden for instructors and admins
+   - Instructor section (`InstructorDetailsForm.vue`) appears below a divider for instructors only
+   - Orchestrated by `UserInfoTab.vue`
+
+2. **Account** (All users, admin-managed)
    - Account approval toggle
+   - Instructor active status toggle (instructors only)
    - Role management
    - In-Person Payment override
    - Delete user (danger zone)
@@ -81,10 +88,10 @@ if (userStore.canManageUsers) {
    - Past lessons
    - Attendance history
 
-4. **Credits** (Students only)
-   - Current balance
-   - Transaction history
-   - Manual adjustments
+4. **Memberships** (Students only)
+   - Current subscription details
+   - Cancel or reactivate subscription
+   - Grant a complimentary plan
 
 ## Editing Workflow
 
@@ -103,7 +110,7 @@ if (userStore.canManageUsers) {
 
 3. **Edit Profile**
    ```
-   - Profile tab opens by default (for students)
+   - User Info tab opens by default (for students and instructors)
    - Modify any field
    - Click "Update Profile"
    ```
