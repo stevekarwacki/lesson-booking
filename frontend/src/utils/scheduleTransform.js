@@ -21,16 +21,19 @@ export function transformWeeklySchedule(weeklySchedule, weekStartDate, minSlot =
   const weekColumns = []
   
   // Initialize 7 days
-  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-    const dayHelper = fromTimestamp(weekStartDate.getTime()).addDays(dayIndex).startOfDay()
+  for (let offset = 0; offset < 7; offset++) {
+    const dayHelper = fromTimestamp(weekStartDate.getTime()).addDays(offset).startOfDay()
     const date = dayHelper.toDate()
+    // Use the actual calendar day-of-week so lookups are correct regardless
+    // of which day the week starts on (Sunday=0 ... Saturday=6)
+    const dayOfWeek = date.getDay()
     
     // Build schedule data for this day
     const daySchedule = {}
     Object.keys(weeklySchedule).forEach(timeSlot => {
       const slotNum = parseInt(timeSlot)
       if (!isNaN(slotNum)) {
-        const slotData = weeklySchedule[timeSlot]?.[dayIndex]
+        const slotData = weeklySchedule[timeSlot]?.[dayOfWeek]
         if (slotData) {
           daySchedule[slotNum] = slotData
         }
@@ -41,9 +44,9 @@ export function transformWeeklySchedule(weeklySchedule, weekStartDate, minSlot =
     const blocks = consolidateScheduleToBlocks(daySchedule, minSlot, maxSlot)
     
     weekColumns.push({
-      dayIndex,
+      dayIndex: dayOfWeek,
       date,
-      dayName: dayNames[dayIndex],
+      dayName: dayNames[dayOfWeek],
       slots: blocks // Now contains consolidated blocks instead of individual slots
     })
   }

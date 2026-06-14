@@ -8,18 +8,25 @@
                 <Button 
                     variant="outline"
                     @click="previousWeek"
-                    :disabled="isPreviousWeekInPast"
+                    :disabled="isAtPastLimit"
                 >
                     Previous Week
                 </Button>
                 <span class="week-display">
-                    Week of {{ weekStart.toLocaleDateString() }}
+                    {{ weekStart.toLocaleDateString() }} – {{ weekEnd.toLocaleDateString() }}
                 </span>
                 <Button 
                     variant="outline"
                     @click="nextWeek"
                 >
                     Next Week
+                </Button>
+                <Button
+                    v-if="!isCurrentWindow"
+                    variant="outline"
+                    @click="goToCurrentWeek"
+                >
+                    Today
                 </Button>
             </div>
 
@@ -36,7 +43,7 @@
                 <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
                 <DatePicker
                     v-model="selectedDate"
-                    :min-value="today"
+                    :min-value="minSelectableDate"
                     placeholder="Pick a date"
                     class="w-[280px]"
                 />
@@ -117,13 +124,10 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useMq } from 'vue3-mq'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
-import { useSettingsStore } from '../stores/settingsStore'
 import { useCalendar } from '../composables/useCalendar'
 import { useAvailability } from '../composables/useAvailability'
 import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
-import BookingList from './BookingList.vue'
-import { getStartOfDay, formatTime, slotToTime } from '../utils/timeFormatting'
 import Booking from './Booking.vue'
 import EditBooking from './EditBooking.vue'
 import { Modal } from '@/components/ui/modal'
@@ -132,10 +136,14 @@ import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 
-const { instructor } = defineProps({
+const { instructor, weekStartDay } = defineProps({
     instructor: {
         type: Object,
         required: true
+    },
+    weekStartDay: {
+        type: [Number, String],
+        default: 0 // 0-6 = fixed weekday (0=Sunday), 'current' = start on today
     }
 })
 
@@ -143,7 +151,6 @@ const emit = defineEmits(['process-refund'])
 
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
-const settingsStore = useSettingsStore()
 
 const selectedDate = useMq().lgPlus ? ref('') : ref(today().toDateString())
 const weeklyScheduleData = ref([])
@@ -151,16 +158,25 @@ const dailyScheduleData = ref({})
 const dailyScheduleLoaded = ref(false)
 const error = ref('')
 
-// Week selection state
-const selectedWeek = ref(firstDayOfWeek(today().toDate()))
+/**
+ * Compute the display-window start date from an anchor date.
+ * - weekStartDay === 'current': the window starts on the anchor date itself (rolling view)
+ * - weekStartDay === 0-6: snap the anchor back to the nearest preceding weekday
+ */
+function computeWeekStart(anchorDate) {
+    const d = new Date(anchorDate)
+    d.setHours(0, 0, 0, 0)
+    if (weekStartDay === 'current') return d
+    const target = Number(weekStartDay)
+    const diff = (d.getDay() - target + 7) % 7
+    d.setDate(d.getDate() - diff)
+    return d
+}
 
-// Get start of week (Sunday)
-const weekStart = computed(() => {
-    const date = new Date(selectedWeek.value)
-    const day = date.getDay()
-    date.setDate(date.getDate() - day)
-    return date
-})
+// Week selection state — anchor to today on mount
+const selectedWeek = ref(computeWeekStart(today().toDate()))
+
+const weekStart = computed(() => computeWeekStart(selectedWeek.value))
 
 // Computed date range for weekly events query
 const weekStartDate = computed(() => weekStart.value.toISOString().split('T')[0])
@@ -198,38 +214,35 @@ const {
     selectedDate
 )
 
-function firstDayOfWeek(dateObject, firstDayOfWeekIndex = 0) {
-    const dayOfWeek = dateObject.getDay(),
-        firstDayOfWeek = new Date(dateObject),
-        diff = dayOfWeek >= firstDayOfWeekIndex ?
-            dayOfWeek - firstDayOfWeekIndex :
-            6 - dayOfWeek
-
-    firstDayOfWeek.setDate(dateObject.getDate() - diff)
-    firstDayOfWeek.setHours(0,0,0,0)
-
-    return firstDayOfWeek
-}
-
-// Check if previous week would be entirely in the past
-const isPreviousWeekInPast = computed(() => {
-    const today = getStartOfDay(new Date())
-    
-    const previousWeekStart = new Date(weekStart.value)
-    previousWeekStart.setDate(previousWeekStart.getDate() - 7)
-    
-    // Get end of previous week (Saturday)
-    const previousWeekEnd = new Date(previousWeekStart)
-    previousWeekEnd.setDate(previousWeekStart.getDate() + 6)
-    previousWeekEnd.setHours(23, 59, 59, 999) // End of day
-    
-    return previousWeekEnd < today
+// End of the currently displayed 7-day window (for label display)
+const weekEnd = computed(() => {
+    const d = new Date(weekStart.value)
+    d.setDate(d.getDate() + 6)
+    return d
 })
 
-const handleDateChange = () => {
-    if (selectedDate.value) {
-        fetchDailySchedule()
-    }
+const MAX_VIEWABLE_PAST_DAYS = 56 // 8 weeks
+
+// Earliest allowed window start: MAX_VIEWABLE_PAST_DAYS before today's window
+const minWeekStart = computed(() => {
+    const base = computeWeekStart(today().toDate())
+    base.setDate(base.getDate() - MAX_VIEWABLE_PAST_DAYS)
+    return base
+})
+
+const isAtPastLimit = computed(() => weekStart.value <= minWeekStart.value)
+
+// Earliest date selectable in the DatePicker (mirrors the week navigation limit)
+const minSelectableDate = computed(() => today().addDays(-MAX_VIEWABLE_PAST_DAYS).toDateString())
+
+// True when the displayed window begins on today's anchor
+const isCurrentWindow = computed(() => {
+    const current = computeWeekStart(today().toDate())
+    return weekStart.value.getTime() === current.getTime()
+})
+
+const goToCurrentWeek = () => {
+    selectedWeek.value = computeWeekStart(today().toDate())
 }
 
 const showBookingModal = ref(false)
@@ -422,15 +435,18 @@ const fetchWeeklySchedule = async () => {
         const formattedSchedule = {}
 
         // Start with available slots - expand to all slots they occupy
+        const windowStartDow = weekStart.value.getDay()
         availabilityData.forEach(slot => {
             const dayIndex = slot.day_of_week
             const slotStart = slot.start_slot
             const slotDuration = slot.duration || 2
 
-            // Get the date for this specific day
-            const slotDate = new Date(selectedWeek.value)
-            slotDate.setDate(slotDate.getDate() + dayIndex)
-            slotDate.setHours(0,0,0,0)
+            // Compute the offset of this day-of-week within the current 7-day window.
+            // Works correctly regardless of which weekday the window starts on.
+            const dayOffset = (dayIndex - windowStartDow + 7) % 7
+            const slotDate = new Date(weekStart.value)
+            slotDate.setDate(slotDate.getDate() + dayOffset)
+            slotDate.setHours(0, 0, 0, 0)
 
             // Expand: store the same data at every slot position this availability occupies
             for (let i = 0; i < slotDuration; i++) {

@@ -52,7 +52,8 @@
         <!-- Calendar Interface -->
         <InstructorCalendar 
             v-if="instructor && instructor.id" 
-            :instructor="instructor" 
+            :instructor="instructor"
+            week-start-day="current"
             @process-refund="handleRefundBooking"
         />
 

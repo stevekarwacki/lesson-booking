@@ -20,7 +20,7 @@
                 </select>
             </div>
 
-            <InstructorCalendar v-if="selectedInstructor.id" :instructor="selectedInstructor" />
+            <InstructorCalendar v-if="selectedInstructor.id" :instructor="selectedInstructor" week-start-day="current" />
 
             <div v-if="error" class="form-message error-message">{{ error }}</div>
         </div>
