@@ -235,13 +235,8 @@ const handleProfileUpdate = async (updatedData) => {
 **Validation:**
 
 ```javascript
-// Uses Zod schema validation
-const validation = User.validateVerificationData({
-  phone_number,
-  is_student_minor,
-  parent_approval,
-  address
-})
+// Format-only, all fields optional — partial saves always succeed
+const validation = User.validateProfileFields(req.body)
 
 if (!validation.valid) {
   return res.status(400).json({
@@ -298,13 +293,8 @@ router.put('/:userId/profile', authorize('manage', 'User'), async (req, res) => 
     const userId = parseInt(req.params.userId, 10)
     const { name, email, phone_number, is_student_minor, parent_approval, address } = req.body
 
-    // Validate with Zod
-    const validation = User.validateVerificationData({
-      phone_number,
-      is_student_minor,
-      parent_approval,
-      address
-    })
+    // Format-only validation — all fields optional, partial saves always allowed
+    const validation = User.validateProfileFields(req.body)
 
     if (!validation.valid) {
       return res.status(400).json({
@@ -458,28 +448,30 @@ export function useUserManagement() {
 
 ### Client-Side (UX Only)
 
-Profile component validates in real-time:
+Profile component validates in real-time using `profileSchema` before any API call:
 
 ```javascript
-import { validateProfileData } from '@/utils/formValidation'
-import { profileSchemaFlat } from '@common/schemas'
+import { profileSchema } from '@common/schemas/index.mjs'
 
-// Validate on submit
-const result = profileSchemaFlat.safeParse(profileData.value)
+// Validate on submit — format-only, all fields optional
+const result = profileSchema.safeParse(payload)
 
 if (!result.success) {
-  // Show errors to user
-  errors.value = formatZodErrors(result.error)
+  const errors = {}
+  result.error.issues.forEach(issue => {
+    errors[issue.path.join('.').replace(/^address\./, '')] = issue.message
+  })
+  fieldErrors.value = errors
   return
 }
 ```
 
 ### Server-Side (Security)
 
-Backend validates with same Zod schema:
+Backend validates with the same format-only approach via `validateProfileFields`:
 
 ```javascript
-const validation = User.validateVerificationData(data)
+const validation = User.validateProfileFields(data)
 
 if (!validation.valid) {
   return res.status(400).json({

@@ -225,7 +225,7 @@ Non-blocking banner shown to unapproved students:
 }
 ```
 
-**Validation:** Uses `profileSchemaNested` (Zod)
+**Validation:** Uses `User.validateProfileFields()` (format-only, all fields optional)
 
 **Side Effects:**
 - Sets `profile_completed_at` if complete for first time
@@ -325,8 +325,9 @@ return {
   complete,
   approved,
   needsVerification: !complete && user.role === 'student',
-  needsApproval: complete && !approved,
-  canAccess: (user.role !== 'student') || (complete && approved)
+  needsApproval: complete && !approved && user.role === 'student',
+  // Approved students can access regardless of profile completeness
+  canAccess: (user.role !== 'student') || approved
 }
 ```
 

@@ -32,7 +32,9 @@ Update any student's contact information, address, or minor status on their beha
 
 ## Notes
 
-- Completing a student's profile on their behalf counts toward their verification status. If all required fields are filled, their profile will be marked complete and they'll move to the "Pending Approval" stage.
+- All fields except name and email are optional to save — you can update a single field and click **Save Profile** without filling everything in.
+- Phone, address, and minor status are marked with an amber asterisk — they contribute to the student's profile completion status but do not prevent saving.
+- Completing a student's profile on their behalf updates their verification status. Once all required fields are filled, the student's "Complete your Profile" prompt will disappear.
 - You cannot change a student's password from here — they must reset it themselves via login.
 - To change a student's role, use the [Account tab](change-roles.md).
 - Address state must be a 2-letter code (e.g. `CA`, `NY`). ZIP must be 5 digits or ZIP+4 format.

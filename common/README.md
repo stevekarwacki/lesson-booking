@@ -30,27 +30,19 @@ This directory contains **truly isomorphic validation schemas** using ES modules
 ### Frontend (Vue - ES Modules)
 
 ```javascript
-import { profileSchemaFlat } from '@common/schemas/index.mjs'
+import { profileSchema } from '@common/schemas/index.mjs'
 
-// Validate user input (returns result object)
-const result = profileSchemaFlat.safeParse({
-  phone_number: '555-123-4567',
-  address_line_1: '123 Main St',
-  address_line_2: '',
-  city: 'Seattle',
-  state: 'WA',
-  zip: '98101',
-  is_minor: false
-})
+// Validate form data before saving (format-only; all fields optional)
+const result = profileSchema.safeParse(payload)
 
 if (!result.success) {
-  // Handle validation errors
+  const errors = {}
   result.error.issues.forEach(issue => {
-    console.log(`${issue.path.join('.')}: ${issue.message}`)
+    errors[issue.path.join('.')] = issue.message
   })
+  // Display errors in the form
 } else {
-  // Use validated data
-  console.log('Valid!', result.data)
+  await saveProfile(payload)
 }
 ```
 
@@ -58,53 +50,66 @@ if (!result.success) {
 
 ```javascript
 // In utility file: Load schemas at module initialization
-let profileSchemaNested = null
+let profileSchema = null
 
 const schemasPromise = import('../common/schemas/index.mjs')
   .then(schemas => {
-    profileSchemaNested = schemas.profileSchemaNested
+    profileSchema = schemas.profileSchema
   })
 
-// In route handler: Use schemas (already loaded)
-const result = profileSchemaNested.safeParse(req.body)
-
-if (!result.success) {
-  return res.status(400).json({ 
-    error: 'Validation failed',
-    errors: result.error.issues
-  })
+// In route handler: Use validateProfileFields helper (preferred)
+const validation = User.validateProfileFields(req.body)
+if (!validation.valid) {
+  return res.status(400).json({ error: 'Validation failed', errors: validation.errors })
 }
 ```
 
-**See `utils/verificationHelpers.js` for a complete example.**
+**See `utils/verificationHelpers.js` for the complete validation helper implementation.**
 
 ## Available Schemas
 
-- **`profile.schema.mjs`** - User profile validation
-  - `profileSchemaFlat` - For frontend forms (flat structure)
-  - `profileSchemaNested` - For backend API (nested address object)
+- **`profile.schema.mjs`** — User profile validation
+  - `profileSchema` — Format-only, all fields optional. Used for profile saves on both frontend and backend. Validates format when a field is present and non-empty; empty strings (clearing a field) pass cleanly.
+- **`smtp.schema.mjs`** — SMTP configuration validation
 - **Future**: Auth, password, payment schemas
 
-## Validation vs Business Logic
+## Validation Philosophy
 
-**This directory contains ONLY validation** (data shape/format checking).
+### Two distinct validation layers
 
-**Business logic belongs elsewhere:**
-- `utils/verificationHelpers.js` - Verification status, completion checks
-- `utils/creditValidation.js` - Credit calculation logic
-- Component files - UI transformation logic
+**`profileSchema` / `validateProfileFields`** — used at save time
+- All fields are optional (partial saves are always allowed)
+- If a field is provided and non-empty, its format is validated
+- Empty string means "clear this field" — always accepted
+
+**`isVerificationComplete(user)`** — used for profile completion CTAs only
+- Checks whether a student has all required data stored
+- Drives the "Complete your Profile" banner
+- Has no effect on whether a save is allowed
+
+This separation means users can save partial profiles at any time. The system then determines what they can do based on what's stored — not on what they just submitted.
+
+### ✅ Belongs in Zod Schemas
+
+- **Data format**: Phone numbers, emails, ZIP codes
+- **Field relationships**: "If minor then parent_approval must be true"
+- **Data types**: Strings, numbers, booleans
+
+### ❌ Does NOT Belong in Zod Schemas
+
+- **Completeness checks**: Whether all required fields are present
+- **Business rules**: Credit calculations, pricing logic
+- **Database queries**: Checking if email exists
+- **Authorization**: Permission checks
 
 ## Error Handling
 
 Zod provides two validation methods:
 
-1. **`.parse()`** - Throws on validation error (use in backend)
-2. **`.safeParse()`** - Returns result object (use in frontend)
+1. **`.parse()`** - Throws on validation error
+2. **`.safeParse()`** - Returns result object (preferred)
 
 ```javascript
-// Backend (throw errors)
-const data = schema.parse(input)
-
 // Frontend (handle gracefully)
 const result = schema.safeParse(input)
 if (!result.success) {
@@ -147,14 +152,11 @@ if (!result.success) {
 - ✅ Frontend: Native ES module support via Vite
 - ✅ Backend: Dynamic `import()` works from CommonJS
 
-**Alternative** would require duplicating schemas in `.cjs` and `.mjs` files, defeating the purpose of isomorphic code.
-
 ## Migration Status
 
 - ✅ Profile validation (phone, address, minor status)
 - ✅ Isomorphic architecture established
 - ⏳ Auth validation (signup, login) - Planned
-- ⏳ Password validation (strength, matching) - Planned  
+- ⏳ Password validation (strength, matching) - Planned
 - ⏳ Payment validation - Planned
 - ⏳ Credit validation - Planned
-

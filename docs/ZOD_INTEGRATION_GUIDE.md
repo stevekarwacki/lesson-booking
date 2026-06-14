@@ -30,10 +30,10 @@ We use `.mjs` files because:
 ### Frontend (Vue Components)
 
 ```javascript
-import { profileSchemaFlat } from '@common/schemas'
+import { profileSchema } from '@common/schemas'
 
-// Validate form data
-const result = profileSchemaFlat.safeParse(formData)
+// Validate form data before saving (format-only; all fields optional)
+const result = profileSchema.safeParse(payload)
 
 if (!result.success) {
   // Handle validation errors
@@ -41,10 +41,9 @@ if (!result.success) {
   result.error.issues.forEach(issue => {
     errors[issue.path.join('.')] = issue.message
   })
-  console.error(errors)
+  fieldErrors.value = errors
 } else {
-  // Use validated data
-  await submitForm(result.data)
+  await submitForm(payload)
 }
 ```
 
@@ -55,33 +54,45 @@ if (!result.success) {
 
 ### Backend (Node.js/Express)
 
+The preferred pattern is to use the `validateProfileFields` helper rather than calling the schema directly:
+
+```javascript
+// In route handler
+router.put('/profile', async (req, res) => {
+  const validation = User.validateProfileFields(req.body)
+  if (!validation.valid) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      errors: validation.errors
+    })
+  }
+  await updateUserProfile(req.body)
+  res.json({ success: true })
+})
+```
+
+If you need to use the schema directly (e.g. in a new helper):
+
 ```javascript
 // Load schemas dynamically (once at startup)
-let profileSchemaNested
+let profileSchema
 async function initSchemas() {
   const schemas = await import('../common/schemas/index.mjs')
-  profileSchemaNested = schemas.profileSchemaNested
+  profileSchema = schemas.profileSchema
 }
 await initSchemas()
 
 // In route handler
 router.put('/profile', async (req, res) => {
-  try {
-    // .parse() throws on validation error
-    const validated = profileSchemaNested.parse(req.body)
-    
-    // Use validated data
-    await updateUserProfile(validated)
-    res.json({ success: true })
-  } catch (err) {
-    if (err.name === 'ZodError') {
-      return res.status(400).json({
-        error: 'Validation failed',
-        details: err.flatten()
-      })
-    }
-    throw err
+  const result = profileSchema.safeParse(req.body)
+  if (!result.success) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      errors: result.error.flatten().fieldErrors
+    })
   }
+  await updateUserProfile(req.body)
+  res.json({ success: true })
 })
 ```
 
@@ -92,47 +103,35 @@ router.put('/profile', async (req, res) => {
 
 ## Schema Structure
 
-### Profile Schema (Flat)
+### Profile Schema
 
-Used by frontend forms where data is flat:
-
-```javascript
-const profileSchemaFlat = z.object({
-  phone_number: z.string().trim().min(1).regex(/^[+]?[\d\s\-()]+$/),
-  address_line_1: z.string().trim().min(1),
-  address_line_2: z.string().trim().optional().or(z.literal('')),
-  city: z.string().trim().min(1),
-  state: z.string().length(2),
-  zip: z.string().regex(/^\d{5}(-\d{4})?$/),
-  is_minor: z.boolean(),
-  parent_approval: z.boolean().optional()
-}).refine(
-  (data) => !data.is_minor || data.parent_approval === true,
-  { message: 'Parent approval is required for minors', path: ['parent_approval'] }
-)
-```
-
-### Profile Schema (Nested)
-
-Used by backend where data is nested (address as JSON):
+One schema handles both frontend and backend. All fields are optional — if a field is present and non-empty its format is validated; empty strings are accepted (they clear the stored value).
 
 ```javascript
-const profileSchemaNested = z.object({
-  phone_number: z.string().trim().min(1).regex(/^[+]?[\d\s\-()]+$/),
-  is_student_minor: z.boolean(),
+const profileSchema = z.object({
+  email: optionalFormat(z.string().email('Invalid email address')),
+  phone_number: optionalFormat(
+    z.string().trim().regex(/^[+]?[\d\s\-()]+$/, 'Invalid phone number format')
+  ),
+  is_student_minor: z.boolean().optional(),
   parent_approval: z.boolean().optional(),
   address: z.object({
-    line_1: z.string().trim().min(1),
-    line_2: z.string().trim().optional().nullable(),
-    city: z.string().trim().min(1),
-    state: z.string().trim().length(2),
-    zip: z.string().regex(/^\d{5}(-\d{4})?$/)
-  })
+    line_1: z.string().optional(),
+    line_2: z.string().nullable().optional(),
+    city: z.string().optional(),
+    state: optionalFormat(z.string().length(2, 'State must be a 2-letter code')),
+    zip: optionalFormat(z.string().regex(/^\d{5}(-\d{4})?$/))
+  }).optional()
 }).refine(
-  (data) => !data.is_student_minor || data.parent_approval === true,
+  (data) => data.is_student_minor !== true || data.parent_approval === true,
   { message: 'Parent approval is required for minors', path: ['parent_approval'] }
 )
 ```
+
+The `optionalFormat` helper means three states are valid for any format-checked field:
+- `undefined` — field not sent — passes
+- `''` — field cleared — passes
+- `'555-1234'` — non-empty value — format validated
 
 ## Validation Features
 
@@ -194,7 +193,7 @@ export const paymentSchema = z.object({
 
 ```javascript
 export { paymentSchema } from './payment.schema.mjs'
-export { profileSchemaFlat, profileSchemaNested } from './profile.schema.mjs'
+export { profileSchema } from './profile.schema.mjs'
 ```
 
 ### 3. Use in Frontend
@@ -220,8 +219,7 @@ async function initSchemas() {
 ### ✅ Belongs in Zod Schemas
 
 - **Data format**: Phone numbers, emails, ZIP codes
-- **Required fields**: Non-null constraints
-- **Field relationships**: "If A then B must exist"
+- **Field relationships**: "If minor then parent_approval must be true"
 - **Data types**: Strings, numbers, booleans
 
 ### ❌ Does NOT Belong in Zod Schemas
@@ -278,30 +276,23 @@ try {
 ### Unit Tests
 
 ```javascript
-const { profileSchemaFlat } = await import('../common/schemas/index.mjs')
+const { profileSchema } = await import('../common/schemas/index.mjs')
 
 describe('Profile Schema', () => {
-  it('should validate correct data', () => {
-    const result = profileSchemaFlat.safeParse({
-      phone_number: '555-123-4567',
-      address_line_1: '123 Main St',
-      city: 'Seattle',
-      state: 'WA',
-      zip: '98101',
-      is_minor: false
-    })
-    
+  it('should pass with no fields (partial save)', () => {
+    const result = profileSchema.safeParse({})
     assert.strictEqual(result.success, true)
   })
-  
-  it('should reject invalid phone', () => {
-    const result = profileSchemaFlat.safeParse({
-      phone_number: 'not-a-phone',
-      // ... other fields
-    })
-    
+
+  it('should reject invalid phone when provided', () => {
+    const result = profileSchema.safeParse({ phone_number: 'not-a-phone' })
     assert.strictEqual(result.success, false)
     assert.ok(result.error.issues.some(i => i.path.includes('phone_number')))
+  })
+
+  it('should accept empty phone (field cleared)', () => {
+    const result = profileSchema.safeParse({ phone_number: '' })
+    assert.strictEqual(result.success, true)
   })
 })
 ```
@@ -400,7 +391,7 @@ resolve: {
 let schema
 async function initSchemas() {
   const s = await import('../common/schemas/index.mjs')
-  schema = s.profileSchemaFlat
+  schema = s.profileSchema
 }
 await initSchemas()  // Must await!
 ```
