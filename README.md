@@ -137,6 +137,10 @@ This application uses **CASL (Conditional Access Control List)** for comprehensi
 - **Frontend/Backend sync**: Identical permission definitions across the stack
 
 For detailed documentation, see:
+- [`docs/CALENDAR_SCHEDULING_SYSTEM.md`](docs/CALENDAR_SCHEDULING_SYSTEM.md) - Calendar system overview and frontend architecture
+- [`docs/SLOT_SYSTEM.md`](docs/SLOT_SYSTEM.md) - Slot model reference (formulas, UTC vs local)
+- [`docs/AVAILABILITY_AND_BLOCKING.md`](docs/AVAILABILITY_AND_BLOCKING.md) - Instructor availability and blocking
+- [`docs/BOOKING_LIFECYCLE.md`](docs/BOOKING_LIFECYCLE.md) - Booking create/reschedule/cancel and recurring bookings
 - [`docs/CASL_PERMISSIONS_GUIDE.md`](docs/CASL_PERMISSIONS_GUIDE.md) - Permission system
 - [`docs/60_MINUTE_LESSON_FEATURES.md`](docs/60_MINUTE_LESSON_FEATURES.md) - 60-minute lesson functionality
 - [`docs/REFUND_SYSTEM.md`](docs/REFUND_SYSTEM.md) - Comprehensive refund system

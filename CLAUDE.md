@@ -140,11 +140,13 @@ cd frontend && npm run test -- booking-modal.test.js
 - See `/docs/DATE_HELPERS_SYSTEM.md` for API reference
 
 **Booking Time Slots**:
-- Slots are 15-minute increments starting at 6:00 AM
-- `start_slot` values: 0 = 6:00 AM, 4 = 7:00 AM, 8 = 8:00 AM, etc.
+- Slots are 15-minute increments; `start_slot` 0–95 covers a full day (0 = midnight, 95 = 23:45)
+- Formula: `slot = hours * 4 + minutes / 15`; reverse: `hours = floor(slot / 4)`, `minutes = (slot % 4) * 15`
+- The calendar grid displays from slot 24 (6:00 AM) by default — this is a display constraint from business hours, not a data offset
 - Duration stored in slots: 2 slots = 30 min, 4 slots = 60 min
-- `timeUtils.js` provides slot-to-time conversion functions
+- `timeUtils.js` (backend) and `timeFormatting.js` (frontend) provide slot-to-time conversion functions
 - Booking validation checks instructor availability and conflicts
+- See `/docs/SLOT_SYSTEM.md` for the full reference including UTC vs local time rules
 
 **Credit System**:
 - 30-minute lessons deduct 1 30-minute credit
