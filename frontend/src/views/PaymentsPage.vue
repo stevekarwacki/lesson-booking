@@ -1,5 +1,5 @@
 <template>
-    <div class="payments-page">
+    <PageContainer class="payments-page">
         <h1>Payments & Credits</h1>
         
         <div class="credit-balance card">
@@ -183,10 +183,11 @@
                 </div>
             </div>
         </div>
-    </div>
+    </PageContainer>
 </template>
 
 <script setup>
+import { PageContainer } from '@/components/ui/page-container'
 import { ref, onMounted, computed } from 'vue'
 import PaymentPlans from '../components/PaymentPlans.vue'
 import RecurringBookingModal from '../components/RecurringBookingModal.vue'
@@ -378,11 +379,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.payments-page {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
 h1 {
     margin-bottom: var(--spacing-lg);
     color: var(--secondary-color);

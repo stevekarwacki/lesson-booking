@@ -1,24 +1,20 @@
 <script setup>
 import { computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { useInstructor } from '../composables/useInstructor'
+import { PageContainer } from '@/components/ui/page-container'
 import Profile from '../components/Profile.vue'
 import InstructorDetailsForm from '../components/InstructorDetailsForm.vue'
-import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
 
 const userStore = useUserStore()
 
 const isInstructor = computed(() => userStore.user?.role === 'instructor')
-
-const { instructor } = useInstructor({
-    mode: 'self',
-    enabled: isInstructor
-})
 </script>
 
 <template>
-    <div class="account-page">
-        <h1>Account</h1>
+    <PageContainer class="account-page">
+        <div class="page-header">
+            <h1>Account</h1>
+        </div>
         
         <div class="account-sections">
             <Profile />
@@ -27,25 +23,20 @@ const { instructor } = useInstructor({
                 <InstructorDetailsForm
                     mode="self"
                 />
-
-                <InstructorAvailabilityManager
-                    v-if="instructor"
-                    :instructor-id="instructor.id"
-                />
             </template>
         </div>
-    </div>
+    </PageContainer>
 </template>
 
 <style scoped>
-.account-page {
-    max-width: 900px;
-    margin: 0 auto;
+.page-header {
+    margin-bottom: var(--spacing-lg);
 }
 
-h1 {
-    margin-bottom: var(--spacing-lg);
+.page-header h1 {
     color: var(--secondary-color);
+    font-size: 2rem;
+    margin: 0;
 }
 
 .account-sections {

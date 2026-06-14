@@ -1,4 +1,5 @@
 <script setup>
+import { PageContainer } from '@/components/ui/page-container'
 import UserManager from '../components/UserManager.vue'
 import { useUserStore } from '../stores/userStore'
 import { onMounted } from 'vue'
@@ -15,20 +16,15 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="manage-users-page">
+    <PageContainer class="manage-users-page">
         <div class="page-header">
             <h1>Manage Users</h1>
         </div>
         <UserManager />
-    </div>
+    </PageContainer>
 </template>
 
 <style scoped>
-.manage-users-page {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
 .page-header {
     margin-bottom: var(--spacing-lg);
 }

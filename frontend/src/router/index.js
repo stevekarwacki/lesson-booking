@@ -14,6 +14,15 @@ const routes = [
         meta: { requiresAuth: true, bypassApprovalCheck: true }
     },
     {
+        path: '/availability',
+        name: 'availability',
+        component: () => import('../views/AvailabilityPage.vue'),
+        meta: {
+            requiresAuth: true,
+            permission: { action: 'manage', subject: 'OwnInstructorAvailability' }
+        }
+    },
+    {
         path: '/payments',
         component: () => import('../views/PaymentsPage.vue'),
         meta: { 

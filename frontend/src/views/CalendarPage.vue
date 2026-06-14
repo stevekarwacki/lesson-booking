@@ -1,5 +1,5 @@
 <template>
-    <div class="calendar-page">
+    <PageContainer class="calendar-page">
         <div class="page-header">
             <h1>Calendar</h1>
         </div>
@@ -80,10 +80,11 @@
             @close="closeRefundModal"
             @refund-processed="handleRefundProcessed"
         />
-    </div>
+    </PageContainer>
 </template>
 
 <script setup>
+import { PageContainer } from '@/components/ui/page-container'
 import InstructorCalendar from '../components/InstructorCalendar.vue'
 import BookingList from '../components/BookingList.vue'
 import EditBooking from '../components/EditBooking.vue'
@@ -400,11 +401,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.calendar-page {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
 .page-header {
     margin-bottom: var(--spacing-lg);
 }

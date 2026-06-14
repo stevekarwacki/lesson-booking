@@ -1,21 +1,17 @@
 <template>
-    <div class="booking-page">
+    <PageContainer class="book-lesson-page">
         <UserBookings />
         <LessonBooking />
-    </div>
+    </PageContainer>
 </template>
 
 <script setup>
+import { PageContainer } from '@/components/ui/page-container'
 import LessonBooking from '../components/LessonBooking.vue'
 import UserBookings from '../components/UserBookings.vue'
 </script>
 
 <style scoped>
-.booking-page {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
 .page-header {
     margin-bottom: var(--spacing-lg);
 }

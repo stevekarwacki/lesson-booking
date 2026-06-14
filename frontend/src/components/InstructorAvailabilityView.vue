@@ -15,11 +15,16 @@
                     Cancel
                 </Button>
             </div>
-            <div class="timezone-info">
-                <span class="timezone-label">
-                    Times shown in: {{ timezoneStore.timezoneDisplayName }}
-                    <span class="timezone-abbr">({{ timezoneStore.timezoneAbbreviation }})</span>
+            <div class="schedule-meta">
+                <span v-if="formattedBusinessHours" class="business-hours-label">
+                    Business hours: {{ formattedBusinessHours }}
                 </span>
+                <div class="timezone-info">
+                    <span class="timezone-label">
+                        Times shown in: {{ timezoneStore.timezoneDisplayName }}
+                        <span class="timezone-abbr">({{ timezoneStore.timezoneAbbreviation }})</span>
+                    </span>
+                </div>
             </div>
         </div>
         
@@ -242,6 +247,50 @@ const getDayName = (dayValue) => {
     return day?.name || 'monday'
 }
 
+const formatBusinessTime = (timeStr) => {
+    const [hourStr, minStr] = timeStr.split(':')
+    const hour = parseInt(hourStr)
+    const min = parseInt(minStr)
+    if (timezoneStore.use12HourFormat) {
+        const period = hour >= 12 ? 'PM' : 'AM'
+        const h = hour % 12 || 12
+        return min === 0 ? `${h} ${period}` : `${h}:${minStr} ${period}`
+    }
+    return timeStr
+}
+
+const formattedBusinessHours = computed(() => {
+    if (!businessHours.value) return null
+
+    const groups = []
+    let current = null
+
+    for (const day of daysOfWeek) {
+        const hours = businessHours.value[day.name]
+        if (!hours?.isOpen) {
+            if (current) { groups.push(current); current = null }
+            continue
+        }
+        const key = `${hours.open}-${hours.close}`
+        if (current && current.key === key && current.lastValue === day.value - 1) {
+            current.end = day
+            current.lastValue = day.value
+        } else {
+            if (current) groups.push(current)
+            current = { key, open: hours.open, close: hours.close, start: day, end: day, lastValue: day.value }
+        }
+    }
+    if (current) groups.push(current)
+    if (groups.length === 0) return null
+
+    return groups.map(g => {
+        const dayStr = g.start.value === g.end.value
+            ? g.start.label
+            : `${g.start.label}–${g.end.label}`
+        return `${dayStr} ${formatBusinessTime(g.open)}–${formatBusinessTime(g.close)}`
+    }).join(' · ')
+})
+
 // Check if a specific slot is within business hours
 const isSlotInBusinessHours = (dayOfWeek, slotNumber) => {
     const dayName = getDayName(dayOfWeek)
@@ -307,7 +356,6 @@ const getBlockedReason = (dayOfWeek, slotNumber) => {
     background: white;
     border-radius: var(--border-radius);
     box-shadow: var(--card-shadow);
-    margin-top: var(--spacing-lg);
 }
 
 .schedule-header-container {
@@ -323,6 +371,19 @@ const getBlockedReason = (dayOfWeek, slotNumber) => {
 .schedule-controls {
     display: flex;
     gap: var(--spacing-md);
+}
+
+.schedule-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.business-hours-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
 }
 
 .timezone-info {

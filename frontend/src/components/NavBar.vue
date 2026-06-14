@@ -192,6 +192,16 @@ const helpTarget = computed(() => {
                 >
                     Calendar
                 </router-link>
+
+                <!-- Availability (Instructors only) -->
+                <router-link
+                    v-if="canManageOwnInstructorAvailability"
+                    to="/availability"
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Availability
+                </router-link>
                 
                 <router-link 
                     v-if="canManagePackages"

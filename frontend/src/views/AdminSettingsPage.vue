@@ -1,4 +1,5 @@
 <script setup>
+import { PageContainer } from '@/components/ui/page-container'
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useRouter } from 'vue-router'
@@ -194,7 +195,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="admin-settings-page">
+  <PageContainer class="admin-settings-page">
     <div class="page-header">
       <h1>Settings</h1>
     </div>
@@ -209,15 +210,10 @@ onMounted(() => {
         @content-change="handleContentChange"
       />
     </div>
-  </div>
+  </PageContainer>
 </template>
 
 <style scoped>
-.admin-settings-page {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .page-header {
   margin-bottom: var(--spacing-lg);
 }
