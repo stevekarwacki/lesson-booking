@@ -1,86 +1,95 @@
 <template>
     <PageContainer class="calendar-page">
-        <div class="page-header">
-            <h1>Calendar</h1>
-        </div>
+        <!-- Student view: booking flow (formerly the /book-lesson page) -->
+        <template v-if="userStore.isStudent">
+            <UserBookings />
+            <LessonBooking />
+        </template>
 
-        <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
-        <div v-if="showInstructorPicker" class="instructor-picker card">
-            <div class="card-body">
-                <SearchBar
-                    v-model="instructorSearchQuery"
-                    placeholder="Search instructors by name or email..."
-                    :results="searchResults"
-                    :show-results="isSearchFocused"
-                    :min-chars="1"
-                    @focus="isSearchFocused = true"
-                    @blur="handleSearchBlur"
-                    @select="handleInstructorSelect"
-                >
-                    <template #result="{ result }">
-                        <div class="result-content">
-                            <div class="result-primary">{{ result.name }}</div>
-                            <div class="result-secondary">
-                                {{ result.User?.email || result.email }}
+        <!-- Instructor / Admin view: schedule management -->
+        <template v-else>
+            <div class="page-header">
+                <h1>Calendar</h1>
+            </div>
+
+            <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
+            <div v-if="showInstructorPicker" class="instructor-picker card">
+                <div class="card-body">
+                    <SearchBar
+                        v-model="instructorSearchQuery"
+                        placeholder="Search instructors by name or email..."
+                        :results="searchResults"
+                        :show-results="isSearchFocused"
+                        :min-chars="1"
+                        @focus="isSearchFocused = true"
+                        @blur="handleSearchBlur"
+                        @select="handleInstructorSelect"
+                    >
+                        <template #result="{ result }">
+                            <div class="result-content">
+                                <div class="result-primary">{{ result.name }}</div>
+                                <div class="result-secondary">
+                                    {{ result.User?.email || result.email }}
+                                </div>
                             </div>
-                        </div>
-                    </template>
-                </SearchBar>
+                        </template>
+                    </SearchBar>
+                </div>
             </div>
-        </div>
-        
-        <!-- Instructor Bookings List -->
-        <div v-if="instructor && instructor.id" class="bookings-section card">
-            <div class="card-header">
-                <h3>Your Bookings</h3>
-            </div>
-            <div class="card-body">
-                <BookingList
-                    :bookings="formattedBookings"
-                    :loading="bookingsLoading"
-                    :userId="userStore.user?.id"
-                    :userRole="'instructor'"
-                    @edit-booking="handleEditBooking"
-                    @cancel-booking="handleCancelBooking"
-                    @view-booking="handleViewBooking"
-                    @attendance-changed="handleAttendanceChanged"
-                    @process-refund="handleRefundBooking"
-                />
-            </div>
-        </div>
 
-        <!-- Calendar Interface -->
-        <InstructorCalendar 
-            v-if="instructor && instructor.id" 
-            :instructor="instructor"
-            week-start-day="current"
-            @process-refund="handleRefundBooking"
-        />
+            <!-- Instructor Bookings List -->
+            <div v-if="instructor && instructor.id" class="bookings-section card">
+                <div class="card-header">
+                    <h3>Your Bookings</h3>
+                </div>
+                <div class="card-body">
+                    <BookingList
+                        :bookings="formattedBookings"
+                        :loading="bookingsLoading"
+                        :userId="userStore.user?.id"
+                        :userRole="'instructor'"
+                        @edit-booking="handleEditBooking"
+                        @cancel-booking="handleCancelBooking"
+                        @view-booking="handleViewBooking"
+                        @attendance-changed="handleAttendanceChanged"
+                        @process-refund="handleRefundBooking"
+                    />
+                </div>
+            </div>
 
-        <!-- Edit Booking Modal -->
-        <Modal
-            v-model:open="showEditModal"
-            title="Reschedule Lesson"
-            hide-save
-            hide-cancel
-            @cancel="closeEditModal"
-        >
-            <EditBooking
-                v-if="selectedBooking"
-                :booking="selectedBooking"
-                @close="closeEditModal"
-                @booking-updated="handleBookingUpdated"
-                @booking-cancelled="handleBookingCancelled"
+            <!-- Calendar Interface -->
+            <InstructorCalendar 
+                v-if="instructor && instructor.id" 
+                :instructor="instructor"
+                week-start-day="current"
+                @process-refund="handleRefundBooking"
             />
-        </Modal>
 
-        <!-- Refund Modal -->
-        <RefundModal
-            v-if="showRefundModal"
-            :booking="selectedRefundBooking"
-            @close="closeRefundModal"
-            @refund-processed="handleRefundProcessed"
-        />
+            <!-- Edit Booking Modal -->
+            <Modal
+                v-model:open="showEditModal"
+                title="Reschedule Lesson"
+                hide-save
+                hide-cancel
+                @cancel="closeEditModal"
+            >
+                <EditBooking
+                    v-if="selectedBooking"
+                    :booking="selectedBooking"
+                    @close="closeEditModal"
+                    @booking-updated="handleBookingUpdated"
+                    @booking-cancelled="handleBookingCancelled"
+                />
+            </Modal>
+
+            <!-- Refund Modal -->
+            <RefundModal
+                v-if="showRefundModal"
+                :booking="selectedRefundBooking"
+                @close="closeRefundModal"
+                @refund-processed="handleRefundProcessed"
+            />
+        </template>
     </PageContainer>
 </template>
 
@@ -91,6 +100,8 @@ import BookingList from '../components/BookingList.vue'
 import EditBooking from '../components/EditBooking.vue'
 import RefundModal from '../components/RefundModal.vue'
 import SearchBar from '../components/SearchBar.vue'
+import UserBookings from '../components/UserBookings.vue'
+import LessonBooking from '../components/LessonBooking.vue'
 import { Modal } from '@/components/ui/modal'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
@@ -384,12 +395,11 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
 };
 
 onMounted(async () => {
-    // Check permissions - both instructors and admins can access
-    if (!userStore.canManageCalendar && !userStore.canManageUsers) {
-        router.push('/')
+    // Students get the booking flow; LessonBooking/UserBookings load their own data
+    if (userStore.isStudent) {
         return
     }
-    
+
     // Admin flow: fetch all instructors and let them select
     if (userStore.canManageUsers) {
         await fetchAllInstructors()
@@ -397,6 +407,10 @@ onMounted(async () => {
     // Instructor flow: fetch their own instructor profile
     else if (userStore.canManageCalendar) {
         await fetchOwnInstructor()
+    }
+    // No calendar access at all
+    else {
+        router.push('/')
     }
 })
 </script>

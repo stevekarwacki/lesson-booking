@@ -6,13 +6,15 @@ This document is the primary reference for the calendar and scheduling subsystem
 
 ## Architecture overview
 
-The calendar surfaces three main audiences via two different entry points:
+The calendar surfaces all three audiences through a single role-aware entry point:
 
 | Route | View | Audience | `InstructorCalendar` prop |
 |-------|------|----------|--------------------------|
-| `/book` (student) | `BookLessonPage` → `LessonBooking` | Students booking lessons | `week-start-day="current"` |
-| `/calendar` (instructor/admin) | `CalendarPage` | Instructors & admins | `week-start-day="current"` |
+| `/calendar` (student) | `CalendarPage` → `LessonBooking` (role-aware branch) | Students booking lessons | `week-start-day="current"` |
+| `/calendar` (instructor/admin) | `CalendarPage` (staff branch) | Instructors & admins | `week-start-day="current"` |
 | `/availability` | `AvailabilityPage` | Instructors editing schedule | (different component — `InstructorAvailabilityManager`) |
+
+The student-facing nav link is still labelled "Book a Lesson" as a clear call to action, but it points to `/calendar`. The legacy `/book-lesson` route and `BookLessonPage` were removed.
 
 `InstructorCalendar.vue` is the shared orchestrator. It is responsible for fetching data, merging availability with events, managing week/day navigation state, and opening booking/edit modals. It does not render the grid directly — it delegates to `WeeklyScheduleView` (desktop) or `DailyScheduleView` (mobile or date-picker selection).
 

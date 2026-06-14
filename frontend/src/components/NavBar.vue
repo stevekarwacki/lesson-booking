@@ -223,7 +223,7 @@ const helpTarget = computed(() => {
                 <!-- Student/Booking Links -->
                 <router-link 
                     v-if="canCreateStudentBooking && userStore.user?.is_approved"
-                    to="/book-lesson" 
+                    to="/calendar" 
                     class="nav-link"
                 >
                     Book Lesson

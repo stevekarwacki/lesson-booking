@@ -42,7 +42,7 @@ const handleSubmit = async () => {
                 } else if (userStore.canManageCalendar) {
                     await router.push('/calendar')
                 } else if (userStore.canCreateBooking && userStore.user.is_approved) {
-                    await router.push('/book-lesson')
+                    await router.push('/calendar')
                 }
             }
         } else {
