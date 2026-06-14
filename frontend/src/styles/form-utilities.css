@@ -34,6 +34,11 @@
   color: var(--error-color, #ef4444);
 }
 
+/* Required for profile completeness — does not block saves, shown in amber */
+.completion-required {
+  color: var(--warning-color, #ffc107);
+}
+
 /* Input Wrappers */
 .form-input-wrapper {
   display: flex;

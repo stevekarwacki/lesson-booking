@@ -9,7 +9,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['profile-updated', 'instructor-saved', 'instructor-created'])
+const emit = defineEmits(['profile-updated'])
 </script>
 
 <template>
@@ -25,8 +25,6 @@ const emit = defineEmits(['profile-updated', 'instructor-saved', 'instructor-cre
       <InstructorDetailsForm
         mode="admin"
         :user-id="user.id"
-        @saved="emit('instructor-saved', $event)"
-        @created="emit('instructor-created', $event)"
       />
     </template>
   </div>

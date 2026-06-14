@@ -7,220 +7,66 @@
 const { describe, it, before } = require('node:test');
 const assert = require('node:assert');
 
-describe('Profile Validation with Zod', () => {
-    let profileSchemaFlat, profileSchemaNested;
+describe('Profile Schema with Zod', () => {
+    let profileSchema;
     
     before(async () => {
-        // Load ES module schemas
         const schemas = await import('../common/schemas/index.mjs');
-        profileSchemaFlat = schemas.profileSchemaFlat;
-        profileSchemaNested = schemas.profileSchemaNested;
+        profileSchema = schemas.profileSchema;
     });
 
-    describe('profileSchemaFlat', () => {
-        it('should validate valid profile data', () => {
-            const validData = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                address_line_2: '',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(validData);
+    describe('profileSchema', () => {
+        it('should pass when all fields are omitted (partial save)', () => {
+            const result = profileSchema.safeParse({});
             assert.strictEqual(result.success, true);
         });
 
-        it('should require phone number', () => {
-            const invalidData = {
-                phone_number: '',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(invalidData);
-            assert.strictEqual(result.success, false);
-            assert.ok(result.error.issues.some(issue => 
-                issue.path.includes('phone_number')
-            ));
-        });
-
-        it('should validate phone number format', () => {
-            const invalidData = {
-                phone_number: 'abc-def-ghij',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(invalidData);
-            assert.strictEqual(result.success, false);
-        });
-
-        it('should require address line 1', () => {
-            const invalidData = {
+        it('should pass when only some fields are provided', () => {
+            const result = profileSchema.safeParse({
                 phone_number: '555-123-4567',
-                address_line_1: '',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(invalidData);
-            assert.strictEqual(result.success, false);
-        });
-
-        it('should validate ZIP code format', () => {
-            const invalidZip = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '123',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(invalidZip);
-            assert.strictEqual(result.success, false);
-        });
-
-        it('should accept valid 5-digit ZIP code', () => {
-            const validData = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(validData);
+                address: { city: 'Seattle' }
+            });
             assert.strictEqual(result.success, true);
         });
 
-        it('should accept valid ZIP+4 format', () => {
-            const validData = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101-1234',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(validData);
-            assert.strictEqual(result.success, true);
-        });
-
-        it('should require parent approval for minors', () => {
-            const minorWithoutApproval = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: true,
-                parent_approval: false
-            };
-
-            const result = profileSchemaFlat.safeParse(minorWithoutApproval);
+        it('should reject an invalid phone number when provided', () => {
+            const result = profileSchema.safeParse({ phone_number: 'not-a-phone' });
             assert.strictEqual(result.success, false);
-            assert.ok(result.error.issues.some(issue => 
-                issue.message.includes('Parent approval')
-            ));
+            assert.ok(result.error.issues.some(i => i.path.includes('phone_number')));
         });
 
-        it('should allow minors with parent approval', () => {
-            const minorWithApproval = {
-                phone_number: '555-123-4567',
-                address_line_1: '123 Main St',
-                city: 'Seattle',
-                state: 'WA',
-                zip: '98101',
-                is_minor: true,
-                parent_approval: true
-            };
-
-            const result = profileSchemaFlat.safeParse(minorWithApproval);
+        it('should accept an empty phone number (field cleared)', () => {
+            const result = profileSchema.safeParse({ phone_number: '' });
             assert.strictEqual(result.success, true);
         });
 
-        it('should trim whitespace from string fields', () => {
-            const dataWithSpaces = {
-                phone_number: '  555-123-4567  ',
-                address_line_1: '  123 Main St  ',
-                city: '  Seattle  ',
-                state: 'WA',
-                zip: '  98101  ',
-                is_minor: false
-            };
-
-            const result = profileSchemaFlat.safeParse(dataWithSpaces);
-            assert.strictEqual(result.success, true);
-            assert.strictEqual(result.data.phone_number, '555-123-4567');
-            assert.strictEqual(result.data.address_line_1, '123 Main St');
-        });
-    });
-
-    describe('profileSchemaNested', () => {
-        it('should validate nested address structure', () => {
-            const validData = {
-                phone_number: '555-123-4567',
-                is_student_minor: false,
-                address: {
-                    line_1: '123 Main St',
-                    line_2: null,
-                    city: 'Seattle',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = profileSchemaNested.safeParse(validData);
-            assert.strictEqual(result.success, true);
-        });
-
-        it('should require all address fields', () => {
-            const missingCity = {
-                phone_number: '555-123-4567',
-                is_student_minor: false,
-                address: {
-                    line_1: '123 Main St',
-                    line_2: null,
-                    city: '',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = profileSchemaNested.safeParse(missingCity);
+        it('should reject an invalid ZIP code when provided', () => {
+            const result = profileSchema.safeParse({ address: { zip: '123' } });
             assert.strictEqual(result.success, false);
+            assert.ok(result.error.issues.some(i => i.path.includes('zip')));
         });
 
-        it('should require parent approval for minors', () => {
-            const minorWithoutApproval = {
-                phone_number: '555-123-4567',
-                is_student_minor: true,
-                parent_approval: false,
-                address: {
-                    line_1: '123 Main St',
-                    line_2: null,
-                    city: 'Seattle',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = profileSchemaNested.safeParse(minorWithoutApproval);
+        it('should reject a state that is not 2 characters when provided', () => {
+            const result = profileSchema.safeParse({ address: { state: 'WAA' } });
             assert.strictEqual(result.success, false);
+            assert.ok(result.error.issues.some(i => i.path.includes('state')));
+        });
+
+        it('should reject an invalid email when provided', () => {
+            const result = profileSchema.safeParse({ email: 'not-an-email' });
+            assert.strictEqual(result.success, false);
+            assert.ok(result.error.issues.some(i => i.path.includes('email')));
+        });
+
+        it('should require parent approval when is_student_minor is true', () => {
+            const result = profileSchema.safeParse({ is_student_minor: true, parent_approval: false });
+            assert.strictEqual(result.success, false);
+            assert.ok(result.error.issues.some(i => i.path.includes('parent_approval')));
+        });
+
+        it('should pass when is_student_minor is true and parent_approval is true', () => {
+            const result = profileSchema.safeParse({ is_student_minor: true, parent_approval: true });
+            assert.strictEqual(result.success, true);
         });
     });
 });
@@ -232,83 +78,6 @@ describe('Verification Helpers with Zod', () => {
         verificationHelpers = require('../utils/verificationHelpers');
         // Ensure schemas are loaded
         await verificationHelpers.ensureSchemasLoaded();
-    });
-
-    describe('validateVerificationData', () => {
-        it('should validate correct data', () => {
-            const validData = {
-                phone_number: '555-123-4567',
-                is_student_minor: false,
-                address: {
-                    line_1: '123 Main St',
-                    line_2: null,
-                    city: 'Seattle',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = verificationHelpers.validateVerificationData(validData);
-            assert.strictEqual(result.valid, true);
-            assert.deepStrictEqual(result.errors, {});
-        });
-
-        it('should flatten address errors for convenience', () => {
-            const invalidData = {
-                phone_number: '555-123-4567',
-                is_student_minor: false,
-                address: {
-                    line_1: '',
-                    city: '',
-                    state: 'X',
-                    zip: '123'
-                }
-            };
-
-            const result = verificationHelpers.validateVerificationData(invalidData);
-            assert.strictEqual(result.valid, false);
-            
-            // Errors should be flattened (e.g., 'line_1' not 'address.line_1')
-            assert.ok(result.errors.line_1);
-            assert.ok(result.errors.city);
-            assert.ok(result.errors.state);
-            assert.ok(result.errors.zip);
-        });
-
-        it('should detect invalid phone numbers', () => {
-            const invalidData = {
-                phone_number: 'not-a-phone',
-                is_student_minor: false,
-                address: {
-                    line_1: '123 Main St',
-                    city: 'Seattle',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = verificationHelpers.validateVerificationData(invalidData);
-            assert.strictEqual(result.valid, false);
-            assert.ok(result.errors.phone_number);
-        });
-
-        it('should require parent approval for minors', () => {
-            const minorData = {
-                phone_number: '555-123-4567',
-                is_student_minor: true,
-                // Missing parent_approval
-                address: {
-                    line_1: '123 Main St',
-                    city: 'Seattle',
-                    state: 'WA',
-                    zip: '98101'
-                }
-            };
-
-            const result = verificationHelpers.validateVerificationData(minorData);
-            assert.strictEqual(result.valid, false);
-            assert.ok(result.errors.parent_approval);
-        });
     });
 
     describe('isVerificationComplete', () => {
@@ -450,6 +219,21 @@ describe('Verification Helpers with Zod', () => {
             assert.strictEqual(status.needsVerification, false);
             assert.strictEqual(status.needsApproval, false);
             assert.strictEqual(status.canAccess, true);
+        });
+
+        it('should allow access for approved student even when profile is incomplete', () => {
+            const student = {
+                role: 'student',
+                phone_number: null,
+                is_approved: true   // approved but missing phone / address
+            };
+
+            const status = verificationHelpers.getVerificationStatus(student);
+            assert.strictEqual(status.complete, false);
+            assert.strictEqual(status.approved, true);
+            assert.strictEqual(status.needsVerification, true);  // CTA still shown
+            assert.strictEqual(status.needsApproval, false);
+            assert.strictEqual(status.canAccess, true);          // access not blocked
         });
 
         it('should always allow access for admins', () => {

@@ -77,8 +77,8 @@ router.put('/me/profile', async (req, res) => {
     try {
         const userId = req.user.id;
         
-        // Validate incoming data
-        const validation = User.validateVerificationData(req.body);
+        // Validate field formats (partial — all fields optional, format checked if present)
+        const validation = User.validateProfileFields(req.body);
         if (!validation.valid) {
             return res.status(400).json({ 
                 error: 'Validation failed', 
@@ -91,7 +91,7 @@ router.put('/me/profile', async (req, res) => {
         
         // Prepare updates
         const updates = {
-            phone_number: req.body.phone_number?.trim(),
+            phone_number: req.body.phone_number?.trim() || null,
             is_student_minor: req.body.is_student_minor,
             user_profile_data: profileData
         };
@@ -138,8 +138,8 @@ router.put('/me/verification', async (req, res) => {
     try {
         const userId = req.user.id;
         
-        // Validate incoming data
-        const validation = User.validateVerificationData(req.body);
+        // Validate field formats (partial — all fields optional, format checked if present)
+        const validation = User.validateProfileFields(req.body);
         if (!validation.valid) {
             return res.status(400).json({ 
                 error: 'Validation failed', 
@@ -152,7 +152,7 @@ router.put('/me/verification', async (req, res) => {
         
         // Prepare updates
         const updates = {
-            phone_number: req.body.phone_number?.trim(),
+            phone_number: req.body.phone_number?.trim() || null,
             is_student_minor: req.body.is_student_minor,
             user_profile_data: profileData
         };
@@ -206,12 +206,12 @@ router.put('/:userId/profile', authorize('manage', 'User'), async (req, res) => 
     try {
         const userId = parseInt(req.params.userId, 10);
         
-        // Validate incoming data using Zod schema (via helper)
-        const validation = User.validateVerificationData(req.body);
+        // Validate field formats (partial — all fields optional, format checked if present)
+        const validation = User.validateProfileFields(req.body);
         if (!validation.valid) {
-            return res.status(400).json({ 
-                error: 'Validation failed', 
-                errors: validation.errors 
+            return res.status(400).json({
+                error: 'Validation failed',
+                errors: validation.errors
             });
         }
         
@@ -220,7 +220,7 @@ router.put('/:userId/profile', authorize('manage', 'User'), async (req, res) => 
         
         // Prepare updates (including name and email if provided)
         const updates = {
-            phone_number: req.body.phone_number?.trim(),
+            phone_number: req.body.phone_number?.trim() || null,
             is_student_minor: req.body.is_student_minor,
             user_profile_data: profileData
         };

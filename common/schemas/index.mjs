@@ -3,13 +3,12 @@
  * 
  * Import schemas from this file for consistency:
  * 
- * Frontend: import { profileSchemaFlat } from '@common/schemas'
- * Backend:  import { profileSchemaNested } from './common/schemas/index.mjs'
+ * Frontend: import { profileSchema } from '@common/schemas'
+ * Backend:  import { profileSchema } from './common/schemas/index.mjs'
  */
 
 export { 
-  profileSchemaFlat, 
-  profileSchemaNested
+  profileSchema
 } from './profile.schema.mjs'
 
 export {

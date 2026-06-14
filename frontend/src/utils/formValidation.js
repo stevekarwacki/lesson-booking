@@ -5,7 +5,6 @@
  * These are implementation-agnostic adapters that bridge Zod with frontend forms.
  */
 
-import { profileSchemaFlat } from '@common/schemas/index.mjs'
 
 /**
  * Validates that two password values match
@@ -75,35 +74,6 @@ export const validatePasswordStrength = (password, options = {}) => {
     
     return {
         valid: errors.length === 0,
-        errors
-    }
-}
-
-/**
- * Validate user profile data using Zod schema
- * @param {Object} data - Profile data to validate (flat structure)
- * @returns {Object} - { valid: boolean, errors: Object }
- */
-export const validateProfileData = (data) => {
-    // Use Zod schema for validation
-    const result = profileSchemaFlat.safeParse(data)
-    
-    if (result.success) {
-        return {
-            valid: true,
-            errors: {}
-        }
-    }
-    
-    // Transform Zod errors to flat object for easy field lookup
-    const errors = {}
-    result.error.issues.forEach(issue => {
-        const fieldName = issue.path.join('.')
-        errors[fieldName] = issue.message
-    })
-    
-    return {
-        valid: false,
         errors
     }
 }

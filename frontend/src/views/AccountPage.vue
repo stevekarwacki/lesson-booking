@@ -2,13 +2,11 @@
 import { computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useInstructor } from '../composables/useInstructor'
-import { useFormFeedback } from '../composables/useFormFeedback'
 import Profile from '../components/Profile.vue'
 import InstructorDetailsForm from '../components/InstructorDetailsForm.vue'
 import InstructorAvailabilityManager from '../components/InstructorAvailabilityManager.vue'
 
 const userStore = useUserStore()
-const { showSuccess } = useFormFeedback()
 
 const isInstructor = computed(() => userStore.user?.role === 'instructor')
 
@@ -16,10 +14,6 @@ const { instructor } = useInstructor({
     mode: 'self',
     enabled: isInstructor
 })
-
-const handleInstructorSaved = () => {
-    showSuccess('Instructor profile updated successfully')
-}
 </script>
 
 <template>
@@ -32,7 +26,6 @@ const handleInstructorSaved = () => {
             <template v-if="isInstructor">
                 <InstructorDetailsForm
                     mode="self"
-                    @saved="handleInstructorSaved"
                 />
 
                 <InstructorAvailabilityManager

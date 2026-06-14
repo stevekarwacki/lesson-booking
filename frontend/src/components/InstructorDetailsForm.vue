@@ -3,9 +3,6 @@ import { ref, watch } from 'vue'
 import { useInstructor } from '@/composables/useInstructor'
 import { useFormFeedback } from '@/composables/useFormFeedback'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -25,9 +22,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['saved', 'created'])
-
-const { showError } = useFormFeedback()
+const { showSuccess, showError } = useFormFeedback()
 
 const {
   instructor,
@@ -40,25 +35,24 @@ const {
 
 const isEditing = ref(false)
 
-const emptyForm = () => ({ bio: '', specialties: '', hourly_rate: '' })
-
-const formData = ref(emptyForm())
-
-// Populate form when entering edit mode or when instructor data first loads
-watch(
-  () => instructor.value,
-  (val) => {
-    if (val && isEditing.value) syncForm(val)
-  }
-)
+const formData = ref({ bio: '', specialties: '', hourly_rate: '' })
 
 function syncForm(data) {
   formData.value = {
-    bio: data.bio || '',
-    specialties: data.specialties || '',
-    hourly_rate: data.hourly_rate || ''
+    bio: data?.bio || '',
+    specialties: data?.specialties || '',
+    hourly_rate: data?.hourly_rate ?? ''
   }
 }
+
+// Keep formData in sync with live instructor data when not editing
+watch(
+  () => instructor.value,
+  (val) => {
+    if (!isEditing.value) syncForm(val)
+  },
+  { immediate: true }
+)
 
 function startEditing() {
   syncForm(instructor.value)
@@ -66,8 +60,8 @@ function startEditing() {
 }
 
 function cancelEditing() {
+  syncForm(instructor.value)
   isEditing.value = false
-  formData.value = emptyForm()
 }
 
 async function handleCreate() {
@@ -82,7 +76,8 @@ async function handleCreate() {
       specialties: formData.value.specialties,
       hourly_rate: formData.value.hourly_rate
     })
-    emit('created')
+    isEditing.value = false
+    showSuccess('Instructor profile created successfully')
   } catch (err) {
     showError(err.message || 'Failed to create instructor profile')
   }
@@ -96,13 +91,19 @@ async function handleSave() {
       hourly_rate: formData.value.hourly_rate
     })
     isEditing.value = false
-    emit('saved')
+    showSuccess('Instructor profile updated successfully')
   } catch (err) {
     showError(err.message || 'Failed to save instructor profile')
   }
 }
 
-
+function handleSubmit() {
+  if (instructor.value) {
+    handleSave()
+  } else {
+    handleCreate()
+  }
+}
 </script>
 
 <template>
@@ -110,134 +111,96 @@ async function handleSave() {
     <CardHeader>
       <CardTitle>Instructor Details</CardTitle>
       <CardDescription>
-        {{ mode === 'admin' ? 'View and edit this instructor\'s bio, specialties, and hourly rate.' : 'Manage your bio, specialties, and hourly rate.' }}
+        {{ mode === 'admin' ? "View and edit this instructor's bio, specialties, and hourly rate." : 'Manage your bio, specialties, and hourly rate.' }}
       </CardDescription>
     </CardHeader>
 
     <CardContent>
       <div class="instructor-details-form">
-    <!-- Loading -->
-    <div v-if="isLoadingInstructor" class="loading-message">
-      Loading instructor profile...
-    </div>
 
-    <!-- No profile yet — create form (admin only) -->
-    <div v-else-if="!instructor" class="no-profile">
-      <p v-if="mode === 'admin'" class="no-profile-text">
-        This instructor doesn't have a profile yet.
-      </p>
-      <p v-else class="no-profile-text">
-        Your instructor profile has not been set up yet.
-      </p>
-
-      <form v-if="mode === 'admin'" @submit.prevent="handleCreate" class="form">
-        <div class="form-group">
-          <Label>Bio</Label>
-          <Textarea
-            v-model="formData.bio"
-            rows="4"
-            placeholder="Tell students about your teaching experience..."
-          />
+        <div v-if="isLoadingInstructor" class="loading-message">
+          Loading instructor profile...
         </div>
 
-        <div class="form-group">
-          <Label>Specialties</Label>
-          <Input
-            v-model="formData.specialties"
-            type="text"
-            placeholder="e.g., Piano, Guitar, Voice"
-          />
-        </div>
+        <!-- Non-admin users with no profile -->
+        <p v-else-if="!instructor && mode !== 'admin'" class="no-profile-text">
+          Your instructor profile has not been set up yet. Contact an admin.
+        </p>
 
-        <div class="form-group">
-          <Label>Hourly Rate ($)</Label>
-          <Input
-            v-model="formData.hourly_rate"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-          />
-        </div>
+        <form v-else @submit.prevent="handleSubmit" class="instructor-form">
 
-        <div class="form-actions">
-          <Button type="submit" :disabled="isCreatingInstructor">
-            {{ isCreatingInstructor ? 'Creating...' : 'Create Profile' }}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <!-- Bio -->
+          <div class="field-group">
+            <label class="field-label">Bio</label>
+            <div class="bio-wrapper" :class="{ 'is-readonly': !isEditing }">
+              <textarea
+                v-model="formData.bio"
+                class="field-textarea"
+                :class="{ 'is-editing': isEditing }"
+                :readonly="!isEditing"
+                placeholder="Tell students about your teaching experience..."
+              />
+            </div>
+          </div>
 
-    <!-- Profile exists — view mode -->
-    <div v-else-if="!isEditing" class="profile-view">
-      <div class="profile-field">
-        <span class="field-label">Bio</span>
-        <p class="field-value">{{ instructor.bio || 'No bio provided' }}</p>
+          <!-- Specialties -->
+          <div class="field-group">
+            <label class="field-label">Specialties</label>
+            <input
+              v-model="formData.specialties"
+              class="field-input"
+              :class="{ 'is-editing': isEditing }"
+              :readonly="!isEditing"
+              type="text"
+              placeholder="e.g., Piano, Guitar, Voice"
+            />
+          </div>
+
+          <!-- Hourly Rate with $ prefix -->
+          <div class="field-group">
+            <label class="field-label">Hourly Rate</label>
+            <div class="prefixed-field" :class="{ 'is-editing': isEditing }">
+              <span class="field-prefix">$</span>
+              <input
+                v-model="formData.hourly_rate"
+                class="prefixed-input"
+                :readonly="!isEditing"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <!-- Status badge — admin only, existing profile only -->
+          <div v-if="mode === 'admin' && instructor" class="field-group">
+            <label class="field-label">Status</label>
+            <div>
+              <Badge :variant="instructor.is_active ? 'default' : 'destructive'">
+                {{ instructor.is_active ? 'Active' : 'Inactive' }}
+              </Badge>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <template v-if="!isEditing">
+              <Button type="button" @click="startEditing">Edit</Button>
+            </template>
+            <template v-else>
+              <Button type="submit" :disabled="isUpdatingInstructor || isCreatingInstructor">
+                {{ (isUpdatingInstructor || isCreatingInstructor) ? 'Saving...' : (instructor ? 'Save' : 'Create Profile') }}
+              </Button>
+              <Button v-if="instructor" type="button" variant="outline" @click="cancelEditing">
+                Cancel
+              </Button>
+            </template>
+          </div>
+
+        </form>
       </div>
-
-      <div class="profile-field">
-        <span class="field-label">Specialties</span>
-        <p class="field-value">{{ instructor.specialties || 'No specialties listed' }}</p>
-      </div>
-
-      <div class="profile-field">
-        <span class="field-label">Hourly Rate</span>
-        <p class="field-value">${{ instructor.hourly_rate || '0.00' }}</p>
-      </div>
-
-      <!-- Active status — admin only -->
-      <div v-if="mode === 'admin'" class="profile-field">
-        <span class="field-label">Status</span>
-        <div>
-          <Badge :variant="instructor.is_active ? 'default' : 'destructive'">
-            {{ instructor.is_active ? 'Active' : 'Inactive' }}
-          </Badge>
-        </div>
-      </div>
-
-      <div class="form-actions">
-        <Button @click="startEditing">Edit</Button>
-      </div>
-    </div>
-
-    <!-- Profile exists — edit mode -->
-    <div v-else class="profile-edit">
-      <form @submit.prevent="handleSave" class="form">
-        <div class="form-group">
-          <Label>Bio</Label>
-          <Textarea
-            v-model="formData.bio"
-            rows="4"
-          />
-        </div>
-
-        <div class="form-group">
-          <Label>Specialties</Label>
-          <Input v-model="formData.specialties" type="text" />
-        </div>
-
-        <div class="form-group">
-          <Label>Hourly Rate ($)</Label>
-          <Input
-            v-model="formData.hourly_rate"
-            type="number"
-            step="0.01"
-            min="0"
-          />
-        </div>
-
-        <div class="form-actions">
-          <Button type="submit" :disabled="isUpdatingInstructor">
-            {{ isUpdatingInstructor ? 'Saving...' : 'Save' }}
-          </Button>
-          <Button type="button" variant="outline" @click="cancelEditing">
-            Cancel
-          </Button>
-        </div>
-      </form>
-    </div>
-    </div>
-  </CardContent>
+    </CardContent>
   </Card>
 </template>
 
@@ -252,61 +215,174 @@ async function handleSave() {
   color: var(--text-secondary);
 }
 
-.no-profile {
-  border: 2px dashed var(--border-color);
-  border-radius: 8px;
-  padding: var(--spacing-xl);
-}
-
 .no-profile-text {
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-lg);
 }
 
-.form {
+/* ── Layout ─────────────────────────────────────────────── */
+
+.instructor-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: 1.25rem;
 }
 
-.form-group {
+.field-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 0.375rem;
 }
+
+/* ── Label ───────────────────────────────────────────────── */
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #495057);
+}
+
+/* ── Shared input base ───────────────────────────────────── */
+
+.field-input,
+.field-textarea,
+.prefixed-field {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-primary, #213547);
+  background: var(--background-hover, #f8f9fa);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: var(--border-radius, 8px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  outline: none;
+}
+
+/* Edit-mode: white background */
+.field-input.is-editing,
+.prefixed-field.is-editing {
+  background: white;
+}
+
+/* Read-only: no cursor change, no focus ring */
+.field-input[readonly],
+.field-textarea[readonly] {
+  cursor: default;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  border-color: var(--primary-color, #28a745);
+}
+
+.field-input[readonly]:focus,
+.field-textarea[readonly]:focus {
+  border-color: var(--border-color, #dee2e6);
+}
+
+/* Single-line input padding */
+.field-input {
+  padding: 0.5rem 0.75rem;
+}
+
+/* ── Textarea / Bio ──────────────────────────────────────── */
+
+.bio-wrapper {
+  position: relative;
+  border-radius: var(--border-radius, 8px);
+  overflow: hidden; /* clip the fade pseudo-element */
+}
+
+.field-textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  padding: 0.5rem 0.75rem;
+  line-height: 1.6;
+  /* Collapsed: one line tall — sized to line-height + padding + border */
+  max-height: 2.6rem;
+  overflow: hidden;
+  transition:
+    max-height 0.45s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.field-textarea.is-editing {
+  max-height: 5rem;
+  overflow-y: auto;
+  background: white;
+}
+
+/* Bottom fade — hints there's more content, visible only in read-only mode */
+.bio-wrapper.is-readonly::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 1px;
+  right: 1px;
+  height: 1.25rem;
+  background: linear-gradient(to bottom, transparent, var(--background-hover, #f8f9fa));
+  border-radius: 0 0 var(--border-radius, 8px) var(--border-radius, 8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* ── Prefixed field (Hourly Rate) ────────────────────────── */
+
+.prefixed-field {
+  display: flex;
+  align-items: stretch;
+  padding: 0;           /* border/bg on wrapper, not the input */
+}
+
+.field-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.25rem 0.5rem 0.75rem;
+  color: var(--text-secondary, #495057);
+  user-select: none;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.prefixed-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-primary, #213547);
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  cursor: default;
+}
+
+.prefixed-field.is-editing .prefixed-input {
+  cursor: text;
+}
+
+/* Hide number spinners for cleaner look */
+.prefixed-input::-webkit-outer-spin-button,
+.prefixed-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.prefixed-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ── Actions ─────────────────────────────────────────────── */
 
 .form-actions {
   display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
-}
-
-.profile-view,
-.profile-edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.profile-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
-.field-label {
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.field-value {
-  margin: 0;
-  padding: 0.6rem 0.75rem;
-  background: var(--background-hover);
-  border-radius: var(--border-radius);
-  color: var(--text-color);
+  gap: 0.5rem;
+  padding-top: 0.25rem;
 }
 </style>

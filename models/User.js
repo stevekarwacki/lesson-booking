@@ -173,8 +173,8 @@ User.getVerificationStatus = function(user) {
     return verificationHelpers.getVerificationStatus(user);
 };
 
-User.validateVerificationData = function(data) {
-    return verificationHelpers.validateVerificationData(data);
+User.validateProfileFields = function(data) {
+    return verificationHelpers.validateProfileFields(data);
 };
 
 User.buildProfileData = function(data) {

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import { useUserProfile } from '../composables/useUserProfile'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { profileSchema } from '@common/schemas/index.mjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +61,13 @@ const profileData = ref({
 
 const fieldErrors = ref({})
 
+// Returns an amber border style for completion-required fields that are empty.
+// Suppressed when the field already has a format error (error message is shown instead).
+const completionWarning = (value, errorKey) => {
+    if (fieldErrors.value[errorKey]) return {}
+    return !value ? { borderColor: 'var(--warning-color)' } : {}
+}
+
 function sourceUser() {
     return props.adminMode ? props.user : userStore.user
 }
@@ -99,12 +107,25 @@ const updateProfile = async () => {
         }
     }
 
+    // Validate format client-side before hitting the network
+    const validation = profileSchema.safeParse(payload)
+    if (!validation.success) {
+        const errors = {}
+        validation.error.issues.forEach(issue => {
+            const path = issue.path.join('.')
+            // Flatten address.field → field to match fieldErrors display keys
+            errors[path.replace(/^address\./, '')] = issue.message
+        })
+        fieldErrors.value = errors
+        formFeedback.showError('Please correct the errors below')
+        return
+    }
+
     try {
         const result = await updateUserProfile(payload)
         formFeedback.showSuccess('Profile updated successfully')
         emit('profile-updated', result)
     } catch (err) {
-        // Surface field-level validation errors if the API returned them
         if (err.fieldErrors) {
             fieldErrors.value = err.fieldErrors
             formFeedback.showError('Please correct the errors below')
@@ -182,7 +203,7 @@ onMounted(loadProfile)
                         
                         <div class="form-group form-group-horizontal">
                             <Label for="phone" class="form-label">
-                                Phone Number <span class="required">*</span>
+                                Phone Number <span class="completion-required">*</span>
                             </Label>
                             <div class="form-input-wrapper">
                                 <Input 
@@ -190,7 +211,7 @@ onMounted(loadProfile)
                                     v-model="profileData.phoneNumber"
                                     type="tel"
                                     placeholder="555-123-4567"
-                                    required
+                                    :style="completionWarning(profileData.phoneNumber, 'phone_number')"
                                 />
                                 <p v-if="fieldErrors.phone_number" class="error-message">
                                     {{ fieldErrors.phone_number }}
@@ -200,7 +221,7 @@ onMounted(loadProfile)
 
                         <div class="form-group form-group-horizontal">
                             <Label for="address1" class="form-label">
-                                Address Line 1 <span class="required">*</span>
+                                Address Line 1 <span class="completion-required">*</span>
                             </Label>
                             <div class="form-input-wrapper">
                                 <Input 
@@ -208,7 +229,7 @@ onMounted(loadProfile)
                                     v-model="profileData.addressLine1"
                                     type="text"
                                     placeholder="123 Main Street"
-                                    required
+                                    :style="completionWarning(profileData.addressLine1, 'line_1')"
                                 />
                                 <p v-if="fieldErrors.address_line_1" class="error-message">
                                     {{ fieldErrors.address_line_1 }}
@@ -232,7 +253,7 @@ onMounted(loadProfile)
 
                         <div class="form-group form-group-horizontal">
                             <Label class="form-label">
-                                City, State & ZIP <span class="required">*</span>
+                                City, State & ZIP <span class="completion-required">*</span>
                             </Label>
                             <div class="address-fields">
                                 <div class="address-field">
@@ -241,7 +262,7 @@ onMounted(loadProfile)
                                         v-model="profileData.city"
                                         type="text"
                                         placeholder="City"
-                                        required
+                                        :style="completionWarning(profileData.city, 'city')"
                                     />
                                     <p v-if="fieldErrors.city" class="error-message">
                                         {{ fieldErrors.city }}
@@ -249,8 +270,8 @@ onMounted(loadProfile)
                                 </div>
 
                                 <div class="address-field">
-                                    <Select v-model="profileData.state" required>
-                                        <SelectTrigger id="state">
+                                    <Select v-model="profileData.state">
+                                        <SelectTrigger id="state" :style="completionWarning(profileData.state, 'state')">
                                             <SelectValue placeholder="State" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -271,7 +292,7 @@ onMounted(loadProfile)
                                         type="text"
                                         placeholder="ZIP"
                                         maxlength="10"
-                                        required
+                                        :style="completionWarning(profileData.zip, 'zip')"
                                     />
                                     <p v-if="fieldErrors.zip" class="error-message">
                                         {{ fieldErrors.zip }}

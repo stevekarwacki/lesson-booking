@@ -303,11 +303,10 @@ const closeEditModal = () => {
 }
 
 // Handle profile update from Profile component (admin editing student profile)
-const handleProfileUpdate = async (result) => {
+const handleProfileUpdate = (result) => {
     if (result?.user) {
         editingUser.value = { ...result.user }
     }
-    showSuccess('Profile updated successfully')
 }
 
 const saveUserEdit = async () => {
@@ -361,15 +360,6 @@ const saveRoleChange = async () => {
         // Revert pending change on error
         pendingRoleChange.value = editingUser.value.role
     }
-}
-
-// InstructorDetailsForm event handlers
-const handleInstructorSaved = () => {
-    showSuccess('Instructor profile updated successfully')
-}
-
-const handleInstructorCreated = () => {
-    showSuccess('Instructor profile created successfully')
 }
 
 // Subscription management handlers
@@ -743,8 +733,6 @@ const formatDate = (dateString) => {
                 <UserInfoTab
                     :user="editingUser"
                     @profile-updated="handleProfileUpdate"
-                    @instructor-saved="handleInstructorSaved"
-                    @instructor-created="handleInstructorCreated"
                 />
             </TabbedModalTab>
 
