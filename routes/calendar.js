@@ -21,9 +21,39 @@ const {
 
 const { enrichEventsWithPaymentInfo, enrichEventWithPaymentInfo } = require('../utils/paymentEnrichment');
 
-// Get instructor's calendar events - requires read permission for instructor data
-router.get('/instructor/:instructorId', authorize('read', 'Instructor'), async (req, res) => {
+// Get all bookings across all instructors (admin only, paginated + filterable)
+router.get('/bookings', authorize('manage', 'User'), async (req, res) => {
     try {
+        const {
+            instructorId,
+            studentId,
+            startDate,
+            endDate,
+            status,
+            page = '1',
+            limit = '25'
+        } = req.query;
+
+        const result = await Calendar.getAllBookings({
+            instructorId: instructorId ? parseInt(instructorId, 10) : undefined,
+            studentId: studentId ? parseInt(studentId, 10) : undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            status: status || undefined,
+            page: parseInt(page, 10),
+            limit: Math.min(parseInt(limit, 10), 100) // cap at 100 per page
+        });
+
+        const enriched = await enrichEventsWithPaymentInfo(result.bookings);
+        res.json({ ...result, bookings: enriched });
+    } catch (error) {
+        console.error('Error fetching all bookings:', error);
+        res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
+});
+
+// Get instructor's calendar events - requires read permission for instructor data
+router.get('/instructor/:instructorId', authorize('read', 'Instructor'), async (req, res) => {    try {
         const events = await Calendar.getInstructorEvents(req.params.instructorId);
         
         // Transform events to include payment information
