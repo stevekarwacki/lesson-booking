@@ -232,8 +232,8 @@ router.post('/addEvent', authorize('create', 'Booking'), async (req, res) => {
             return res.status(400).json({ error: errorMessage });
         }
 
-        // 3. Check for existing one-time bookings
-        const existingBookings = await Calendar.getInstructorEvents(instructorId);
+        // 3. Check for existing one-time bookings on the same day only
+        const existingBookings = await Calendar.getInstructorEvents(instructorId, formattedDate, formattedDate);
 
         // Check for existing one-time booking conflicts with detailed logging
         const conflictingBookings = existingBookings.filter(booking => {
@@ -345,14 +345,8 @@ router.get('/events/:instructorId/:startDate/:endDate', async (req, res) => {
     try {
         const { instructorId, startDate, endDate } = req.params
         
-        // Get regular one-time bookings
-        const events = await Calendar.getInstructorEvents(instructorId)
-        
-        // Filter events within date range
-        const weekEvents = events.filter(event => {
-            const eventDate = event.date
-            return eventDate >= startDate && eventDate <= endDate
-        })
+        // Get regular one-time bookings bounded to the requested date range
+        const weekEvents = await Calendar.getInstructorEvents(instructorId, startDate, endDate)
         
         // Get recurring bookings and create virtual events for the date range
         const { RecurringBooking } = require('../models/RecurringBooking');
@@ -459,11 +453,8 @@ router.get('/dailyEvents/:instructorId/:date', async (req, res) => {
     try {
         const { instructorId, date } = req.params
         
-        // Get regular one-time bookings
-        const events = await Calendar.getInstructorEvents(instructorId)
-        
-        // Filter events for specific date
-        const dayEvents = events.filter(event => event.date === date)
+        // Get regular one-time bookings bounded to the requested date
+        const dayEvents = await Calendar.getInstructorEvents(instructorId, date, date)
         
         // Get recurring bookings for this day of week
         const { RecurringBooking } = require('../models/RecurringBooking');
@@ -652,22 +643,31 @@ router.patch('/student/:bookingId', authorizeBooking('update', async (req) => {
         // Get instructor availability
         const weeklyAvailability = await InstructorAvailability.getWeeklyAvailability(booking.instructor_id);
 
-        const isTimeInWeeklySchedule = weeklyAvailability.some(slot => {
-            if (slot.day_of_week !== dayOfWeek) return false;
-            const slotEnd = slot.start_slot + slot.duration;
-            return startSlot >= slot.start_slot && 
-                   startSlot < slotEnd && 
-                   (startSlot + duration) <= slotEnd;
-        });
+        // Use the same timezone-aware check as booking creation
+        const studentTimezone = req.body.studentTimezone || 'UTC';
+        const bookingTime = requestedDate.toISOString().substring(11, 16); // HH:MM in UTC
+        const dayAvailability = weeklyAvailability.filter(slot => slot.day_of_week === dayOfWeek);
 
-        if (!isTimeInWeeklySchedule) {
+        let isAvailable = false;
+        for (const availSlot of dayAvailability) {
+            if (isBookingAvailable(bookingTime, formattedDate, studentTimezone, availSlot)) {
+                const endDateTime = new Date(requestedDate.getTime() + (duration * 15 * 60 * 1000));
+                const endTimeStr = endDateTime.toISOString().substring(11, 16);
+                if (isBookingAvailable(endTimeStr, formattedDate, studentTimezone, availSlot)) {
+                    isAvailable = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isAvailable) {
             return res.status(400).json({ 
                 error: 'Selected time is outside instructor\'s availability'
             });
         }
 
-        // Check for existing one-time bookings (excluding the current booking)
-        const existingBookings = await Calendar.getInstructorEvents(booking.instructor_id);
+        // Check for existing one-time bookings on the same day (excluding the current booking)
+        const existingBookings = await Calendar.getInstructorEvents(booking.instructor_id, formattedDate, formattedDate);
 
         const hasOneTimeConflict = existingBookings.some(existingBooking => {
             // Skip the booking being updated

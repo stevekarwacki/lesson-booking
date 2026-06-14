@@ -226,7 +226,7 @@ const canBookingAction = (user, booking, action) => {
     }
     
     // Add the slot time to get the actual booking time
-    // If start_slot is not provided, assume beginning of day (slot 0 = 6:00 AM)
+    // If start_slot is not provided, assume beginning of day (slot 0 = midnight 00:00)
     const startSlot = booking.start_slot !== undefined ? booking.start_slot : 0;
     const hours = Math.floor(startSlot / 4);
     const minutes = (startSlot % 4) * 15;

@@ -111,9 +111,7 @@ All routes require JWT (`authMiddleware`). CASL middleware noted per endpoint.
 { "message": "Booking rescheduled successfully", "booking": { ... } }
 ```
 
-Validation includes: availability check (direct slot containment — simpler than create, no full timezone-aware `isBookingAvailable`), one-time conflict check, recurring conflict check. The original booking's `duration` is preserved.
-
-> **Known inconsistency:** the create path uses the timezone-aware `isBookingAvailable`; the reschedule path uses a raw slot comparison. This means reschedule availability validation does not account for instructor timezone offsets the same way. See [CALENDAR_SCHEDULING_SYSTEM.md — Known issues](CALENDAR_SCHEDULING_SYSTEM.md).
+Validation includes: availability check (same timezone-aware `isBookingAvailable` helper used by create — student timezone read from `req.body.studentTimezone`, defaulting to `'UTC'`), one-time conflict check, recurring conflict check. The original booking's `duration` is preserved.
 
 **24-hour policy:** CASL `canBookingAction(user, booking, 'update')` blocks students from rescheduling within 24 hours of the lesson start. Instructors and admins are exempt.
 
@@ -178,7 +176,7 @@ A student's own recurring slot is an explicit exception — they are permitted t
 
 The merge happens in `routes/calendar.js` (lines ~346–448). Each source is fetched independently; failures in Google Calendar do not block DB events from returning.
 
-> **Performance note:** Despite accepting `startDate`/`endDate` URL parameters, `GET /api/calendar/events` calls `Calendar.getInstructorEvents(instructorId)` which fetches **all** non-cancelled bookings for the instructor with no date filter in SQL, then filters to the requested range in JavaScript. The same unscoped query is used for conflict detection during booking creation and reschedule. This works acceptably for small booking histories but will degrade as an instructor accumulates bookings over time. A future improvement would push the date range into the SQL `WHERE` clause.
+`Calendar.getInstructorEvents` accepts optional `startDate`/`endDate` parameters which are pushed into the SQL `WHERE` clause via Sequelize `Op.between`. The range endpoint, daily endpoint, and conflict detection calls all pass the relevant date bounds so only the required rows are loaded. The admin-only full-history endpoint (`GET /api/calendar/instructor/:instructorId`) intentionally omits the date range.
 
 The frontend maps `recurring_reserved` to `type: 'booked'` and `is_recurring: true` in `formatSlot`. These slots display identically to regular bookings but cannot be clicked for rescheduling.
 

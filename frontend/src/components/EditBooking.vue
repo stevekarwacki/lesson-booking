@@ -102,7 +102,6 @@
 
 <script setup>
 import { ref, onMounted, computed, watch, inject } from 'vue'
-import { useQueryClient } from '@tanstack/vue-query'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useCalendar } from '../composables/useCalendar'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -110,10 +109,9 @@ import { Label } from '@/components/ui/label'
 import { useAvailability } from '../composables/useAvailability'
 import { useUserStore } from '../stores/userStore'
 import { useScheduleStore } from '../stores/scheduleStore'
-import { useSettingsStore } from '../stores/settingsStore'
+import { useTimezoneStore } from '../stores/timezoneStore'
 import { slotToTimeUTC, slotToTime, formatDateUTC, createUTCDateFromSlot, formatDate, formatTime } from '../utils/timeFormatting'
 import DailyScheduleView from './DailyScheduleView.vue'
-import { Button } from '@/components/ui/button'
 import SlideTransition from './SlideTransition.vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 
@@ -129,11 +127,10 @@ const emit = defineEmits(['close', 'booking-updated', 'booking-cancelled'])
 // Inject actionControl for button management
 const actionControl = inject('actionControl', null)
 
-const queryClient = useQueryClient()
 const formFeedback = useFormFeedback()
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
-const settingsStore = useSettingsStore()
+const timezoneStore = useTimezoneStore()
 const loading = ref(false)
 const selectedDate = ref('')
 const dailySchedule = ref(null)
@@ -303,7 +300,8 @@ const updateBooking = async () => {
             bookingId: props.booking.id,
             updateData: {
                 startTime: startDate.toISOString(),
-                endTime: endDate.toISOString()
+                endTime: endDate.toISOString(),
+                studentTimezone: timezoneStore.userTimezone
             }
         })
 

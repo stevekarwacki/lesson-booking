@@ -323,24 +323,17 @@ After any booking mutation (create, update, cancel, refund), components call `sc
 
 These are documented here, not as bugs to fix immediately, but so future developers do not reintroduce them or work around the wrong assumption.
 
-### 1. Slot-0 comment errors in source code
-`utils/abilities.js` (line 229) contains a comment stating "slot 0 = 6:00 AM". This is incorrect — slot 0 is midnight (00:00). See [SLOT_SYSTEM.md](SLOT_SYSTEM.md) for the authoritative definition.
-
-### 2. Availability expansion is frontend-only
+### 1. Availability expansion is frontend-only
 The backend returns contiguous availability windows (`start_slot`, `duration`). The per-15-minute expansion that populates `formattedSchedule[slot]` happens entirely in `InstructorCalendar.fetchWeeklySchedule`. There is no backend endpoint that returns individual bookable slots.
 
-### 3. Create vs. reschedule timezone handling
-`POST /api/calendar/addEvent` (create) uses the timezone-aware `isBookingAvailable` helper from `timeUtils.js`, which converts student local time to UTC before comparing against the instructor's availability window. `PATCH /api/calendar/student/:id` (reschedule) uses a simpler raw-slot comparison that does not apply the same timezone conversion. This is a pre-existing inconsistency.
-
-### 4. Blocked-times API is incomplete
+### 2. Blocked-times API is incomplete
 Routes exist at `GET/POST /api/availability/:id/blocked` and `DELETE /api/availability/blocked/:id`, but the corresponding database table and model getters are not implemented. The frontend `useAvailability` composable has the `blockedSlots` query set to `enabled: false` pending backend completion. The `InstructorTimeBlocking.vue` UI is partially functional as a result.
 
-### 5. Event fetch is unbounded — no date filter in the database query
-
-`GET /api/calendar/events/:instructorId/:startDate/:endDate` accepts a date range but `Calendar.getInstructorEvents` fetches **all** non-cancelled bookings for the instructor from the database, then filters to the window in JavaScript. The same unscoped query runs during conflict detection on create and reschedule. This is acceptably fast now but will degrade over time. Fix: push `startDate`/`endDate` into the Sequelize `WHERE` clause.
-
-### 6. Past availability shown in past weeks
+### 3. Past availability shown in past weeks
 When navigating to a previous week, the green "available" blocks reflect the instructor's *current* weekly schedule, not their historical schedule. Bookings shown in the past are real DB records, but availability slots are a projection of the current pattern.
+
+### 4. Admin event listing is unbounded
+The admin-only `GET /api/calendar/instructor/:instructorId` endpoint calls `Calendar.getInstructorEvents` without a date range, intentionally returning the full booking history for management purposes. This will grow with the database but is the correct behaviour for an admin overview.
 
 ---
 

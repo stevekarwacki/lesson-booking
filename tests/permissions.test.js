@@ -41,9 +41,9 @@ describe('CASL Permissions Infrastructure Tests', () => {
   const minutes = nearFutureDateTime.getMinutes();
   
   // Calculate slot from the actual hour and minutes
-  // Slot system: 6 AM = slot 0, each slot = 15 minutes
-  // Formula: slot = (hour - 6) * 4 + Math.floor(minutes / 15)
-  const slot = (hour - 6) * 4 + Math.floor(minutes / 15);
+  // Slot system: slot 0 = midnight (00:00), each slot = 15 minutes
+  // Formula: slot = hour * 4 + Math.floor(minutes / 15)
+  const slot = hour * 4 + Math.floor(minutes / 15);
   
   const nearFutureBooking = {
     id: 3,
@@ -168,12 +168,12 @@ describe('CASL Permissions Infrastructure Tests', () => {
       
       // Create a booking definitely more than 24 hours away (48 hours)
       const farFuture = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-      // Calculate slot from the actual hour (slots start at 6 AM = slot 0)
-      const farFutureSlot = (farFuture.getUTCHours() - 6) * 4 + Math.floor(farFuture.getUTCMinutes() / 15);
+      // Calculate slot from the actual hour (slot 0 = midnight 00:00, each slot = 15 minutes)
+      const farFutureSlot = farFuture.getUTCHours() * 4 + Math.floor(farFuture.getUTCMinutes() / 15);
       
       // Create a booking less than 24 hours away (12 hours)
       const nearFuture = new Date(now.getTime() + 12 * 60 * 60 * 1000);
-      const nearFutureSlot = (nearFuture.getUTCHours() - 6) * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
+      const nearFutureSlot = nearFuture.getUTCHours() * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
       
       const booking48Hours = {
         ...studentBooking,
@@ -240,8 +240,8 @@ describe('CASL Permissions Infrastructure Tests', () => {
       // Create a booking that's definitely within 24 hours (12 hours from now)
       const nearFuture = new Date(Date.now() + 12 * 60 * 60 * 1000);
       
-      // Calculate slot from UTC hours (slots start at 6 AM = slot 0)
-      const nearFutureSlot = (nearFuture.getUTCHours() - 6) * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
+      // Calculate slot from UTC hours (slot 0 = midnight 00:00, each slot = 15 minutes)
+      const nearFutureSlot = nearFuture.getUTCHours() * 4 + Math.floor(nearFuture.getUTCMinutes() / 15);
       
       const recentBooking = {
         ...studentBooking,

@@ -113,9 +113,9 @@ describe('Route Permission Tests - CASL Integration', () => {
             const minutes = nearFutureDateTime.getMinutes();
             
             // Calculate slot from the actual hour and minutes
-            // Slot system: 6 AM = slot 0, each slot = 15 minutes
-            // Formula: slot = (hour - 6) * 4 + Math.floor(minutes / 15)
-            const slot = (hour - 6) * 4 + Math.floor(minutes / 15);
+            // Slot system: slot 0 = midnight (00:00), each slot = 15 minutes
+            // Formula: slot = hour * 4 + Math.floor(minutes / 15)
+            const slot = hour * 4 + Math.floor(minutes / 15);
             
             const nearBooking = {
                 student_id: 3,
@@ -151,7 +151,7 @@ describe('Route Permission Tests - CASL Integration', () => {
                 instructor_id: 2,
                 student_id: 3,
                 date: sixHoursLater.toISOString().split('T')[0],
-                start_slot: (sixHoursLater.getHours() - 6) * 4, // Convert to slot (assuming 6 AM start)
+                start_slot: sixHoursLater.getHours() * 4, // Convert to slot (slot 0 = midnight)
                 status: 'booked'
             };
             

@@ -180,15 +180,20 @@ Calendar.addEvent = async function(instructorId, studentId, date, startSlot, dur
     }
 };
 
-Calendar.getInstructorEvents = async function(instructorId) {
+Calendar.getInstructorEvents = async function(instructorId, startDate, endDate) {
     // Import Attendance and Refund models here to avoid circular dependency
     const { Attendance } = require('./Attendance');
     const { Refund } = require('./Refund');
+
+    const dateFilter = startDate && endDate
+        ? { date: { [sequelize.Op.between]: [startDate, endDate] } }
+        : {};
     
     const events = await this.findAll({
         where: { 
             instructor_id: instructorId,
-            status: { [sequelize.Op.ne]: 'cancelled' }
+            status: { [sequelize.Op.ne]: 'cancelled' },
+            ...dateFilter
         },
         include: [
             {
