@@ -59,6 +59,12 @@ const routes = [
         }
     },
     {
+        path: '/bookings',
+        name: 'bookings',
+        component: () => import('../views/BookingsPage.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/calendar',
         name: 'calendar',
         component: () => import('../views/CalendarPage.vue'),

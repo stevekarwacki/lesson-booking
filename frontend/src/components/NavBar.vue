@@ -183,6 +183,15 @@ const helpTarget = computed(() => {
                     Users
                 </router-link>
                 
+                <!-- Bookings (all logged-in users) -->
+                <router-link 
+                    to="/bookings" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Bookings
+                </router-link>
+
                 <!-- Calendar Management (Instructors and Admins) -->
                 <router-link 
                     v-if="canManageOwnInstructorCalendar || canManageUsers"

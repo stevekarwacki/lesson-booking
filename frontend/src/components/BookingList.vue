@@ -5,6 +5,7 @@
       :filters="filters"
       :activeFilter="activeFilter"
       :counts="filterCounts"
+      :show-counts="!serverMode"
       @filter-change="handleFilterChange"
     />
 
@@ -142,8 +143,8 @@
         class="pagination-controls"
       >
         <Button 
-          @click="goToPreviousPage"
-          :disabled="currentPage === 1"
+          @click="serverMode ? $emit('page-change', effectiveCurrentPage - 1) : goToPreviousPage()"
+          :disabled="effectiveCurrentPage === 1"
           variant="outline"
           size="sm"
         >
@@ -151,13 +152,12 @@
         </Button>
         
         <span class="pagination-info">
-          Page {{ currentPage }} of {{ totalPages }}
-          ({{ totalBookings }} total)
+          Page {{ effectiveCurrentPage }} of {{ effectiveTotalPages }}
         </span>
         
         <Button 
-          @click="goToNextPage"
-          :disabled="currentPage === totalPages"
+          @click="serverMode ? $emit('page-change', effectiveCurrentPage + 1) : goToNextPage()"
+          :disabled="effectiveCurrentPage === effectiveTotalPages"
           variant="outline"
           size="sm"
         >
@@ -215,9 +215,21 @@ export default {
     showActions: {
       type: Boolean,
       default: true
+    },
+    serverMode: {
+      type: Boolean,
+      default: false
+    },
+    currentPage: {
+      type: Number,
+      default: null
+    },
+    totalPages: {
+      type: Number,
+      default: null
     }
   },
-  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed'],
+  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed', 'page-change', 'tab-change'],
   setup(props, { emit }) {
     const filters = filterPresets.bookings
     const activeFilter = ref('today')
@@ -256,6 +268,11 @@ export default {
 
     // Filter bookings based on active filter
     const filteredBookings = computed(() => {
+      // In server mode the server already filtered and paginated — return as-is
+      if (props.serverMode) {
+        return props.bookings
+      }
+
       let filtered = []
       
       switch (activeFilter.value) {
@@ -294,15 +311,31 @@ export default {
     const totalPages = computed(() => Math.ceil(totalBookings.value / itemsPerPage))
     
     const showPagination = computed(() => {
+      if (props.serverMode) {
+        return props.totalPages != null && props.totalPages > 1
+      }
       return (activeFilter.value === 'past' || activeFilter.value === 'cancelled') && 
              totalBookings.value > itemsPerPage
     })
 
+    const effectiveTotalPages = computed(() => {
+      if (props.serverMode && props.totalPages != null) return props.totalPages
+      return totalPages.value
+    })
+
+    const effectiveCurrentPage = computed(() => {
+      if (props.serverMode && props.currentPage != null) return props.currentPage
+      return currentPage.value
+    })
+
     const paginatedBookings = computed(() => {
+      if (props.serverMode) {
+        // Server already sliced the data; just return all of filteredBookings
+        return filteredBookings.value
+      }
       if (!showPagination.value) {
         return filteredBookings.value
       }
-      
       const start = (currentPage.value - 1) * itemsPerPage
       const end = start + itemsPerPage
       return filteredBookings.value.slice(start, end)
@@ -356,7 +389,10 @@ export default {
     // Event handlers
     const handleFilterChange = (filterValue) => {
       activeFilter.value = filterValue
-      currentPage.value = 1 // Reset to first page when filter changes
+      currentPage.value = 1
+      if (props.serverMode) {
+        emit('tab-change', filterValue)
+      }
     }
 
     const handleEditBooking = (booking) => {
@@ -474,6 +510,8 @@ export default {
       totalPages,
       currentPage,
       showPagination,
+      effectiveCurrentPage,
+      effectiveTotalPages,
       formatDate,
       formatTime,
       isPastBooking,

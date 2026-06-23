@@ -36,16 +36,27 @@ async function fetchAllBookings(params, token) {
   return response.json()
 }
 
-export function useAdminBookings() {
+export function useAdminBookings({ enabled: enabledOverride = null, initialFilters = {} } = {}) {
   const userStore = useUserStore()
   const token = computed(() => userStore.token)
+
+  const isEnabled = computed(() => {
+    if (enabledOverride !== null) {
+      const v = typeof enabledOverride === 'object' && 'value' in enabledOverride
+        ? enabledOverride.value
+        : enabledOverride
+      if (!v) return false
+    }
+    return !!token.value
+  })
 
   const filters = ref({
     instructorId: null,
     studentId: null,
     startDate: null,
     endDate: null,
-    status: null
+    status: null,
+    ...initialFilters
   })
   const currentPage = ref(1)
 
@@ -63,7 +74,7 @@ export function useAdminBookings() {
   } = useQuery({
     queryKey: ['adminBookings', params],
     queryFn: () => fetchAllBookings(params.value, token.value),
-    enabled: computed(() => !!token.value),
+    enabled: isEnabled,
     staleTime: 30 * 1000,
     cacheTime: 5 * 60 * 1000,
     keepPreviousData: true
@@ -71,7 +82,7 @@ export function useAdminBookings() {
 
   const bookings = computed(() => data.value?.bookings ?? [])
   const total = computed(() => data.value?.total ?? 0)
-  const totalPages = computed(() => Math.ceil(total.value / DEFAULT_LIMIT))
+  const totalPages = computed(() => Math.max(1, Math.ceil(total.value / DEFAULT_LIMIT)))
 
   function setFilters(newFilters) {
     filters.value = { ...filters.value, ...newFilters }
