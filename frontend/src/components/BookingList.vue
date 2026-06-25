@@ -696,7 +696,7 @@ export default {
 .empty-state,
 .loading-state {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   color: var(--text-secondary);
 }
 

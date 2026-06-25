@@ -172,6 +172,16 @@ const helpTarget = computed(() => {
                         Home
                     </router-link>
                 </template>
+
+                <!-- Student: Book a Lesson (first CTA) -->
+                <router-link 
+                    v-if="canCreateStudentBooking && userStore.user?.is_approved"
+                    to="/calendar" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Book a Lesson
+                </router-link>
                 
                 <!-- Admin Management Links -->
                 <router-link 
@@ -183,15 +193,6 @@ const helpTarget = computed(() => {
                     Users
                 </router-link>
                 
-                <!-- Bookings (all logged-in users) -->
-                <router-link 
-                    to="/bookings" 
-                    class="nav-link"
-                    @click="closeMenu"
-                >
-                    Bookings
-                </router-link>
-
                 <!-- Calendar Management (Instructors and Admins) -->
                 <router-link 
                     v-if="canManageOwnInstructorCalendar || canManageUsers"
@@ -200,6 +201,15 @@ const helpTarget = computed(() => {
                     @click="closeMenu"
                 >
                     Calendar
+                </router-link>
+
+                <!-- Bookings (all logged-in users) -->
+                <router-link 
+                    to="/bookings" 
+                    class="nav-link"
+                    @click="closeMenu"
+                >
+                    Bookings
                 </router-link>
 
                 <!-- Availability (Instructors only) -->
@@ -229,19 +239,11 @@ const helpTarget = computed(() => {
                     Settings
                 </router-link>
 
-                <!-- Student/Booking Links -->
-                <router-link 
-                    v-if="canCreateStudentBooking && userStore.user?.is_approved"
-                    to="/calendar" 
-                    class="nav-link"
-                >
-                    Book Lesson
-                </router-link>
-
                 <router-link 
                     v-if="canAccessStudentPayments && userStore.user?.is_approved"
                     to="/payments" 
                     class="nav-link"
+                    @click="closeMenu"
                 >
                     Payments
                 </router-link>

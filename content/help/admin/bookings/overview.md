@@ -1,44 +1,48 @@
 ---
 id: bookings-overview
-title: Calendar and bookings — overview
+title: Bookings — overview
 audience: admin
 category: bookings
 order: 0
-uiRoute: /calendar
-keywords: [calendar, bookings, overview, lessons, schedule, instructor, week, navigate]
+uiRoute: /bookings
+keywords: [bookings, history, search, filter, paginate, instructor, student, date, all bookings]
 ---
 
-# Calendar and Bookings
+# Bookings
 
-The Calendar page shows a 7-day view of lessons for any instructor. As an admin you can book, reschedule, view, and cancel lessons directly from here.
+The Bookings page is the central record of all lessons in the system. Use it to search and filter the full history across all instructors and students.
 
-## Navigating the calendar
+## Where to find it
 
-The calendar opens on the current 7-day window starting from today, so past days are never shown on first load.
+> Bookings (top navigation)
 
-Use the **Previous Week** and **Next Week** buttons to browse up to 8 weeks into the past or any number of weeks into the future. When you are browsing a different week, a **Today** button appears to return you to the current window.
+## What you can do here
 
-You can also jump to a specific date using the **date picker** to the right of the navigation buttons. This switches to a single-day view for that date.
+- View every lesson — past, upcoming, and cancelled — in one place
+- Filter by **instructor**, **student**, and **date range**
+- Paginate through large result sets without performance issues
+- Reschedule, cancel, or refund a booking from the list
 
-Greyed-out slots indicate times in the past. Red striped slots are blocked by Google Calendar (if configured for the instructor).
+## Filters
 
-→ [Navigate the calendar](navigate-calendar.md)
+| Filter | Who sees it |
+|--------|-------------|
+| Instructor | Admins only |
+| Student | Admins and instructors |
+| Date range | All roles |
 
-## Booking a lesson
+Results update automatically when you change a filter. The page always opens on today's date so you see the most relevant lessons first.
 
-Click any green (available) slot to open the booking modal. You select the student, choose a lesson duration, confirm the payment method, and book — the student does not need to do anything.
+## Managing individual bookings
 
-→ [Book a lesson on behalf of a student](book-on-behalf.md)
+Click a booking in the list to act on it:
 
-## Rescheduling
+→ [Reschedule a lesson](reschedule-booking.md)
+→ [Cancel a lesson](cancel-booking.md)
+→ [Process a refund](process-refund.md)
 
-Click an existing (blue) booking slot to open its detail view, where you can move it to a different date and time.
+## Need to book a new lesson?
 
-→ [Reschedule a student's lesson](reschedule-booking.md)
+Booking a lesson on behalf of a student is done from the Calendar, not this page.
 
-## Cancelling and refunds
-
-Cancellations and refunds are handled from the student's **Bookings** tab on the Users page, not from the calendar directly.
-
-→ [Cancel a student's lesson](cancel-booking.md)
-→ [Process a refund for a lesson](process-refund.md)
+→ [Book a lesson on behalf of a student](../calendar/book-on-behalf.md)

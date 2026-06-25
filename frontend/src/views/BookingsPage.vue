@@ -239,7 +239,7 @@ function handleAttendanceChanged() {
 <template>
     <PageContainer class="bookings-page">
         <div class="page-header">
-            <h1>Your Bookings</h1>
+            <h1>{{ userStore.isAdmin ? 'Bookings' : 'Your Bookings' }}</h1>
         </div>
 
         <!-- Filter bar -->

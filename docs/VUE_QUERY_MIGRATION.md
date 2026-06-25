@@ -122,8 +122,9 @@ export const queryClient = new QueryClient({
 | `InstructorCalendar.vue` | `useCalendar`, `useAvailability` | Display weekly/daily schedule with bookings |
 | `BookingModal.vue` | `useInstructor`, `useAppSettings` | Create new bookings |
 | `EditBooking.vue` | `useCalendar`, `useAvailability` | Reschedule or cancel bookings |
-| `BookingList.vue` | `useCalendar` | List bookings with filters |
-| `UserBookings.vue` | `useUserBookings` | Student's personal booking list |
+| `BookingList.vue` | (pure presentation — data supplied by parent) | Tabbed booking list with attendance, refund, and pagination |
+| `BookingsPage.vue` | `useBookings` | Full-history booking page for all roles with role-aware filters and server-side pagination |
+| `CalendarPage.vue` | `useBookings` | Today's Bookings panel above the calendar grid |
 
 ### Availability Management
 
@@ -247,15 +248,32 @@ const { weeklyAvailability, saveWeeklyAvailability } = useAvailability(
 
 ---
 
-#### `useUserBookings(userId)`
+#### `useBookings(options)`
 
-**Purpose:** Fetch user's personal bookings
+**Purpose:** Unified composable for all booking list data fetching. Replaces the deleted `useAdminBookings`, `useInstructorBookings`, `useStudentBookings`, and `useUserBookings` composables.
 
-**Queries:**
-- `bookings` - Get all bookings for a user
+**Options:** `{ pageSize = 20, enabled, initialFilters = {} }`
+
+**Returns:**
+- `bookings` — `Ref<Array>` paginated booking records
+- `totalBookings` — `Ref<Number|null>` total server record count
+- `currentPage` — `Ref<Number>` active page
+- `isLoading` — `Ref<Boolean>`
+- `setFilters(filters)` — update server-side filters and reset to page 1
+- `setPage(page)` — navigate to a page
+- `refetch()` — manual re-fetch
+
+**Endpoint:** `GET /api/calendar/bookings` (role-scoped server-side)
 
 **Cache Keys:**
-- `['users', userId, 'bookings']`
+- `['bookings', filters, currentPage]`
+
+**Example:**
+```javascript
+const todayStr = new Date().toISOString().split('T')[0]
+const { bookings, totalBookings, currentPage, isLoading, setFilters, setPage } =
+    useBookings({ initialFilters: { startDate: todayStr, endDate: todayStr } })
+```
 
 ---
 
