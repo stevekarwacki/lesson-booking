@@ -9,11 +9,8 @@ import EditBooking from '../components/EditBooking.vue'
 import RefundModal from '../components/RefundModal.vue'
 import SearchBar from '../components/SearchBar.vue'
 import { useUserStore } from '../stores/userStore'
-import { useInstructorBookings } from '../composables/useInstructorBookings'
-import { useAdminBookings } from '../composables/useAdminBookings'
-import { useStudentBookings } from '../composables/useStudentBookings'
+import { useBookings } from '../composables/useBookings'
 import { useStudents } from '../composables/useStudents'
-import { useInstructor } from '../composables/useInstructor'
 import { slotToTime, formatTime } from '../utils/timeFormatting'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
@@ -24,82 +21,20 @@ const todayStr = new Date().toISOString().split('T')[0]
 const todayInitialFilters = { startDate: todayStr, endDate: todayStr, status: null }
 
 // ---------------------------------------------------------------------------
-// Data sources — each composable is gated to its own role via enabled flag
+// Single composable — server enforces role scoping automatically
 // ---------------------------------------------------------------------------
-
-// Student: paginated own bookings via the student endpoint
-const studentId = computed(() => userStore.isStudent ? userStore.user?.id : null)
 const {
-    bookings: studentBookings,
-    totalPages: studentTotalPages,
-    currentPage: studentCurrentPage,
-    isLoading: isLoadingStudent,
-    setFilters: setStudentFilters,
-    setPage: setStudentPage
-} = useStudentBookings(studentId, {
-    enabled: computed(() => userStore.isStudent && !!studentId.value),
-    initialFilters: todayInitialFilters
-})
-// Instructor: paginated own bookings; supports student + date sub-filters
-const ownInstructor = useInstructor({
-    mode: 'self',
-    enabled: computed(() => userStore.isInstructor)
-})
-const selfInstructorId = computed(() => ownInstructor.instructor.value?.id ?? null)
-const {
-    bookings: instructorBookings,
-    totalPages: instructorTotalPages,
-    currentPage: instructorCurrentPage,
-    isLoading: isLoadingInstructor,
-    setFilters: setInstructorFilters,
-    setPage: setInstructorPage
-} = useInstructorBookings(selfInstructorId, {
-    enabled: computed(() => userStore.isInstructor),
-    initialFilters: todayInitialFilters
-})
-
-// Admin: paginated all-bookings with full filter support
-const {
-    bookings: adminBookings,
-    totalPages: adminTotalPages,
-    currentPage: adminCurrentPage,
-    isLoading: isLoadingAdmin,
-    setFilters: setAdminFilters,
-    setPage: setAdminPage
-} = useAdminBookings({
-    enabled: computed(() => userStore.isAdmin),
-    initialFilters: todayInitialFilters
-})
+    bookings: rawBookings,
+    totalBookings,
+    currentPage,
+    filters: serverFilters,
+    isLoading,
+    setFilters,
+    setPage
+} = useBookings({ initialFilters: todayInitialFilters })
 
 // ---------------------------------------------------------------------------
-// Unified role-dispatch computed values
-// ---------------------------------------------------------------------------
-const isLoading = computed(() => {
-    if (userStore.isStudent) return isLoadingStudent.value
-    if (userStore.isInstructor) return isLoadingInstructor.value
-    return isLoadingAdmin.value
-})
-
-const activeBookings = computed(() => {
-    if (userStore.isStudent) return studentBookings.value
-    if (userStore.isInstructor) return instructorBookings.value
-    return adminBookings.value
-})
-
-const activeTotalPages = computed(() => {
-    if (userStore.isStudent) return studentTotalPages.value
-    if (userStore.isInstructor) return instructorTotalPages.value
-    return adminTotalPages.value
-})
-
-const activeCurrentPage = computed(() => {
-    if (userStore.isStudent) return studentCurrentPage.value
-    if (userStore.isInstructor) return instructorCurrentPage.value
-    return adminCurrentPage.value
-})
-
-// ---------------------------------------------------------------------------
-// Filter state
+// UI filter state (controls the filter bar; pushed to server on change)
 // ---------------------------------------------------------------------------
 const filters = ref({
     instructorId: null,
@@ -108,7 +43,7 @@ const filters = ref({
     endDate: null
 })
 
-// Students list for instructor + admin filters
+// Students list for instructor + admin filter bar
 const { students } = useStudents(computed(() => userStore.isInstructor || userStore.isAdmin))
 const studentSearchQuery = ref('')
 const isStudentSearchFocused = ref(false)
@@ -122,7 +57,7 @@ const studentSearchResults = computed(() => {
         .slice(0, 10)
 })
 
-// Instructors list — admin uses API; students see instructors from current page
+// Instructors list (admin only — fetched once on mount)
 const allInstructors = ref([])
 const instructorSearchQuery = ref('')
 const isInstructorSearchFocused = ref(false)
@@ -135,49 +70,59 @@ const instructorSearchResults = computed(() => {
         .slice(0, 10)
 })
 
-// For student role: derive unique instructors from whatever is loaded on the current page
-const studentBookingInstructors = computed(() => {
-    const seen = new Map()
-    for (const b of studentBookings.value ?? []) {
-        const id = b.instructor_id
-        const name = b.instructor_name || ''
-        if (id && !seen.has(id)) seen.set(id, { id, name })
-    }
-    return [...seen.values()]
-})
-
 if (userStore.isAdmin) {
     fetchInstructorsHelper(userStore.token)
         .then(r => { allInstructors.value = r.instructors.filter(i => i.is_active) })
         .catch(() => {})
 }
 
+// For student role: derive unique instructors from currently loaded bookings to populate the filter select
+const studentBookingInstructors = computed(() => {
+    const seen = new Map()
+    for (const b of rawBookings.value ?? []) {
+        const id = b.instructor_id
+        const name = b.instructor_name || b.Instructor?.User?.name || ''
+        if (id && !seen.has(id)) seen.set(id, { id, name })
+    }
+    return [...seen.values()]
+})
+
 // ---------------------------------------------------------------------------
-// Push filter changes to the active composable
+// Push UI filter changes to the server
 // ---------------------------------------------------------------------------
 watch(filters, (f) => {
-    const payload = {
+    setFilters({
         instructorId: f.instructorId || null,
         studentId: f.studentId || null,
         startDate: f.startDate || null,
         endDate: f.endDate || null
-    }
-    if (userStore.isAdmin) {
-        setAdminFilters(payload)
-    } else if (userStore.isInstructor) {
-        setInstructorFilters({
-            studentId: payload.studentId,
-            startDate: payload.startDate,
-            endDate: payload.endDate
-        })
-    } else if (userStore.isStudent) {
-        // Student endpoint supports date range; instructor is filtered client-side
-        setStudentFilters({
-            startDate: payload.startDate,
-            endDate: payload.endDate
-        })
-    }
+    })
 }, { deep: true })
+
+// ---------------------------------------------------------------------------
+// Tab → server filter mapping
+// ---------------------------------------------------------------------------
+function tabToServerFilters(tab) {
+    const today = new Date().toISOString().split('T')[0]
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+    switch (tab) {
+        case 'today':
+            return { startDate: today, endDate: today, status: null }
+        case 'upcoming':
+            return { startDate: tomorrow.toISOString().split('T')[0], endDate: null, status: null }
+        case 'past':
+            return { startDate: null, endDate: yesterday.toISOString().split('T')[0], status: null }
+        case 'cancelled':
+            return { startDate: null, endDate: null, status: 'cancelled' }
+        default:
+            return { startDate: null, endDate: null, status: null }
+    }
+}
+
+function handleTabChange(tab) {
+    setFilters({ ...tabToServerFilters(tab), instructorId: filters.value.instructorId, studentId: filters.value.studentId })
+}
 
 // ---------------------------------------------------------------------------
 // Format raw bookings to the shape BookingList expects
@@ -201,63 +146,22 @@ function formatBooking(b) {
     }
 }
 
-const filteredBookings = computed(() => {
-    let list = (activeBookings.value ?? []).map(formatBooking)
-    // Student instructor filter is applied client-side (student endpoint doesn't support instructorId filter)
-    if (userStore.isStudent && filters.value.instructorId) {
-        list = list.filter(b => b.originalBooking?.instructor_id === filters.value.instructorId)
-    }
-    return list
-})
-
-// ---------------------------------------------------------------------------
-// Tab → server filter mapping
-// ---------------------------------------------------------------------------
-function tabToServerFilters(tab) {
-    const todayStr = new Date().toISOString().split('T')[0]
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split('T')[0]
-
-    switch (tab) {
-        case 'today':
-            return { startDate: todayStr, endDate: todayStr, status: null }
-        case 'upcoming':
-            return { startDate: tomorrowStr, endDate: null, status: null }
-        case 'past':
-            return { startDate: null, endDate: yesterdayStr, status: null }
-        case 'cancelled':
-            return { startDate: null, endDate: null, status: 'cancelled' }
-        default:
-            return { startDate: null, endDate: null, status: null }
-    }
-}
-
-function handleTabChange(tab) {
-    const tabFilters = tabToServerFilters(tab)
-    if (userStore.isStudent) {
-        setStudentFilters(tabFilters)
-    } else if (userStore.isInstructor) {
-        setInstructorFilters(tabFilters)
-    } else {
-        setAdminFilters({ ...tabFilters, instructorId: filters.value.instructorId, studentId: filters.value.studentId })
-    }
-}
+const displayBookings = computed(() => (rawBookings.value ?? []).map(formatBooking))
 
 // ---------------------------------------------------------------------------
 // Pagination
 // ---------------------------------------------------------------------------
 function handlePageChange(page) {
-    if (userStore.isStudent) setStudentPage(page)
-    else if (userStore.isInstructor) setInstructorPage(page)
-    else setAdminPage(page)
+    if (page < 1) return
+    if (totalBookings.value != null) {
+        const maxPage = Math.ceil(totalBookings.value / 20)
+        if (page > maxPage) return
+    }
+    setPage(page)
 }
 
 // ---------------------------------------------------------------------------
-// Search handlers
+// Search/filter UI helpers
 // ---------------------------------------------------------------------------
 function handleStudentSelect(student) {
     filters.value.studentId = student.id
@@ -453,13 +357,12 @@ function handleAttendanceChanged() {
 
         <!-- Booking list -->
         <BookingList
-            :bookings="filteredBookings"
+            :bookings="displayBookings"
             :loading="isLoading"
             :userId="userStore.user?.id"
             :userRole="userStore.user?.role"
-            :server-mode="true"
-            :current-page="activeCurrentPage"
-            :total-pages="activeTotalPages"
+            :current-page="currentPage"
+            :total-bookings="totalBookings"
             @edit-booking="handleEditBooking"
             @cancel-booking="handleEditBooking"
             @view-booking="handleEditBooking"

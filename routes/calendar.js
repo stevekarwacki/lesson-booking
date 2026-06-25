@@ -21,8 +21,15 @@ const {
 
 const { enrichEventsWithPaymentInfo, enrichEventWithPaymentInfo } = require('../utils/paymentEnrichment');
 
-// Get all bookings across all instructors (admin only, paginated + filterable)
-router.get('/bookings', authorize('manage', 'User'), async (req, res) => {
+const { Instructor } = require('../models/Instructor');
+
+// Get bookings — accessible to all authenticated users, scoped by role:
+//   student   → always filtered to own student_id
+//   instructor → always filtered to own instructor record; may sub-filter by studentId
+//   admin     → unrestricted
+router.get('/bookings', async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
     try {
         const {
             instructorId,
@@ -31,23 +38,42 @@ router.get('/bookings', authorize('manage', 'User'), async (req, res) => {
             endDate,
             status,
             page = '1',
-            limit = '25'
+            limit = '20'
         } = req.query;
 
+        let scopedInstructorId;
+        let scopedStudentId;
+
+        if (req.user.role === 'student') {
+            // Students can only see their own bookings
+            scopedStudentId = req.user.id;
+            scopedInstructorId = instructorId ? parseInt(instructorId, 10) : undefined;
+        } else if (req.user.role === 'instructor') {
+            // Instructors can only see their own bookings, optionally filtered by student
+            const instructor = await Instructor.findByUserId(req.user.id);
+            if (!instructor) return res.status(404).json({ error: 'Instructor profile not found' });
+            scopedInstructorId = instructor.id;
+            scopedStudentId = studentId ? parseInt(studentId, 10) : undefined;
+        } else {
+            // Admins: unrestricted
+            scopedInstructorId = instructorId ? parseInt(instructorId, 10) : undefined;
+            scopedStudentId = studentId ? parseInt(studentId, 10) : undefined;
+        }
+
         const result = await Calendar.getAllBookings({
-            instructorId: instructorId ? parseInt(instructorId, 10) : undefined,
-            studentId: studentId ? parseInt(studentId, 10) : undefined,
+            instructorId: scopedInstructorId,
+            studentId: scopedStudentId,
             startDate: startDate || undefined,
             endDate: endDate || undefined,
             status: status || undefined,
             page: parseInt(page, 10),
-            limit: Math.min(parseInt(limit, 10), 100) // cap at 100 per page
+            limit: Math.min(parseInt(limit, 10), 100)
         });
 
         const enriched = await enrichEventsWithPaymentInfo(result.bookings);
         res.json({ ...result, bookings: enriched });
     } catch (error) {
-        console.error('Error fetching all bookings:', error);
+        console.error('Error fetching bookings:', error);
         res.status(500).json({ error: 'Failed to fetch bookings' });
     }
 });

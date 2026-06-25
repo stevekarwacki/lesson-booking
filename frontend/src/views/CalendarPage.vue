@@ -48,6 +48,8 @@
                         :loading="bookingsLoading"
                         :userId="userStore.user?.id"
                         :userRole="'instructor'"
+                        :no-pagination="true"
+                        @tab-change="handleCalendarTabChange"
                         @edit-booking="handleEditBooking"
                         @cancel-booking="handleCancelBooking"
                         @view-booking="handleViewBooking"
@@ -107,6 +109,7 @@ import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFormFeedback } from '../composables/useFormFeedback'
+import { useBookings } from '../composables/useBookings'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -114,12 +117,19 @@ const formFeedback = useFormFeedback()
 const instructor = ref(null)
 const error = ref(null)
 const loading = ref(false)
-const bookings = ref([])
-const bookingsLoading = ref(false)
 const showEditModal = ref(false)
 const showRefundModal = ref(false)
 const selectedBooking = ref(null)
 const selectedRefundBooking = ref(null)
+
+// Booking list — server-scoped via useBookings; tab/instructor changes call setFilters
+const todayStr = new Date().toISOString().split('T')[0]
+const {
+    bookings: rawBookings,
+    isLoading: bookingsLoading,
+    setFilters: setBookingFilters,
+    refetch: refetchBookings
+} = useBookings({ initialFilters: { startDate: todayStr, endDate: todayStr } })
 
 // Admin instructor picker state
 const allInstructors = ref([])
@@ -168,10 +178,10 @@ const fetchAllInstructors = async () => {
         // Filter to only active instructors
         allInstructors.value = data.filter(instr => instr.is_active)
         
-        // If only one instructor, auto-select
+        // If only one instructor, auto-select and scope bookings to them
         if (allInstructors.value.length === 1) {
             instructor.value = allInstructors.value[0]
-            await fetchBookings(allInstructors.value[0].id)
+            setBookingFilters({ instructorId: allInstructors.value[0].id })
         }
     } catch (err) {
         console.error('Error fetching instructors:', err)
@@ -183,11 +193,10 @@ const fetchAllInstructors = async () => {
 const handleInstructorSelect = async (selectedInstructor) => {
     if (selectedInstructor) {
         instructor.value = selectedInstructor
-        instructorSearchQuery.value = '' // Clear search after selection
+        instructorSearchQuery.value = ''
         isSearchFocused.value = false
-        // Fetch bookings for the selected instructor
         if (selectedInstructor.id) {
-            await fetchBookings(selectedInstructor.id)
+            setBookingFilters({ instructorId: selectedInstructor.id })
         }
     }
 }
@@ -210,11 +219,7 @@ const fetchOwnInstructor = async () => {
         
         const data = await response.json();
         instructor.value = data;
-        
-        // Fetch bookings after getting instructor info
-        if (data.id) {
-            await fetchBookings(data.id);
-        }
+        // useBookings is already scoped to this instructor server-side; no extra filter needed
     } catch (err) {
         error.value = 'Error fetching instructor information: ' + err.message;
         console.error('Error fetching instructor information:', err);
@@ -223,33 +228,9 @@ const fetchOwnInstructor = async () => {
     }
 }
 
-const fetchBookings = async (instructorId) => {
-    try {
-        bookingsLoading.value = true;
-        
-        const response = await fetch(`/api/calendar/instructor/${instructorId}`, {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch bookings');
-        }
-        
-        const data = await response.json();
-        bookings.value = data;
-    } catch (err) {
-        console.error('Error fetching bookings:', err);
-        error.value = 'Error fetching bookings: ' + err.message;
-    } finally {
-        bookingsLoading.value = false;
-    }
-}
-
 // Format bookings for BookingList component
 const formattedBookings = computed(() => {
-    return bookings.value.map(booking => ({
+    return rawBookings.value.map(booking => ({
         id: booking.id,
         date: booking.date,
         startTime: formatTime(slotToTime(booking.start_slot)),
@@ -257,15 +238,31 @@ const formattedBookings = computed(() => {
         instructorName: instructor.value?.name || 'You',
         studentName: booking.student?.name || 'No Student',
         status: booking.status || 'booked',
-        isRecurring: false, // Add logic for recurring if needed
-        attendance: booking.attendance, // Include attendance data from backend
-        refundStatus: booking.refundStatus || { status: 'none' }, // Will be populated by backend
-        paymentMethod: booking.paymentMethod, // From backend
-        paymentStatus: booking.paymentStatus, // From backend
-        // Original booking data for actions
+        isRecurring: false,
+        attendance: booking.attendance,
+        refundStatus: booking.refundStatus || { status: 'none' },
+        paymentMethod: booking.paymentMethod,
+        paymentStatus: booking.paymentStatus,
         originalBooking: booking
     }));
 });
+
+const handleCalendarTabChange = (tab) => {
+    const today = new Date().toISOString().split('T')[0]
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+    const instructorId = userStore.canManageUsers ? instructor.value?.id : undefined
+    switch (tab) {
+        case 'today':
+            setBookingFilters({ startDate: today, endDate: today, status: null, instructorId }); break
+        case 'upcoming':
+            setBookingFilters({ startDate: tomorrow.toISOString().split('T')[0], endDate: null, status: null, instructorId }); break
+        case 'past':
+            setBookingFilters({ startDate: null, endDate: yesterday.toISOString().split('T')[0], status: null, instructorId }); break
+        case 'cancelled':
+            setBookingFilters({ startDate: null, endDate: null, status: 'cancelled', instructorId }); break
+    }
+}
 
 // Helper function to format time (you may need to import this)
 const formatTime = (timeString) => {
@@ -306,18 +303,12 @@ const closeEditModal = () => {
 
 const handleBookingUpdated = async () => {
     closeEditModal();
-    // Refresh bookings after update
-    if (instructor.value?.id) {
-        await fetchBookings(instructor.value.id);
-    }
+    await refetchBookings();
 };
 
 const handleBookingCancelled = async () => {
     closeEditModal();
-    // Refresh bookings after cancellation
-    if (instructor.value?.id) {
-        await fetchBookings(instructor.value.id);
-    }
+    await refetchBookings();
 };
 
 // Event handlers
@@ -348,10 +339,7 @@ const closeRefundModal = () => {
 
 const handleRefundProcessed = async (result) => {
     closeRefundModal();
-    // Refresh bookings after refund
-    if (instructor.value?.id) {
-        await fetchBookings(instructor.value.id);
-    }
+    await refetchBookings();
 };
 
 const handleAttendanceChanged = async (booking, status, notes = '') => {

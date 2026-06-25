@@ -4,7 +4,7 @@ import { useUserStore } from '../stores/userStore'
 import { useFormFeedback } from '../composables/useFormFeedback'
 import { useUserManagement } from '../composables/useUserManagement'
 import { useUserSubscription, usePaymentPlans } from '../composables/useUserSubscription'
-import { useUserBookings } from '../composables/useUserBookings'
+import { useBookings } from '../composables/useBookings'
 import TabbedModal from './TabbedModal.vue'
 import TabbedModalTab from './TabbedModalTab.vue'
 import BookingList from './BookingList.vue'
@@ -196,11 +196,20 @@ const {
   isCreatingSubscription
 } = useUserSubscription(studentUserId)
 
+const todayStr = new Date().toISOString().split('T')[0]
 const {
   bookings: userBookings,
-  isLoadingBookings: loadingUserBookings,
-  refetchBookings
-} = useUserBookings(studentUserId)
+  isLoading: loadingUserBookings,
+  setFilters: setBookingFilters,
+  refetch: refetchBookings
+} = useBookings({
+  enabled: computed(() => !!studentUserId.value),
+  initialFilters: { startDate: todayStr, endDate: todayStr }
+})
+
+watch(studentUserId, (id) => {
+  setBookingFilters({ studentId: id || null })
+}, { immediate: true })
 
 const selectedPlan = ref('')
 const adminNote = ref('')
@@ -296,7 +305,6 @@ const openEditModal = (user) => {
 const closeEditModal = () => {
     editingUser.value = null
     userSubscription.value = null
-    userBookings.value = []
     selectedBooking.value = null
     isEditingInstructor.value = false
     showEditModal.value = false
@@ -454,6 +462,22 @@ const transformedBookings = computed(() => {
         originalBooking: booking
     }))
 })
+
+const handleBookingTabChange = (tab) => {
+    const today = new Date().toISOString().split('T')[0]
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+    switch (tab) {
+        case 'today':
+            setBookingFilters({ startDate: today, endDate: today, status: null }); break
+        case 'upcoming':
+            setBookingFilters({ startDate: tomorrow.toISOString().split('T')[0], endDate: null, status: null }); break
+        case 'past':
+            setBookingFilters({ startDate: null, endDate: yesterday.toISOString().split('T')[0], status: null }); break
+        case 'cancelled':
+            setBookingFilters({ startDate: null, endDate: null, status: 'cancelled' }); break
+    }
+}
 
 const handleEditUserBooking = (booking) => {
     selectedBooking.value = booking.originalBooking
@@ -763,12 +787,14 @@ const formatDate = (dateString) => {
                     <SlideTransition :slide-count="2" :show-back-button="false">
                         <!-- Main slide: Bookings list -->
                         <template #main="{ navigate }">
-                            <div v-if="(userBookings?.length > 0) || loadingUserBookings">
+                            <div v-if="studentUserId">
                                 <BookingList
                                     :bookings="transformedBookings"
                                     :loading="loadingUserBookings"
                                     :userId="editingUser?.id"
                                     :userRole="userStore.canManageUsers ? 'admin' : 'instructor'"
+                                    :no-pagination="true"
+                                    @tab-change="handleBookingTabChange"
                                     @edit-booking="(booking) => { handleEditUserBooking(booking); navigate(); }"
                                     @cancel-booking="handleCancelUserBooking"
                                     @view-booking="(booking) => { handleViewUserBooking(booking); navigate(); }"
