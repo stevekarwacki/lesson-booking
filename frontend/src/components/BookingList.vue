@@ -1,7 +1,8 @@
 <template>
   <div class="booking-list">
-    <!-- Filter Tabs -->
+    <!-- Filter Tabs — hidden when only one tab is provided -->
     <FilterTabs
+      v-if="filters.length > 1"
       :filters="filters"
       :activeFilter="activeFilter"
       :counts="{}"
@@ -170,7 +171,8 @@
 
     <!-- Empty state -->
     <div v-else class="empty-state">
-      <p>No {{ activeFilter }} bookings found.</p>
+      <p>No bookings found.</p>
+      <router-link v-if="showBookingsLink" to="/bookings" class="empty-state-link">View all bookings</router-link>
     </div>
 
     <!-- Loading state -->
@@ -214,6 +216,10 @@ export default {
       default: 'student',
       validator: (value) => ['student', 'instructor', 'admin'].includes(value)
     },
+    filters: {
+      type: Array,
+      default: () => filterPresets.bookings
+    },
     showActions: {
       type: Boolean,
       default: true
@@ -233,12 +239,15 @@ export default {
     noPagination: {
       type: Boolean,
       default: false
+    },
+    showBookingsLink: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed', 'page-change', 'tab-change'],
   setup(props, { emit }) {
-    const filters = filterPresets.bookings
-    const activeFilter = ref('today')
+    const activeFilter = ref(props.filters[0]?.value ?? 'today')
 
     // Initialize calendar composable for payment status updates
     const { updatePaymentStatus } = useCalendar()
@@ -350,10 +359,10 @@ export default {
     }
 
     return {
-      filters,
       activeFilter,
       totalPages,
       showPagination,
+      showBookingsLink: computed(() => props.showBookingsLink),
       formatDate,
       formatTime,
       isPastBooking,
@@ -689,6 +698,14 @@ export default {
   text-align: center;
   padding: var(--spacing-xl);
   color: var(--text-secondary);
+}
+
+.empty-state-link {
+  display: inline-block;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary, #3b82f6);
+  text-decoration: underline;
 }
 
 /* Mobile responsiveness */

@@ -122,14 +122,7 @@ Instructor.findByUserId = async function(userId) {
     });
     
     if (!instructor) return null;
-    
-    // Normalize to include flat instructor_name
-    const instructorData = instructor.toJSON();
-    return {
-        ...instructorData,
-        name: instructorData.User?.name || null,
-        email: instructorData.User?.email || null
-    };
+    return instructor;
 };
 
 module.exports = { Instructor }; 

@@ -1,97 +1,94 @@
 <template>
     <PageContainer class="calendar-page">
-        <!-- Student view: booking flow (formerly the /book-lesson page) -->
-        <template v-if="userStore.isStudent">
-            <UserBookings />
-            <LessonBooking />
-        </template>
+        <!-- Page header (all roles) -->
+        <div class="page-header">
+            <h1 v-if="pageTitle">{{ pageTitle }}</h1>
+            <div v-else class="page-header-placeholder" aria-hidden="true" />
+        </div>
 
-        <!-- Instructor / Admin view: schedule management -->
-        <template v-else>
-            <div class="page-header">
-                <h1>Calendar</h1>
-            </div>
-
-            <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
-            <div v-if="showInstructorPicker" class="instructor-picker card">
-                <div class="card-body">
-                    <SearchBar
-                        v-model="instructorSearchQuery"
-                        placeholder="Search instructors by name or email..."
-                        :results="searchResults"
-                        :show-results="isSearchFocused"
-                        :min-chars="1"
-                        @focus="isSearchFocused = true"
-                        @blur="handleSearchBlur"
-                        @select="handleInstructorSelect"
-                    >
-                        <template #result="{ result }">
-                            <div class="result-content">
-                                <div class="result-primary">{{ result.name }}</div>
-                                <div class="result-secondary">
-                                    {{ result.User?.email || result.email }}
-                                </div>
+        <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
+        <div v-if="showInstructorPicker" class="instructor-picker card">
+            <div class="card-body">
+                <SearchBar
+                    v-model="instructorSearchQuery"
+                    placeholder="Search instructors by name or email..."
+                    :results="searchResults"
+                    :show-results="isSearchFocused"
+                    :min-chars="1"
+                    @focus="isSearchFocused = true"
+                    @blur="handleSearchBlur"
+                    @select="handleInstructorSelect"
+                >
+                    <template #result="{ result }">
+                        <div class="result-content">
+                            <div class="result-primary">{{ result.User?.name }}</div>
+                            <div class="result-secondary">
+                                {{ result.User?.email || result.email }}
                             </div>
-                        </template>
-                    </SearchBar>
-                </div>
+                        </div>
+                    </template>
+                </SearchBar>
             </div>
+        </div>
 
-            <!-- Instructor Bookings List -->
-            <div v-if="instructor && instructor.id" class="bookings-section card">
-                <div class="card-header">
-                    <h3>Your Bookings</h3>
-                </div>
-                <div class="card-body">
-                    <BookingList
-                        :bookings="formattedBookings"
-                        :loading="bookingsLoading"
-                        :userId="userStore.user?.id"
-                        :userRole="'instructor'"
-                        :no-pagination="true"
-                        @tab-change="handleCalendarTabChange"
-                        @edit-booking="handleEditBooking"
-                        @cancel-booking="handleCancelBooking"
-                        @view-booking="handleViewBooking"
-                        @attendance-changed="handleAttendanceChanged"
-                        @process-refund="handleRefundBooking"
-                    />
-                </div>
+        <!-- Today's Bookings — all roles -->
+        <div class="bookings-section card">
+            <div class="card-header">
+                <h2 class="bookings-heading">Today's Bookings</h2>
             </div>
-
-            <!-- Calendar Interface -->
-            <InstructorCalendar 
-                v-if="instructor && instructor.id" 
-                :instructor="instructor"
-                week-start-day="current"
-                @process-refund="handleRefundBooking"
-            />
-
-            <!-- Edit Booking Modal -->
-            <Modal
-                v-model:open="showEditModal"
-                title="Reschedule Lesson"
-                hide-save
-                hide-cancel
-                @cancel="closeEditModal"
-            >
-                <EditBooking
-                    v-if="selectedBooking"
-                    :booking="selectedBooking"
-                    @close="closeEditModal"
-                    @booking-updated="handleBookingUpdated"
-                    @booking-cancelled="handleBookingCancelled"
+            <div class="card-body">
+                <BookingList
+                    :bookings="formattedBookings"
+                    :loading="bookingsLoading"
+                    :userId="userStore.user?.id"
+                    :userRole="userStore.user?.role"
+                    :filters="[{ label: 'Today', value: 'today' }]"
+                    :no-pagination="true"
+                    :show-bookings-link="true"
+                    @edit-booking="handleEditBooking"
+                    @cancel-booking="handleCancelBooking"
+                    @view-booking="handleViewBooking"
+                    @attendance-changed="handleAttendanceChanged"
+                    @process-refund="handleRefundBooking"
                 />
-            </Modal>
+            </div>
+        </div>
 
-            <!-- Refund Modal -->
-            <RefundModal
-                v-if="showRefundModal"
-                :booking="selectedRefundBooking"
-                @close="closeRefundModal"
-                @refund-processed="handleRefundProcessed"
+        <!-- Student: lesson booking calendar -->
+        <LessonBooking v-if="userStore.isStudent" @instructor-selected="instructor = $event" />
+
+        <!-- Instructor / Admin: weekly calendar -->
+        <InstructorCalendar
+            v-if="!userStore.isStudent && instructor?.id"
+            :instructor="instructor"
+            week-start-day="current"
+            @process-refund="handleRefundBooking"
+        />
+
+        <!-- Edit Booking Modal -->
+        <Modal
+            v-model:open="showEditModal"
+            title="Reschedule Lesson"
+            hide-save
+            hide-cancel
+            @cancel="closeEditModal"
+        >
+            <EditBooking
+                v-if="selectedBooking"
+                :booking="selectedBooking"
+                @close="closeEditModal"
+                @booking-updated="handleBookingUpdated"
+                @booking-cancelled="handleBookingCancelled"
             />
-        </template>
+        </Modal>
+
+        <!-- Refund Modal -->
+        <RefundModal
+            v-if="showRefundModal"
+            :booking="selectedRefundBooking"
+            @close="closeRefundModal"
+            @refund-processed="handleRefundProcessed"
+        />
     </PageContainer>
 </template>
 
@@ -102,7 +99,6 @@ import BookingList from '../components/BookingList.vue'
 import EditBooking from '../components/EditBooking.vue'
 import RefundModal from '../components/RefundModal.vue'
 import SearchBar from '../components/SearchBar.vue'
-import UserBookings from '../components/UserBookings.vue'
 import LessonBooking from '../components/LessonBooking.vue'
 import { Modal } from '@/components/ui/modal'
 import { useUserStore } from '../stores/userStore'
@@ -131,6 +127,17 @@ const {
     refetch: refetchBookings
 } = useBookings({ initialFilters: { startDate: todayStr, endDate: todayStr } })
 
+// Page title — instructors use the auth store name synchronously so there is no flash on load;
+// admins and students rely on the instructor ref which is set after selection.
+const pageTitle = computed(() => {
+    if (userStore.canManageCalendar && !userStore.canManageUsers) {
+        const name = instructor.value?.User?.name ?? userStore.user?.name
+        return name ? `${name}'s Calendar` : ''
+    }
+    const name = instructor.value?.User?.name
+    return name ? `${name}'s Calendar` : ''
+})
+
 // Admin instructor picker state
 const allInstructors = ref([])
 const instructorSearchQuery = ref('')
@@ -149,8 +156,8 @@ const searchResults = computed(() => {
     
     const query = instructorSearchQuery.value.toLowerCase()
     return allInstructors.value.filter(instr => {
-        const name = instr.name?.toLowerCase() || ''
-        const email = instr.User?.email?.toLowerCase() || instr.email?.toLowerCase() || ''
+        const name = (instr.User?.name || instr.name || '').toLowerCase()
+        const email = (instr.User?.email || instr.email || '').toLowerCase()
         return name.includes(query) || email.includes(query)
     }).slice(0, 10)
 })
@@ -235,7 +242,7 @@ const formattedBookings = computed(() => {
         date: booking.date,
         startTime: formatTime(slotToTime(booking.start_slot)),
         endTime: formatTime(slotToTime(booking.start_slot + booking.duration)),
-        instructorName: instructor.value?.name || 'You',
+        instructorName: booking.instructor_name || booking.Instructor?.User?.name || instructor.value?.User?.name || '',
         studentName: booking.student?.name || 'No Student',
         status: booking.status || 'booked',
         isRecurring: false,
@@ -247,22 +254,6 @@ const formattedBookings = computed(() => {
     }));
 });
 
-const handleCalendarTabChange = (tab) => {
-    const today = new Date().toISOString().split('T')[0]
-    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
-    const instructorId = userStore.canManageUsers ? instructor.value?.id : undefined
-    switch (tab) {
-        case 'today':
-            setBookingFilters({ startDate: today, endDate: today, status: null, instructorId }); break
-        case 'upcoming':
-            setBookingFilters({ startDate: tomorrow.toISOString().split('T')[0], endDate: null, status: null, instructorId }); break
-        case 'past':
-            setBookingFilters({ startDate: null, endDate: yesterday.toISOString().split('T')[0], status: null, instructorId }); break
-        case 'cancelled':
-            setBookingFilters({ startDate: null, endDate: null, status: 'cancelled', instructorId }); break
-    }
-}
 
 // Helper function to format time (you may need to import this)
 const formatTime = (timeString) => {
@@ -362,19 +353,8 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
             throw new Error(errorData.error || 'Failed to update attendance');
         }
 
-        const result = await response.json();
-        
-        // Update the booking in our local state
-        const bookingIndex = bookings.value.findIndex(b => b.id === booking.originalBooking.id);
-        if (bookingIndex !== -1) {
-            bookings.value[bookingIndex].attendance = {
-                status: result.attendance.status,
-                notes: result.attendance.notes,
-                recorded_at: result.attendance.recorded_at
-            };
-        }
-        
-        // Show success toast
+        await response.json();
+        await refetchBookings();
         formFeedback.showSuccess(`Attendance marked as ${status}`)
         
     } catch (err) {
@@ -383,7 +363,7 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
 };
 
 onMounted(async () => {
-    // Students get the booking flow; LessonBooking/UserBookings load their own data
+    // Students: useBookings auto-fetches their own bookings; no instructor setup needed
     if (userStore.isStudent) {
         return
     }
@@ -408,13 +388,30 @@ onMounted(async () => {
     margin-bottom: var(--spacing-lg);
 }
 
-.page-header h1 {
-    color: var(--secondary-color);
+.page-header h1,
+.page-header-placeholder {
     font-size: 2rem;
     margin: 0;
+    line-height: 1.2;
+    height: 1.2em;
+}
+
+.page-header h1 {
+    color: var(--secondary-color);
 }
 
 .instructor-picker {
     margin-bottom: var(--spacing-lg);
+}
+
+.bookings-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.bookings-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin: 0;
 }
 </style> 

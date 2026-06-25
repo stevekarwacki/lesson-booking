@@ -1,9 +1,5 @@
 <template>
     <div class="lesson-booking card">
-        <div class="card-header">
-            <h2>Book A Lesson</h2>
-        </div>
-        
         <div class="card-body">
             <!-- Instructor selection -->
             <div class="form-group" v-if="instructors.length > 1">
@@ -15,7 +11,7 @@
                         :key="instructor.id" 
                         :value="instructor"
                     >
-                        {{ instructor.name }}
+                        {{ instructor.User?.name }}
                     </option>
                 </select>
             </div>
@@ -28,11 +24,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useUserStore } from '../stores/userStore'
 import InstructorCalendar from './InstructorCalendar.vue'
 import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 import { Label } from '@/components/ui/label'
+
+const emit = defineEmits(['instructor-selected'])
 
 const userStore = useUserStore()
 const instructors = ref([])
@@ -58,6 +56,10 @@ const fetchInstructors = async () => {
         // Error already handled in the helper
     }
 }
+
+watch(selectedInstructor, (instr) => {
+    if (instr?.id) emit('instructor-selected', instr)
+})
 
 onMounted(async () => {
     await fetchInstructors()

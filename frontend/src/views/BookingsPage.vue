@@ -180,7 +180,7 @@ function clearStudentFilter() {
 
 function handleInstructorSelect(instructor) {
     filters.value.instructorId = instructor.id
-    selectedInstructorName.value = instructor.name
+    selectedInstructorName.value = instructor.User?.name
     instructorSearchQuery.value = ''
     isInstructorSearchFocused.value = false
 }
@@ -239,7 +239,7 @@ function handleAttendanceChanged() {
 <template>
     <PageContainer class="bookings-page">
         <div class="page-header">
-            <h1>Bookings</h1>
+            <h1>Your Bookings</h1>
         </div>
 
         <!-- Filter bar -->
