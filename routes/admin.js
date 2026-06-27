@@ -134,6 +134,12 @@ router.post('/users', authorize('manage', 'all'), async (req, res) => {
             is_approved: true // New users created by admin are automatically approved
         });
 
+        // Instructor users need a matching Instructor profile record so that
+        // routes using findByUserId can locate them immediately after creation.
+        if (newUser.role === 'instructor') {
+            await Instructor.create({ user_id: newUser.id });
+        }
+
         res.status(201).json({ message: 'User created successfully', userId: newUser.id });
     } catch (error) {
         console.error('Error creating user:', error);
