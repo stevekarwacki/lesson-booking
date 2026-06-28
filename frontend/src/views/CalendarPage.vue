@@ -6,31 +6,6 @@
             <div v-else class="page-header-placeholder" aria-hidden="true" />
         </div>
 
-        <!-- Admin Instructor Picker (only shown if multiple active instructors) -->
-        <div v-if="showInstructorPicker" class="instructor-picker card">
-            <div class="card-body">
-                <SearchBar
-                    v-model="instructorSearchQuery"
-                    placeholder="Search instructors by name or email..."
-                    :results="searchResults"
-                    :show-results="isSearchFocused"
-                    :min-chars="1"
-                    @focus="isSearchFocused = true"
-                    @blur="handleSearchBlur"
-                    @select="handleInstructorSelect"
-                >
-                    <template #result="{ result }">
-                        <div class="result-content">
-                            <div class="result-primary">{{ result.User?.name }}</div>
-                            <div class="result-secondary">
-                                {{ result.User?.email || result.email }}
-                            </div>
-                        </div>
-                    </template>
-                </SearchBar>
-            </div>
-        </div>
-
         <!-- Today's Bookings — all roles -->
         <div class="bookings-section card">
             <div class="card-header">
@@ -54,16 +29,23 @@
             </div>
         </div>
 
-        <!-- Student: lesson booking calendar -->
-        <LessonBooking v-if="userStore.isStudent" @instructor-selected="instructor = $event" />
+        <!-- Student + Admin: InstructorCalendar manages its own instructor search -->
+        <div v-if="userStore.isStudent || userStore.canManageUsers" class="calendar-panel card">
+            <InstructorCalendar
+                week-start-day="current"
+                @process-refund="handleRefundBooking"
+                @instructor-changed="handleInstructorChanged"
+            />
+        </div>
 
-        <!-- Instructor / Admin: weekly calendar -->
-        <InstructorCalendar
-            v-if="!userStore.isStudent && instructor?.id"
-            :instructor="instructor"
-            week-start-day="current"
-            @process-refund="handleRefundBooking"
-        />
+        <!-- Instructor role: fixed profile, no search bar -->
+        <div v-if="userStore.canManageCalendar && !userStore.canManageUsers && instructor?.id" class="calendar-panel card">
+            <InstructorCalendar
+                :instructor="instructor"
+                week-start-day="current"
+                @process-refund="handleRefundBooking"
+            />
+        </div>
 
         <!-- Edit Booking Modal -->
         <Modal
@@ -98,8 +80,6 @@ import InstructorCalendar from '../components/InstructorCalendar.vue'
 import BookingList from '../components/BookingList.vue'
 import EditBooking from '../components/EditBooking.vue'
 import RefundModal from '../components/RefundModal.vue'
-import SearchBar from '../components/SearchBar.vue'
-import LessonBooking from '../components/LessonBooking.vue'
 import { Modal } from '@/components/ui/modal'
 import { useUserStore } from '../stores/userStore'
 import { ref, onMounted, computed } from 'vue'
@@ -138,73 +118,11 @@ const pageTitle = computed(() => {
     return name ? `${name}'s Calendar` : ''
 })
 
-// Admin instructor picker state
-const allInstructors = ref([])
-const instructorSearchQuery = ref('')
-const isSearchFocused = ref(false)
-
-// Computed property to determine if we should show the instructor picker
-const showInstructorPicker = computed(() => {
-    return userStore.canManageUsers && allInstructors.value.length > 1
-})
-
-// Search results for instructor picker
-const searchResults = computed(() => {
-    if (!instructorSearchQuery.value || !allInstructors.value.length) {
-        return allInstructors.value.slice(0, 10) // Show first 10 by default
-    }
-    
-    const query = instructorSearchQuery.value.toLowerCase()
-    return allInstructors.value.filter(instr => {
-        const name = (instr.User?.name || instr.name || '').toLowerCase()
-        const email = (instr.User?.email || instr.email || '').toLowerCase()
-        return name.includes(query) || email.includes(query)
-    }).slice(0, 10)
-})
-
-const handleSearchBlur = () => {
-    setTimeout(() => {
-        isSearchFocused.value = false
-    }, 200)
-}
-
-// Fetch all instructors (for admins)
-const fetchAllInstructors = async () => {
-    try {
-        const response = await fetch('/api/instructors', {
-            headers: {
-                'Authorization': `Bearer ${userStore.token}`
-            }
-        })
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch instructors')
-        }
-        
-        const data = await response.json()
-        // Filter to only active instructors
-        allInstructors.value = data.filter(instr => instr.is_active)
-        
-        // If only one instructor, auto-select and scope bookings to them
-        if (allInstructors.value.length === 1) {
-            instructor.value = allInstructors.value[0]
-            setBookingFilters({ instructorId: allInstructors.value[0].id })
-        }
-    } catch (err) {
-        console.error('Error fetching instructors:', err)
-        error.value = 'Error fetching instructors: ' + err.message
-    }
-}
-
-// Handle instructor selection (for admins)
-const handleInstructorSelect = async (selectedInstructor) => {
-    if (selectedInstructor) {
-        instructor.value = selectedInstructor
-        instructorSearchQuery.value = ''
-        isSearchFocused.value = false
-        if (selectedInstructor.id) {
-            setBookingFilters({ instructorId: selectedInstructor.id })
-        }
+// Handles instructor selection from InstructorCalendar (student + admin paths)
+const handleInstructorChanged = (instr) => {
+    instructor.value = instr  // updates page title for students and admins
+    if (instr?.id && userStore.canManageUsers) {
+        setBookingFilters({ instructorId: instr.id })
     }
 }
 
@@ -363,17 +281,13 @@ const handleAttendanceChanged = async (booking, status, notes = '') => {
 };
 
 onMounted(async () => {
-    // Students: useBookings auto-fetches their own bookings; no instructor setup needed
-    if (userStore.isStudent) {
+    // Students and admins: InstructorCalendar handles instructor fetching internally
+    if (userStore.isStudent || userStore.canManageUsers) {
         return
     }
 
-    // Admin flow: fetch all instructors and let them select
-    if (userStore.canManageUsers) {
-        await fetchAllInstructors()
-    } 
-    // Instructor flow: fetch their own instructor profile
-    else if (userStore.canManageCalendar) {
+    // Instructor role: fetch own profile to pass as prop
+    if (userStore.canManageCalendar) {
         await fetchOwnInstructor()
     }
     // No calendar access at all
@@ -400,7 +314,8 @@ onMounted(async () => {
     color: var(--secondary-color);
 }
 
-.instructor-picker {
+.calendar-panel {
+    padding: 0; /* inner zones handle their own padding */
     margin-bottom: var(--spacing-lg);
 }
 
