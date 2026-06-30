@@ -493,32 +493,36 @@ describe('Attendance Tracking Frontend', () => {
       expect(mockFormFeedback.handleError).toHaveBeenCalled()
     })
 
-    it('should update local state after successful attendance change', async () => {
+    it('should show success feedback after successful attendance change', async () => {
+      // Bookings are managed by Vue Query (useBookings) and refetched after an
+      // attendance update — local state mutation is no longer used. This test
+      // verifies that the API was called correctly and success feedback is shown.
+      mockFormFeedback.showSuccess.mockClear()
+
       const wrapper = mount(CalendarPage, {
         global: {
           plugins: [pinia, [VueQueryPlugin, { queryClient }]]
         }
       })
 
-      // Wait for initial load
       await wrapper.vm.$nextTick()
       await flushPromises()
 
-      // Set up initial bookings state
-      wrapper.vm.bookings = [
-        {
-          id: 1,
-          attendance: { status: 'present', notes: 'Initial' }
-        }
-      ]
-
       const mockBooking = { originalBooking: { id: 1 } }
-      await wrapper.vm.handleAttendanceChanged(mockBooking, 'absent', 'Updated')
+      await wrapper.vm.handleAttendanceChanged(mockBooking, 'absent', 'Test notes')
 
-      // Local state should be updated
-      const updatedBooking = wrapper.vm.bookings.find(b => b.id === 1)
-      expect(updatedBooking.attendance.status).toBe('absent')
-      expect(updatedBooking.attendance.notes).toBe('Test notes') // From mock response
+      // Should have posted to the attendance API
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/calendar/attendance',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ eventId: 1, status: 'absent', notes: 'Test notes' })
+        })
+      )
+      // Should show success toast on completion
+      expect(mockFormFeedback.showSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('absent')
+      )
     })
 
     it('should handle reschedule modal opening', async () => {
@@ -571,7 +575,9 @@ describe('Attendance Tracking Frontend', () => {
       expect(wrapper.vm.activeFilter).toBe('today')
     })
 
-    it('should filter bookings by today correctly', () => {
+    it('should render all passed bookings without client-side date filtering', () => {
+      // Date filtering is handled server-side via useBookings composable.
+      // BookingList renders whatever bookings are passed to it without further filtering.
       const testBookings = [
         {
           id: 1,
@@ -601,12 +607,10 @@ describe('Attendance Tracking Frontend', () => {
           status: 'booked'
         }
       ]
-      
-      const bookingsWithDates = testBookings
 
       const wrapper = mount(BookingList, {
         props: {
-          bookings: bookingsWithDates,
+          bookings: testBookings,
           loading: false,
           userId: 1,
           userRole: 'instructor'
@@ -616,10 +620,9 @@ describe('Attendance Tracking Frontend', () => {
         }
       })
 
-      // Should only show today's bookings
-      const todayBookings = wrapper.vm.filteredBookings
-      expect(todayBookings.length).toBe(1)
-      expect(todayBookings[0].date).toBe(todayStr)
+      // All three passed bookings should be rendered
+      const rows = wrapper.findAll('.booking-item')
+      expect(rows.length).toBe(3)
     })
   })
 
