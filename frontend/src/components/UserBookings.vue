@@ -10,6 +10,8 @@
                 :loading="loading"
                 :userId="userStore.user.id"
                 :userRole="userStore.user.role"
+                :no-pagination="true"
+                @tab-change="handleTabChange"
                 @edit-booking="handleEditBookingFromList"
                 @cancel-booking="handleCancelBookingFromList"
                 @view-booking="handleViewBookingFromList"
@@ -45,7 +47,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/userStore'
-import { useUserBookings } from '../composables/useUserBookings'
+import { useBookings } from '../composables/useBookings'
 import { slotToTime, formatDate, formatTime } from '../utils/timeFormatting'
 import BookingList from './BookingList.vue'
 import EditBooking from './EditBooking.vue'
@@ -54,14 +56,14 @@ import { Modal } from '@/components/ui/modal'
 import { useMq } from 'vue3-mq'
 
 const userStore = useUserStore()
+const todayStr = new Date().toISOString().split('T')[0]
 const { 
     bookings, 
     isLoading: loading,
-    error: bookingsError,
-    refetchBookings
-} = useUserBookings(computed(() => userStore.user?.id))
+    setFilters,
+    refetch: refetchBookings
+} = useBookings({ initialFilters: { startDate: todayStr, endDate: todayStr } })
 
-const error = ref(null)
 const showEditModal = ref(false)
 const showRefundModal = ref(false)
 const selectedBooking = ref(null)
@@ -88,7 +90,7 @@ const formattedBookings = computed(() => {
     })
 })
 
-// Bookings are automatically fetched via useUserBookings composable
+// Bookings are fetched and scoped via useBookings composable
 
 const openEditModal = (booking) => {
     selectedBooking.value = booking
@@ -116,6 +118,22 @@ const handleEditBookingSave = () => {
 }
 
 // BookingList event handlers
+const handleTabChange = (tab) => {
+    const today = new Date().toISOString().split('T')[0]
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+    switch (tab) {
+        case 'today':
+            setFilters({ startDate: today, endDate: today, status: null }); break
+        case 'upcoming':
+            setFilters({ startDate: tomorrow.toISOString().split('T')[0], endDate: null, status: null }); break
+        case 'past':
+            setFilters({ startDate: null, endDate: yesterday.toISOString().split('T')[0], status: null }); break
+        case 'cancelled':
+            setFilters({ startDate: null, endDate: null, status: 'cancelled' }); break
+    }
+}
+
 const handleEditBookingFromList = (booking) => {
     selectedBooking.value = booking.originalBooking
     showEditModal.value = true
@@ -145,8 +163,6 @@ const handleRefundProcessed = async (result) => {
     closeRefundModal()
     await refetchBookings()
 }
-
-// Bookings are automatically fetched via useUserBookings composable
 </script>
 
 <style scoped>

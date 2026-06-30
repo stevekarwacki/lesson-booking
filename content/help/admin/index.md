@@ -14,12 +14,13 @@ This guide is a quick map of everything available to you as an admin. Use it to 
 
 ## Your Navigation Menu
 
-As an admin, your navigation bar gives you access to five main areas:
+As an admin, your navigation bar gives you access to six main areas:
 
 | Nav item | What it's for |
 |---|---|
 | **Users** | Create and manage all user accounts — students, instructors, and other admins |
-| **Calendar** | View all bookings across instructors; book or reschedule lessons on behalf of students |
+| **Calendar** | Today's lessons at a glance; 7-day schedule grid; book or reschedule lessons on behalf of students |
+| **Bookings** | Full paginated lesson history across all instructors; search and filter by instructor, student, or date |
 | **Packages** | Create and manage the lesson credit packages and memberships students can purchase |
 | **Settings** | Configure everything about how the application runs — business info, email, branding, and more |
 | **Account** | Your own profile and account preferences |
@@ -53,13 +54,21 @@ The user detail modal has several tabs that appear based on the user's role:
 
 **Navigation: Calendar**
 
-The calendar shows a weekly view of all lessons for any instructor. As an admin you can:
+The Calendar page is your operational view of the day. At the top, a **Today's Bookings** panel shows all lessons scheduled for today. Below that, the weekly schedule grid lets you:
 
-- Browse any instructor's schedule week by week
+- Browse any instructor's schedule week by week (up to 8 weeks back, unlimited forward)
 - Click an open slot to book a lesson for a student
-- Click an existing booking to reschedule it
+- Click a booked slot to reschedule it
 
-The calendar also shows blocked time from Google Calendar (if configured) so you can see the full picture of an instructor's availability.
+The grid also shows blocked time from Google Calendar (if configured) so you can see the instructor's full availability picture.
+
+---
+
+## Bookings
+
+**Navigation: Bookings**
+
+The Bookings page shows the complete lesson history with filtering and pagination. As an admin you can filter by instructor, student, and date range — useful for looking up a historical booking or reviewing a student's full lesson record. Reschedule, cancel, and refund actions are available directly from the list.
 
 ---
 
@@ -110,9 +119,13 @@ Your own profile page. Update your name, email address, and password here.
 | Approve a new student | Users → find student → Account tab → toggle Approved |
 | Edit a student's profile | Users → find student → Profile tab |
 | Set up an instructor | Users → find instructor → Instructor Details tab; then Availability tab |
-| Book a lesson for a student | Calendar → click an open slot |
-| Reschedule a lesson | Calendar → click the booking, or Users → student → Bookings tab |
-| Refund a lesson | Users → student → Bookings tab → Refund |
+| Book a lesson for a student | Calendar → click an open green slot |
+| See today's lessons at a glance | Calendar → Today's Bookings panel |
+| Browse the full lesson history | Bookings |
+| Search for a specific booking | Bookings → filter by instructor, student, or date |
+| Reschedule a lesson | Bookings → find lesson → Reschedule, or Calendar → click the blue slot |
+| Cancel a lesson | Bookings → find lesson → Reschedule → Cancel Booking |
+| Refund a lesson | Bookings → find lesson → Refund |
 | Manage packages/pricing | Packages |
 | Change your logo or colors | Settings → Theme & Branding |
 | Configure email delivery | Settings → Email Settings |

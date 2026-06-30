@@ -55,17 +55,14 @@ AppSettings.getSetting = async function(category, key) {
 };
 
 AppSettings.setSetting = async function(category, key, value, updatedBy) {
-    // Input sanitization
     const sanitizedValue = typeof value === 'string' ? value.trim() : value;
-    
-    const [setting, created] = await this.upsert({
-        category,
-        key,
-        value: sanitizedValue,
-        updated_by: updatedBy
-    });
-    
-    return setting;
+
+    const existing = await this.findOne({ where: { category, key } });
+    if (existing) {
+        await existing.update({ value: sanitizedValue, updated_by: updatedBy });
+        return existing;
+    }
+    return this.create({ category, key, value: sanitizedValue, updated_by: updatedBy });
 };
 
 AppSettings.deleteSetting = async function(category, key) {
@@ -98,15 +95,18 @@ AppSettings.setMultipleSettings = async function(category, keyValuePairs, update
         
         for (const [key, value] of Object.entries(keyValuePairs)) {
             const sanitizedValue = typeof value === 'string' ? value.trim() : value;
-            
-            const [setting] = await this.upsert({
-                category,
-                key,
-                value: sanitizedValue,
-                updated_by: updatedBy
-            }, { transaction });
-            
-            results.push(setting);
+
+            const existing = await this.findOne({ where: { category, key }, transaction });
+            if (existing) {
+                await existing.update({ value: sanitizedValue, updated_by: updatedBy }, { transaction });
+                results.push(existing);
+            } else {
+                const created = await this.create(
+                    { category, key, value: sanitizedValue, updated_by: updatedBy },
+                    { transaction }
+                );
+                results.push(created);
+            }
         }
         
         await transaction.commit();

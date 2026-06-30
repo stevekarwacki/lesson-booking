@@ -252,6 +252,84 @@ Calendar.getInstructorEvents = async function(instructorId, startDate, endDate) 
     });
 };
 
+/**
+ * Get all bookings across all instructors (admin use).
+ * Supports filtering by instructor, student, date range, and status, plus pagination.
+ */
+Calendar.getAllBookings = async function({ instructorId, studentId, startDate, endDate, status, page = 1, limit = 25 } = {}) {
+    const { Attendance } = require('./Attendance');
+    const { Refund } = require('./Refund');
+
+    const where = {};
+
+    if (instructorId) where.instructor_id = instructorId;
+    if (studentId) where.student_id = studentId;
+    if (startDate && endDate) where.date = { [sequelize.Op.between]: [startDate, endDate] };
+    else if (startDate) where.date = { [sequelize.Op.gte]: startDate };
+    else if (endDate) where.date = { [sequelize.Op.lte]: endDate };
+    if (status) where.status = status;
+
+    const offset = (page - 1) * limit;
+
+    const { count, rows } = await this.findAndCountAll({
+        where,
+        include: [
+            {
+                model: User,
+                as: 'student',
+                attributes: ['id', 'name', 'email']
+            },
+            {
+                model: Instructor,
+                include: [{
+                    model: User,
+                    attributes: ['id', 'name', 'email']
+                }]
+            },
+            {
+                model: Attendance,
+                required: false,
+                attributes: ['status', 'notes', 'created_at', 'updated_at']
+            },
+            {
+                model: Refund,
+                required: false,
+                attributes: ['type', 'amount', 'created_at', 'refunded_by']
+            }
+        ],
+        order: [['date', 'DESC'], ['start_slot', 'ASC']],
+        limit,
+        offset
+    });
+
+    const bookings = rows.map(event => {
+        const eventData = event.toJSON();
+        return {
+            ...eventData,
+            student: eventData.student ? {
+                id: eventData.student.id,
+                name: eventData.student.name,
+                email: eventData.student.email
+            } : null,
+            instructor_name: eventData.Instructor?.User?.name || null,
+            instructor_id: eventData.instructor_id,
+            attendance: eventData.Attendance ? {
+                status: eventData.Attendance.status,
+                notes: eventData.Attendance.notes,
+                recorded_at: eventData.Attendance.updated_at
+            } : null,
+            refundStatus: eventData.Refunds && eventData.Refunds.length > 0 ? {
+                status: 'refunded',
+                type: eventData.Refunds[0].type,
+                amount: eventData.Refunds[0].amount,
+                refunded_at: eventData.Refunds[0].created_at
+            } : { status: 'none' }
+        };
+    });
+
+    return { bookings, total: count, page, limit };
+};
+
 Calendar.updateEvent = async function(eventId, updates, transaction = null) {
     const event = await this.findByPk(eventId, { transaction });
     if (!event) {

@@ -21,9 +21,87 @@ const {
 
 const { enrichEventsWithPaymentInfo, enrichEventWithPaymentInfo } = require('../utils/paymentEnrichment');
 
+const { Instructor } = require('../models/Instructor');
+
+// Get bookings — accessible to all authenticated users, scoped by role:
+//   student   → always filtered to own student_id
+//   instructor → always filtered to own instructor record; may sub-filter by studentId
+//   admin     → unrestricted
+router.get('/bookings', async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
+    try {
+        const {
+            instructorId,
+            studentId,
+            startDate,
+            endDate,
+            status,
+            page = '1',
+            limit = '20'
+        } = req.query;
+
+        let scopedInstructorId;
+        let scopedStudentId;
+
+        if (req.user.role === 'student') {
+            // Students can only see their own bookings
+            scopedStudentId = req.user.id;
+            scopedInstructorId = instructorId ? parseInt(instructorId, 10) : undefined;
+        } else if (req.user.role === 'instructor') {
+            // Instructors can only see their own bookings, optionally filtered by student
+            const instructor = await Instructor.findByUserId(req.user.id);
+            if (!instructor) return res.status(404).json({ error: 'Instructor profile not found' });
+            scopedInstructorId = instructor.id;
+            scopedStudentId = studentId ? parseInt(studentId, 10) : undefined;
+        } else {
+            // Admins: unrestricted
+            scopedInstructorId = instructorId ? parseInt(instructorId, 10) : undefined;
+            scopedStudentId = studentId ? parseInt(studentId, 10) : undefined;
+        }
+
+        const result = await Calendar.getAllBookings({
+            instructorId: scopedInstructorId,
+            studentId: scopedStudentId,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            status: status || undefined,
+            page: parseInt(page, 10),
+            limit: Math.min(parseInt(limit, 10), 100)
+        });
+
+        const enriched = await enrichEventsWithPaymentInfo(result.bookings);
+        res.json({ ...result, bookings: enriched });
+    } catch (error) {
+        console.error('Error fetching bookings:', error);
+        res.status(500).json({ error: 'Failed to fetch bookings' });
+    }
+});
+
 // Get instructor's calendar events - requires read permission for instructor data
 router.get('/instructor/:instructorId', authorize('read', 'Instructor'), async (req, res) => {
     try {
+        const page = req.query.page ? parseInt(req.query.page, 10) : null;
+        const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 100) : null;
+
+        // Paginated path for the bookings page
+        if (page !== null && limit !== null) {
+            const studentId = req.query.studentId ? parseInt(req.query.studentId, 10) : undefined
+            const startDate = req.query.startDate || undefined
+            const endDate = req.query.endDate || undefined
+            const result = await Calendar.getAllBookings({
+                instructorId: parseInt(req.params.instructorId, 10),
+                studentId,
+                startDate,
+                endDate,
+                page,
+                limit
+            });
+            const enriched = await enrichEventsWithPaymentInfo(result.bookings);
+            return res.json({ ...result, bookings: enriched });
+        }
+
+        // Legacy unbounded path (used by CalendarPage booking list until Phase 5)
         const events = await Calendar.getInstructorEvents(req.params.instructorId);
         
         // Transform events to include payment information
@@ -551,7 +629,24 @@ router.get('/student/:studentId', authorizeUserAccess(async (req) => parseInt(re
 
         // Check if we should include all bookings (past, cancelled)
         const includeAll = req.query.includeAll === 'true';
-        
+        const page = req.query.page ? parseInt(req.query.page, 10) : null;
+        const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10), 100) : null;
+
+        // Paginated path when page/limit are provided
+        if (page !== null && limit !== null) {
+            const startDate = req.query.startDate || undefined
+            const endDate = req.query.endDate || undefined
+            const result = await Calendar.getAllBookings({
+                studentId,
+                startDate,
+                endDate,
+                page,
+                limit
+            });
+            const enriched = await enrichEventsWithPaymentInfo(result.bookings);
+            return res.json({ ...result, bookings: enriched });
+        }
+
         const events = includeAll 
             ? await Calendar.getAllStudentEvents(studentId)
             : await Calendar.getStudentEvents(studentId);

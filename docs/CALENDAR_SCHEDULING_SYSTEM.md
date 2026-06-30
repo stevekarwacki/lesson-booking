@@ -6,13 +6,19 @@ This document is the primary reference for the calendar and scheduling subsystem
 
 ## Architecture overview
 
-The calendar surfaces three main audiences via two different entry points:
+The calendar surfaces all three audiences through a single, unified entry point — there is no role-specific template branch:
 
 | Route | View | Audience | `InstructorCalendar` prop |
 |-------|------|----------|--------------------------|
-| `/book` (student) | `BookLessonPage` → `LessonBooking` | Students booking lessons | `week-start-day="current"` |
-| `/calendar` (instructor/admin) | `CalendarPage` | Instructors & admins | `week-start-day="current"` |
+| `/calendar` | `CalendarPage` (unified, role-aware data) | Students, instructors, admins | `week-start-day="current"` |
+| `/bookings` | `BookingsPage` | All authenticated users | n/a |
 | `/availability` | `AvailabilityPage` | Instructors editing schedule | (different component — `InstructorAvailabilityManager`) |
+
+`CalendarPage` has two role-specific sections rendered conditionally:
+- **Students** see a "Today's Bookings" panel (their own bookings, auto-scoped server-side) followed by `LessonBooking.vue` which embeds `InstructorCalendar` for selecting an instructor and booking a slot.
+- **Instructors / admins** see the same "Today's Bookings" panel (scoped to the selected instructor) followed by `InstructorCalendar` directly for schedule management.
+
+The student-facing nav link is labelled "Book a Lesson" as a clear call to action, but it points to `/calendar`. A "Bookings" nav link is shown to all roles and points to `/bookings`. The legacy `/book-lesson` route and `BookLessonPage` were removed.
 
 `InstructorCalendar.vue` is the shared orchestrator. It is responsible for fetching data, merging availability with events, managing week/day navigation state, and opening booking/edit modals. It does not render the grid directly — it delegates to `WeeklyScheduleView` (desktop) or `DailyScheduleView` (mobile or date-picker selection).
 
@@ -140,8 +146,27 @@ The leaf renderer. Receives a `slots` array of consolidated `TimeBlock` objects 
 |-----------|------|------|
 | `Booking.vue` | `frontend/src/components/Booking.vue` | New booking modal body: duration choice, payment method (credits/card/in-person), student search (book-on-behalf), Stripe |
 | `EditBooking.vue` | `frontend/src/components/EditBooking.vue` | Two-slide reschedule/cancel flow; slide 1 = calendar re-pick, slide 2 = confirm |
-| `BookingList.vue` | `frontend/src/components/BookingList.vue` | Tabbed (today/upcoming/past/cancelled) booking list with attendance and refund actions |
-| `LessonBooking.vue` | `frontend/src/components/LessonBooking.vue` | Student "Book A Lesson" card; embeds `InstructorCalendar` |
+| `BookingList.vue` | `frontend/src/components/BookingList.vue` | Pure presentation component for booking lists. Supports configurable filter tabs, server-driven pagination, and role-appropriate actions. See [BookingList props](#bookinglistvue-props) below. |
+| `LessonBooking.vue` | `frontend/src/components/LessonBooking.vue` | Student instructor-picker + embedded `InstructorCalendar`. Emits `instructor-selected` when the student picks an instructor so `CalendarPage` can update the page title. |
+| `BookingsPage.vue` | `frontend/src/views/BookingsPage.vue` | Dedicated full-history booking page for all roles. Role-aware filter bar (students: instructor + date; instructors: student + date; admins: instructor + student + date). Uses `useBookings` with server-side pagination. |
+
+#### `BookingList.vue` props
+
+| Prop | Type | Default | Purpose |
+|------|------|---------|---------|
+| `bookings` | Array | `[]` | Pre-fetched bookings to display |
+| `loading` | Boolean | `false` | Shows loading state |
+| `userId` | Number | required | Logged-in user's ID (for action visibility checks) |
+| `userRole` | String | `'student'` | Drives which actions (attend, refund, edit) are shown |
+| `filters` | Array | `filterPresets.bookings` | Tab definitions `[{ label, value }]`. Pass a single-item array to hide the tab bar and show only the list |
+| `totalBookings` | Number | `null` | Total records from server; used to compute page count. Omit to show navigation without a page total |
+| `pageSize` | Number | `20` | Records per page |
+| `noPagination` | Boolean | `false` | Suppress pagination controls entirely (used for "Today's Bookings" panel) |
+| `showBookingsLink` | Boolean | `false` | Show a "View all bookings" link in the empty state (used on `CalendarPage`; omitted on `BookingsPage`) |
+| `showActions` | Boolean | `true` | Show/hide all action buttons |
+| `currentPage` | Number | `1` | Current page (controlled by parent via `page-change` event) |
+
+**Emits:** `tab-change`, `page-change`, `edit-booking`, `cancel-booking`, `view-booking`, `attendance-changed`, `process-refund`, `payment-status-changed`
 
 ---
 
@@ -173,6 +198,30 @@ All server state goes through Vue Query. See the [VUE_QUERY_PATTERN.md](VUE_QUER
 | `createBlockedSlot` (mutation) | `POST /api/availability/:instructorId/blocked` |
 | `deleteBlockedSlot` (mutation) | `DELETE /api/availability/blocked/:blockId` |
 | `blockedSlots` (query) | **Disabled** (`enabled: false`) — backend incomplete |
+
+### `useBookings.js`
+`frontend/src/composables/useBookings.js`
+
+The unified composable for all booking list data fetching. Replaces four previous role-specific composables (`useAdminBookings`, `useInstructorBookings`, `useStudentBookings`, `useUserBookings`).
+
+| Export | Endpoint |
+|--------|----------|
+| `bookings` (computed) | `GET /api/calendar/bookings` |
+| `totalBookings` (computed) | Derived from `data.total` |
+| `currentPage` (ref) | Current pagination page |
+| `isLoading` (ref) | Loading state |
+| `setFilters(filters)` | Update server-side filters and reset to page 1 |
+| `setPage(page)` | Navigate to a page |
+| `refetch()` | Manually re-fetch current query |
+
+**Options:** `{ pageSize = 20, enabled, initialFilters = {} }`
+
+The backend (`GET /api/calendar/bookings`) enforces role-based scoping automatically:
+- Students always receive their own bookings regardless of query params.
+- Instructors receive bookings for their own instructor record only.
+- Admins receive all bookings, optionally filtered by `instructorId` and/or `studentId`.
+
+**Cache key:** `['bookings', filters, currentPage]` — changes in either invalidate and re-fetch.
 
 ### `useAppSettings.js`
 `frontend/src/composables/useAppSettings.js`
@@ -305,6 +354,46 @@ A "Today" button appears in the week-navigation bar when `!isCurrentWindow`.
 
 ---
 
+## "Today's Bookings" panel (`CalendarPage`)
+
+`CalendarPage.vue` renders a compact booking list above the calendar grid for all roles. It is powered by a single `useBookings` call initialised with today's date range:
+
+```js
+const todayStr = new Date().toISOString().split('T')[0]
+const { bookings: rawBookings, isLoading: bookingsLoading, setFilters, refetch } =
+    useBookings({ initialFilters: { startDate: todayStr, endDate: todayStr } })
+```
+
+The role-scoping is handled server-side — students automatically see only their own bookings; instructors see their own schedule; admins see all of today's bookings (or just the selected instructor's once one is chosen).
+
+The `BookingList` instance is configured with:
+- `:filters="[{ label: 'Today', value: 'today' }]"` — hides the tab bar (single-item array)
+- `:no-pagination="true"` — suppresses pagination controls
+- `:show-bookings-link="true"` — shows "View all bookings → /bookings" in the empty state
+
+### Page title
+
+The page `<h1>` is computed from `instructor.value?.User?.name`. For the instructor role, `userStore.user.name` is used as an immediate synchronous fallback so there is no flash between the blank placeholder and the name:
+
+```js
+const pageTitle = computed(() => {
+    if (userStore.canManageCalendar && !userStore.canManageUsers) {
+        const name = instructor.value?.User?.name ?? userStore.user?.name
+        return name ? `${name}'s Calendar` : ''
+    }
+    const name = instructor.value?.User?.name
+    return name ? `${name}'s Calendar` : ''
+})
+```
+
+An empty `pageTitle` renders a same-height invisible placeholder div to prevent layout shift.
+
+### Instructor selection for students
+
+`LessonBooking.vue` emits `instructor-selected` with the full instructor object when a student picks an instructor. `CalendarPage` listens to `@instructor-selected="instructor = $event"`, which then updates `pageTitle` reactively.
+
+---
+
 ## Schedule refresh coordination (`scheduleStore`)
 
 `frontend/src/stores/scheduleStore.js`
@@ -332,8 +421,8 @@ Routes exist at `GET/POST /api/availability/:id/blocked` and `DELETE /api/availa
 ### 3. Past availability shown in past weeks
 When navigating to a previous week, the green "available" blocks reflect the instructor's *current* weekly schedule, not their historical schedule. Bookings shown in the past are real DB records, but availability slots are a projection of the current pattern.
 
-### 4. Admin event listing is unbounded
-The admin-only `GET /api/calendar/instructor/:instructorId` endpoint calls `Calendar.getInstructorEvents` without a date range, intentionally returning the full booking history for management purposes. This will grow with the database but is the correct behaviour for an admin overview.
+### 4. Admin calendar-grid event fetch is unbounded
+The weekly calendar grid endpoint (`GET /api/calendar/events/:instructorId/:start/:end`) is bounded by the week window the user is viewing, so it is not a concern. However, the older admin-only endpoint `GET /api/calendar/instructor/:instructorId` (used in some legacy admin views) calls `Calendar.getInstructorEvents` without a date range. The booking *list* (`GET /api/calendar/bookings`) is fully paginated and not affected — this note applies only to calendar-grid overlays loaded via the older endpoint.
 
 ---
 

@@ -1,18 +1,20 @@
 <template>
   <div class="booking-list">
-    <!-- Filter Tabs -->
+    <!-- Filter Tabs — hidden when only one tab is provided -->
     <FilterTabs
+      v-if="filters.length > 1"
       :filters="filters"
       :activeFilter="activeFilter"
-      :counts="filterCounts"
+      :counts="{}"
+      :show-counts="false"
       @filter-change="handleFilterChange"
     />
 
     <!-- Bookings List -->
-    <div v-if="filteredBookings.length > 0" class="bookings-container">
+    <div v-if="bookings.length > 0" class="bookings-container">
       <div class="bookings-list">
         <div 
-          v-for="booking in paginatedBookings" 
+          v-for="booking in bookings" 
           :key="booking.id" 
           class="booking-item"
           :class="{ 
@@ -136,13 +138,10 @@
         </div>
       </div>
 
-      <!-- Pagination for past/cancelled bookings -->
-      <div 
-        v-if="showPagination" 
-        class="pagination-controls"
-      >
+      <!-- Pagination controls -->
+      <div v-if="showPagination" class="pagination-controls">
         <Button 
-          @click="goToPreviousPage"
+          @click="$emit('page-change', currentPage - 1)"
           :disabled="currentPage === 1"
           variant="outline"
           size="sm"
@@ -151,13 +150,17 @@
         </Button>
         
         <span class="pagination-info">
-          Page {{ currentPage }} of {{ totalPages }}
-          ({{ totalBookings }} total)
+          <template v-if="totalPages != null">
+            Page {{ currentPage }} of {{ totalPages }}
+          </template>
+          <template v-else>
+            Page {{ currentPage }}
+          </template>
         </span>
         
         <Button 
-          @click="goToNextPage"
-          :disabled="currentPage === totalPages"
+          @click="$emit('page-change', currentPage + 1)"
+          :disabled="totalPages != null && currentPage === totalPages"
           variant="outline"
           size="sm"
         >
@@ -168,7 +171,8 @@
 
     <!-- Empty state -->
     <div v-else class="empty-state">
-      <p>No {{ activeFilter }} bookings found.</p>
+      <p>No bookings found.</p>
+      <router-link v-if="showBookingsLink" to="/bookings" class="empty-state-link">View all bookings</router-link>
     </div>
 
     <!-- Loading state -->
@@ -185,7 +189,7 @@ import { filterPresets } from '../composables/useFiltering.js'
 import { useCalendar } from '../composables/useCalendar.js'
 import { getPaymentStatusColor, formatPaymentStatus } from '../utils/paymentUtils'
 import { useUserStore } from '../stores/userStore'
-import { fromString, filterToday, filterPast, filterFuture, today, createDateHelper } from '../utils/dateHelpers.js'
+import { fromString, today, createDateHelper } from '../utils/dateHelpers.js'
 import { Button } from '@/components/ui/button'
 
 export default {
@@ -209,103 +213,58 @@ export default {
     },
     userRole: {
       type: String,
-      default: 'student', // 'student', 'instructor', 'admin'
+      default: 'student',
       validator: (value) => ['student', 'instructor', 'admin'].includes(value)
+    },
+    filters: {
+      type: Array,
+      default: () => filterPresets.bookings
     },
     showActions: {
       type: Boolean,
       default: true
+    },
+    currentPage: {
+      type: Number,
+      default: 1
+    },
+    totalBookings: {
+      type: Number,
+      default: null
+    },
+    pageSize: {
+      type: Number,
+      default: 20
+    },
+    noPagination: {
+      type: Boolean,
+      default: false
+    },
+    showBookingsLink: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed'],
+  emits: ['edit-booking', 'cancel-booking', 'view-booking', 'attendance-changed', 'process-refund', 'payment-status-changed', 'page-change', 'tab-change'],
   setup(props, { emit }) {
-    const filters = filterPresets.bookings
-    const activeFilter = ref('today')
-    const currentPage = ref(1)
-    const itemsPerPage = 25
-    
+    const activeFilter = ref(props.filters[0]?.value ?? 'today')
+
     // Initialize calendar composable for payment status updates
-    const { updatePaymentStatus, isUpdatingPaymentStatus } = useCalendar()
-
-    // Filter counts for tab badges
-    const filterCounts = computed(() => {
-      const counts = {
-        today: 0,
-        upcoming: 0,
-        past: 0,
-        cancelled: 0
-      }
-
-      props.bookings.forEach(booking => {
-        // Use date helpers for consistent parsing
-        const bookingHelper = fromString(booking.date)
-        
-        if (booking.status === 'cancelled') {
-          counts.cancelled++
-        } else if (bookingHelper.isToday()) {
-          counts.today++
-        } else if (bookingHelper.isFuture()) {
-          counts.upcoming++
-        } else {
-          counts.past++
-        }
-      })
-
-      return counts
-    })
-
-    // Filter bookings based on active filter
-    const filteredBookings = computed(() => {
-      let filtered = []
-      
-      switch (activeFilter.value) {
-        case 'today':
-          filtered = filterToday(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
-          break
-        case 'upcoming':
-          filtered = filterFuture(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
-          break
-        case 'past':
-          filtered = filterPast(props.bookings.filter(b => b.status !== 'cancelled'), 'date')
-          break
-        case 'cancelled':
-          filtered = props.bookings.filter(booking => booking.status === 'cancelled')
-          break
-        default:
-          filtered = props.bookings
-      }
-      
-      // Sort bookings by date
-      return filtered.sort((a, b) => {
-        const dateA = fromString(a.date).toTimestamp()
-        const dateB = fromString(b.date).toTimestamp()
-        
-        // Sort upcoming by date ascending, past by date descending
-        if (activeFilter.value === 'upcoming') {
-          return dateA - dateB
-        } else {
-          return dateB - dateA
-        }
-      })
-    })
+    const { updatePaymentStatus } = useCalendar()
 
     // Pagination
-    const totalBookings = computed(() => filteredBookings.value.length)
-    const totalPages = computed(() => Math.ceil(totalBookings.value / itemsPerPage))
-    
-    const showPagination = computed(() => {
-      return (activeFilter.value === 'past' || activeFilter.value === 'cancelled') && 
-             totalBookings.value > itemsPerPage
+    const totalPages = computed(() => {
+      if (props.totalBookings != null) {
+        return Math.ceil(props.totalBookings / props.pageSize)
+      }
+      return null
     })
 
-    const paginatedBookings = computed(() => {
-      if (!showPagination.value) {
-        return filteredBookings.value
-      }
-      
-      const start = (currentPage.value - 1) * itemsPerPage
-      const end = start + itemsPerPage
-      return filteredBookings.value.slice(start, end)
+    const showPagination = computed(() => {
+      if (props.noPagination) return false
+      if (totalPages.value != null) return totalPages.value > 1
+      // No totalBookings provided — show controls so user can navigate freely
+      return true
     })
 
     // Helper functions
@@ -319,12 +278,10 @@ export default {
     }
 
     const formatTime = (timeString) => {
-      // Assumes timeString is in format "HH:MM"
       const [hours, minutes] = timeString.split(':')
       const dateHelper = today()
       const timeDate = dateHelper.toDate()
       timeDate.setHours(parseInt(hours), parseInt(minutes))
-      
       return timeDate.toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
@@ -336,105 +293,51 @@ export default {
       return fromString(booking.date).isPast()
     }
 
-    // Student permission helpers
     const canStudentReschedule = (booking) => {
-      // Students can reschedule up to 24 hours before the lesson
-      const bookingHelper = fromString(booking.date);
-      const nowHelper = today();
-      const hoursUntilLesson = nowHelper.diffInHours(bookingHelper);
-      return hoursUntilLesson >= 24;
+      const bookingHelper = fromString(booking.date)
+      const nowHelper = today()
+      return nowHelper.diffInHours(bookingHelper) >= 24
     }
 
     const canStudentCancel = (booking) => {
-      // Students can cancel up to 24 hours before the lesson
-      const bookingHelper = fromString(booking.date);
-      const nowHelper = today();
-      const hoursUntilLesson = nowHelper.diffInHours(bookingHelper);
-      return hoursUntilLesson >= 24;
+      const bookingHelper = fromString(booking.date)
+      const nowHelper = today()
+      return nowHelper.diffInHours(bookingHelper) >= 24
     }
 
     // Event handlers
     const handleFilterChange = (filterValue) => {
       activeFilter.value = filterValue
-      currentPage.value = 1 // Reset to first page when filter changes
+      emit('tab-change', filterValue)
     }
 
-    const handleEditBooking = (booking) => {
-      emit('edit-booking', booking)
-    }
-
-    const handleCancelBooking = (booking) => {
-      emit('cancel-booking', booking)
-    }
-
-    const handleViewBooking = (booking) => {
-      emit('view-booking', booking)
-    }
+    const handleEditBooking = (booking) => emit('edit-booking', booking)
+    const handleCancelBooking = (booking) => emit('cancel-booking', booking)
+    const handleViewBooking = (booking) => emit('view-booking', booking)
 
     const handleAttendanceChange = (booking, status) => {
-      if (status) {
-        emit('attendance-changed', booking, status)
-      }
+      if (status) emit('attendance-changed', booking, status)
     }
 
-    const handleRefundBooking = (booking) => {
-      emit('process-refund', booking)
-    }
+    const handleRefundBooking = (booking) => emit('process-refund', booking)
 
-    // Permission check for refund button visibility
     const canRefundBooking = (booking) => {
-      // Only show refund button for non-cancelled bookings that haven't been refunded
       if (booking.status === 'cancelled' || (booking.refundStatus && booking.refundStatus.status !== 'none')) {
         return false
       }
-      
-      // Admins can refund any booking
-      if (props.userRole === 'admin') {
-        return true
-      }
-      
-      // Instructors can refund bookings for their students
-      if (props.userRole === 'instructor') {
-        // This would need to check if the booking belongs to this instructor
-        // For now, we'll show the button and let the backend handle permission checks
-        return true
-      }
-      
-      return false
+      return props.userRole === 'admin' || props.userRole === 'instructor'
     }
 
     const canMarkAttendance = (booking) => {
-      // Can mark attendance if lesson has started (for current/past bookings)
       const nowHelper = createDateHelper()
       const lessonHelper = fromString(booking.date)
-      
-      // Parse the start time to get the actual lesson datetime
       const [hours, minutes] = booking.startTime.split(':')
       const period = booking.startTime.includes('PM') ? 'PM' : 'AM'
       let hour24 = parseInt(hours)
-      
-      if (period === 'PM' && hour24 !== 12) {
-        hour24 += 12
-      } else if (period === 'AM' && hour24 === 12) {
-        hour24 = 0
-      }
-      
+      if (period === 'PM' && hour24 !== 12) hour24 += 12
+      else if (period === 'AM' && hour24 === 12) hour24 = 0
       const lessonDateTime = lessonHelper.addHours(hour24).addMinutes(parseInt(minutes.replace(/\D/g, '')))
-      
-      // Allow attendance marking if lesson has started
       return nowHelper.toTimestamp() >= lessonDateTime.toTimestamp()
-    }
-
-    const goToPreviousPage = () => {
-      if (currentPage.value > 1) {
-        currentPage.value--
-      }
-    }
-
-    const goToNextPage = () => {
-      if (currentPage.value < totalPages.value) {
-        currentPage.value++
-      }
     }
 
     // Payment status handling
@@ -444,18 +347,9 @@ export default {
     const handlePaymentStatusUpdate = async (booking, newStatus) => {
       try {
         updatingPayment.value = booking.id
-        
-        await updatePaymentStatus({
-          bookingId: booking.id,
-          status: newStatus
-        })
-
-        // Update the booking's payment status locally
+        await updatePaymentStatus({ bookingId: booking.id, status: newStatus })
         booking.paymentStatus = newStatus
-        
-        // Emit event to parent component for any additional handling
         emit('payment-status-changed', booking, newStatus)
-        
       } catch (error) {
         console.error('Error updating payment status:', error)
         alert('Failed to update payment status: ' + error.message)
@@ -465,15 +359,10 @@ export default {
     }
 
     return {
-      filters,
       activeFilter,
-      filterCounts,
-      filteredBookings,
-      paginatedBookings,
-      totalBookings,
       totalPages,
-      currentPage,
       showPagination,
+      showBookingsLink: computed(() => props.showBookingsLink),
       formatDate,
       formatTime,
       isPastBooking,
@@ -487,9 +376,6 @@ export default {
       handleRefundBooking,
       canRefundBooking,
       canMarkAttendance,
-      goToPreviousPage,
-      goToNextPage,
-      // Payment status methods
       getPaymentStatusColor,
       formatPaymentStatus,
       handlePaymentStatusUpdate,
@@ -810,8 +696,16 @@ export default {
 .empty-state,
 .loading-state {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   color: var(--text-secondary);
+}
+
+.empty-state-link {
+  display: inline-block;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary, #3b82f6);
+  text-decoration: underline;
 }
 
 /* Mobile responsiveness */

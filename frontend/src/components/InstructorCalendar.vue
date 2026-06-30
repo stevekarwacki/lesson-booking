@@ -1,122 +1,131 @@
-<template v-if="instructor">
+<template>
+    <!-- Instructor search zone (students + admins when no instructor prop given) -->
+    <div v-if="showInstructorPicker" class="instructor-picker">
+        <InstructorSearchBar
+            :items="allInstructors"
+            @select="handleInstructorSelect"
+        />
+    </div>
 
-    <!-- Date selection -->
-    <div class="view-controls card">
-        <div class="card-body time-selection-container">
-            <!-- Week navigation - only show when no specific date is selected -->
-            <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
+    <template v-if="activeInstructor">
+        <!-- Date selection -->
+        <div class="view-controls">
+            <div class="card-body time-selection-container">
+                <!-- Week navigation - only show when no specific date is selected -->
+                <div class="week-navigation" v-if="!selectedDate && $mq.lgPlus">
+                    <Button 
+                        variant="outline"
+                        @click="previousWeek"
+                        :disabled="isAtPastLimit"
+                    >
+                        Previous Week
+                    </Button>
+                    <span class="week-display">
+                        {{ weekStart.toLocaleDateString() }} – {{ weekEnd.toLocaleDateString() }}
+                    </span>
+                    <Button 
+                        variant="outline"
+                        @click="nextWeek"
+                    >
+                        Next Week
+                    </Button>
+                    <Button
+                        v-if="!isCurrentWindow"
+                        variant="outline"
+                        @click="goToCurrentWeek"
+                    >
+                        Today
+                    </Button>
+                </div>
+
                 <Button 
+                    v-if="selectedDate && $mq.lgPlus" 
                     variant="outline"
-                    @click="previousWeek"
-                    :disabled="isAtPastLimit"
+                    @click="clearSelectedDate"
                 >
-                    Previous Week
+                    Back to Weekly View
                 </Button>
-                <span class="week-display">
-                    {{ weekStart.toLocaleDateString() }} – {{ weekEnd.toLocaleDateString() }}
-                </span>
-                <Button 
-                    variant="outline"
-                    @click="nextWeek"
-                >
-                    Next Week
-                </Button>
-                <Button
-                    v-if="!isCurrentWindow"
-                    variant="outline"
-                    @click="goToCurrentWeek"
-                >
-                    Today
-                </Button>
+
+                <!-- Date selection -->
+                <div class="form-group-inline date-select-group mb-0">
+                    <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
+                    <DatePicker
+                        v-model="selectedDate"
+                        :min-value="minSelectableDate"
+                        placeholder="Pick a date"
+                        class="w-[280px]"
+                    />
+                </div>
             </div>
+        </div>
 
-            <Button 
-                v-if="selectedDate && $mq.lgPlus" 
-                variant="outline"
-                @click="clearSelectedDate"
-            >
-                Back to Weekly View
-            </Button>
-
-            <!-- Date selection -->
-            <div class="form-group-inline date-select-group mb-0">
-                <Label for="date-select">{{ !selectedDate ? 'Or select' : 'Select' }} a date:</Label>
-                <DatePicker
-                    v-model="selectedDate"
-                    :min-value="minSelectableDate"
-                    placeholder="Pick a date"
-                    class="w-[280px]"
+        <!-- Weekly Schedule View -->
+        <div v-if="!selectedDate && $mq.lgPlus" class="schedule-view">
+            <div class="card-body">
+                <WeeklyScheduleView 
+                    :weeklySchedule="weeklySchedule"
+                    :weekStartDate="weekStart"
+                    :useColumnLayout="true"
+                    :selected-slot="selectedSlot"
+                    @slot-selected="handleSlotSelected"
                 />
             </div>
         </div>
-    </div>
 
-    <!-- Weekly Schedule View -->
-    <div v-if="!selectedDate && $mq.lgPlus" class="schedule-view card">
-        <div class="card-body">
-            <WeeklyScheduleView 
-                :weeklySchedule="weeklySchedule"
-                :weekStartDate="weekStart"
-                :useColumnLayout="true"
-                :selected-slot="selectedSlot"
-                @slot-selected="handleSlotSelected"
-            />
+        <!-- Daily Schedule View -->
+        <div v-if="(!$mq.lgPlus || selectedDate) && dailyScheduleLoaded" class="schedule-view">
+            <div class="card-body">
+                <DailyScheduleView 
+                    :dailySchedule="dailySchedule"
+                    :selected-day="selectedDay"
+                    :selected-slot="selectedSlot"
+                    @slot-selected="handleSlotSelected"
+                />
+            </div>
         </div>
-    </div>
 
-    <!-- Daily Schedule View -->
-    <div v-if="(!$mq.lgPlus || selectedDate) && dailyScheduleLoaded" class="schedule-view card">
-        <div class="card-body">
-            <DailyScheduleView 
-                :dailySchedule="dailySchedule"
-                :selected-day="selectedDay"
-                :selected-slot="selectedSlot"
-                @slot-selected="handleSlotSelected"
-            />
+        <div v-else-if="selectedDate && dailyScheduleLoaded && Object.keys(dailySchedule).length === 0" class="form-message">
+            <p>No available time slots for this date.</p>
         </div>
-    </div>
 
-    <div v-else-if="selectedDate && dailyScheduleLoaded && Object.keys(dailySchedule).length === 0" class="form-message">
-        <p>No available time slots for this date.</p>
-    </div>
+        <div v-else-if="selectedDate && !dailyScheduleLoaded" class="form-message">
+            <p>Loading schedule...</p>
+        </div>
 
-    <div v-else-if="selectedDate && !dailyScheduleLoaded" class="form-message">
-        <p>Loading schedule...</p>
-    </div>
+        <div v-if="error" class="form-message error-message">{{ error }}</div>
 
-    <div v-if="error" class="form-message error-message">{{ error }}</div>
-
-    <!-- Booking Modal -->
-    <Modal
-        v-model:open="showBookingModal"
-        :title="selectedSlot?.bookingOnBehalf ? 'Book Lesson for Student' : 'Confirm Booking'"
-        @save="handleBookingSave"
-        @cancel="showBookingModal = false"
-    >
-        <Booking
-            v-if="selectedSlot"
-            ref="bookingRef"
-            :slot="selectedSlot"
-            @close="showBookingModal = false"
-            @booking-confirmed="handleBookingConfirmed"
-        />
-    </Modal>
-    
-    <!-- Edit Booking Modal -->
-    <Modal
-        v-model:open="showEditBookingModal"
-        title="Reschedule Lesson"
-        cancel-text="Close"
-        @cancel="closeEditBookingModal"
-    >
-        <EditBooking
-            v-if="selectedSlot"
-            :booking="selectedSlot"
-            @close="closeEditBookingModal"
-            @booking-updated="handleBookingUpdated"
-            @booking-cancelled="handleBookingCancelled"
-        />
-    </Modal>
+        <!-- Booking Modal -->
+        <Modal
+            v-model:open="showBookingModal"
+            :title="selectedSlot?.bookingOnBehalf ? 'Book Lesson for Student' : 'Confirm Booking'"
+            @save="handleBookingSave"
+            @cancel="showBookingModal = false"
+        >
+            <Booking
+                v-if="selectedSlot"
+                ref="bookingRef"
+                :slot="selectedSlot"
+                @close="showBookingModal = false"
+                @booking-confirmed="handleBookingConfirmed"
+            />
+        </Modal>
+        
+        <!-- Edit Booking Modal -->
+        <Modal
+            v-model:open="showEditBookingModal"
+            title="Reschedule Lesson"
+            cancel-text="Close"
+            @cancel="closeEditBookingModal"
+        >
+            <EditBooking
+                v-if="selectedSlot"
+                :booking="selectedSlot"
+                @close="closeEditBookingModal"
+                @booking-updated="handleBookingUpdated"
+                @booking-cancelled="handleBookingCancelled"
+            />
+        </Modal>
+    </template>
 </template>
 
 <script setup>
@@ -130,28 +139,50 @@ import WeeklyScheduleView from './WeeklyScheduleView.vue'
 import DailyScheduleView from './DailyScheduleView.vue'
 import Booking from './Booking.vue'
 import EditBooking from './EditBooking.vue'
+import InstructorSearchBar from './InstructorSearchBar.vue'
 import { Modal } from '@/components/ui/modal'
 import { today } from '../utils/dateHelpers.js'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
+import { fetchInstructors as fetchInstructorsHelper } from '../utils/fetchHelper'
 
-const { instructor, weekStartDay } = defineProps({
+const props = defineProps({
+    // When null, the component manages its own instructor selection (students + admins).
+    // When provided, it is used directly and no search bar is shown (instructor role).
     instructor: {
         type: Object,
-        required: true
+        default: null
     },
     weekStartDay: {
         type: [Number, String],
         default: 0 // 0-6 = fixed weekday (0=Sunday), 'current' = start on today
     }
 })
+const { weekStartDay } = props
 
-const emit = defineEmits(['process-refund'])
+const emit = defineEmits(['process-refund', 'instructor-changed'])
 
 const userStore = useUserStore()
 const scheduleStore = useScheduleStore()
 
+// --- Internal instructor search state (only active when instructor prop is null) ---
+const allInstructors = ref([])
+const selectedInstructor = ref(null)
+
+// The effective instructor — prop takes priority; falls back to internal selection
+const activeInstructor = computed(() => props.instructor ?? selectedInstructor.value)
+
+// Show search bar when no instructor prop is provided and multiple instructors exist
+const showInstructorPicker = computed(() => !props.instructor && allInstructors.value.length > 1)
+
+const handleInstructorSelect = (instr) => {
+    if (instr) {
+        selectedInstructor.value = instr
+    }
+}
+
+// --- Calendar state ---
 const selectedDate = useMq().lgPlus ? ref('') : ref(today().toDateString())
 const weeklyScheduleData = ref([])
 const dailyScheduleData = ref({})
@@ -195,7 +226,7 @@ const {
     isLoadingDailyEvents,
     dailyEventsError,
 } = useCalendar(
-    computed(() => instructor.id),
+    computed(() => activeInstructor.value?.id),
     weekStartDate,
     weekEndDate,
     selectedDate
@@ -210,7 +241,7 @@ const {
     isLoadingDailyAvailability,
     dailyAvailabilityError,
 } = useAvailability(
-    computed(() => instructor.id),
+    computed(() => activeInstructor.value?.id),
     selectedDate
 )
 
@@ -264,22 +295,22 @@ const handleSlotSelected = (slot) => {
         if (userStore.canManageCalendar || userStore.canManageUsers) {
             selectedSlot.value = {
                 ...slot,
-                instructorId: instructor.id,
+                instructorId: activeInstructor.value?.id,
                 bookingOnBehalf: true // Flag to indicate this is a "book on behalf" flow
             }
             showBookingModal.value = true
             return
         }
-        
+
         // For students, open booking modal normally
         selectedSlot.value = {
             ...slot,
-            instructorId: instructor.id
+            instructorId: activeInstructor.value?.id
         }
         showBookingModal.value = true
         return
     }
-    
+
     // For booked slots, allow instructors and admins to edit/cancel student bookings
     if (slot.type === 'booked') {
         // Don't allow editing recurring subscription bookings
@@ -287,30 +318,26 @@ const handleSlotSelected = (slot) => {
             // TODO: Could show a message or modal explaining this is a subscription booking
             return
         }
-        
+
         // Check if current user can manage bookings (instructors and admins)
         if ((userStore.canManageCalendar || userStore.canManageUsers) && slot.student && slot.student.id) {
             // Create a booking object that matches the EditBookingModal expected format
             // For multi-slot bookings, calculate the original start slot and total duration
             const originalStartSlot = slot.isMultiSlot ? slot.originalStartSlot || (slot.startSlot - (slot.slotPosition * 2)) : slot.startSlot
             const totalDuration = slot.isMultiSlot ? slot.originalDuration || (slot.totalSlots * 2) : slot.duration
-            
-            const bookingObject = {
+
+            selectedSlot.value = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string
                 start_slot: originalStartSlot, // Use original start slot, not clicked slot
                 duration: totalDuration, // Use total duration, not individual slot duration
-                instructor_id: instructor.id,
+                instructor_id: activeInstructor.value?.id,
                 student_id: slot.student.id,
                 status: 'booked',
                 Instructor: {
-                    User: {
-                        name: instructor.User?.name || ''
-                    }
+                    User: { name: activeInstructor.value?.User?.name || '' }
                 }
             }
-            
-            selectedSlot.value = bookingObject
             showEditBookingModal.value = true
         }
         // For students viewing their own bookings, allow them to edit as well
@@ -318,23 +345,19 @@ const handleSlotSelected = (slot) => {
             // For multi-slot bookings, calculate the original start slot and total duration
             const originalStartSlot = slot.isMultiSlot ? slot.originalStartSlot || (slot.startSlot - (slot.slotPosition * 2)) : slot.startSlot
             const totalDuration = slot.isMultiSlot ? slot.originalDuration || (slot.totalSlots * 2) : slot.duration
-            
-            const bookingObject = {
+
+            selectedSlot.value = {
                 id: slot.id || slot.bookingId,
                 date: slot.date.toISOString().split('T')[0],
                 start_slot: originalStartSlot, // Use original start slot, not clicked slot
                 duration: totalDuration, // Use total duration, not individual slot duration
-                instructor_id: instructor.id,
+                instructor_id: activeInstructor.value?.id,
                 student_id: slot.student.id,
                 status: 'booked',
                 Instructor: {
-                    User: {
-                        name: instructor.User?.name || 'Unknown Instructor'
-                    }
+                    User: { name: activeInstructor.value?.User?.name || 'Unknown Instructor' }
                 }
             }
-            
-            selectedSlot.value = bookingObject
             showEditBookingModal.value = true
         }
     }
@@ -343,25 +366,22 @@ const handleSlotSelected = (slot) => {
 const handleBookingConfirmed = (newBooking) => {
     showBookingModal.value = false
     selectedSlot.value = null
-    
     // Trigger schedule refresh using the schedule store (consistent with other booking updates)
-    scheduleStore.triggerInstructorRefresh(instructor.id)
+    scheduleStore.triggerInstructorRefresh(activeInstructor.value?.id)
 }
 
 const handleBookingUpdated = () => {
     showEditBookingModal.value = false
     selectedSlot.value = null
-    
     // Trigger schedule refresh for updated booking
-    scheduleStore.triggerInstructorRefresh(instructor.id)
+    scheduleStore.triggerInstructorRefresh(activeInstructor.value?.id)
 }
 
 const handleBookingCancelled = () => {
     showEditBookingModal.value = false
     selectedSlot.value = null
-    
     // Trigger schedule refresh for cancelled booking
-    scheduleStore.triggerInstructorRefresh(instructor.id)
+    scheduleStore.triggerInstructorRefresh(activeInstructor.value?.id)
 }
 
 const closeEditBookingModal = () => {
@@ -373,21 +393,18 @@ const clearSelectedDate = () => {
     selectedDate.value = ''
 }
 
-
 /**
  * Formats slot for display
- * @param {Object} slot - slot to be formatted
- * @returns {Object} - formatted slot
  */
 const formatSlot = (slot, date) => {
     // Normalize slot type/status to recognized types
     let slotType = slot.type || slot.status || 'available'
-    
+
     // Map recurring_reserved status to booked type for display
     if (slotType === 'recurring_reserved') {
         slotType = 'booked'
     }
-    
+
     const formattedSlot = {
         id: slot.id, // Preserve the original booking/event ID
         start_slot: slot.start_slot,
@@ -400,8 +417,7 @@ const formatSlot = (slot, date) => {
         // Preserve Google Calendar properties for styling
         is_google_calendar: slot.is_google_calendar,
         source: slot.source,
-        // Flag for recurring bookings
-        is_recurring: slot.status === 'recurring_reserved'
+        is_recurring: slot.status === 'recurring_reserved' // Flag for recurring bookings
     }
 
     // Calculate start and end times
@@ -424,7 +440,7 @@ const formatSlot = (slot, date) => {
 
 // Fetch weekly schedule
 const fetchWeeklySchedule = async () => {
-    if (!instructor.id) return
+    if (!activeInstructor.value?.id) return
 
     try {
         // Use availability and events from Vue Query
@@ -451,11 +467,9 @@ const fetchWeeklySchedule = async () => {
             // Expand: store the same data at every slot position this availability occupies
             for (let i = 0; i < slotDuration; i++) {
                 const currentSlot = slotStart + i
-                
                 if (!(currentSlot in formattedSchedule)) {
                     formattedSchedule[currentSlot] = {}
                 }
-                
                 formattedSchedule[currentSlot][dayIndex] = formatSlot(slot, slotDate)
             }
         })
@@ -468,37 +482,33 @@ const fetchWeeklySchedule = async () => {
                 let eventDate = new Date(event.date)
                 eventDate.setUTCHours(0, 0, 0, 0)
                 const dayIndex = eventDate.getUTCDay()
-                
+
                 // Block all slots that exist in the schedule for this day
                 Object.keys(formattedSchedule).forEach(slotKey => {
-                    const slot = parseInt(slotKey);
+                    const slot = parseInt(slotKey)
                     if (formattedSchedule[slot] && formattedSchedule[slot][dayIndex]) {
-                        formattedSchedule[slot][dayIndex] = formatSlot(event, formattedSchedule[slot][dayIndex].date);
+                        formattedSchedule[slot][dayIndex] = formatSlot(event, formattedSchedule[slot][dayIndex].date)
                     }
-                });
-                return; // Skip normal duration processing for all-day events
+                })
+                return // Skip normal duration processing for all-day events
             }
-            
+
             // Create date in UTC to match backend
             let eventDate = new Date(event.date)
             eventDate.setUTCHours(0, 0, 0, 0)
-            
+
             // Use UTC day for all events to match backend
             const dayIndex = eventDate.getUTCDay()
-            
             const slotStart = event.start_slot
             const slotDuration = event.duration || 2
-            
+
             // Expand: store booking at every slot position it occupies
             for (let i = 0; i < slotDuration; i++) {
                 const currentSlot = slotStart + i
-                
                 if (!(currentSlot in formattedSchedule)) {
                     formattedSchedule[currentSlot] = {}
                 }
-                
-                const slotData = formatSlot(event, eventDate)
-                formattedSchedule[currentSlot][dayIndex] = slotData
+                formattedSchedule[currentSlot][dayIndex] = formatSlot(event, eventDate)
             }
         })
 
@@ -508,51 +518,41 @@ const fetchWeeklySchedule = async () => {
     }
 }
 
-const dailySchedule = computed(() => {
-    return dailyScheduleData.value
-})
+const dailySchedule = computed(() => dailyScheduleData.value)
 
 const selectedDay = computed(() => {
     if (!selectedDate.value) return ''
-
     const [year, month, day] = selectedDate.value.split('-')
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-
     return {
         date: date,
-        formattedDate: date.toLocaleDateString(undefined, { 
+        formattedDate: date.toLocaleDateString(undefined, {
             weekday: 'long',
             month: 'long',
-            day: 'numeric' 
+            day: 'numeric'
         })
     }
 })
 
 const fetchDailySchedule = async () => {
-    if (!instructor.id || !selectedDate.value) {
-        return
-    }
+    if (!activeInstructor.value?.id || !selectedDate.value) return
 
     dailyScheduleLoaded.value = false
 
     try {
         const scheduleDate = new Date(selectedDate.value)
-
         // Use availability and events from Vue Query
         const availabilityData = dailyAvailability.value || []
         const bookedEvents = dailyEvents.value || []
-
         const formattedSchedule = {}
 
         // Add availability slots - expand to all slots they occupy
         availabilityData.forEach(slot => {
             const slotStart = slot.start_slot
             const slotDuration = slot.duration || 2
-
             // Expand: store the same data at every slot position this availability occupies
             for (let i = 0; i < slotDuration; i++) {
-                const currentSlot = slotStart + i
-                formattedSchedule[currentSlot] = formatSlot(slot, scheduleDate)
+                formattedSchedule[slotStart + i] = formatSlot(slot, scheduleDate)
             }
         })
 
@@ -562,22 +562,19 @@ const fetchDailySchedule = async () => {
             if (event.blocks_all_available_slots) {
                 // Block all slots that exist in the schedule (all available slots)
                 Object.keys(formattedSchedule).forEach(slotKey => {
-                    const slot = parseInt(slotKey);
+                    const slot = parseInt(slotKey)
                     if (formattedSchedule[slot]) {
-                        formattedSchedule[slot] = formatSlot(event, scheduleDate);
+                        formattedSchedule[slot] = formatSlot(event, scheduleDate)
                     }
-                });
-                return; // Skip normal duration processing for all-day events
+                })
+                return // Skip normal duration processing for all-day events
             }
-            
-            // Expand: store booking at every slot position it occupies
+
             const slotStart = event.start_slot
             const slotDuration = event.duration || 2
-            
+            // Expand: store booking at every slot position it occupies
             for (let i = 0; i < slotDuration; i++) {
-                const currentSlot = slotStart + i
-                const slotData = formatSlot(event, scheduleDate)
-                formattedSchedule[currentSlot] = slotData
+                formattedSchedule[slotStart + i] = formatSlot(event, scheduleDate)
             }
         })
 
@@ -609,66 +606,65 @@ const nextWeek = () => {
 }
 
 // Watch for changes to selected week
-watch(selectedWeek, () => {
-    fetchWeeklySchedule()
-})
-
+watch(selectedWeek, () => { fetchWeeklySchedule() })
 // Watch for changes to selected date
-watch(selectedDate, () => {
-    fetchDailySchedule()
-})
+watch(selectedDate, () => { fetchDailySchedule() })
 
 // Fetch data on component mount
-onMounted(() => {
+onMounted(async () => {
+    // When no instructor prop is provided, fetch the instructor list for search
+    if (!props.instructor) {
+        try {
+            const result = await fetchInstructorsHelper(userStore.token)
+            allInstructors.value = result.instructors.filter(i => i.is_active)
+            if (result.selectedInstructor) {
+                selectedInstructor.value = result.selectedInstructor
+            }
+        } catch (err) {
+            error.value = 'Error fetching instructors'
+        }
+    }
+
     fetchWeeklySchedule()
     fetchDailySchedule()
 })
 
-watch(() => instructor, async (newInstructor) => {
-    if (newInstructor) {
-        await fetchWeeklySchedule()
+// Emit instructor-changed when the resolved instructor changes (student/admin mode only)
+watch(activeInstructor, (newInstructor) => {
+    if (newInstructor && !props.instructor) {
+        emit('instructor-changed', newInstructor)
     }
-}, { immediate: true })
+    if (newInstructor) {
+        fetchWeeklySchedule()
+    }
+})
 
 // Watch for schedule refresh triggers
 watch(() => scheduleStore.refreshTrigger, async () => {
-    if (instructor?.id && scheduleStore.needsRefresh(instructor.id)) {
+    if (activeInstructor.value?.id && scheduleStore.needsRefresh(activeInstructor.value.id)) {
         await fetchWeeklySchedule()
         await fetchDailySchedule()
-        scheduleStore.markInstructorRefreshed(instructor.id)
+        scheduleStore.markInstructorRefreshed(activeInstructor.value.id)
     }
 })
 
 // Watch for Vue Query data changes and update local schedule data
-watch(weeklyEvents, () => {
-    if (weeklyEvents.value) {
-        fetchWeeklySchedule()
-    }
-})
-
-watch(dailyEvents, () => {
-    if (dailyEvents.value) {
-        fetchDailySchedule()
-    }
-})
-
-watch(weeklyAvailability, () => {
-    if (weeklyAvailability.value) {
-        fetchWeeklySchedule()
-    }
-})
-
-watch(dailyAvailability, () => {
-    if (dailyAvailability.value) {
-        fetchDailySchedule()
-    }
-})
+watch(weeklyEvents, () => { if (weeklyEvents.value) fetchWeeklySchedule() })
+watch(dailyEvents, () => { if (dailyEvents.value) fetchDailySchedule() })
+watch(weeklyAvailability, () => { if (weeklyAvailability.value) fetchWeeklySchedule() })
+watch(dailyAvailability, () => { if (dailyAvailability.value) fetchDailySchedule() })
 
 </script>
 
 <style scoped>
+.instructor-picker {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
 .view-controls {
-    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .week-navigation {
@@ -693,7 +689,7 @@ watch(dailyAvailability, () => {
 }
 
 .schedule-view {
-    margin-top: var(--spacing-lg);
+    /* flush within the calendar panel — no extra margin or shadow */
 }
 
 @media (max-width: 768px) {
@@ -702,4 +698,4 @@ watch(dailyAvailability, () => {
         gap: var(--spacing-sm);
     }
 }
-</style> 
+</style>

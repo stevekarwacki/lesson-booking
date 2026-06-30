@@ -3,38 +3,34 @@ id: bookings-book-on-behalf
 title: Book a lesson on behalf of a student
 audience: admin
 category: bookings
-order: 1
+order: 4
 uiRoute: /calendar
-relatedComponents: [InstructorCalendar.vue]
-sources: [docs/BOOK_ON_BEHALF_FEATURE.md]
-keywords: [book, lesson, on behalf, student, admin, calendar, slot]
+relatedComponents: [InstructorCalendar.vue, Booking.vue, CalendarPage.vue]
+sources: []
+keywords: [book, on behalf, student, lesson, admin, instructor, calendar]
 ---
 
 # Book a Lesson on Behalf of a Student
 
-Book a lesson for a student directly from the Calendar, without the student needing to do it themselves.
+Admins and instructors can book lessons directly on a student's behalf from the Calendar page.
 
 ## Where to find it
 
-> Calendar → click an available time slot
+> Calendar (top navigation)
 
 ## Steps
 
-1. Go to **Calendar** and navigate to the instructor and week you want.
-2. Click an available (unbooked) time slot.
-3. The booking modal opens in "Book for Student" mode.
-4. Search for the student by name or email and click to select them.
-5. Choose a payment method:
-   - **In-person** — student pays at the lesson (default)
-   - **Use Credits** — appears automatically if the student has credits for that lesson duration
-   - **Card** — only available if enabled in [Lesson Settings](../settings/lessons-and-payments.md)
-6. Click **Confirm Booking**.
+1. Go to the **Calendar** page.
+2. Use the instructor search bar to select the instructor whose schedule you want to book into.
+3. Navigate to the desired week or select a specific date.
+4. Click an **available** (green) time slot.
+5. In the **Book Lesson for Student** modal, search for and select the student.
+6. Confirm the lesson details and click **Save**.
 
 ## Notes
 
-- The **Confirm** button stays disabled until a student is selected.
-- Credit balances shown are specific to the lesson duration — a student's 30-minute credits won't appear for a 60-minute slot.
-- If a student has no credits and card payment is not enabled, only in-person payment is available.
-- The booking appears in the calendar immediately and shows in the student's booking history.
+- Booking on behalf bypasses the student's credit balance check — ensure the student has sufficient credits before booking, or coordinate payment separately.
+- The booked lesson appears immediately on the student's calendar and in their Bookings list.
+- Admins are not subject to the 24-hour booking restriction that applies to students.
 
-See also: [Reschedule a lesson](reschedule-booking.md) | [Cancel a lesson](cancel-booking.md)
+See also: [Cancel a student's lesson](cancel-booking.md) · [Process a refund](process-refund.md)

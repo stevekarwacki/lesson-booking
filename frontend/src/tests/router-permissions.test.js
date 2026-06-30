@@ -20,11 +20,6 @@ const routePermissions = [
     expectedRoles: ['admin', 'instructor']
   },
   { 
-    path: '/book-lesson',
-    meta: { permission: { action: 'create', subject: 'StudentBooking' } },
-    expectedRoles: ['student']
-  },
-  { 
     path: '/payments',
     meta: { permission: { action: 'access', subject: 'StudentPayments' } },
     expectedRoles: ['student']

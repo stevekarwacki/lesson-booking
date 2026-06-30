@@ -59,22 +59,18 @@ const routes = [
         }
     },
     {
+        path: '/bookings',
+        name: 'bookings',
+        component: () => import('../views/BookingsPage.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/calendar',
         name: 'calendar',
         component: () => import('../views/CalendarPage.vue'),
         meta: { 
             requiresAuth: true,
-            permission: { action: 'manage', subject: 'Calendar' }
-        }
-    },
-    {
-        path: '/book-lesson',
-        name: 'book-lesson',
-        component: () => import('../views/BookLessonPage.vue'),
-        meta: { 
-            requiresAuth: true,
-            requiresApproval: true,
-            permission: { action: 'create', subject: 'StudentBooking' }
+            requiresApproval: true
         }
     },
     {
@@ -153,10 +149,8 @@ router.beforeEach(async (to, from, next) => {
             // Redirect to appropriate page based on permissions
             if (userStore.canManageUsers) {
                 next('/admin/users')
-            } else if (userStore.canManageCalendar) {
-                next('/calendar')
             } else {
-                next('/book-lesson')
+                next('/calendar')
             }
             return
         }
