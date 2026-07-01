@@ -104,6 +104,12 @@ print_summary() {
     echo ""
 }
 
+# Check if the server has already been bootstrapped into releases/symlink layout.
+# Returns 0 if the new layout is in use, 1 if this is a legacy single-folder install.
+is_release_layout() {
+    [ -d "/var/www/lesson-booking/releases" ] && [ -L "/var/www/lesson-booking/current" ]
+}
+
 # Main installation flow
 main() {
     log_info "Lesson Booking - Production Installer"
@@ -113,6 +119,16 @@ main() {
     check_node_version 18 || exit 1
     
     cd "$APP_DIR"
+
+    # If the server has already been bootstrapped into the releases layout,
+    # direct the operator to use deploy.sh instead of this installer.
+    if is_release_layout; then
+        log_warn "This server is already using the releases/symlink deployment layout."
+        log_warn "Use 'bash scripts/deploy.sh <tag>' to deploy new releases."
+        log_warn "Use 'bash scripts/rollback.sh' to roll back."
+        exit 0
+    fi
+
     check_env_file || exit 1
     
     # Installation phase
@@ -131,6 +147,11 @@ main() {
     
     # Summary
     print_summary
+
+    log_info ""
+    log_info "To upgrade to the releases/symlink layout with rollback support:"
+    log_info "  bash scripts/bootstrap-release-layout.sh"
+    log_info "  bash scripts/deploy.sh <tag>"
 }
 
 main "$@"

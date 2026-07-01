@@ -59,6 +59,25 @@ That's it! Your application is production-ready and accessible at `http://your-s
 
 📖 **For detailed installation instructions**, see [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md)
 
+### Releases & Rollback (recommended for production)
+
+For a safer deployment workflow with instant rollback and database snapshots:
+
+```bash
+# 1. One-time server setup
+bash scripts/bootstrap-release-layout.sh
+# Edit /var/www/lesson-booking/shared/.env
+
+# 2. Tag and deploy
+git tag -a v1.0.0 -m "Initial release" && git push --tags
+npm run deploy:release -- v1.0.0
+
+# 3. Roll back if something goes wrong
+npm run rollback
+```
+
+📖 **Full deployment and rollback guide**: [`docs/DEPLOYMENT_ROLLBACK.md`](docs/DEPLOYMENT_ROLLBACK.md)
+
 ## Caching Options
 
 The application supports multiple caching solutions:

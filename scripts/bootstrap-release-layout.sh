@@ -1,0 +1,141 @@
+#!/bin/bash
+# bootstrap-release-layout.sh
+#
+# Run this ONCE on a fresh DigitalOcean droplet (or any new server) to set up
+# the releases/symlink directory structure before the first deploy.
+#
+# It is safe to re-run — it skips steps that are already done.
+#
+# Usage:
+#   bash scripts/bootstrap-release-layout.sh
+#   bash scripts/bootstrap-release-layout.sh --app-root /custom/path
+#
+# After running this script:
+#   1. Edit /var/www/lesson-booking/shared/.env with your production settings
+#   2. Copy ecosystem.config.js to shared/ (done automatically)
+#   3. Copy maintenance.html to shared/ (done automatically)
+#   4. Run: bash scripts/deploy.sh <tag>  to deploy the first release
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# Default: /var/www/lesson-booking
+# Override with --app-root flag or DEPLOY_APP_ROOT env var for local testing:
+#   DEPLOY_APP_ROOT=/tmp/lb-test bash scripts/bootstrap-release-layout.sh
+APP_ROOT="${DEPLOY_APP_ROOT:-/var/www/lesson-booking}"
+
+# Parse optional --app-root flag (takes precedence over env var)
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --app-root)
+            APP_ROOT="$2"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+SHARED_DIR="$APP_ROOT/shared"
+RELEASES_DIR="$APP_ROOT/releases"
+
+log_info "Bootstrapping release layout at $APP_ROOT"
+
+# ── Create directory structure ─────────────────────────────────────────────
+mkdir -p \
+    "$RELEASES_DIR" \
+    "$SHARED_DIR/uploads" \
+    "$SHARED_DIR/db-backups" \
+    "$SHARED_DIR/logs"
+
+chmod 700 "$SHARED_DIR/db-backups"
+chmod 750 "$SHARED_DIR/uploads"
+
+log_success "Directory structure created"
+
+# ── Shared .env ────────────────────────────────────────────────────────────
+if [ ! -f "$SHARED_DIR/.env" ]; then
+    if [ -f "$SCRIPT_DIR/../.env.example" ]; then
+        cp "$SCRIPT_DIR/../.env.example" "$SHARED_DIR/.env"
+        log_info "Copied .env.example to shared/.env"
+        log_warn "Edit $SHARED_DIR/.env before deploying:"
+        log_warn "  NODE_ENV=production"
+        log_warn "  DB_DIALECT, DB_HOST, DB_USER, DB_PASSWORD, DB_NAME"
+        log_warn "  JWT_SECRET, ENCRYPTION_KEY"
+        log_warn "  STORAGE_LOCAL_PATH=$SHARED_DIR/uploads"
+    else
+        touch "$SHARED_DIR/.env"
+        log_warn ".env.example not found — created empty $SHARED_DIR/.env. Populate it before deploying."
+    fi
+else
+    log_info "shared/.env already exists — skipping"
+fi
+chmod 600 "$SHARED_DIR/.env"
+
+# ── PM2 ecosystem file ─────────────────────────────────────────────────────
+if [ ! -f "$SHARED_DIR/ecosystem.config.js" ]; then
+    if [ -f "$SCRIPT_DIR/templates/ecosystem.config.js" ]; then
+        # Replace the template APP_ROOT placeholder with the actual path
+        sed "s|/var/www/lesson-booking|$APP_ROOT|g" \
+            "$SCRIPT_DIR/templates/ecosystem.config.js" \
+            > "$SHARED_DIR/ecosystem.config.js"
+        log_success "ecosystem.config.js installed"
+    else
+        log_warn "templates/ecosystem.config.js not found — skipping"
+    fi
+else
+    log_info "ecosystem.config.js already exists — skipping"
+fi
+
+# ── Maintenance page ───────────────────────────────────────────────────────
+if [ ! -f "$SHARED_DIR/maintenance.html" ]; then
+    if [ -f "$SCRIPT_DIR/templates/maintenance.html" ]; then
+        cp "$SCRIPT_DIR/templates/maintenance.html" "$SHARED_DIR/maintenance.html"
+        log_success "maintenance.html installed"
+    else
+        log_warn "templates/maintenance.html not found — skipping"
+    fi
+else
+    log_info "maintenance.html already exists — skipping"
+fi
+
+# ── Nginx config ───────────────────────────────────────────────────────────
+NGINX_CONF="/etc/nginx/sites-available/lesson-booking"
+if [ ! -f "$NGINX_CONF" ]; then
+    if [ -f "$SCRIPT_DIR/templates/nginx-site.conf" ]; then
+        # Replace APP_ROOT placeholder if non-default path was used
+        if [ "$APP_ROOT" != "/var/www/lesson-booking" ]; then
+            sudo sed "s|/var/www/lesson-booking|$APP_ROOT|g" \
+                "$SCRIPT_DIR/templates/nginx-site.conf" \
+                > "$NGINX_CONF"
+        else
+            sudo cp "$SCRIPT_DIR/templates/nginx-site.conf" "$NGINX_CONF"
+        fi
+        sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/lesson-booking 2>/dev/null || true
+        sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+        sudo nginx -t && sudo nginx -s reload
+        log_success "Nginx configured as reverse proxy"
+    else
+        log_warn "templates/nginx-site.conf not found — configure Nginx manually"
+    fi
+else
+    log_info "Nginx site config already exists at $NGINX_CONF"
+    log_info "If you need to update it with maintenance-mode support, replace it manually."
+fi
+
+# ── Summary ────────────────────────────────────────────────────────────────
+echo ""
+log_success "Bootstrap complete"
+echo ""
+echo "Next steps:"
+echo "  1. Edit $SHARED_DIR/.env with your production configuration"
+echo "  2. Tag a stable release:  git tag -a v1.0.0 -m 'Initial release' && git push --tags"
+echo "  3. Deploy:                bash scripts/deploy.sh v1.0.0"
+echo ""
+echo "Maintenance toggle (when needed — handled by the Express app, no reload):"
+echo "  ON  : touch $SHARED_DIR/maintenance.flag"
+echo "  OFF : rm $SHARED_DIR/maintenance.flag"
+echo ""

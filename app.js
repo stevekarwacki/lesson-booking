@@ -15,11 +15,19 @@ const assetsRoutes = require('./routes/assets');
 const helpRoutes = require('./routes/help');
 const { authMiddleware, adminMiddleware, instructorMiddleware } = require('./middleware/auth');
 const { injectThemeMiddleware } = require('./middleware/themeInjection');
+const { maintenanceMiddleware } = require('./middleware/maintenance');
 const { publishableKey } = require('./config/stripe');
 
 const isDev = process.env.NODE_ENV === 'development';
 
 const app = express();
+
+// Maintenance mode — checked first, before any routing or body parsing.
+// Reads a flag file; works with any reverse proxy (Nginx, Caddy, Cloudflare
+// Tunnel) or none. Toggle: touch/rm the flag file (no server reload needed).
+if (!isDev) {
+    app.use(maintenanceMiddleware);
+}
 
 // Middleware
 app.use(express.json());
