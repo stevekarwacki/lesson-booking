@@ -4,6 +4,10 @@
 # Note: Assumes common.sh has already been sourced by parent script
 
 APP_NAME="lesson-booking"
+# Base shared dir on DEPLOY_APP_ROOT so local/staging testing works; deploy.sh
+# and rollback.sh reassign SHARED_DIR after sourcing, and reload_app recomputes
+# the ecosystem path from SHARED_DIR at call time (see reload_app below).
+SHARED_DIR="${DEPLOY_APP_ROOT:-/var/www/lesson-booking}/shared"
 
 # Install PM2
 install_pm2() {
@@ -70,6 +74,46 @@ start_app() {
         log_error "Check logs with: pm2 logs $APP_NAME"
         return 1
     fi
+}
+
+# Reload application after a symlink swap.
+#
+# By default uses PM2 + ecosystem.config.js for near-zero-downtime reload.
+# To use a different process manager, set DEPLOY_RELOAD_CMD in your environment:
+#
+#   DEPLOY_RELOAD_CMD="sudo systemctl restart lesson-booking"
+#   DEPLOY_RELOAD_CMD="docker restart lesson-booking"
+#   DEPLOY_RELOAD_CMD="supervisorctl restart lesson-booking"
+#
+# The command is run as-is; it is your responsibility to ensure it reloads
+# the process pointing at the updated `current` symlink.
+reload_app() {
+    if [ -n "${DEPLOY_RELOAD_CMD:-}" ]; then
+        log_info "Reloading application via DEPLOY_RELOAD_CMD: $DEPLOY_RELOAD_CMD"
+        eval "$DEPLOY_RELOAD_CMD"
+        log_success "Application reloaded"
+        return 0
+    fi
+
+    # Recompute from the current SHARED_DIR so DEPLOY_APP_ROOT overrides are honored.
+    local ecosystem_file="${SHARED_DIR}/ecosystem.config.js"
+
+    export PATH="/usr/local/bin:$PATH"
+    local pm2_cmd="pm2"
+    [ ! -f /usr/local/bin/pm2 ] || pm2_cmd="/usr/local/bin/pm2"
+
+    if [ -f "$ecosystem_file" ]; then
+        log_info "Reloading application via ecosystem file..."
+        if $pm2_cmd startOrReload "$ecosystem_file" --update-env >/dev/null 2>&1; then
+            $pm2_cmd save >/dev/null 2>&1
+            log_success "Application reloaded"
+            return 0
+        else
+            log_warn "startOrReload failed, falling back to restart"
+        fi
+    fi
+
+    restart_app
 }
 
 # Restart application

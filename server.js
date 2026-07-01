@@ -38,6 +38,13 @@ const startServer = async () => {
         
         ViteExpress.listen(app, port, () => {
             logger.server(`Server is running on http://localhost:${port}`);
+            // Signal PM2 that the process is fully ready (used by wait_ready: true
+            // in ecosystem.config.js). Without this, PM2 reload considers the
+            // process started after listen_timeout ms, which means the smoke test
+            // could begin before the port is actually bound.
+            if (process.send) {
+                process.send('ready');
+            }
         });
     } catch (error) {
         console.error('Failed to start server:', error);

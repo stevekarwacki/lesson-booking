@@ -2,6 +2,31 @@ const express = require('express');
 const router = express.Router();
 const { AppSettings } = require('../models/AppSettings');
 const { getThemeDefaults, getBusinessHoursDefaults } = require('../utils/constants');
+const { sequelize } = require('../db');
+
+// Lightweight health check used by deploy/rollback smoke tests.
+// Returns 200 when the server is up and the DB connection is alive.
+// A 3-second timeout on the DB ping prevents a slow/hung connection from
+// stalling the smoke test and consuming a retry window.
+router.get('/health', async (req, res) => {
+    try {
+        if (!sequelize) {
+            return res.status(503).json({ status: 'error', message: 'Database not connected' });
+        }
+        let timeoutId;
+        const timeout = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('DB ping timed out')), 3000);
+        });
+        try {
+            await Promise.race([sequelize.authenticate(), timeout]);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+        res.json({ status: 'ok' });
+    } catch (error) {
+        res.status(503).json({ status: 'error', message: error.message || 'Database unreachable' });
+    }
+});
 
 // Public endpoint to get basic business information for footer, etc.
 router.get('/business-info', async (req, res) => {
