@@ -88,7 +88,7 @@ check_prerequisites() {
         log_error "curl is required for health checks"
         exit 1
     fi
-    check_node_version 18 || exit 1
+    check_node_version 20 || exit 1
 }
 
 # ────────────────────────────────────────────────────────────────────────────
