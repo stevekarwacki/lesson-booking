@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/lib/db-backup.sh"
 
 # Override APP_ROOT for local/staging testing:
 #   DEPLOY_APP_ROOT=/tmp/lb-test bash scripts/rollback.sh
-APP_ROOT="${DEPLOY_APP_ROOT:-/var/www/lesson-booking}"
+APP_ROOT="${DEPLOY_APP_ROOT:-$APP_DEFAULT_ROOT}"
 RELEASES_DIR="$APP_ROOT/releases"
 SHARED_DIR="$APP_ROOT/shared"
 CURRENT_LINK="$APP_ROOT/current"

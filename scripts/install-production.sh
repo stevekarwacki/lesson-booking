@@ -85,13 +85,13 @@ print_summary() {
     echo ""
     echo "Management commands:"
     echo "  pm2 status              - Check status"
-    echo "  pm2 logs lesson-booking - View logs"
-    echo "  pm2 restart lesson-booking - Restart app"
+    echo "  pm2 logs $APP_NAME - View logs"
+    echo "  pm2 restart $APP_NAME - Restart app"
     echo ""
     echo "Nginx commands:"
     echo "  sudo systemctl status nginx  - Check status"
     echo "  sudo systemctl restart nginx - Restart"
-    echo "  sudo tail -f /var/log/nginx/lesson-booking-error.log"
+    echo "  sudo tail -f /var/log/nginx/${APP_NAME}-error.log"
     echo ""
     
     show_startup_reminder
@@ -107,7 +107,7 @@ print_summary() {
 # Check if the server has already been bootstrapped into releases/symlink layout.
 # Returns 0 if the new layout is in use, 1 if this is a legacy single-folder install.
 is_release_layout() {
-    [ -d "/var/www/lesson-booking/releases" ] && [ -L "/var/www/lesson-booking/current" ]
+    [ -d "$APP_DEFAULT_ROOT/releases" ] && [ -L "$APP_DEFAULT_ROOT/current" ]
 }
 
 # Main installation flow

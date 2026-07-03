@@ -3,6 +3,17 @@
 # Common utility functions for installation scripts
 # No decorations, just clean informational output
 
+# ── Application identity ───────────────────────────────────────────────────
+# Override either variable before sourcing this file (or export in the
+# environment) to re-home the app without touching every script:
+#
+#   APP_NAME=my-app APP_DEFAULT_ROOT=/opt/my-app bash scripts/deploy.sh v1.0.0
+#
+# APP_DEFAULT_ROOT defaults to /var/www/<APP_NAME> so changing just APP_NAME
+# is usually enough for a full rename.
+APP_NAME="${APP_NAME:-lesson-booking}"
+APP_DEFAULT_ROOT="${APP_DEFAULT_ROOT:-/var/www/${APP_NAME}}"
+
 # Logging functions
 log_info() {
     echo "[INFO] $1"

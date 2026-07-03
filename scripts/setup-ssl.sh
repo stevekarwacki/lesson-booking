@@ -13,7 +13,7 @@ APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Update Nginx configuration with domain
 update_nginx_domain() {
     local domain="$1"
-    local config_file="/etc/nginx/sites-available/lesson-booking"
+    local config_file="/etc/nginx/sites-available/$APP_NAME"
     
     if [ ! -f "$config_file" ]; then
         log_error "Nginx configuration not found"

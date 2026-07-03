@@ -3,11 +3,11 @@
 # PM2 process manager functions
 # Note: Assumes common.sh has already been sourced by parent script
 
-APP_NAME="lesson-booking"
+# APP_NAME and APP_DEFAULT_ROOT are defined in common.sh (sourced by callers).
 # Base shared dir on DEPLOY_APP_ROOT so local/staging testing works; deploy.sh
 # and rollback.sh reassign SHARED_DIR after sourcing, and reload_app recomputes
 # the ecosystem path from SHARED_DIR at call time (see reload_app below).
-SHARED_DIR="${DEPLOY_APP_ROOT:-/var/www/lesson-booking}/shared"
+SHARED_DIR="${DEPLOY_APP_ROOT:-$APP_DEFAULT_ROOT}/shared"
 
 # Install PM2
 install_pm2() {

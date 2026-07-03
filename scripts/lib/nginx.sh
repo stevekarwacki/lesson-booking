@@ -20,7 +20,7 @@ install_nginx() {
 configure_nginx() {
     local domain="${1:-_}"
     local port="${2:-3000}"
-    local app_name="lesson-booking"
+    local app_name="$APP_NAME"
     local config_file="/etc/nginx/sites-available/$app_name"
     local template_file="$SCRIPT_DIR/templates/nginx-site.conf"
     

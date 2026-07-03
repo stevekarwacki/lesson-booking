@@ -31,7 +31,7 @@ source "$SCRIPT_DIR/lib/db-backup.sh"
 
 # Override APP_ROOT for local/staging testing:
 #   DEPLOY_APP_ROOT=/tmp/lb-test bash scripts/deploy.sh v1.0.0
-APP_ROOT="${DEPLOY_APP_ROOT:-/var/www/lesson-booking}"
+APP_ROOT="${DEPLOY_APP_ROOT:-$APP_DEFAULT_ROOT}"
 RELEASES_DIR="$APP_ROOT/releases"
 SHARED_DIR="$APP_ROOT/shared"
 CURRENT_LINK="$APP_ROOT/current"
@@ -191,9 +191,14 @@ main() {
     log_info "Activating release: $release_dir"
     ln -sfn "$release_dir" "$CURRENT_LINK"
 
-    # Copy ecosystem file to shared if not already there (first deploy)
+    # Install ecosystem file into shared if not already there (first deploy).
+    # Use sed substitution (same as bootstrap) so APP_ROOT and APP_NAME are
+    # correct rather than a raw cp that would leave the template defaults.
     if [ ! -f "$SHARED_DIR/ecosystem.config.js" ]; then
-        cp "$SCRIPT_DIR/templates/ecosystem.config.js" "$SHARED_DIR/ecosystem.config.js"
+        sed -e "s|/var/www/lesson-booking|$APP_ROOT|g" \
+            -e "s|lesson-booking|$APP_NAME|g" \
+            "$SCRIPT_DIR/templates/ecosystem.config.js" \
+            > "$SHARED_DIR/ecosystem.config.js"
     fi
 
     reload_app
