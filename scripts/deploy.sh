@@ -122,6 +122,7 @@ prepare_release() {
     npm install --production --prefix "$release_dir" 1>&2
 
     log_info "Building frontend" 1>&2
+    rm -f "$release_dir/frontend/package-lock.json" 1>&2
     npm install --prefix "$release_dir/frontend" 1>&2
     npm run build --prefix "$release_dir/frontend" 1>&2
 
