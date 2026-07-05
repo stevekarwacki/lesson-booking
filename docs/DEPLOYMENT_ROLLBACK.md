@@ -228,6 +228,24 @@ If you do use Nginx, it's now a plain reverse proxy — no maintenance-mode logi
 
 Backup/restore is handled by a small dialect dispatch in `scripts/lib/db-backup.sh`. Adding another SQL engine (e.g. MySQL/MariaDB) is a self-contained change — add a `_backup_<engine>` / `_restore_<engine>` pair using that engine's native dump/restore CLI, plus a `case` branch in `db_backup`/`db_restore`. The deploy/rollback orchestration calls these generically and needs no changes.
 
+## Operational Notes
+
+**Run scripts with `bash`, not directly.**
+The deploy and rollback scripts are not marked executable. Always invoke them with `bash`:
+```bash
+bash scripts/deploy.sh main        # correct
+./scripts/deploy.sh main           # permission denied
+npm run deploy:release -- main     # also correct (calls bash internally)
+```
+
+**Always write Nginx config to `sites-available`:**
+```bash
+sudo tee /etc/nginx/sites-available/lesson-booking > /dev/null << 'EOF'
+...
+EOF
+sudo nginx -t && sudo nginx -s reload
+```
+
 ## Useful Commands
 
 ```bash
