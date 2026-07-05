@@ -122,9 +122,11 @@ prepare_release() {
     npm install --production --prefix "$release_dir" 1>&2
 
     log_info "Building frontend" 1>&2
-    rm -f "$release_dir/frontend/package-lock.json" 1>&2
-    npm install --prefix "$release_dir/frontend" 1>&2
-    npm run build --prefix "$release_dir/frontend" 1>&2
+    # --include=dev ensures devDependencies (vite, vue plugins, tailwind) are
+    # installed even when NODE_ENV=production is set in the environment.
+    # NODE_ENV=production is intentionally preserved for the build step so vite
+    # produces an optimised production bundle.
+    (cd "$release_dir/frontend" && rm -f package-lock.json && npm install --include=dev && npm run build) 1>&2
 
     # Symlink shared persistent state into the new release
     ln -sf "$ENV_FILE" "$release_dir/.env" 1>&2
@@ -163,6 +165,13 @@ main() {
     # ── 1. Prepare release (clone, install, build, link) ──────────────────
     local release_dir
     release_dir=$(prepare_release "$tag")
+    # Belt-and-suspenders: bash set -e doesn't always propagate through command
+    # substitution. Explicitly verify the release directory exists and contains
+    # a built frontend before proceeding with any live changes.
+    if [ -z "$release_dir" ] || [ ! -f "$release_dir/frontend/dist/index.html" ]; then
+        log_error "Release preparation failed — frontend was not built. Aborting."
+        exit 1
+    fi
 
     # ── 2. Record current release before touching anything live ───────────
     local prev_release=""
